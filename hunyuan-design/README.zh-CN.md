@@ -1,157 +1,70 @@
 <div align="center">
-  <a href="https://github.com/anncwb/vue-hunyuan-design">
-    <img alt="HunyuanAdmin Logo" width="215" src="https://unpkg.com/@vbenjs/static-source@0.1.7/source/logo-v1.webp">
-  </a>
-  <br>
-  <br>
-
-[![license](https://img.shields.io/github/license/anncwb/vue-hunyuan-design.svg)](LICENSE)
-
-  <h1>Hunyuan Design</h1>
+  <h1>混元管理前端</h1>
+  <p>基于 Vue Vben Admin 5.x，使用 Element Plus 组件库</p>
 </div>
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=vbenjs_vue-hunyuan-design&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=vbenjs_vue-hunyuan-design) ![codeql](https://github.com/hunyuan/hunyuan-design/actions/workflows/codeql.yml/badge.svg) ![build](https://github.com/hunyuan/hunyuan-design/actions/workflows/build.yml/badge.svg) ![ci](https://github.com/hunyuan/hunyuan-design/actions/workflows/ci.yml/badge.svg) ![deploy](https://github.com/hunyuan/hunyuan-design/actions/workflows/deploy.yml/badge.svg)
-
-**中文** | [English](./README.md) | [日本語](./README.ja-JP.md)
+**中文** | [English](./README.md)
 
 ## 简介
 
-Hunyuan Design 是 Hunyuan Design 的升级版本。作为一个免费开源的中后台模板，它采用了最新的 Vue 3、Vite、TypeScript 等主流技术开发，开箱即用，可用于中后台前端开发，也适合学习参考。
+本项目为混元全栈管理系统的前端部分，基于 [Vue Vben Admin](https://github.com/vbenjs/vue-vben-admin) 精简而来，仅保留 **Element Plus** 版本（`apps/web-ele`）。
 
-## 升级提示
-
-该版本为最新版本 `5.0`，与其他版本不兼容，如果你是新项目，建议使用最新版本。如果你想查看旧版本，请使用 [v2 分支](https://github.com/hunyuan/hunyuan-design/tree/v2)
-
-## 特性
-
-- **最新技术栈**：使用 Vue3/vite 等前端前沿技术开发
-- **TypeScript**：应用程序级 JavaScript 的语言
-- **主题**：提供多套主题色彩，可配置自定义主题
-- **国际化**：内置完善的国际化方案
-- **权限**：内置完善的动态路由权限生成方案
-
-## 预览
-
-- [Hunyuan Design](https://github.com/hunyuan/hunyuan-design/) - 完整版中文站点
-
-测试账号：vben/123456
-
-<div align="center">
-  <img alt="HunyuanAdmin Logo" width="100%" src="https://anncwb.github.io/anncwb/images/preview1.png">
-  <img alt="HunyuanAdmin Logo" width="100%" src="https://anncwb.github.io/anncwb/images/preview2.png">
-  <img alt="HunyuanAdmin Logo" width="100%" src="https://anncwb.github.io/anncwb/images/preview3.png">
-</div>
-
-### 使用 Gitpod
-
-在 Gitpod（适用于 GitHub 的免费在线开发环境）中打开项目，并立即开始编码。
-
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/hunyuan/hunyuan-design)
-
-## 文档
-
-[文档地址](https://github.com/hunyuan/hunyuan-design/)
+技术栈：Vue 3、Vite、TypeScript、Element Plus、Pinia、Vue Router。
 
 ## 安装使用
 
-1. 获取项目代码
+1. 安装依赖
 
 ```bash
-git clone https://github.com/hunyuan/hunyuan-design.git
-```
-
-2. 安装依赖
-
-```bash
-cd vue-hunyuan-design
+cd hunyuan-design
 npm i -g corepack
 pnpm install
 ```
 
-3. 运行
+2. 开发运行
 
 ```bash
 pnpm dev
 ```
 
-4. 打包
+默认端口 `5777`，Mock 服务默认开启（可在 `apps/web-ele/.env.development` 中配置 `VITE_NITRO_MOCK`）。
+
+3. 打包
 
 ```bash
 pnpm build
+# 或
+pnpm build:ele
 ```
 
-## 更新日志
+构建产物位于 `apps/web-ele/dist/`。
 
-[CHANGELOG](https://github.com/hunyuan/hunyuan-design/releases)
+## 项目结构
 
-## 如何贡献
+```
+hunyuan-design/
+├── apps/
+│   ├── backend-mock/   # 开发 Mock 服务
+│   └── web-ele/        # Element Plus 主应用
+├── internal/           # 内部工具与配置
+├── packages/           # 共享包
+└── scripts/            # 脚本工具
+```
 
-非常欢迎你的加入！[提一个 Issue](https://github.com/anncwb/vue-hunyuan-design/issues/new/choose) 或者提交一个 Pull Request。
+## 常用命令
 
-**Pull Request 流程：**
-
-1. Fork 代码
-2. 创建自己的分支：`git checkout -b feature/xxxx`
-3. 提交你的修改：`git commit -am 'feat(function): add xxxxx'`
-4. 推送您的分支：`git push origin feature/xxxx`
-5. 提交 `pull request`
-
-## Git 贡献提交规范
-
-参考 [vue](https://github.com/vuejs/vue/blob/dev/.github/COMMIT_CONVENTION.md) 规范 ([Angular](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-angular))
-
-- `feat` 增加新功能
-- `fix` 修复问题/BUG
-- `style` 代码风格相关无影响运行结果的
-- `perf` 优化/性能提升
-- `refactor` 重构
-- `revert` 撤销修改
-- `test` 测试相关
-- `docs` 文档/注释
-- `chore` 依赖更新/脚手架配置修改等
-- `ci` 持续集成
-- `types` 类型定义文件更改
+| 命令 | 说明 |
+|------|------|
+| `pnpm dev` | 启动 web-ele 开发服务 |
+| `pnpm build` | 构建所有包及应用 |
+| `pnpm build:ele` | 仅构建 web-ele |
+| `pnpm lint` | 代码检查 |
+| `pnpm check:type` | 类型检查 |
 
 ## 浏览器支持
 
-Tailwind CSS v4.0 is designed for Safari 16.4+, Chrome 111+, and Firefox 128+
-
-支持现代浏览器，不支持 IE
-
-| [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/edge/edge_48x48.png" alt="Edge" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Edge | [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/firefox/firefox_48x48.png" alt="Firefox" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Firefox | [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/chrome/chrome_48x48.png" alt="Chrome" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Chrome | [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/safari/safari_48x48.png" alt="Safari" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Safari |
-| :-: | :-: | :-: | :-: |
-| last 2 versions | last 2 versions | last 2 versions | last 2 versions |
-
-## 维护者
-
-[@Hunyuan](https://github.com/anncwb)
-
-## Star 历史
-
-[![Star History Chart](https://api.star-history.com/svg?repos=hunyuan/hunyuan-design&type=Date)](https://star-history.com/#hunyuan/hunyuan-design&Date)
-
-## 捐赠
-
-如果你觉得这个项目对你有帮助，你可以帮作者买一杯咖啡表示支持！
-
-![donate](https://unpkg.com/@vbenjs/static-source@0.1.7/source/sponsor.png)
-
-<a style="display: block;width: 100px;height: 50px;line-height: 50px; color: #fff;text-align: center; background: #408aed;border-radius: 4px;" href="https://www.paypal.com/paypalme/cvvben">Paypal Me</a>
-
-## 贡献者
-
-<a href="https://openomy.app/github/hunyuan/hunyuan-design" target="_blank" style="display: block; width: 100%;" align="center">
-  <img src="https://openomy.app/svg?repo=hunyuan/hunyuan-design&chart=bubble&latestMonth=3" target="_blank" alt="Contribution Leaderboard" style="display: block; width: 100%;" />
- </a>
-
-<a href="https://github.com/hunyuan/hunyuan-design/graphs/contributors">
-  <img alt="Contributors" src="https://contrib.rocks/image?repo=hunyuan/hunyuan-design" />
-</a>
-
-## Discord
-
-- [Github Discussions](https://github.com/anncwb/vue-hunyuan-design/discussions)
+支持现代浏览器（Chrome 111+、Firefox 128+、Safari 16.4+、Edge 最新两个版本），不支持 IE。
 
 ## 许可证
 
-[MIT © Hunyuan-2020](./LICENSE)
+[MIT © Vben-2020](./LICENSE)
