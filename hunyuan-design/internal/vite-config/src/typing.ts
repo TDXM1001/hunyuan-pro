@@ -344,7 +344,7 @@ type DefineLibraryOptions = (config?: ConfigEnv) => Promise<{
  */
 type DefineConfig = DefineApplicationOptions | DefineLibraryOptions;
 
-type HunyuanViteConfig = Promise<UserConfig> | UserConfig | UserConfigFnPromise;
+type VbenViteConfig = Promise<UserConfig> | UserConfig | UserConfigFnPromise;
 
 export type {
   ApplicationPluginOptions,
@@ -360,5 +360,5 @@ export type {
   LibraryPluginOptions,
   NitroMockPluginOptions,
   PrintPluginOptions,
-  HunyuanViteConfig,
+  VbenViteConfig,
 };

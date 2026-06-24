@@ -3,11 +3,11 @@ import type { DialogContentEmits, DialogContentProps } from 'reka-ui';
 
 import type { HTMLAttributes } from 'vue';
 
-import type { ClassType } from '@hunyuan-core/typings';
+import type { ClassType } from '@vben-core/typings';
 
 import { computed, ref } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { X } from '@lucide/vue';
 import {

@@ -1,11 +1,11 @@
 {
-  "name": "@hunyuan/locales",
+  "name": "@vben/locales",
   "version": "5.7.0",
-  "homepage": "https://github.com/hunyuan/hunyuan-design",
-  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "homepage": "https://github.com/vbenjs/vue-vben-admin",
+  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
     "directory": "packages/locales"
   },
   "license": "MIT",
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@intlify/core-base": "catalog:",
-    "@hunyuan-core/composables": "workspace:*",
+    "@vben-core/composables": "workspace:*",
     "vue": "catalog:",
     "vue-i18n": "catalog:"
   }

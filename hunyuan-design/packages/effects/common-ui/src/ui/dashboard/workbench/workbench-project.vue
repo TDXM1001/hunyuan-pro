@@ -6,8 +6,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  HunyuanIcon,
-} from '@hunyuan-core/shadcn-ui';
+  VbenIcon,
+} from '@vben-core/shadcn-ui';
 
 interface Props {
   items?: WorkbenchProjectItem[];
@@ -44,7 +44,7 @@ defineEmits(['click']);
           @click="$emit('click', item)"
         >
           <div class="flex items-center">
-            <HunyuanIcon
+            <VbenIcon
               :color="item.color"
               :icon="item.icon"
               class="size-8 transition-all duration-300 group-hover:scale-110"

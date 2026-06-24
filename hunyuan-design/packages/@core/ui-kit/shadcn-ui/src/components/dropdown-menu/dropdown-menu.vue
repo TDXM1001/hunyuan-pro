@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type {
   DropdownMenuProps,
-  HunyuanDropdownMenuItem as IDropdownMenuItem,
+  VbenDropdownMenuItem as IDropdownMenuItem,
 } from './interface';
 
 import {

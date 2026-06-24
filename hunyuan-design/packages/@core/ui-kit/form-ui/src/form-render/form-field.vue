@@ -16,7 +16,7 @@ import {
   watch,
 } from 'vue';
 
-import { ChevronsDown, CircleAlert } from '@hunyuan-core/icons';
+import { ChevronsDown, CircleAlert } from '@vben-core/icons';
 import {
   Button,
   FormControl,
@@ -24,11 +24,11 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  HunyuanCollapsible,
-  HunyuanRenderContent,
-  HunyuanTooltip,
-} from '@hunyuan-core/shadcn-ui';
-import { cn, isFunction, isObject, isString } from '@hunyuan-core/shared/utils';
+  VbenCollapsible,
+  VbenRenderContent,
+  VbenTooltip,
+} from '@vben-core/shadcn-ui';
+import { cn, isFunction, isObject, isString } from '@vben-core/shared/utils';
 
 import { toTypedSchema } from '@vee-validate/zod';
 import { useFieldError, useFormValues } from 'vee-validate';
@@ -368,7 +368,7 @@ onUnmounted(() => {
         :style="labelStyle"
       >
         <template v-if="label">
-          <HunyuanRenderContent :content="label" />
+          <VbenRenderContent :content="label" />
         </template>
         <template #extra>
           <Button
@@ -389,7 +389,7 @@ onUnmounted(() => {
         </template>
       </FormLabel>
       <div class="flex-auto overflow-hidden p-px">
-        <HunyuanCollapsible :show-trigger="false" v-model:open="collapseOpen">
+        <VbenCollapsible :show-trigger="false" v-model:open="collapseOpen">
           <template #collapsibleContent>
             <div :class="cn('relative flex w-full items-center', wrapperClass)">
               <FormControl :class="cn(controlClass)">
@@ -416,14 +416,14 @@ onUnmounted(() => {
                       :key="name"
                       #[name]="renderSlotProps"
                     >
-                      <HunyuanRenderContent
+                      <VbenRenderContent
                         :content="customContentRender[name]"
                         v-bind="{ ...renderSlotProps, formContext: slotProps }"
                       />
                     </template>
                     <!-- <slot></slot> -->
                   </component>
-                  <HunyuanTooltip
+                  <VbenTooltip
                     v-if="compact && isInValid"
                     :delay-duration="300"
                     side="left"
@@ -440,19 +440,19 @@ onUnmounted(() => {
                       </slot>
                     </template>
                     <FormMessage />
-                  </HunyuanTooltip>
+                  </VbenTooltip>
                 </slot>
               </FormControl>
               <!-- 自定义后缀 -->
               <div v-if="suffix" class="ml-1">
-                <HunyuanRenderContent :content="suffix" />
+                <VbenRenderContent :content="suffix" />
               </div>
             </div>
           </template>
-        </HunyuanCollapsible>
+        </VbenCollapsible>
 
         <FormDescription v-if="description" class="text-xs">
-          <HunyuanRenderContent :content="description" />
+          <VbenRenderContent :content="description" />
         </FormDescription>
 
         <Transition name="slide-up" v-if="!compact">

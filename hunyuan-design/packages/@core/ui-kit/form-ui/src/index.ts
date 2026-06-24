@@ -1,14 +1,14 @@
-export { setupHunyuanForm } from './config';
+export { setupVbenForm } from './config';
 
 export type {
   BaseFormComponentType,
   ExtendedFormApi,
   FormLayout,
-  HunyuanFormFieldArrayProps,
-  HunyuanFormProps,
-  FormSchema as HunyuanFormSchema,
+  VbenFormFieldArrayProps,
+  VbenFormProps,
+  FormSchema as VbenFormSchema,
 } from './types';
 
-export * from './use-hunyuan-form';
-// export { default as HunyuanForm } from './hunyuan-form.vue';
+export * from './use-vben-form';
+// export { default as VbenForm } from './vben-form.vue';
 export * as z from 'zod';

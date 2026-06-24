@@ -4,7 +4,7 @@ import type { Component } from 'vue';
 
 import type { ButtonVariants } from '../../ui';
 
-export interface HunyuanButtonProps {
+export interface VbenButtonProps {
   /**
    * The element or component this component should render as. Can be overwrite by `asChild`
    * @defaultValue "div"
@@ -27,8 +27,8 @@ export type CustomRenderType = (() => Component | string) | string;
 
 export type ValueType = boolean | number | string;
 
-export interface HunyuanButtonGroupProps extends Pick<
-  HunyuanButtonProps,
+export interface VbenButtonGroupProps extends Pick<
+  VbenButtonProps,
   'disabled'
 > {
   /** 单选模式下允许清除选中 */

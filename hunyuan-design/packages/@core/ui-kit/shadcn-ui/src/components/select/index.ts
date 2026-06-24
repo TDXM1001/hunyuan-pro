@@ -1,1 +1,1 @@
-export { default as HunyuanSelect } from './select.vue';
+export { default as VbenSelect } from './select.vue';

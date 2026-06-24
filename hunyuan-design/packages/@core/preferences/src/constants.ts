@@ -1,4 +1,4 @@
-import type { BuiltinThemeType, TimezoneOption } from '@hunyuan-core/typings';
+import type { BuiltinThemeType, TimezoneOption } from '@vben-core/typings';
 
 interface BuiltinThemePreset {
   color: string;

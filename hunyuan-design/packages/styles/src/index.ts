@@ -1,1 +1,1 @@
-import '@hunyuan-core/design';
+import '@vben-core/design';

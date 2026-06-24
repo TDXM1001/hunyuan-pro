@@ -3,11 +3,11 @@ import type { ActionItem } from './types';
 
 import { computed, ref } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui';
-import { HunyuanButton } from '../button';
-import { HunyuanIcon } from '../icon';
+import { VbenButton } from '../button';
+import { VbenIcon } from '../icon';
 
 const props = defineProps<{ action: ActionItem }>();
 
@@ -48,7 +48,7 @@ function onCancel() {
   <!-- 气泡确认 -->
   <Popover v-if="action.popConfirm" v-model:open="open">
     <PopoverTrigger as-child>
-      <HunyuanButton
+      <VbenButton
         :class="buttonClass"
         :disabled="action.disabled"
         :loading="action.loading"
@@ -56,32 +56,32 @@ function onCancel() {
         class="p-2"
         :variant="variant"
       >
-        <HunyuanIcon :icon="action.icon" v-if="action.icon" class="size-4" />
+        <VbenIcon :icon="action.icon" v-if="action.icon" class="size-4" />
         <span v-if="action.text">{{ action.text }}</span>
-      </HunyuanButton>
+      </VbenButton>
     </PopoverTrigger>
     <PopoverContent class="z-popup w-60" side="top">
       <div class="text-foreground mb-3 text-sm">
         {{ action.popConfirm.title ?? 'Are you sure?' }}
       </div>
       <div class="flex justify-end gap-2">
-        <HunyuanButton size="default" variant="outline" @click="onCancel">
+        <VbenButton size="default" variant="outline" @click="onCancel">
           {{ action.popConfirm.cancelText ?? 'Cancel' }}
-        </HunyuanButton>
-        <HunyuanButton
+        </VbenButton>
+        <VbenButton
           :variant="action.danger ? 'destructive' : 'default'"
           size="default"
           class="p-2"
           @click="onConfirm"
         >
           {{ action.popConfirm.okText ?? 'OK' }}
-        </HunyuanButton>
+        </VbenButton>
       </div>
     </PopoverContent>
   </Popover>
 
   <!-- 普通按钮 -->
-  <HunyuanButton
+  <VbenButton
     v-else
     :class="buttonClass"
     :disabled="action.disabled"
@@ -91,7 +91,7 @@ function onCancel() {
     :variant="variant"
     @click="onClick"
   >
-    <HunyuanIcon :icon="action.icon" v-if="action.icon" class="size-4" />
+    <VbenIcon :icon="action.icon" v-if="action.icon" class="size-4" />
     <span v-if="action.text">{{ action.text }}</span>
-  </HunyuanButton>
+  </VbenButton>
 </template>

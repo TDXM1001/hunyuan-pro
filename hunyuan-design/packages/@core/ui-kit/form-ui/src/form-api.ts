@@ -7,13 +7,13 @@ import type {
 
 import type { ComponentPublicInstance } from 'vue';
 
-import type { Recordable } from '@hunyuan-core/typings';
+import type { Recordable } from '@vben-core/typings';
 
-import type { FormActions, FormSchema, HunyuanFormProps } from './types';
+import type { FormActions, FormSchema, VbenFormProps } from './types';
 
 import { isRef, toRaw } from 'vue';
 
-import { Store } from '@hunyuan-core/shared/store';
+import { Store } from '@vben-core/shared/store';
 import {
   bindMethods,
   cloneDeep,
@@ -27,11 +27,11 @@ import {
   mergeWithArrayOverride,
   set,
   StateHandler,
-} from '@hunyuan-core/shared/utils';
+} from '@vben-core/shared/utils';
 
 import { resolveFieldNamePath } from './field-name';
 
-function getDefaultState(): HunyuanFormProps {
+function getDefaultState(): VbenFormProps {
   return {
     actionWrapperClass: '',
     collapsed: false,
@@ -56,14 +56,14 @@ function getDefaultState(): HunyuanFormProps {
 }
 
 export class FormApi {
-  // private api: Pick<HunyuanFormProps, 'handleReset' | 'handleSubmit'>;
+  // private api: Pick<VbenFormProps, 'handleReset' | 'handleSubmit'>;
   public form = {} as FormActions;
   isMounted = false;
 
-  public state: null | HunyuanFormProps = null;
+  public state: null | VbenFormProps = null;
   stateHandler: StateHandler;
 
-  public store: Store<HunyuanFormProps>;
+  public store: Store<VbenFormProps>;
 
   /**
    * 组件实例映射
@@ -73,14 +73,14 @@ export class FormApi {
   // 最后一次点击提交时的表单值
   private latestSubmissionValues: null | Recordable<any> = null;
 
-  private prevState: null | HunyuanFormProps = null;
+  private prevState: null | VbenFormProps = null;
 
-  constructor(options: HunyuanFormProps = {}) {
+  constructor(options: VbenFormProps = {}) {
     const { ...storeState } = options;
 
     const defaultState = getDefaultState();
 
-    this.store = new Store<HunyuanFormProps>({
+    this.store = new Store<VbenFormProps>({
       ...defaultState,
       ...storeState,
     });
@@ -310,8 +310,8 @@ export class FormApi {
 
   setState(
     stateOrFn:
-      | ((prev: HunyuanFormProps) => Partial<HunyuanFormProps>)
-      | Partial<HunyuanFormProps>,
+      | ((prev: VbenFormProps) => Partial<VbenFormProps>)
+      | Partial<VbenFormProps>,
   ) {
     if (isFunction(stateOrFn)) {
       this.store.setState((prev) => {
@@ -498,7 +498,7 @@ export class FormApi {
       await this.stateHandler.waitForCondition();
     }
     if (!this.form?.meta) {
-      throw new Error('<HunyuanForm /> is not mounted');
+      throw new Error('<VbenForm /> is not mounted');
     }
     return this.form;
   }

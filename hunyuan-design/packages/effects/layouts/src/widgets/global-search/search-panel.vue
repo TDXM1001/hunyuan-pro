@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { MenuRecordRaw } from '@hunyuan/types';
+import type { MenuRecordRaw } from '@vben/types';
 
 import { nextTick, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { SearchX, X } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
-import { mapTree, traverseTreeValues, uniqueByField } from '@hunyuan/utils';
+import { SearchX, X } from '@vben/icons';
+import { $t } from '@vben/locales';
+import { mapTree, traverseTreeValues, uniqueByField } from '@vben/utils';
 
-import { HunyuanIcon, HunyuanScrollbar } from '@hunyuan-core/shadcn-ui';
-import { isHttpUrl } from '@hunyuan-core/shared/utils';
+import { VbenIcon, VbenScrollbar } from '@vben-core/shadcn-ui';
+import { isHttpUrl } from '@vben-core/shared/utils';
 
 import {
   onKeyStroke,
@@ -237,7 +237,7 @@ useEventListener('mousemove', () => {
 </script>
 
 <template>
-  <HunyuanScrollbar>
+  <VbenScrollbar>
     <div class="flex! h-full justify-center px-2 sm:max-h-112.5">
       <!-- 无搜索结果 -->
       <div
@@ -283,7 +283,7 @@ useEventListener('mousemove', () => {
           @click="handleEnter"
           @mouseenter="handleMouseenter"
         >
-          <HunyuanIcon :icon="item.icon" class="mr-2 size-5 shrink-0" fallback />
+          <VbenIcon :icon="item.icon" class="mr-2 size-5 shrink-0" fallback />
 
           <span class="flex-1">{{ item.name }}</span>
           <div
@@ -295,5 +295,5 @@ useEventListener('mousemove', () => {
         </li>
       </ul>
     </div>
-  </HunyuanScrollbar>
+  </VbenScrollbar>
 </template>

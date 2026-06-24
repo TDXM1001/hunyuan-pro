@@ -1,22 +1,22 @@
 <script lang="ts" setup>
-import type { TabDefinition } from '@hunyuan-core/typings';
+import type { TabDefinition } from '@vben-core/typings';
 
 import type { TabConfig, TabsProps } from '../../types';
 
 import { computed } from 'vue';
 
-import { Pin, X } from '@hunyuan-core/icons';
-import { HunyuanContextMenu, HunyuanIcon } from '@hunyuan-core/shadcn-ui';
+import { Pin, X } from '@vben-core/icons';
+import { VbenContextMenu, VbenIcon } from '@vben-core/shadcn-ui';
 
 interface Props extends TabsProps {}
 
 defineOptions({
-  name: 'HunyuanTabs',
+  name: 'VbenTabs',
 
   inheritAttrs: false,
 });
 const props = withDefaults(defineProps<Props>(), {
-  contentClass: 'hunyuan-tabs-content',
+  contentClass: 'vben-tabs-content',
   contextMenus: () => [],
   tabs: () => [],
 });
@@ -101,7 +101,7 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
         @click="active = tab.key"
         @mousedown="onMouseDown($event, tab)"
       >
-        <HunyuanContextMenu
+        <VbenContextMenu
           :handler-data="tab"
           :menus="contextMenus"
           :modal="false"
@@ -129,7 +129,7 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
             <div
               class="mx-3 mr-4 flex h-full items-center overflow-hidden rounded-tl-[5px] rounded-tr-[5px] pr-3 text-accent-foreground transition-all duration-300 group-[.is-active]:text-primary group-[.is-active]:dark:text-accent-foreground"
             >
-              <HunyuanIcon
+              <VbenIcon
                 v-if="showIcon"
                 :icon="tab.icon"
                 class="mr-2 flex size-4 items-center overflow-hidden group-hover:animate-[shrink_0.3s_ease-in-out]"
@@ -141,7 +141,7 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
               </span>
             </div>
           </div>
-        </HunyuanContextMenu>
+        </VbenContextMenu>
       </div>
     </TransitionGroup>
   </div>

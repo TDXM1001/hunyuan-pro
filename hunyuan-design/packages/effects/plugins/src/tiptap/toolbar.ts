@@ -27,11 +27,11 @@ import {
   Underline,
   Undo2,
   Unlink2,
-} from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
-import { COLOR_PRESETS } from '@hunyuan/preferences';
+} from '@vben/icons';
+import { $t } from '@vben/locales';
+import { COLOR_PRESETS } from '@vben/preferences';
 
-import { prompt } from '@hunyuan-core/popup-ui';
+import { prompt } from '@vben-core/popup-ui';
 
 const headingLevels = [1, 2, 3, 4] as const;
 const editorColorPresets = [

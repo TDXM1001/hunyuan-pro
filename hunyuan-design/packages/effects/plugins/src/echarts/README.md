@@ -14,13 +14,13 @@ ECharts 图表插件，预置常用组件和图表类型。
 ## 使用
 
 ```ts
-import { EchartsUI, useEcharts, ECOption } from '@hunyuan/plugins/echarts';
+import { EchartsUI, useEcharts, ECOption } from '@vben/plugins/echarts';
 ```
 
 ## 类型
 
 ```ts
-import type { ECOption } from '@hunyuan/plugins/echarts';
+import type { ECOption } from '@vben/plugins/echarts';
 ```
 
 ## 预置组件

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { HunyuanAvatar } from '@hunyuan-core/shadcn-ui';
+import { VbenAvatar } from '@vben-core/shadcn-ui';
 
 interface Props {
   avatar?: string;
@@ -15,7 +15,7 @@ withDefaults(defineProps<Props>(), {
 </script>
 <template>
   <div class="card-box p-4 py-6 lg:flex">
-    <HunyuanAvatar v-if="avatar" :src="avatar" class="size-20" />
+    <VbenAvatar v-if="avatar" :src="avatar" class="size-20" />
     <div
       v-if="$slots.title || $slots.description"
       class="flex flex-col justify-center md:mt-0 md:ml-6"

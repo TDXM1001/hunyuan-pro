@@ -3,13 +3,13 @@ import type { Component } from 'vue';
 
 import { computed } from 'vue';
 
-import { IconDefault, IconifyIcon } from '@hunyuan-core/icons';
+import { IconDefault, IconifyIcon } from '@vben-core/icons';
 import {
   isFunction,
   isHttpUrl,
   isObject,
   isString,
-} from '@hunyuan-core/shared/utils';
+} from '@vben-core/shared/utils';
 
 const props = defineProps<{
   // 没有是否显示默认图标

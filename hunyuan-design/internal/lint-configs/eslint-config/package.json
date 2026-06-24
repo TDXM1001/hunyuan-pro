@@ -1,12 +1,12 @@
 {
-  "name": "@hunyuan/eslint-config",
+  "name": "@vben/eslint-config",
   "version": "5.7.0",
   "private": true,
-  "homepage": "https://github.com/hunyuan/hunyuan-design",
-  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "homepage": "https://github.com/vbenjs/vue-vben-admin",
+  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
     "directory": "internal/lint-configs/eslint-config"
   },
   "license": "MIT",
@@ -29,7 +29,7 @@
   "dependencies": {
     "@eslint/js": "catalog:",
     "@typescript-eslint/parser": "catalog:",
-    "@hunyuan/oxlint-config": "workspace:*",
+    "@vben/oxlint-config": "workspace:*",
     "eslint": "catalog:",
     "eslint-plugin-jsonc": "catalog:",
     "eslint-plugin-n": "catalog:",

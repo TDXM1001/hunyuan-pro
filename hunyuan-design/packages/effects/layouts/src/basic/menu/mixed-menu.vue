@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import type { MenuRecordRaw } from '@hunyuan/types';
+import type { MenuRecordRaw } from '@vben/types';
 
-import type { NormalMenuProps } from '@hunyuan-core/menu-ui';
+import type { NormalMenuProps } from '@vben-core/menu-ui';
 
 import { onBeforeMount } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { findMenuByPath } from '@hunyuan/utils';
+import { findMenuByPath } from '@vben/utils';
 
-import { NormalMenu } from '@hunyuan-core/menu-ui';
+import { NormalMenu } from '@vben-core/menu-ui';
 
 interface Props extends NormalMenuProps {}
 

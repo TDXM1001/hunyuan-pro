@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { HunyuanButtonProps } from './button';
+import type { VbenButtonProps } from './button';
 
 import { computed } from 'vue';
 
-import { LoaderCircle } from '@hunyuan-core/icons';
-import { cn } from '@hunyuan-core/shared/utils';
+import { LoaderCircle } from '@vben-core/icons';
+import { cn } from '@vben-core/shared/utils';
 
 import { Primitive } from 'reka-ui';
 
 import { buttonVariants } from '../../ui';
 
-interface Props extends HunyuanButtonProps {}
+interface Props extends VbenButtonProps {}
 
 const props = withDefaults(defineProps<Props>(), {
   as: 'button',

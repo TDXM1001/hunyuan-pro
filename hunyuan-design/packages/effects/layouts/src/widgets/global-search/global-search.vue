@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MenuRecordRaw } from '@hunyuan/types';
+import type { MenuRecordRaw } from '@vben/types';
 
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -9,11 +9,11 @@ import {
   CornerDownLeft,
   MdiKeyboardEsc,
   Search,
-} from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
-import { isWindowsOs } from '@hunyuan/utils';
+} from '@vben/icons';
+import { $t } from '@vben/locales';
+import { isWindowsOs } from '@vben/utils';
 
-import { useHunyuanModal } from '@hunyuan-core/popup-ui';
+import { useVbenModal } from '@vben-core/popup-ui';
 
 import { useMagicKeys, whenever } from '@vueuse/core';
 
@@ -34,7 +34,7 @@ const props = withDefaults(
 const keyword = ref('');
 const searchInputRef = ref<HTMLInputElement>();
 
-const [Modal, modalApi] = useHunyuanModal({
+const [Modal, modalApi] = useVbenModal({
   onCancel() {
     modalApi.close();
   },

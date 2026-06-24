@@ -15,8 +15,8 @@ import {
   useIsMobile,
   usePriorityValues,
   useSimpleLocale,
-} from '@hunyuan-core/composables';
-import { X } from '@hunyuan-core/icons';
+} from '@vben-core/composables';
+import { X } from '@vben-core/icons';
 import {
   Separator,
   Sheet,
@@ -26,15 +26,15 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-  HunyuanButton,
-  HunyuanHelpTooltip,
-  HunyuanIconButton,
-  HunyuanLoading,
+  VbenButton,
+  VbenHelpTooltip,
+  VbenIconButton,
+  VbenLoading,
   VisuallyHidden,
-} from '@hunyuan-core/shadcn-ui';
-import { ELEMENT_ID_MAIN_CONTENT } from '@hunyuan-core/shared/constants';
-import { globalShareState } from '@hunyuan-core/shared/global-state';
-import { cn } from '@hunyuan-core/shared/utils';
+} from '@vben-core/shadcn-ui';
+import { ELEMENT_ID_MAIN_CONTENT } from '@vben-core/shared/constants';
+import { globalShareState } from '@vben-core/shared/global-state';
+import { cn } from '@vben-core/shared/utils';
 
 interface Props extends DrawerProps {
   drawerApi?: ExtendedDrawerApi;
@@ -232,9 +232,9 @@ const getForceMount = computed(() => {
             class="ml-0.5 cursor-pointer rounded-full opacity-80 transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary"
           >
             <slot name="close-icon">
-              <HunyuanIconButton>
+              <VbenIconButton>
                 <X class="size-4" />
-              </HunyuanIconButton>
+              </VbenIconButton>
             </slot>
           </SheetClose>
           <Separator
@@ -247,9 +247,9 @@ const getForceMount = computed(() => {
             <slot name="title">
               {{ title }}
 
-              <HunyuanHelpTooltip v-if="titleTooltip" trigger-class="pb-1">
+              <VbenHelpTooltip v-if="titleTooltip" trigger-class="pb-1">
                 {{ titleTooltip }}
-              </HunyuanHelpTooltip>
+              </VbenHelpTooltip>
             </slot>
           </SheetTitle>
           <SheetDescription v-if="description" class="mt-1 text-xs">
@@ -273,9 +273,9 @@ const getForceMount = computed(() => {
             class="ml-0.5 cursor-pointer rounded-full opacity-80 transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary"
           >
             <slot name="close-icon">
-              <HunyuanIconButton>
+              <VbenIconButton>
                 <X class="size-4" />
-              </HunyuanIconButton>
+              </VbenIconButton>
             </slot>
           </SheetClose>
         </div>
@@ -296,7 +296,7 @@ const getForceMount = computed(() => {
       >
         <slot></slot>
       </div>
-      <HunyuanLoading v-if="showLoading || submitting" spinning />
+      <VbenLoading v-if="showLoading || submitting" spinning />
       <SheetFooter
         v-if="showFooter"
         :class="
@@ -309,7 +309,7 @@ const getForceMount = computed(() => {
         <slot name="prepend-footer"></slot>
         <slot name="footer">
           <component
-            :is="components.DefaultButton || HunyuanButton"
+            :is="components.DefaultButton || VbenButton"
             v-if="showCancelButton"
             variant="ghost"
             :disabled="submitting"
@@ -321,7 +321,7 @@ const getForceMount = computed(() => {
           </component>
           <slot name="center-footer"></slot>
           <component
-            :is="components.PrimaryButton || HunyuanButton"
+            :is="components.PrimaryButton || VbenButton"
             v-if="showConfirmButton"
             :loading="confirmLoading || submitting"
             @click="() => drawerApi?.onConfirm()"

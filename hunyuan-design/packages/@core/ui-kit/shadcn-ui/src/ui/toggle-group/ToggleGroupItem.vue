@@ -6,7 +6,7 @@ import type { HTMLAttributes } from 'vue';
 
 import { inject } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { reactiveOmit } from '@vueuse/core';
 import { ToggleGroupItem, useForwardProps } from 'reka-ui';

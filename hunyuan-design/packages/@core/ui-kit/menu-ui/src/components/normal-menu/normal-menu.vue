@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { MenuRecordRaw } from '@hunyuan-core/typings';
+import type { MenuRecordRaw } from '@vben-core/typings';
 
 import type { NormalMenuProps } from './normal-menu';
 
-import { useNamespace } from '@hunyuan-core/composables';
-import { HunyuanIcon } from '@hunyuan-core/shadcn-ui';
+import { useNamespace } from '@vben-core/composables';
+import { VbenIcon } from '@vben-core/shadcn-ui';
 
 interface Props extends NormalMenuProps {}
 
@@ -50,7 +50,7 @@ function menuIcon(menu: MenuRecordRaw) {
         @click="() => emit('select', menu)"
         @mouseenter="() => emit('enter', menu)"
       >
-        <HunyuanIcon :class="e('icon')" :icon="menuIcon(menu)" fallback />
+        <VbenIcon :class="e('icon')" :icon="menuIcon(menu)" fallback />
 
         <span :class="e('name')" class="truncate"> {{ menu.name }}</span>
       </li>
@@ -58,9 +58,9 @@ function menuIcon(menu: MenuRecordRaw) {
   </ul>
 </template>
 <style scoped>
-@reference "@hunyuan/tailwind-config/theme";
+@reference "@vben/tailwind-config/theme";
 
-.hunyuan-normal-menu {
+.vben-normal-menu {
   --menu-item-margin-y: 4px;
   --menu-item-margin-x: 0px;
   --menu-item-padding-y: 9px;
@@ -70,29 +70,29 @@ function menuIcon(menu: MenuRecordRaw) {
   height: calc(100% - 4px);
 }
 
-.hunyuan-normal-menu.is-rounded {
+.vben-normal-menu.is-rounded {
   --menu-item-radius: 6px;
   --menu-item-margin-x: 8px;
 }
 
-.hunyuan-normal-menu.is-dark .hunyuan-normal-menu__item {
+.vben-normal-menu.is-dark .vben-normal-menu__item {
   @apply text-foreground/80;
 }
 
-.hunyuan-normal-menu.is-dark .hunyuan-normal-menu__item:not(.is-active):hover {
+.vben-normal-menu.is-dark .vben-normal-menu__item:not(.is-active):hover {
   @apply text-foreground;
 }
 
-.hunyuan-normal-menu.is-dark
-  .hunyuan-normal-menu__item.is-active
-  .hunyuan-normal-menu__name,
-.hunyuan-normal-menu.is-dark
-  .hunyuan-normal-menu__item.is-active
-  .hunyuan-normal-menu__icon {
+.vben-normal-menu.is-dark
+  .vben-normal-menu__item.is-active
+  .vben-normal-menu__name,
+.vben-normal-menu.is-dark
+  .vben-normal-menu__item.is-active
+  .vben-normal-menu__icon {
   @apply text-foreground;
 }
 
-.hunyuan-normal-menu.is-collapse .hunyuan-normal-menu__name {
+.vben-normal-menu.is-collapse .vben-normal-menu__name {
   width: 0;
   height: 0;
   margin-top: 0;
@@ -100,11 +100,11 @@ function menuIcon(menu: MenuRecordRaw) {
   opacity: 0;
 }
 
-.hunyuan-normal-menu.is-collapse .hunyuan-normal-menu__icon {
+.vben-normal-menu.is-collapse .vben-normal-menu__icon {
   font-size: calc(var(--font-size-base, 16px) * 1.25);
 }
 
-.hunyuan-normal-menu__item {
+.vben-normal-menu__item {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -125,31 +125,31 @@ function menuIcon(menu: MenuRecordRaw) {
     border-color 0.15s ease;
 }
 
-.hunyuan-normal-menu__item.is-active {
+.vben-normal-menu__item.is-active {
   @apply bg-primary text-primary dark:bg-accent;
 }
 
-.hunyuan-normal-menu__item.is-active .hunyuan-normal-menu__name,
-.hunyuan-normal-menu__item.is-active .hunyuan-normal-menu__icon {
+.vben-normal-menu__item.is-active .vben-normal-menu__name,
+.vben-normal-menu__item.is-active .vben-normal-menu__icon {
   @apply text-primary-foreground font-semibold;
 }
 
-.hunyuan-normal-menu__item:not(.is-active):hover {
+.vben-normal-menu__item:not(.is-active):hover {
   @apply bg-heavy text-primary dark:bg-accent dark:text-foreground;
 }
 
-.hunyuan-normal-menu__item:hover .hunyuan-normal-menu__icon {
+.vben-normal-menu__item:hover .vben-normal-menu__icon {
   transform: scale(1.2);
 }
 
-.hunyuan-normal-menu__icon {
+.vben-normal-menu__icon {
   @apply max-h-5;
 
   font-size: calc(var(--font-size-base, 16px) * 1.25);
   transition: all 0.25s ease;
 }
 
-.hunyuan-normal-menu__name {
+.vben-normal-menu__name {
   @apply mt-2;
 
   width: 100%;

@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { BuiltinThemeType } from '@hunyuan/types';
+import type { BuiltinThemeType } from '@vben/types';
 
-import { Palette } from '@hunyuan/icons';
+import { Palette } from '@vben/icons';
 import {
   COLOR_PRESETS,
   preferences,
   updatePreferences,
-} from '@hunyuan/preferences';
+} from '@vben/preferences';
 
-import { HunyuanIconButton } from '@hunyuan-core/shadcn-ui';
+import { VbenIconButton } from '@vben-core/shadcn-ui';
 
 defineOptions({
   name: 'AuthenticationColorToggle',
@@ -30,7 +30,7 @@ function handleUpdate(colorPrimary: string, type: BuiltinThemeType) {
       class="flex w-0 overflow-hidden transition-all duration-500 ease-out group-hover:w-60"
     >
       <template v-for="preset in COLOR_PRESETS" :key="preset.color">
-        <HunyuanIconButton
+        <VbenIconButton
           class="flex-center shrink-0"
           @click="handleUpdate(preset.color, preset.type)"
         >
@@ -53,12 +53,12 @@ function handleUpdate(colorPrimary: string, type: BuiltinThemeType) {
               />
             </svg>
           </div>
-        </HunyuanIconButton>
+        </VbenIconButton>
       </template>
     </div>
 
-    <HunyuanIconButton>
+    <VbenIconButton>
       <Palette class="size-4 text-primary" />
-    </HunyuanIconButton>
+    </VbenIconButton>
   </div>
 </template>

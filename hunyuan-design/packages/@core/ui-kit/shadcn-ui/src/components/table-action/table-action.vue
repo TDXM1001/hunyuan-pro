@@ -3,8 +3,8 @@ import type { ActionItem, TableActionProps } from './types';
 
 import { computed, ref } from 'vue';
 
-import { Ellipsis } from '@hunyuan-core/icons';
-import { cn } from '@hunyuan-core/shared/utils';
+import { Ellipsis } from '@vben-core/icons';
+import { cn } from '@vben-core/shared/utils';
 
 import {
   DropdownMenu,
@@ -17,12 +17,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../../ui';
-import { HunyuanButton } from '../button';
-import { HunyuanIcon } from '../icon';
+import { VbenButton } from '../button';
+import { VbenIcon } from '../icon';
 import ActionDropdownItemComp from './action-dropdown-item.vue';
 import ActionItemComp from './action-item.vue';
 
-defineOptions({ name: 'HunyuanTableAction' });
+defineOptions({ name: 'VbenTableAction' });
 
 const props = withDefaults(defineProps<TableActionProps>(), {
   actions: () => [],
@@ -138,7 +138,7 @@ function onContentInteractOutside(event: Event) {
         <!-- 带提示的普通按钮 -->
         <Tooltip v-else-if="item.hasTooltip">
           <TooltipTrigger as-child tabindex="-1">
-            <HunyuanButton
+            <VbenButton
               :class="item.buttonClass"
               :disabled="item.action.disabled"
               :loading="item.action.loading"
@@ -146,13 +146,13 @@ function onContentInteractOutside(event: Event) {
               :variant="item.variant"
               @click="onActionClick(item.action)"
             >
-              <HunyuanIcon
+              <VbenIcon
                 v-if="item.action.icon"
                 :icon="item.action.icon"
                 class="size-4"
               />
               <span v-if="item.action.text">{{ item.action.text }}</span>
-            </HunyuanButton>
+            </VbenButton>
           </TooltipTrigger>
           <TooltipContent
             :side="item.tooltipSide"
@@ -163,7 +163,7 @@ function onContentInteractOutside(event: Event) {
         </Tooltip>
 
         <!-- 普通按钮 -->
-        <HunyuanButton
+        <VbenButton
           v-else
           :class="item.buttonClass"
           :disabled="item.action.disabled"
@@ -172,13 +172,13 @@ function onContentInteractOutside(event: Event) {
           :variant="item.variant"
           @click="onActionClick(item.action)"
         >
-          <HunyuanIcon
+          <VbenIcon
             v-if="item.action.icon"
             :icon="item.action.icon"
             class="size-4"
           />
           <span v-if="item.action.text">{{ item.action.text }}</span>
-        </HunyuanButton>
+        </VbenButton>
 
         <Separator v-if="item.showDivider" orientation="vertical" class="h-4" />
       </template>
@@ -189,10 +189,10 @@ function onContentInteractOutside(event: Event) {
       v-model:open="dropdownOpen"
     >
       <DropdownMenuTrigger as-child>
-        <HunyuanButton class="gap-1 p-2" variant="link">
+        <VbenButton class="gap-1 p-2" variant="link">
           <Ellipsis class="size-4" />
           <span v-if="moreText">{{ moreText }}</span>
-        </HunyuanButton>
+        </VbenButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"

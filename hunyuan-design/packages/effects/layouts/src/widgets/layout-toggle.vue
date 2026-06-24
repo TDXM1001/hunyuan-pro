@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import type { AuthPageLayoutType } from '@hunyuan/types';
+import type { AuthPageLayoutType } from '@vben/types';
 
-import type { HunyuanDropdownMenuItem } from '@hunyuan-core/shadcn-ui';
+import type { VbenDropdownMenuItem } from '@vben-core/shadcn-ui';
 
 import { computed } from 'vue';
 
-import { InspectionPanel, PanelLeft, PanelRight } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { InspectionPanel, PanelLeft, PanelRight } from '@vben/icons';
+import { $t } from '@vben/locales';
 import {
   preferences,
   updatePreferences,
   usePreferences,
-} from '@hunyuan/preferences';
+} from '@vben/preferences';
 
-import { HunyuanDropdownRadioMenu, HunyuanIconButton } from '@hunyuan-core/shadcn-ui';
+import { VbenDropdownRadioMenu, VbenIconButton } from '@vben-core/shadcn-ui';
 
 defineOptions({
   name: 'AuthenticationLayoutToggle',
 });
 
-const menus = computed((): HunyuanDropdownMenuItem[] => [
+const menus = computed((): VbenDropdownMenuItem[] => [
   {
     icon: PanelLeft,
     label: $t('authentication.layout.alignLeft'),
@@ -50,15 +50,15 @@ function handleUpdate(value: string | undefined) {
 </script>
 
 <template>
-  <HunyuanDropdownRadioMenu
+  <VbenDropdownRadioMenu
     :menus="menus"
     :model-value="preferences.app.authPageLayout"
     @update:model-value="handleUpdate"
   >
-    <HunyuanIconButton>
+    <VbenIconButton>
       <PanelRight v-if="authPanelRight" class="size-4" />
       <PanelLeft v-if="authPanelLeft" class="size-4" />
       <InspectionPanel v-if="authPanelCenter" class="size-4" />
-    </HunyuanIconButton>
-  </HunyuanDropdownRadioMenu>
+    </VbenIconButton>
+  </VbenDropdownRadioMenu>
 </template>

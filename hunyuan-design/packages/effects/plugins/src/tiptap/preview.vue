@@ -3,7 +3,7 @@ import type { TipTapPreviewProps } from './types';
 
 import { computed } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import './style.css';
 const props = withDefaults(defineProps<TipTapPreviewProps>(), {
@@ -17,7 +17,7 @@ const contentMinHeight = computed(() =>
 );
 const previewClass = computed(() =>
   cn(
-    'hunyuan-tiptap-content',
+    'vben-tiptap-content',
     'text-foreground bg-transparent p-0 leading-7',
     props.class,
   ),

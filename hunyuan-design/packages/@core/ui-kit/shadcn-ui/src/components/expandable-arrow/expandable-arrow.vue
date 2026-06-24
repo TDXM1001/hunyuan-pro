@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ChevronDown } from '@hunyuan-core/icons';
-import { cn } from '@hunyuan-core/shared/utils';
+import { ChevronDown } from '@vben-core/icons';
+import { cn } from '@vben-core/shared/utils';
 
 const props = defineProps<{
   class?: string;
@@ -12,7 +12,7 @@ const collapsed = defineModel({ default: false });
 
 <template>
   <div
-    :class="cn('hunyuan-link inline-flex items-center', props.class)"
+    :class="cn('vben-link inline-flex items-center', props.class)"
     @click="collapsed = !collapsed"
   >
     <slot :is-expanded="collapsed">

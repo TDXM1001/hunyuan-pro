@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { Props } from './types';
 
-import { preferences } from '@hunyuan-core/preferences';
+import { preferences } from '@vben-core/preferences';
 import {
   Card,
   Separator,
   Tabs,
   TabsList,
   TabsTrigger,
-  HunyuanAvatar,
-} from '@hunyuan-core/shadcn-ui';
+  VbenAvatar,
+} from '@vben-core/shadcn-ui';
 
 import { Page } from '../../components';
 
@@ -29,7 +29,7 @@ const tabsValue = defineModel<string>('modelValue');
     <div class="flex size-full">
       <Card class="w-1/6 flex-none">
         <div class="mt-4 flex-col-center h-40 gap-4">
-          <HunyuanAvatar
+          <VbenAvatar
             :src="userInfo?.avatar ?? preferences.app.defaultAvatar"
             class="size-20"
           />

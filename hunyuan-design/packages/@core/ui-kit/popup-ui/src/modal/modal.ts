@@ -1,6 +1,6 @@
 import type { Component, Ref } from 'vue';
 
-import type { ClassType, MaybePromise } from '@hunyuan-core/typings';
+import type { ClassType, MaybePromise } from '@vben-core/typings';
 
 import type { ModalApi } from './modal-api';
 

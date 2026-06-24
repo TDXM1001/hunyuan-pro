@@ -1,19 +1,19 @@
 <script lang="ts" setup>
-import type { ThemeModeType } from '@hunyuan/types';
+import type { ThemeModeType } from '@vben/types';
 
-import { MoonStar, Sun, SunMoon } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { MoonStar, Sun, SunMoon } from '@vben/icons';
+import { $t } from '@vben/locales';
 import {
   preferences,
   updatePreferences,
   usePreferences,
-} from '@hunyuan/preferences';
+} from '@vben/preferences';
 
 import {
   ToggleGroup,
   ToggleGroupItem,
-  HunyuanTooltip,
-} from '@hunyuan-core/shadcn-ui';
+  VbenTooltip,
+} from '@vben-core/shadcn-ui';
 
 import ThemeButton from './theme-button.vue';
 
@@ -53,7 +53,7 @@ const PRESETS = [
 </script>
 <template>
   <div>
-    <HunyuanTooltip :disabled="!shouldOnHover" side="bottom">
+    <VbenTooltip :disabled="!shouldOnHover" side="bottom">
       <template #trigger>
         <ThemeButton
           :model-value="isDark"
@@ -78,6 +78,6 @@ const PRESETS = [
           <component :is="item.icon" class="size-5" />
         </ToggleGroupItem>
       </ToggleGroup>
-    </HunyuanTooltip>
+    </VbenTooltip>
   </div>
 </template>

@@ -12,7 +12,7 @@ defineOptions({
 });
 
 withDefaults(defineProps<Props>(), {
-  companyName: 'Hunyuan Design',
+  companyName: 'Vben Admin',
   companySiteLink: '',
   date: '2024',
   icp: '',

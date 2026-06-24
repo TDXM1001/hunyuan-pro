@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { CircleX } from '@hunyuan-core/icons';
+import { CircleX } from '@vben-core/icons';
 
 import {
   Select,

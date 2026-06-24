@@ -1,7 +1,7 @@
 ---
-'@hunyuan/styles': patch
-'@hunyuan-core/form-ui': patch
-'@hunyuan/web-naive': patch
+'@vben/styles': patch
+'@vben-core/form-ui': patch
+'@vben/web-naive': patch
 ---
 
-feat(@core/form-ui): 新增 useHunyuanForm 数组编辑器 HunyuanFormFieldArray
+feat(@core/form-ui): 新增 useVbenForm 数组编辑器 VbenFormFieldArray

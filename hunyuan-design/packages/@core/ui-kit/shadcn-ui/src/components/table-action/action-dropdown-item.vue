@@ -3,8 +3,8 @@ import type { ActionItem } from './types';
 
 import { computed, ref } from 'vue';
 
-import { useSimpleLocale } from '@hunyuan-core/composables';
-import { cn } from '@hunyuan-core/shared/utils';
+import { useSimpleLocale } from '@vben-core/composables';
+import { cn } from '@vben-core/shared/utils';
 
 import {
   DropdownMenuItem,
@@ -12,8 +12,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '../../ui';
-import { HunyuanButton } from '../button';
-import { HunyuanIcon } from '../icon';
+import { VbenButton } from '../button';
+import { VbenIcon } from '../icon';
 
 const props = defineProps<{ action: ActionItem }>();
 const emit = defineEmits<{ confirm: [] }>();
@@ -74,7 +74,7 @@ function onCancel() {
         @select="preventDefault"
       >
         <div>
-          <HunyuanIcon v-if="action.icon" :icon="action.icon" class="size-4" />
+          <VbenIcon v-if="action.icon" :icon="action.icon" class="size-4" />
           {{ action.text }}
         </div>
       </DropdownMenuItem>
@@ -89,16 +89,16 @@ function onCancel() {
         {{ action.popConfirm.title ?? $t('confirmTitle') }}
       </div>
       <div class="flex justify-end gap-2">
-        <HunyuanButton size="sm" variant="outline" @click="onCancel">
+        <VbenButton size="sm" variant="outline" @click="onCancel">
           {{ action.popConfirm.cancelText ?? $t('cancel') }}
-        </HunyuanButton>
-        <HunyuanButton
+        </VbenButton>
+        <VbenButton
           :variant="action.danger ? 'destructive' : 'default'"
           size="sm"
           @click="onConfirm"
         >
           {{ action.popConfirm.okText ?? $t('confirm') }}
-        </HunyuanButton>
+        </VbenButton>
       </div>
     </PopoverContent>
   </Popover>
@@ -110,7 +110,7 @@ function onCancel() {
     :disabled="action.disabled"
     @click="onClick"
   >
-    <HunyuanIcon v-if="action.icon" :icon="action.icon" class="size-4" />
+    <VbenIcon v-if="action.icon" :icon="action.icon" class="size-4" />
     {{ action.text }}
   </DropdownMenuItem>
 </template>

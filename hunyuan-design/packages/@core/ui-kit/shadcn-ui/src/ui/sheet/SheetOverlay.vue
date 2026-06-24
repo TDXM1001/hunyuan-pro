@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { inject } from 'vue';
 
-import { useScrollLock } from '@hunyuan-core/composables';
+import { useScrollLock } from '@vben-core/composables';
 
 useScrollLock();
 const id = inject('DISMISSABLE_DRAWER_ID');

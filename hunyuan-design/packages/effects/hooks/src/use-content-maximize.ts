@@ -1,4 +1,4 @@
-import { updatePreferences, usePreferences } from '@hunyuan/preferences';
+import { updatePreferences, usePreferences } from '@vben/preferences';
 /**
  * 主体区域最大化
  */

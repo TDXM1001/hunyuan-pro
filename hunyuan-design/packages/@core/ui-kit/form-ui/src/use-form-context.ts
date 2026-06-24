@@ -2,29 +2,29 @@ import type { ZodRawShape } from 'zod';
 
 import type { ComputedRef } from 'vue';
 
-import type { ExtendedFormApi, FormActions, HunyuanFormProps } from './types';
+import type { ExtendedFormApi, FormActions, VbenFormProps } from './types';
 
 import { computed, unref, useSlots } from 'vue';
 
-import { createContext } from '@hunyuan-core/shadcn-ui';
-import { isString, mergeWithArrayOverride, set } from '@hunyuan-core/shared/utils';
+import { createContext } from '@vben-core/shadcn-ui';
+import { isString, mergeWithArrayOverride, set } from '@vben-core/shared/utils';
 
 import { useForm } from 'vee-validate';
 import { object, ZodIntersection, ZodNumber, ZodObject, ZodString } from 'zod';
 import { getDefaultsForSchema } from 'zod-defaults';
 
-type ExtendFormProps = HunyuanFormProps & { formApi?: ExtendedFormApi };
+type ExtendFormProps = VbenFormProps & { formApi?: ExtendedFormApi };
 
 export const [injectFormProps, provideFormProps] =
   createContext<[ComputedRef<ExtendFormProps> | ExtendFormProps, FormActions]>(
-    'HunyuanFormProps',
+    'VbenFormProps',
   );
 
 export const [injectComponentRefMap, provideComponentRefMap] =
   createContext<Map<string, unknown>>('ComponentRefMap');
 
 export function useFormInitial(
-  props: ComputedRef<HunyuanFormProps> | HunyuanFormProps,
+  props: ComputedRef<VbenFormProps> | VbenFormProps,
 ) {
   const slots = useSlots();
   const initialValues = generateInitialValues();

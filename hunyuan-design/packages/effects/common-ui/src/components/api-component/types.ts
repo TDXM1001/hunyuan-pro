@@ -1,6 +1,6 @@
 import type { Component } from 'vue';
 
-import type { AnyPromiseFunction } from '@hunyuan/types';
+import type { AnyPromiseFunction } from '@vben/types';
 
 export type ApiComponentOptionsItem = {
   [name: string]: any;

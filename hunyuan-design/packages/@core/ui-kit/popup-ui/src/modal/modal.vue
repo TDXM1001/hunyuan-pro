@@ -12,8 +12,8 @@ import {
   watch,
 } from 'vue';
 
-import { usePriorityValues, useSimpleLocale } from '@hunyuan-core/composables';
-import { Expand, Shrink } from '@hunyuan-core/icons';
+import { usePriorityValues, useSimpleLocale } from '@vben-core/composables';
+import { Expand, Shrink } from '@vben-core/icons';
 import {
   Dialog,
   DialogContent,
@@ -21,15 +21,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  HunyuanButton,
-  HunyuanHelpTooltip,
-  HunyuanIconButton,
-  HunyuanLoading,
+  VbenButton,
+  VbenHelpTooltip,
+  VbenIconButton,
+  VbenLoading,
   VisuallyHidden,
-} from '@hunyuan-core/shadcn-ui';
-import { ELEMENT_ID_MAIN_CONTENT } from '@hunyuan-core/shared/constants';
-import { globalShareState } from '@hunyuan-core/shared/global-state';
-import { cn } from '@hunyuan-core/shared/utils';
+} from '@vben-core/shadcn-ui';
+import { ELEMENT_ID_MAIN_CONTENT } from '@vben-core/shared/constants';
+import { globalShareState } from '@vben-core/shared/global-state';
+import { cn } from '@vben-core/shared/utils';
 
 import { useModalDraggable } from './use-modal-draggable';
 
@@ -294,9 +294,9 @@ function handleClosed() {
             {{ title }}
 
             <slot v-if="titleTooltip" name="titleTooltip">
-              <HunyuanHelpTooltip trigger-class="pb-1">
+              <VbenHelpTooltip trigger-class="pb-1">
                 {{ titleTooltip }}
-              </HunyuanHelpTooltip>
+              </VbenHelpTooltip>
             </slot>
           </slot>
         </DialogTitle>
@@ -320,15 +320,15 @@ function handleClosed() {
       >
         <slot></slot>
       </div>
-      <HunyuanLoading v-if="showLoading || submitting" spinning />
-      <HunyuanIconButton
+      <VbenLoading v-if="showLoading || submitting" spinning />
+      <VbenIconButton
         v-if="fullscreenButton"
         class="absolute top-3 right-10 flex-center size-6 rounded-full px-1 text-lg text-foreground/80 opacity-70 transition-opacity hover:bg-accent hover:text-accent-foreground hover:opacity-100 focus:outline-hidden disabled:pointer-events-none"
         @click="handleFullscreen"
       >
         <Shrink v-if="fullscreen" class="size-3.5" />
         <Expand v-else class="size-3.5" />
-      </HunyuanIconButton>
+      </VbenIconButton>
 
       <DialogFooter
         ref="footerRef"
@@ -346,7 +346,7 @@ function handleClosed() {
         <slot name="prepend-footer"></slot>
         <slot name="footer">
           <component
-            :is="components.DefaultButton || HunyuanButton"
+            :is="components.DefaultButton || VbenButton"
             v-if="showCancelButton"
             variant="outline"
             :disabled="submitting"
@@ -358,7 +358,7 @@ function handleClosed() {
           </component>
           <slot name="center-footer"></slot>
           <component
-            :is="components.PrimaryButton || HunyuanButton"
+            :is="components.PrimaryButton || VbenButton"
             v-if="showConfirmButton"
             :disabled="confirmDisabled"
             :loading="confirmLoading || submitting"

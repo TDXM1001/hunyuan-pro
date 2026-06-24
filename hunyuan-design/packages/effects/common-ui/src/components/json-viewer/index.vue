@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { SetupContext } from 'vue';
 
-import type { Recordable } from '@hunyuan/types';
+import type { Recordable } from '@vben/types';
 
 import type {
   JsonViewerAction,
@@ -14,7 +14,7 @@ import { computed, ref, useAttrs } from 'vue';
 import VueJsonPretty from 'vue-json-pretty';
 import 'vue-json-pretty/lib/styles.css';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
 import JsonBigint from 'json-bigint';
 
@@ -102,13 +102,13 @@ const bindProps = computed<Recordable<any>>(() => {
 });
 </script>
 <template>
-  <div :class="[props.theme, { boxed: props.boxed }]" class="hunyuan-json-viewer">
+  <div :class="[props.theme, { boxed: props.boxed }]" class="vben-json-viewer">
     <VueJsonPretty v-bind="bindProps">
       <template #renderNodeActions="{ node, defaultActions }">
         <slot name="copy" :node="node" :default-actions="defaultActions">
           <span
             v-if="props.copyable"
-            class="hunyuan-json-copy-btn"
+            class="vben-json-copy-btn"
             :class="[{ 'is-copied': copiedPath === node.path }]"
             @click.stop="handleCopy(node, defaultActions.copy)"
           >

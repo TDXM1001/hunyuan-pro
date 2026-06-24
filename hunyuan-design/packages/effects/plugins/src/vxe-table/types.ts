@@ -8,13 +8,13 @@ import type {
 
 import type { Ref } from 'vue';
 
-import type { ClassType, DeepPartial } from '@hunyuan/types';
+import type { ClassType, DeepPartial } from '@vben/types';
 
-import type { BaseFormComponentType, HunyuanFormProps } from '@hunyuan-core/form-ui';
+import type { BaseFormComponentType, VbenFormProps } from '@vben-core/form-ui';
 
 import type { VxeGridApi } from './api';
 
-import { useHunyuanForm } from '@hunyuan-core/form-ui';
+import { useVbenForm } from '@vben-core/form-ui';
 
 export interface VxePaginationInfo {
   currentPage: number;
@@ -156,7 +156,7 @@ export interface VxeGridProps<
   /**
    * 表单配置
    */
-  formOptions?: HunyuanFormProps<D, P>;
+  formOptions?: VbenFormProps<D, P>;
   /**
    * 显示搜索表单
    */
@@ -183,5 +183,5 @@ export type ExtendedVxeGridApi<
 
 export interface SetupVxeTable {
   configVxeTable: (ui: VxeUIExport) => void;
-  useHunyuanForm?: typeof useHunyuanForm;
+  useVbenForm?: typeof useVbenForm;
 }

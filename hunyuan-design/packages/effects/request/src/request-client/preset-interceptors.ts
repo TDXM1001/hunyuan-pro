@@ -1,8 +1,8 @@
 import type { RequestClient } from './request-client';
 import type { MakeErrorMessageFn, ResponseInterceptorConfig } from './types';
 
-import { $t } from '@hunyuan/locales';
-import { isFunction } from '@hunyuan/utils';
+import { $t } from '@vben/locales';
+import { isFunction } from '@vben/utils';
 
 import axios from 'axios';
 

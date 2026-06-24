@@ -1,2 +1,2 @@
-export { default as HunyuanHelpTooltip } from './help-tooltip.vue';
-export { default as HunyuanTooltip } from './tooltip.vue';
+export { default as VbenHelpTooltip } from './help-tooltip.vue';
+export { default as VbenTooltip } from './tooltip.vue';

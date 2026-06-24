@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, unref } from 'vue';
 
-import { createIconifyIcon } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
-import { useTimezoneStore } from '@hunyuan/stores';
+import { createIconifyIcon } from '@vben/icons';
+import { $t } from '@vben/locales';
+import { useTimezoneStore } from '@vben/stores';
 
-import { useHunyuanModal } from '@hunyuan-core/popup-ui';
+import { useVbenModal } from '@vben-core/popup-ui';
 import {
   RadioGroup,
   RadioGroupItem,
-  HunyuanIconButton,
-} from '@hunyuan-core/shadcn-ui';
+  VbenIconButton,
+} from '@vben-core/shadcn-ui';
 
 const TimezoneIcon = createIconifyIcon('fluent-mdl2:world-clock');
 
@@ -25,7 +25,7 @@ const timezoneOptionsRef = ref<
   }[]
 >([]);
 
-const [Modal, modalApi] = useHunyuanModal({
+const [Modal, modalApi] = useVbenModal({
   fullscreenButton: false,
   onConfirm: async () => {
     try {
@@ -54,13 +54,13 @@ const handleClick = () => {
 
 <template>
   <div>
-    <HunyuanIconButton
+    <VbenIconButton
       :tooltip="$t('ui.widgets.timezone.setTimezone')"
       class="hover:animate-[shrink_0.3s_ease-in-out]"
       @click="handleClick"
     >
       <TimezoneIcon class="size-4 text-foreground" />
-    </HunyuanIconButton>
+    </VbenIconButton>
     <Modal :title="$t('ui.widgets.timezone.setTimezone')">
       <div class="timezone-container">
         <RadioGroup v-model="timezoneRef" class="flex flex-col gap-2">

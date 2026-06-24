@@ -1,4 +1,4 @@
-import type { MenuRecordRaw } from '@hunyuan-core/typings';
+import type { MenuRecordRaw } from '@vben-core/typings';
 
 interface NormalMenuProps {
   /**

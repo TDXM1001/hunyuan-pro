@@ -1,7 +1,7 @@
 import type { ModalApiOptions, ModalState } from './modal';
 
-import { Store } from '@hunyuan-core/shared/store';
-import { bindMethods, isFunction } from '@hunyuan-core/shared/utils';
+import { Store } from '@vben-core/shared/store';
+import { bindMethods, isFunction } from '@vben-core/shared/utils';
 
 export class ModalApi {
   // 共享数据

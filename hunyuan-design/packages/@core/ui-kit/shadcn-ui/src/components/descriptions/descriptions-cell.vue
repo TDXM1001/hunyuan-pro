@@ -5,9 +5,9 @@ import type { DescriptionsRenderNode, DescriptionsSize } from './types';
 
 import { computed } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
-import { HunyuanRenderContent } from '../render-content';
+import { VbenRenderContent } from '../render-content';
 
 interface Props {
   /** 是否边框模式 */
@@ -68,8 +68,8 @@ const hasContent = computed(
   () => props.content !== null && props.content !== undefined,
 );
 
-// 数字 0 会被 HunyuanRenderContent 当作 falsy 隐藏，这里转为字符串保证展示；
-// 同时将 null 归一为 undefined，匹配 HunyuanRenderContent 的 content 类型
+// 数字 0 会被 VbenRenderContent 当作 falsy 隐藏，这里转为字符串保证展示；
+// 同时将 null 归一为 undefined，匹配 VbenRenderContent 的 content 类型
 const displayLabel = computed(() => {
   if (props.label === null || props.label === undefined) return undefined;
   return typeof props.label === 'number' ? String(props.label) : props.label;
@@ -105,24 +105,24 @@ const labelClass = computed(() =>
     <!-- 边框模式：每个单元格仅承载 label 或 content -->
     <template v-if="bordered">
       <span v-if="hasLabel" :style="labelStyle">
-        <HunyuanRenderContent :content="displayLabel" />
+        <VbenRenderContent :content="displayLabel" />
       </span>
       <span v-if="hasContent" :style="contentStyle">
-        <HunyuanRenderContent :content="displayContent" />
+        <VbenRenderContent :content="displayContent" />
       </span>
     </template>
 
     <!-- 非边框模式：label + content 容器 -->
     <div v-else class="flex">
       <span v-if="hasLabel" :class="labelClass" :style="labelStyle">
-        <HunyuanRenderContent :content="displayLabel" />
+        <VbenRenderContent :content="displayLabel" />
       </span>
       <span
         v-if="hasContent"
         class="break-words text-foreground"
         :style="contentStyle"
       >
-        <HunyuanRenderContent :content="displayContent" />
+        <VbenRenderContent :content="displayContent" />
       </span>
     </div>
   </component>

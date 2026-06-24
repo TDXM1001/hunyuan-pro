@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { h } from 'vue';
 
-import { Page, useHunyuanDrawer } from '@hunyuan/common-ui';
+import { Page, useVbenDrawer } from '@vben/common-ui';
 
 import { ElButton, ElCard, ElCheckbox, ElMessage } from 'element-plus';
 
-import { useHunyuanForm } from '#/adapter/form';
+import { useVbenForm } from '#/adapter/form';
 import { getAllMenusApi } from '#/api';
 
-const [Form, formApi] = useHunyuanForm({
+const [Form, formApi] = useVbenForm({
   commonConfig: {
     // 所有表单项
     componentProps: {
@@ -155,7 +155,7 @@ const [Form, formApi] = useHunyuanForm({
   ],
 });
 
-const [Drawer, drawerApi] = useHunyuanDrawer();
+const [Drawer, drawerApi] = useVbenDrawer();
 function setFormValues() {
   formApi.setValues({
     string: 'string',

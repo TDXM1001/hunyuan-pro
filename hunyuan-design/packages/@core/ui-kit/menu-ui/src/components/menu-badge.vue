@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { MenuRecordBadgeRaw } from '@hunyuan-core/typings';
+import type { MenuRecordBadgeRaw } from '@vben-core/typings';
 
 import { computed } from 'vue';
 
-import { isValidColor } from '@hunyuan-core/shared/color';
+import { isValidColor } from '@vben-core/shared/color';
 
 import BadgeDot from './menu-badge-dot.vue';
 

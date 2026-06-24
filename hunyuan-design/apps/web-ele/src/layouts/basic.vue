@@ -1,22 +1,22 @@
 <script lang="ts" setup>
-import type { NotificationItem } from '@hunyuan/layouts';
+import type { NotificationItem } from '@vben/layouts';
 
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { AuthenticationLoginExpiredModal } from '@hunyuan/common-ui';
-import { HUNYUAN_DOC_URL, HUNYUAN_GITHUB_URL } from '@hunyuan/constants';
-import { useWatermark } from '@hunyuan/hooks';
-import { BookOpenText, CircleHelp, SvgGithubIcon } from '@hunyuan/icons';
+import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
+import { VBEN_DOC_URL, VBEN_GITHUB_URL } from '@vben/constants';
+import { useWatermark } from '@vben/hooks';
+import { BookOpenText, CircleHelp, SvgGithubIcon } from '@vben/icons';
 import {
   BasicLayout,
   LockScreen,
   Notification,
   UserDropdown,
-} from '@hunyuan/layouts';
-import { preferences, usePreferences } from '@hunyuan/preferences';
-import { useAccessStore, useUserStore } from '@hunyuan/stores';
-import { openWindow } from '@hunyuan/utils';
+} from '@vben/layouts';
+import { preferences, usePreferences } from '@vben/preferences';
+import { useAccessStore, useUserStore } from '@vben/stores';
+import { openWindow } from '@vben/utils';
 
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
@@ -71,7 +71,7 @@ const notifications = ref<NotificationItem[]>([
     isRead: false,
     message: '描述信息描述信息描述信息',
     title: '跳转外部链接示例',
-    link: 'https://github.com/hunyuan/hunyuan-design',
+    link: 'https://doc.vben.pro',
   },
 ]);
 
@@ -95,7 +95,7 @@ const menus = computed(() => [
   },
   {
     handler: () => {
-      openWindow(HUNYUAN_DOC_URL, {
+      openWindow(VBEN_DOC_URL, {
         target: '_blank',
       });
     },
@@ -104,7 +104,7 @@ const menus = computed(() => [
   },
   {
     handler: () => {
-      openWindow(HUNYUAN_GITHUB_URL, {
+      openWindow(VBEN_GITHUB_URL, {
         target: '_blank',
       });
     },
@@ -113,7 +113,7 @@ const menus = computed(() => [
   },
   {
     handler: () => {
-      openWindow(`${HUNYUAN_GITHUB_URL}/issues`, {
+      openWindow(`${VBEN_GITHUB_URL}/issues`, {
         target: '_blank',
       });
     },

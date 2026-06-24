@@ -8,7 +8,7 @@
  */
 function updateCSSVariables(
   variables: { [key: string]: string },
-  id = '__hunyuan-styles__',
+  id = '__vben-styles__',
   selector = ':root',
 ): void {
   // 获取或创建内联样式表元素

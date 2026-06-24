@@ -1,8 +1,8 @@
-export { setupHunyuanVxeTable } from './init';
+export { setupVbenVxeTable } from './init';
 export type { VxeTableGridColumns, VxeTableGridOptions } from './types';
 export * from './use-vxe-grid';
 
-export { default as HunyuanVxeGrid } from './use-vxe-grid.vue';
+export { default as VbenVxeGrid } from './use-vxe-grid.vue';
 export type {
   VxeGridListeners,
   VxeGridProps,

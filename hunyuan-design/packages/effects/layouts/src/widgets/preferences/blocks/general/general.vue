@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref, unref } from 'vue';
 
-import { SUPPORT_LANGUAGES } from '@hunyuan/constants';
-import { $t } from '@hunyuan/locales';
-import { useTimezoneStore } from '@hunyuan/stores';
+import { SUPPORT_LANGUAGES } from '@vben/constants';
+import { $t } from '@vben/locales';
+import { useTimezoneStore } from '@vben/stores';
 
 import InputItem from '../input-item.vue';
 import SelectItem from '../select-item.vue';

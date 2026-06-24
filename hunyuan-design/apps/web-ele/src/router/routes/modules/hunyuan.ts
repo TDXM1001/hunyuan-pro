@@ -4,7 +4,7 @@ import {
   HUNYUAN_DOC_URL,
   HUNYUAN_GITHUB_URL,
   HUNYUAN_LOGO_URL,
-} from '@hunyuan/constants';
+} from '@vben/constants';
 
 import { IFrameView } from '#/layouts';
 import { $t } from '#/locales';

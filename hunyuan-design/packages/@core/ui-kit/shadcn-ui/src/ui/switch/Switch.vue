@@ -3,7 +3,7 @@ import type { SwitchRootEmits, SwitchRootProps } from 'reka-ui';
 
 import type { HTMLAttributes } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { reactiveOmit } from '@vueuse/core';
 import { SwitchRoot, SwitchThumb, useForwardPropsEmits } from 'reka-ui';

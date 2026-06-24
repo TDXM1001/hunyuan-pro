@@ -7,7 +7,7 @@ import type {
 
 import type { CSSProperties } from 'vue';
 
-import type { ClassType } from '@hunyuan-core/typings';
+import type { ClassType } from '@vben-core/typings';
 
 import { computed } from 'vue';
 

@@ -4,7 +4,7 @@ import type {
   MenuRecordBadgeRaw,
   Recordable,
   ThemeModeType,
-} from '@hunyuan-core/typings';
+} from '@vben-core/typings';
 
 interface MenuProps {
   /**

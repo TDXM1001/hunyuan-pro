@@ -1,6 +1,6 @@
 import type { Component } from 'vue';
 
-interface HunyuanDropdownMenuItem {
+interface VbenDropdownMenuItem {
   disabled?: boolean;
   /**
    * @zh_CN 点击事件处理
@@ -26,7 +26,7 @@ interface HunyuanDropdownMenuItem {
 }
 
 interface DropdownMenuProps {
-  menus: HunyuanDropdownMenuItem[];
+  menus: VbenDropdownMenuItem[];
 }
 
-export type { DropdownMenuProps, HunyuanDropdownMenuItem };
+export type { DropdownMenuProps, VbenDropdownMenuItem };

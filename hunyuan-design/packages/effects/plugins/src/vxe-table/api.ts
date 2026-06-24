@@ -3,21 +3,21 @@ import type { VxeGridInstance } from 'vxe-table';
 import type {
   BaseFormComponentType,
   ExtendedFormApi,
-} from '@hunyuan-core/form-ui';
+} from '@vben-core/form-ui';
 
 import type { VxeGridProps } from './types';
 import type { ViewedRowHelper } from './use-viewed-row';
 
 import { toRaw } from 'vue';
 
-import { Store } from '@hunyuan-core/shared/store';
+import { Store } from '@vben-core/shared/store';
 import {
   bindMethods,
   isBoolean,
   isFunction,
   mergeWithArrayOverride,
   StateHandler,
-} from '@hunyuan-core/shared/utils';
+} from '@vben-core/shared/utils';
 
 function getDefaultState(): VxeGridProps {
   return {

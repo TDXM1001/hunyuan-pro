@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import type { BreadcrumbStyleType } from '@hunyuan/types';
+import type { BreadcrumbStyleType } from '@vben/types';
 
-import type { IBreadcrumb } from '@hunyuan-core/shadcn-ui';
+import type { IBreadcrumb } from '@vben-core/shadcn-ui';
 
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
-import { HunyuanBreadcrumbView } from '@hunyuan-core/shadcn-ui';
+import { VbenBreadcrumbView } from '@vben-core/shadcn-ui';
 
 interface Props {
   hideWhenOnlyOne?: boolean;
@@ -64,7 +64,7 @@ function handleSelect(path: string) {
 }
 </script>
 <template>
-  <HunyuanBreadcrumbView
+  <VbenBreadcrumbView
     :breadcrumbs="breadcrumbs"
     :show-icon="showIcon"
     :style-type="type"

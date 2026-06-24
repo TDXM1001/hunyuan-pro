@@ -14,7 +14,7 @@
 ## 使用
 
 ```ts
-import { MotionPlugin, Motion, MotionDirective } from '@hunyuan/plugins/motion';
+import { MotionPlugin, Motion, MotionDirective } from '@vben/plugins/motion';
 
 app.use(MotionPlugin);
 ```
@@ -22,5 +22,5 @@ app.use(MotionPlugin);
 ## 类型
 
 ```ts
-import type { MotionOptions, MotionVariants } from '@hunyuan/plugins/motion';
+import type { MotionOptions, MotionVariants } from '@vben/plugins/motion';
 ```

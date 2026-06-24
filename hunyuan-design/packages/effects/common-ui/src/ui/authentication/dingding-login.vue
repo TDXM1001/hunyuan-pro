@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
 
-import { SvgDingDingIcon } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { SvgDingDingIcon } from '@vben/icons';
+import { $t } from '@vben/locales';
 
-import { alert, useHunyuanModal } from '@hunyuan-core/popup-ui';
-import { HunyuanIconButton } from '@hunyuan-core/shadcn-ui';
-import { loadScript } from '@hunyuan-core/shared/utils';
+import { alert, useVbenModal } from '@vben-core/popup-ui';
+import { VbenIconButton } from '@vben-core/shadcn-ui';
+import { loadScript } from '@vben-core/shared/utils';
 
 interface Props {
   clientId: string;
@@ -21,7 +21,7 @@ const props = defineProps<Props>();
 
 const route = useRoute();
 
-const [Modal, modalApi] = useHunyuanModal({
+const [Modal, modalApi] = useVbenModal({
   header: false,
   footer: false,
   fullscreenButton: false,
@@ -91,13 +91,13 @@ const handleLogin = () => {
 
 <template>
   <div>
-    <HunyuanIconButton
+    <VbenIconButton
       @click="handleLogin"
       :tooltip="$t('authentication.dingdingLogin')"
       tooltip-side="top"
     >
       <SvgDingDingIcon />
-    </HunyuanIconButton>
+    </VbenIconButton>
     <Modal>
       <div id="dingding_qrcode_login_element"></div>
     </Modal>

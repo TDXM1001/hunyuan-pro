@@ -4,9 +4,9 @@ import type {
   ExRouteRecordRaw,
   MenuRecordRaw,
   RouteMeta,
-} from '@hunyuan-core/typings';
+} from '@vben-core/typings';
 
-import { filterTree, mapTree, sortTree } from '@hunyuan-core/shared/utils';
+import { filterTree, mapTree, sortTree } from '@vben-core/shared/utils';
 
 /**
  * 根据 routes 生成菜单列表

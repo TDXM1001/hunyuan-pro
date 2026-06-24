@@ -1,4 +1,4 @@
-@reference "@hunyuan/tailwind-config/theme";
+@reference "@vben/tailwind-config/theme";
 
 /* Make clicks pass-through */
 #nprogress {

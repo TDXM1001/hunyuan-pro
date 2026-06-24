@@ -1,20 +1,20 @@
 <script lang="ts" setup>
 import type { Arrayable } from '@vueuse/core';
 
-import type { ValueType, HunyuanButtonGroupProps } from './button';
+import type { ValueType, VbenButtonGroupProps } from './button';
 
 import { computed, ref, watch } from 'vue';
 
-import { Circle, CircleCheckBig, LoaderCircle } from '@hunyuan-core/icons';
-import { cn, isFunction } from '@hunyuan-core/shared/utils';
+import { Circle, CircleCheckBig, LoaderCircle } from '@vben-core/icons';
+import { cn, isFunction } from '@vben-core/shared/utils';
 
 import { objectOmit } from '@vueuse/core';
 
-import { HunyuanRenderContent } from '../render-content';
-import HunyuanButtonGroup from './button-group.vue';
+import { VbenRenderContent } from '../render-content';
+import VbenButtonGroup from './button-group.vue';
 import Button from './button.vue';
 
-const props = withDefaults(defineProps<HunyuanButtonGroupProps>(), {
+const props = withDefaults(defineProps<VbenButtonGroupProps>(), {
   gap: 0,
   multiple: false,
   showIcon: true,
@@ -105,10 +105,10 @@ async function onBtnClick(value: ValueType) {
 }
 </script>
 <template>
-  <HunyuanButtonGroup
+  <VbenButtonGroup
     :size="props.size"
     :gap="props.gap"
-    class="hunyuan-check-button-group"
+    class="vben-check-button-group"
   >
     <Button
       v-for="(btn, index) in props.options"
@@ -139,13 +139,13 @@ async function onBtnClick(value: ValueType) {
         </slot>
       </div>
       <slot name="option" :label="btn.label" :value="btn.value" :data="btn">
-        <HunyuanRenderContent :content="btn.label" />
+        <VbenRenderContent :content="btn.label" />
       </slot>
     </Button>
-  </HunyuanButtonGroup>
+  </VbenButtonGroup>
 </template>
 <style lang="scss" scoped>
-.hunyuan-check-button-group {
+.vben-check-button-group {
   display: flex;
   flex-wrap: wrap;
 

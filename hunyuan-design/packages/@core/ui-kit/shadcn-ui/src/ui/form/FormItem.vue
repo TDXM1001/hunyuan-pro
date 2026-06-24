@@ -3,7 +3,7 @@ import type { HTMLAttributes } from 'vue';
 
 import { provide } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { useId } from 'reka-ui';
 

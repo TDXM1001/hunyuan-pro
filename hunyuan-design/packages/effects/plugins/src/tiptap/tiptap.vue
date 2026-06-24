@@ -3,17 +3,17 @@ import type {
   TipTapProps,
   ToolbarAction,
   ToolbarMenuItem,
-  HunyuanTiptapChangeEvent,
+  VbenTiptapChangeEvent,
 } from './types';
 
 import { computed, onBeforeUnmount, reactive, watch } from 'vue';
 
-import { Check, ChevronDown, Eye } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { Check, ChevronDown, Eye } from '@vben/icons';
+import { $t } from '@vben/locales';
 
-import { useHunyuanModal } from '@hunyuan-core/popup-ui';
-import { HunyuanIconButton, HunyuanPopover } from '@hunyuan-core/shadcn-ui';
-import { cn } from '@hunyuan-core/shared/utils';
+import { useVbenModal } from '@vben-core/popup-ui';
+import { VbenIconButton, VbenPopover } from '@vben-core/shadcn-ui';
+import { cn } from '@vben-core/shared/utils';
 
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 
@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<TipTapProps>(), {
   toolbar: true,
 });
 const emit = defineEmits<{
-  change: [payload: HunyuanTiptapChangeEvent];
+  change: [payload: VbenTiptapChangeEvent];
 }>();
 const modelValue = defineModel<string>({ default: '' });
 const contentMinHeight = computed(() =>
@@ -48,8 +48,8 @@ const contentMaxHeight = computed(() =>
     : props.maxHeight,
 );
 const tiptapContentClass = cn(
-  'hunyuan-tiptap-content hunyuan-tiptap__content',
-  'text-foreground max-h-(--hunyuan-tiptap-max-height) min-h-(--hunyuan-tiptap-min-height) overflow-auto leading-7 outline-none',
+  'vben-tiptap-content vben-tiptap__content',
+  'text-foreground max-h-(--vben-tiptap-max-height) min-h-(--vben-tiptap-min-height) overflow-auto leading-7 outline-none',
 );
 const blobUrlTracker = new Set<string>();
 const editor = useEditor({
@@ -88,7 +88,7 @@ const toolbarGroups = computed<ToolbarAction[][]>(() => {
 const previewContent = computed(
   () => editor.value?.getHTML() ?? modelValue.value,
 );
-const [PreviewModal, previewModalApi] = useHunyuanModal({
+const [PreviewModal, previewModalApi] = useVbenModal({
   footer: false,
   fullscreenButton: false,
 });
@@ -161,10 +161,10 @@ onBeforeUnmount(() => {
 <template>
   <div
     :style="{
-      '--hunyuan-tiptap-min-height': contentMinHeight,
-      '--hunyuan-tiptap-max-height': contentMaxHeight,
+      '--vben-tiptap-min-height': contentMinHeight,
+      '--vben-tiptap-max-height': contentMaxHeight,
     }"
-    class="hunyuan-tiptap overflow-hidden rounded-xl border border-border bg-card"
+    class="vben-tiptap overflow-hidden rounded-xl border border-border bg-card"
   >
     <div
       v-if="toolbar"
@@ -176,7 +176,7 @@ onBeforeUnmount(() => {
         class="flex items-center gap-1"
       >
         <template v-for="action in group" :key="action.label">
-          <HunyuanPopover
+          <VbenPopover
             v-if="action.menu || action.palette"
             :open="action.menu ? getMenuOpen(action) : undefined"
             :content-props="{ align: 'start', side: 'bottom', sideOffset: 8 }"
@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
             @update:open="action.menu ? setMenuOpen(action, $event) : undefined"
           >
             <template #trigger>
-              <HunyuanIconButton
+              <VbenIconButton
                 :aria-label="action.label"
                 :class="getToolbarButtonClass(action)"
                 :disabled="!canRunAction(action)"
@@ -212,7 +212,7 @@ onBeforeUnmount(() => {
                   :style="{ backgroundColor: getActionIndicatorColor(action) }"
                   class="absolute bottom-1 left-1/2 h-1 w-4 -translate-x-1/2 rounded-full shadow-[0_0_0_1px_hsl(var(--card)/0.7)]"
                 ></span>
-              </HunyuanIconButton>
+              </VbenIconButton>
             </template>
             <div
               v-if="action.palette"
@@ -260,8 +260,8 @@ onBeforeUnmount(() => {
                 />
               </button>
             </div>
-          </HunyuanPopover>
-          <HunyuanIconButton
+          </VbenPopover>
+          <VbenIconButton
             v-else
             :aria-label="action.label"
             :class="getToolbarButtonClass(action)"
@@ -276,7 +276,7 @@ onBeforeUnmount(() => {
               :style="{ backgroundColor: getActionIndicatorColor(action) }"
               class="absolute bottom-1 left-1/2 h-1 w-4 -translate-x-1/2 rounded-full shadow-[0_0_0_1px_hsl(var(--card)/0.7)]"
             ></span>
-          </HunyuanIconButton>
+          </VbenIconButton>
         </template>
         <div
           v-if="groupIndex < toolbarGroups.length - 1"
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
         ></div>
       </div>
       <div v-if="previewable" class="ml-auto flex items-center">
-        <HunyuanIconButton
+        <VbenIconButton
           :aria-label="$t('ui.tiptap.toolbar.preview')"
           :class="
             getToolbarButtonClass({
@@ -298,7 +298,7 @@ onBeforeUnmount(() => {
           @click="openPreviewModal"
         >
           <Eye class="size-4" />
-        </HunyuanIconButton>
+        </VbenIconButton>
       </div>
     </div>
     <EditorContent v-if="editor" :editor="editor" class="p-4" />
@@ -313,8 +313,8 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.hunyuan-tiptap
-  :deep(.hunyuan-tiptap__content p.is-editor-empty:first-child::before) {
+.vben-tiptap
+  :deep(.vben-tiptap__content p.is-editor-empty:first-child::before) {
   float: left;
   height: 0;
   color: hsl(var(--input-placeholder));

@@ -3,7 +3,7 @@ import type { CSSProperties } from 'vue';
 
 import { computed, onUnmounted, shallowRef, useSlots, watchEffect } from 'vue';
 
-import { HunyuanScrollbar } from '@hunyuan-core/shadcn-ui';
+import { VbenScrollbar } from '@vben-core/shadcn-ui';
 
 import { useScrollLock } from '@vueuse/core';
 
@@ -329,9 +329,9 @@ onUnmounted(() => {
       <div v-if="slots.logo" :style="headerStyle">
         <slot name="logo"></slot>
       </div>
-      <HunyuanScrollbar :style="contentStyle" shadow shadow-border>
+      <VbenScrollbar :style="contentStyle" shadow shadow-border>
         <slot></slot>
-      </HunyuanScrollbar>
+      </VbenScrollbar>
 
       <div :style="collapseStyle"></div>
       <SidebarCollapseButton
@@ -362,14 +362,14 @@ onUnmounted(() => {
       <div v-if="!extraCollapse" :style="extraTitleStyle" class="pl-2">
         <slot name="extra-title"></slot>
       </div>
-      <HunyuanScrollbar
+      <VbenScrollbar
         :style="extraContentStyle"
         class="border-border py-2"
         shadow
         shadow-border
       >
         <slot name="extra"></slot>
-      </HunyuanScrollbar>
+      </VbenScrollbar>
     </div>
     <div
       v-if="draggable"

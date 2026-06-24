@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { HunyuanLoading } from '@hunyuan-core/shadcn-ui';
-import { cn } from '@hunyuan-core/shared/utils';
+import { VbenLoading } from '@vben-core/shadcn-ui';
+import { cn } from '@vben-core/shared/utils';
 
 interface LoadingProps {
   class?: string;
@@ -26,7 +26,7 @@ const props = defineProps<LoadingProps>();
 <template>
   <div :class="cn('relative min-h-20', props.class)">
     <slot></slot>
-    <HunyuanLoading
+    <VbenLoading
       :min-loading-time="props.minLoadingTime"
       :spinning="props.spinning"
       :text="props.text"
@@ -34,6 +34,6 @@ const props = defineProps<LoadingProps>();
       <template v-if="$slots.icon" #icon>
         <slot name="icon"></slot>
       </template>
-    </HunyuanLoading>
+    </VbenLoading>
   </div>
 </template>

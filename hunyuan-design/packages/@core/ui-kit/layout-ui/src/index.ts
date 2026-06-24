@@ -1,2 +1,2 @@
-export type * from './hunyuan-layout';
-export { default as HunyuanAdminLayout } from './hunyuan-layout.vue';
+export type * from './vben-layout';
+export { default as VbenAdminLayout } from './vben-layout.vue';

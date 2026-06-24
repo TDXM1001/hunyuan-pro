@@ -7,18 +7,18 @@ import type {
   RouteRecordNormalized,
 } from 'vue-router';
 
-import type { TabDefinition } from '@hunyuan-core/typings';
+import type { TabDefinition } from '@vben-core/typings';
 
 import { markRaw, toRaw } from 'vue';
 
-import { preferences } from '@hunyuan-core/preferences';
+import { preferences } from '@vben-core/preferences';
 import {
   createStack,
   openWindow,
   Stack,
   startProgress,
   stopProgress,
-} from '@hunyuan-core/shared/utils';
+} from '@vben-core/shared/utils';
 
 import { acceptHMRUpdate, defineStore } from 'pinia';
 

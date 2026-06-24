@@ -3,8 +3,8 @@ import type { ZodTypeAny } from 'zod';
 
 import type { Component, HtmlHTMLAttributes, Ref } from 'vue';
 
-import type { HunyuanButtonProps } from '@hunyuan-core/shadcn-ui';
-import type { ClassType, MaybeComputedRef } from '@hunyuan-core/typings';
+import type { VbenButtonProps } from '@vben-core/shadcn-ui';
+import type { ClassType, MaybeComputedRef } from '@vben-core/typings';
 
 import type { FormApi } from './form-api';
 
@@ -13,12 +13,12 @@ export type FormLayout = 'horizontal' | 'inline' | 'vertical';
 export type BaseFormComponentType =
   | 'DefaultButton'
   | 'PrimaryButton'
-  | 'HunyuanCheckbox'
-  | 'HunyuanFormFieldArray'
-  | 'HunyuanInput'
-  | 'HunyuanInputPassword'
-  | 'HunyuanPinInput'
-  | 'HunyuanSelect'
+  | 'VbenCheckbox'
+  | 'VbenFormFieldArray'
+  | 'VbenInput'
+  | 'VbenInputPassword'
+  | 'VbenPinInput'
+  | 'VbenSelect'
   | (Record<never, never> & string);
 
 type Breakpoints = '2xl:' | '3xl:' | '' | 'lg:' | 'md:' | 'sm:' | 'xl:';
@@ -309,9 +309,9 @@ export type FormSchema<
 > = FormSchemaDiscriminated<T, P> | FormSchemaFallback<T>;
 
 /**
- * 数组编辑器（HunyuanFormFieldArray）的组件参数
+ * 数组编辑器（VbenFormFieldArray）的组件参数
  */
-export interface HunyuanFormFieldArrayProps<
+export interface VbenFormFieldArrayProps<
   T extends BaseFormComponentType = BaseFormComponentType,
   P extends Record<string, any> = Record<never, never>,
 > {
@@ -441,13 +441,13 @@ export interface FormRenderProps<
   wrapperClass?: WrapperClassType;
 }
 
-export interface ActionButtonOptions extends HunyuanButtonProps {
+export interface ActionButtonOptions extends VbenButtonProps {
   [key: string]: any;
   content?: MaybeComputedRef<string>;
   show?: boolean;
 }
 
-export interface HunyuanFormProps<
+export interface VbenFormProps<
   T extends BaseFormComponentType = BaseFormComponentType,
   P extends Record<string, any> = Record<never, never>,
 > extends Omit<
@@ -540,12 +540,12 @@ export interface HunyuanFormProps<
 }
 
 export type ExtendedFormApi = FormApi & {
-  useStore: <T = NoInfer<HunyuanFormProps>>(
-    selector?: (state: NoInfer<HunyuanFormProps>) => T,
+  useStore: <T = NoInfer<VbenFormProps>>(
+    selector?: (state: NoInfer<VbenFormProps>) => T,
   ) => Readonly<Ref<T>>;
 };
 
-export interface HunyuanFormAdapterOptions<
+export interface VbenFormAdapterOptions<
   T extends BaseFormComponentType = BaseFormComponentType,
 > {
   config?: {

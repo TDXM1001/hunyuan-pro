@@ -4,7 +4,7 @@ import type {
   WorkbenchQuickNavItem,
   WorkbenchTodoItem,
   WorkbenchTrendItem,
-} from '@hunyuan/common-ui';
+} from '@vben/common-ui';
 
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -16,10 +16,10 @@ import {
   WorkbenchQuickNav,
   WorkbenchTodo,
   WorkbenchTrends,
-} from '@hunyuan/common-ui';
-import { preferences } from '@hunyuan/preferences';
-import { useUserStore } from '@hunyuan/stores';
-import { openWindow } from '@hunyuan/utils';
+} from '@vben/common-ui';
+import { preferences } from '@vben/preferences';
+import { useUserStore } from '@vben/stores';
+import { openWindow } from '@vben/utils';
 
 import AnalyticsVisitsSource from '../analytics/analytics-visits-source.vue';
 
@@ -180,7 +180,7 @@ const trendItems: WorkbenchTrendItem[] = [
     avatar: 'svg:avatar-4',
     content: `发表文章 <a>如何编写一个Vite插件</a> `,
     date: '2天前',
-    title: 'Hunyuan',
+    title: 'Vben',
   },
   {
     avatar: 'svg:avatar-1',
@@ -208,9 +208,9 @@ const trendItems: WorkbenchTrendItem[] = [
   },
   {
     avatar: 'svg:avatar-4',
-    content: `发表文章 <a>如何编写使用 Admin Hunyuan</a> `,
+    content: `发表文章 <a>如何编写使用 Admin Vben</a> `,
     date: '2021-03-01 20:00',
-    title: 'Hunyuan',
+    title: 'Vben',
   },
 ];
 

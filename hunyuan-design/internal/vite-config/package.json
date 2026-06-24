@@ -1,12 +1,12 @@
 {
-  "name": "@hunyuan/vite-config",
+  "name": "@vben/vite-config",
   "version": "5.7.0",
   "private": true,
-  "homepage": "https://github.com/hunyuan/hunyuan-design",
-  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "homepage": "https://github.com/vbenjs/vue-vben-admin",
+  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
     "directory": "internal/vite-config"
   },
   "license": "MIT",
@@ -30,7 +30,7 @@
     "@intlify/unplugin-vue-i18n": "catalog:",
     "@jspm/generator": "catalog:",
     "@tailwindcss/vite": "catalog:",
-    "@hunyuan/node-utils": "workspace:*",
+    "@vben/node-utils": "workspace:*",
     "archiver": "catalog:",
     "cheerio": "catalog:",
     "get-port": "catalog:",

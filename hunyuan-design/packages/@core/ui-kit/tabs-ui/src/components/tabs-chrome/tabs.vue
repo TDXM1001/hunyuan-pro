@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import type { TabDefinition } from '@hunyuan-core/typings';
+import type { TabDefinition } from '@vben-core/typings';
 
 import type { TabConfig, TabsProps } from '../../types';
 
 import { computed, ref } from 'vue';
 
-import { Pin, X } from '@hunyuan-core/icons';
-import { HunyuanContextMenu, HunyuanIcon } from '@hunyuan-core/shadcn-ui';
+import { Pin, X } from '@vben-core/icons';
+import { VbenContextMenu, VbenIcon } from '@vben-core/shadcn-ui';
 
 interface Props extends TabsProps {}
 
 defineOptions({
-  name: 'HunyuanTabsChrome',
+  name: 'VbenTabsChrome',
   inheritAttrs: false,
 });
 
 const props = withDefaults(defineProps<Props>(), {
-  contentClass: 'hunyuan-tabs-content',
+  contentClass: 'vben-tabs-content',
   contextMenus: () => [],
   gap: 7,
   tabs: () => [],
@@ -99,7 +99,7 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
         @click="active = tab.key"
         @mousedown="onMouseDown($event, tab)"
       >
-        <HunyuanContextMenu
+        <VbenContextMenu
           :handler-data="tab"
           :menus="contextMenus"
           :modal="false"
@@ -155,7 +155,7 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
             <div
               class="tabs-chrome__item-main z-2 mx-[calc(var(--gap)*2)] my-0 flex h-full items-center overflow-hidden rounded-tl-[5px] rounded-tr-[5px] pr-4 pl-2 text-accent-foreground duration-150 group-[.is-active]:text-primary group-[.is-active]:dark:text-accent-foreground"
             >
-              <HunyuanIcon
+              <VbenIcon
                 v-if="showIcon"
                 :icon="tab.icon"
                 class="mr-1 flex size-4 items-center overflow-hidden group-hover:animate-[shrink_0.3s_ease-in-out]"
@@ -166,14 +166,14 @@ function onMouseDown(e: MouseEvent, tab: TabConfig) {
               </span>
             </div>
           </div>
-        </HunyuanContextMenu>
+        </VbenContextMenu>
       </div>
     </TransitionGroup>
   </div>
 </template>
 
 <style scoped>
-@reference "@hunyuan/tailwind-config/theme";
+@reference "@vben/tailwind-config/theme";
 
 .tabs-chrome__item:not(.dragging) {
   @apply cursor-pointer;

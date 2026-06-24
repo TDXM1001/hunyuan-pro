@@ -1,10 +1,10 @@
-import type { LayoutType } from '@hunyuan-core/typings';
+import type { LayoutType } from '@vben-core/typings';
 
-import type { HunyuanLayoutProps } from '../hunyuan-layout';
+import type { VbenLayoutProps } from '../vben-layout';
 
 import { computed } from 'vue';
 
-export function useLayout(props: HunyuanLayoutProps) {
+export function useLayout(props: VbenLayoutProps) {
   const currentLayout = computed(() =>
     props.isMobile ? 'sidebar-nav' : (props.layout as LayoutType),
   );

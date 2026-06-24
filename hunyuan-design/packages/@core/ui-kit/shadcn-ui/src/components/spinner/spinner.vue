@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 interface Props {
   class?: string;
@@ -17,7 +17,7 @@ interface Props {
 }
 
 defineOptions({
-  name: 'HunyuanSpinner',
+  name: 'VbenSpinner',
 });
 
 const props = withDefaults(defineProps<Props>(), {

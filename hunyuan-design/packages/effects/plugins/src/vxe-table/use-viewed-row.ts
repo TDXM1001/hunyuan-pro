@@ -9,13 +9,13 @@ import type {
 
 import { isRef, shallowRef, toRaw, triggerRef, watch } from 'vue';
 
-import { isBoolean, isFunction } from '@hunyuan/utils';
+import { isBoolean, isFunction } from '@vben/utils';
 
 import {
   IndexedDBDriver,
   LocalStorageDriver,
   StorageManager,
-} from '@hunyuan-core/shared/cache';
+} from '@vben-core/shared/cache';
 
 import { useDebounceFn } from '@vueuse/core';
 

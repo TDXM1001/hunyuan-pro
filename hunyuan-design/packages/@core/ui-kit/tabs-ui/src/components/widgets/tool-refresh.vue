@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { RotateCw } from '@hunyuan-core/icons';
+import { RotateCw } from '@vben-core/icons';
 
 const emit = defineEmits(['refresh']);
 

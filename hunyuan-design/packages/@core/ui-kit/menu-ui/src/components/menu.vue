@@ -21,8 +21,8 @@ import {
   watchEffect,
 } from 'vue';
 
-import { useNamespace } from '@hunyuan-core/composables';
-import { Ellipsis } from '@hunyuan-core/icons';
+import { useNamespace } from '@vben-core/composables';
+import { Ellipsis } from '@vben-core/icons';
 
 import { useResizeObserver } from '@vueuse/core';
 
@@ -509,7 +509,7 @@ $namespace: vben;
     --menu-item-padding-x: 12px;
   }
 
-  // .hunyuan-menu__popup,
+  // .vben-menu__popup,
   &.is-horizontal {
     --menu-item-padding-y: 0px;
     --menu-item-padding-x: 10px;

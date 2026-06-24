@@ -1,3 +1,3 @@
-export { default as HunyuanTableAction } from './table-action.vue';
+export { default as VbenTableAction } from './table-action.vue';
 
 export type * from './types';

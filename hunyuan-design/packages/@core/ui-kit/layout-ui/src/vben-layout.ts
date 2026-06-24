@@ -3,9 +3,9 @@ import type {
   LayoutHeaderModeType,
   LayoutType,
   ThemeModeType,
-} from '@hunyuan-core/typings';
+} from '@vben-core/typings';
 
-interface HunyuanLayoutProps {
+interface VbenLayoutProps {
   /**
    * 内容区域定宽
    * @default 'wide'
@@ -177,4 +177,4 @@ interface HunyuanLayoutProps {
    */
   zIndex?: number;
 }
-export type { HunyuanLayoutProps };
+export type { VbenLayoutProps };

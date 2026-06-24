@@ -3,49 +3,49 @@ import type { Component } from 'vue';
 import type {
   BaseFormComponentType,
   FormCommonConfig,
-  HunyuanFormAdapterOptions,
+  VbenFormAdapterOptions,
 } from './types';
 
 import { h } from 'vue';
 
 import {
-  HunyuanButton,
-  HunyuanCheckbox,
-  Input as HunyuanInput,
-  HunyuanInputPassword,
-  HunyuanPinInput,
-  HunyuanSelect,
-} from '@hunyuan-core/shadcn-ui';
-import { globalShareState } from '@hunyuan-core/shared/global-state';
+  VbenButton,
+  VbenCheckbox,
+  Input as VbenInput,
+  VbenInputPassword,
+  VbenPinInput,
+  VbenSelect,
+} from '@vben-core/shadcn-ui';
+import { globalShareState } from '@vben-core/shared/global-state';
 
 import { defineRule } from 'vee-validate';
 
-import HunyuanFormFieldArray from './components/form-field-array.vue';
+import VbenFormFieldArray from './components/form-field-array.vue';
 
 const DEFAULT_MODEL_PROP_NAME = 'modelValue';
 
 export const DEFAULT_FORM_COMMON_CONFIG: FormCommonConfig = {};
 
 export const COMPONENT_MAP: Record<BaseFormComponentType, Component> = {
-  DefaultButton: h(HunyuanButton, { size: 'sm', variant: 'outline' }),
-  PrimaryButton: h(HunyuanButton, { size: 'sm', variant: 'default' }),
-  HunyuanCheckbox,
-  HunyuanFormFieldArray,
-  HunyuanInput,
-  HunyuanInputPassword,
-  HunyuanPinInput,
-  HunyuanSelect,
+  DefaultButton: h(VbenButton, { size: 'sm', variant: 'outline' }),
+  PrimaryButton: h(VbenButton, { size: 'sm', variant: 'default' }),
+  VbenCheckbox,
+  VbenFormFieldArray,
+  VbenInput,
+  VbenInputPassword,
+  VbenPinInput,
+  VbenSelect,
 };
 
 export const COMPONENT_BIND_EVENT_MAP: Partial<
   Record<BaseFormComponentType, string>
 > = {
-  HunyuanCheckbox: 'checked',
+  VbenCheckbox: 'checked',
 };
 
-export function setupHunyuanForm<
+export function setupVbenForm<
   T extends BaseFormComponentType = BaseFormComponentType,
->(options: HunyuanFormAdapterOptions<T>) {
+>(options: VbenFormAdapterOptions<T>) {
   const { config, defineRules } = options;
 
   const {

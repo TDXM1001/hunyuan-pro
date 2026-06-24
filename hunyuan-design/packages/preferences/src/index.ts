@@ -2,12 +2,12 @@ import type {
   CustomPreferencesRecord,
   Preferences,
   PreferencesExtension,
-} from '@hunyuan-core/preferences';
-import type { DeepPartial } from '@hunyuan-core/typings';
+} from '@vben-core/preferences';
+import type { DeepPartial } from '@vben-core/typings';
 
 /**
  * 如果你想所有的app都使用相同的默认偏好设置，你可以在这里定义
- * 而不是去修改 @hunyuan-core/preferences 中的默认偏好设置
+ * 而不是去修改 @vben-core/preferences 中的默认偏好设置
  * @param preferences
  * @returns
  */
@@ -30,4 +30,4 @@ const appCopyrightPreferences = {
 
 export { appCopyrightPreferences, defineOverridesPreferences, definePreferencesExtension };
 
-export * from '@hunyuan-core/preferences';
+export * from '@vben-core/preferences';

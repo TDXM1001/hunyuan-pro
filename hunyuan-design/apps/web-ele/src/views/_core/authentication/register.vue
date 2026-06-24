@@ -1,20 +1,20 @@
 <script lang="ts" setup>
-import type { HunyuanFormSchema } from '@hunyuan/common-ui';
-import type { Recordable } from '@hunyuan/types';
+import type { VbenFormSchema } from '@vben/common-ui';
+import type { Recordable } from '@vben/types';
 
 import { computed, h, ref } from 'vue';
 
-import { AuthenticationRegister, z } from '@hunyuan/common-ui';
-import { $t } from '@hunyuan/locales';
+import { AuthenticationRegister, z } from '@vben/common-ui';
+import { $t } from '@vben/locales';
 
 defineOptions({ name: 'Register' });
 
 const loading = ref(false);
 
-const formSchema = computed((): HunyuanFormSchema[] => {
+const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
-      component: 'HunyuanInput',
+      component: 'VbenInput',
       componentProps: {
         placeholder: $t('authentication.usernameTip'),
       },
@@ -23,7 +23,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
       rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
     },
     {
-      component: 'HunyuanInputPassword',
+      component: 'VbenInputPassword',
       componentProps: {
         passwordStrength: true,
         placeholder: $t('authentication.password'),
@@ -38,7 +38,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
       rules: z.string().min(1, { message: $t('authentication.passwordTip') }),
     },
     {
-      component: 'HunyuanInputPassword',
+      component: 'VbenInputPassword',
       componentProps: {
         placeholder: $t('authentication.confirmPassword'),
       },
@@ -58,7 +58,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
       label: $t('authentication.confirmPassword'),
     },
     {
-      component: 'HunyuanCheckbox',
+      component: 'VbenCheckbox',
       fieldName: 'agreePolicy',
       renderComponentContent: () => ({
         default: () =>
@@ -67,7 +67,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
             h(
               'a',
               {
-                class: 'hunyuan-link ml-1 ',
+                class: 'vben-link ml-1 ',
                 href: '',
               },
               `${$t('authentication.privacyPolicy')} & ${$t('authentication.terms')}`,

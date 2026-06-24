@@ -1,12 +1,12 @@
 {
-  "name": "@hunyuan-core/shadcn-ui",
+  "name": "@vben-core/shadcn-ui",
   "version": "5.7.0",
-  "homepage": "https://github.com/hunyuan/hunyuan-design",
-  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "homepage": "https://github.com/vbenjs/vue-vben-admin",
+  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
-    "directory": "packages/@hunyuan-core/uikit/shadcn-ui"
+    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
+    "directory": "packages/@vben-core/uikit/shadcn-ui"
   },
   "license": "MIT",
   "type": "module",
@@ -38,11 +38,11 @@
   },
   "dependencies": {
     "@lucide/vue": "catalog:",
-    "@hunyuan-core/composables": "workspace:*",
-    "@hunyuan-core/design": "workspace:*",
-    "@hunyuan-core/icons": "workspace:*",
-    "@hunyuan-core/shared": "workspace:*",
-    "@hunyuan-core/typings": "workspace:*",
+    "@vben-core/composables": "workspace:*",
+    "@vben-core/design": "workspace:*",
+    "@vben-core/icons": "workspace:*",
+    "@vben-core/shared": "workspace:*",
+    "@vben-core/typings": "workspace:*",
     "@vueuse/core": "catalog:",
     "class-variance-authority": "catalog:",
     "reka-ui": "catalog:",

@@ -1,8 +1,8 @@
-import type { HunyuanPluginsOptions } from './types';
+import type { VbenPluginsOptions } from './types';
 
-let globalPluginsOptions: null | HunyuanPluginsOptions = null;
+let globalPluginsOptions: null | VbenPluginsOptions = null;
 
-export function providePluginsOptions(options: HunyuanPluginsOptions) {
+export function providePluginsOptions(options: VbenPluginsOptions) {
   if (!globalPluginsOptions) {
     globalPluginsOptions = options;
     return;

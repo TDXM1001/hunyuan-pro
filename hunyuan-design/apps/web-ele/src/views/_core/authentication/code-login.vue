@@ -1,21 +1,21 @@
 <script lang="ts" setup>
-import type { HunyuanFormSchema } from '@hunyuan/common-ui';
-import type { Recordable } from '@hunyuan/types';
+import type { VbenFormSchema } from '@vben/common-ui';
+import type { Recordable } from '@vben/types';
 
 import { computed, ref } from 'vue';
 
-import { AuthenticationCodeLogin, z } from '@hunyuan/common-ui';
-import { $t } from '@hunyuan/locales';
+import { AuthenticationCodeLogin, z } from '@vben/common-ui';
+import { $t } from '@vben/locales';
 
 defineOptions({ name: 'CodeLogin' });
 
 const loading = ref(false);
 const CODE_LENGTH = 6;
 
-const formSchema = computed((): HunyuanFormSchema[] => {
+const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
-      component: 'HunyuanInput',
+      component: 'VbenInput',
       componentProps: {
         placeholder: $t('authentication.mobile'),
       },
@@ -29,7 +29,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
         }),
     },
     {
-      component: 'HunyuanPinInput',
+      component: 'VbenPinInput',
       componentProps: {
         codeLength: CODE_LENGTH,
         createText: (countdown: number) => {

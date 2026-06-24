@@ -1,11 +1,11 @@
-import type { MenuRecordRaw } from '@hunyuan/types';
+import type { MenuRecordRaw } from '@vben/types';
 
 import { computed, onBeforeMount, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { preferences, usePreferences } from '@hunyuan/preferences';
-import { useAccessStore } from '@hunyuan/stores';
-import { findRootMenuByPath } from '@hunyuan/utils';
+import { preferences, usePreferences } from '@vben/preferences';
+import { useAccessStore } from '@vben/stores';
+import { findRootMenuByPath } from '@vben/utils';
 
 import { useNavigation } from './use-navigation';
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { HunyuanFormProps } from './types';
+import type { VbenFormProps } from './types';
 
 import { ref, watchEffect } from 'vue';
 
-import { useForwardPropsEmits } from '@hunyuan-core/composables';
+import { useForwardPropsEmits } from '@vben-core/composables';
 
 import FormActions from './components/form-actions.vue';
 import {
@@ -15,7 +15,7 @@ import { Form } from './form-render';
 import { provideFormProps, useFormInitial } from './use-form-context';
 
 // 通过 extends 会导致热更新卡死
-interface Props extends HunyuanFormProps {}
+interface Props extends VbenFormProps {}
 const props = withDefaults(defineProps<Props>(), {
   actionWrapperClass: '',
   collapsed: false,

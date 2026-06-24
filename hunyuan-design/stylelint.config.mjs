@@ -1,4 +1,4 @@
 export default {
-  extends: ['@hunyuan/stylelint-config'],
+  extends: ['@vben/stylelint-config'],
   root: true,
 };

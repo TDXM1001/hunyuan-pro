@@ -4,10 +4,10 @@ import type { FallbackProps } from './fallback';
 import { computed, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { ArrowLeft, RotateCw } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { ArrowLeft, RotateCw } from '@vben/icons';
+import { $t } from '@vben/locales';
 
-import { HunyuanButton } from '@hunyuan-core/shadcn-ui';
+import { VbenButton } from '@vben-core/shadcn-ui';
 
 interface Props extends FallbackProps {}
 
@@ -151,14 +151,14 @@ function refresh() {
         {{ descText }}
       </p>
       <slot v-if="$slots.action" name="action"></slot>
-      <HunyuanButton v-else-if="showBack" size="lg" @click="back">
+      <VbenButton v-else-if="showBack" size="lg" @click="back">
         <ArrowLeft class="mr-2 size-4" />
         {{ $t('common.backToHome') }}
-      </HunyuanButton>
-      <HunyuanButton v-else-if="showRefresh" size="lg" @click="refresh">
+      </VbenButton>
+      <VbenButton v-else-if="showRefresh" size="lg" @click="refresh">
         <RotateCw class="mr-2 size-4" />
         {{ $t('common.refresh') }}
-      </HunyuanButton>
+      </VbenButton>
     </div>
   </div>
 </template>

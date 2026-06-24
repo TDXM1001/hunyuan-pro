@@ -1,4 +1,4 @@
-import type { BasicUserInfo } from '@hunyuan/types';
+import type { BasicUserInfo } from '@vben/types';
 
 export interface Props {
   title?: string;

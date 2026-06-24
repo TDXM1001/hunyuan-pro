@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Fallback } from '@hunyuan/common-ui';
+import { Fallback } from '@vben/common-ui';
 
 defineOptions({ name: 'Fallback500Demo' });
 </script>

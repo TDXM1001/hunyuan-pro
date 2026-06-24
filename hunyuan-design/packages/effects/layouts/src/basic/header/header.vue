@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { computed, useSlots } from 'vue';
 
-import { useRefresh } from '@hunyuan/hooks';
-import { RotateCw } from '@hunyuan/icons';
-import { preferences, usePreferences } from '@hunyuan/preferences';
-import { useAccessStore } from '@hunyuan/stores';
+import { useRefresh } from '@vben/hooks';
+import { RotateCw } from '@vben/icons';
+import { preferences, usePreferences } from '@vben/preferences';
+import { useAccessStore } from '@vben/stores';
 
-import { HunyuanFullScreen, HunyuanIconButton } from '@hunyuan-core/shadcn-ui';
+import { VbenFullScreen, VbenIconButton } from '@vben-core/shadcn-ui';
 
 import {
   GlobalSearch,
@@ -156,9 +156,9 @@ function clearPreferencesAndLogout() {
   >
     <slot :name="slot.name">
       <template v-if="slot.name === 'refresh'">
-        <HunyuanIconButton class="my-0 mr-1 rounded-md" @click="refresh">
+        <VbenIconButton class="my-0 mr-1 rounded-md" @click="refresh">
           <RotateCw class="size-4" />
-        </HunyuanIconButton>
+        </VbenIconButton>
       </template>
     </slot>
   </template>
@@ -201,7 +201,7 @@ function clearPreferencesAndLogout() {
           <LanguageToggle class="mr-1" />
         </template>
         <template v-else-if="slot.name === 'fullscreen'">
-          <HunyuanFullScreen class="mr-1" />
+          <VbenFullScreen class="mr-1" />
         </template>
         <template v-else-if="slot.name === 'timezone'">
           <TimezoneButton class="mt-0.5 mr-1" />

@@ -1,10 +1,10 @@
 import type {
   ComponentRecordType,
   GenerateMenuAndRoutesOptions,
-} from '@hunyuan/types';
+} from '@vben/types';
 
-import { generateAccessible } from '@hunyuan/access';
-import { preferences } from '@hunyuan/preferences';
+import { generateAccessible } from '@vben/access';
+import { preferences } from '@vben/preferences';
 
 import { ElMessage } from 'element-plus';
 

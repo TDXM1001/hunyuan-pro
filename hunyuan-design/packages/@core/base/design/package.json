@@ -1,12 +1,12 @@
 {
-  "name": "@hunyuan-core/design",
+  "name": "@vben-core/design",
   "version": "5.7.0",
-  "homepage": "https://github.com/hunyuan/hunyuan-design",
-  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "homepage": "https://github.com/vbenjs/vue-vben-admin",
+  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
-    "directory": "packages/@hunyuan-core/base/design"
+    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
+    "directory": "packages/@vben-core/base/design"
   },
   "license": "MIT",
   "type": "module",

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { BasicOption } from '@hunyuan/types';
+import type { BasicOption } from '@vben/types';
 
-import type { HunyuanFormSchema } from '#/adapter/form';
+import type { VbenFormSchema } from '#/adapter/form';
 
 import { computed, onMounted, ref } from 'vue';
 
-import { ProfileBaseSetting } from '@hunyuan/common-ui';
+import { ProfileBaseSetting } from '@vben/common-ui';
 
 import { getUserInfoApi } from '#/api';
 
@@ -26,7 +26,7 @@ const MOCK_ROLES_OPTIONS: BasicOption[] = [
   },
 ];
 
-const formSchema = computed((): HunyuanFormSchema[] => {
+const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
       fieldName: 'realName',

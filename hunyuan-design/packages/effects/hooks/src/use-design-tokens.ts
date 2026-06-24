@@ -1,7 +1,7 @@
 import { reactive, watch } from 'vue';
 
-import { preferences, usePreferences } from '@hunyuan/preferences';
-import { convertToRgb, updateCSSVariables } from '@hunyuan/utils';
+import { preferences, usePreferences } from '@vben/preferences';
+import { convertToRgb, updateCSSVariables } from '@vben/utils';
 
 /**
  * 用于适配各个框架的设计系统
@@ -314,7 +314,7 @@ export function useElementPlusDesignTokens() {
         '--el-text-color-regular': getCssVariableValue('--foreground'),
       };
 
-      updateCSSVariables(variables, `__hunyuan_design_styles__`);
+      updateCSSVariables(variables, `__vben_design_styles__`);
     },
     { immediate: true },
   );
@@ -332,15 +332,15 @@ export function useTDesignDesignTokens() {
   /**
    * 生成某个语义色对应的 TDesign 变量（语义变体 + 1~10 色阶）。
    * TDesign 的色阶在亮色模式下 1 最浅、10 最深，暗色模式下方向相反，
-   * 这里根据当前模式把 Hunyuan 的 50~900 色板映射到对应方向。
+   * 这里根据当前模式把 Vben 的 50~900 色板映射到对应方向。
    * @param tdName TDesign 颜色名，如 `brand`、`error`
-   * @param hunyuanName Hunyuan 颜色名，如 `primary`、`destructive`
+   * @param vbenName Vben 颜色名，如 `primary`、`destructive`
    */
-  const getColorTokens = (tdName: string, hunyuanName: string) => {
+  const getColorTokens = (tdName: string, vbenName: string) => {
     const dark = isDark.value;
     const getColor = (level?: number) =>
       getCssVariableValue(
-        level === undefined ? `--${hunyuanName}` : `--${hunyuanName}-${level}`,
+        level === undefined ? `--${vbenName}` : `--${vbenName}-${level}`,
       );
 
     // 亮色模式 1 最浅、10 最深；暗色模式相反
@@ -414,7 +414,7 @@ export function useTDesignDesignTokens() {
         ? `:root[theme-mode='dark']`
         : `:root[theme-mode='light']`;
 
-      updateCSSVariables(variables, `__hunyuan_design_tdesign_styles__`, selector);
+      updateCSSVariables(variables, `__vben_design_tdesign_styles__`, selector);
     },
     { immediate: true },
   );

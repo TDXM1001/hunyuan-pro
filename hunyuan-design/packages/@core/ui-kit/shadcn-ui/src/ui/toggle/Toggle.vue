@@ -5,7 +5,7 @@ import type { HTMLAttributes } from 'vue';
 
 import type { ToggleVariants } from '.';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { reactiveOmit } from '@vueuse/core';
 import { Toggle, useForwardPropsEmits } from 'reka-ui';

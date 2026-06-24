@@ -1,4 +1,4 @@
-import type { DeepPartial } from '@hunyuan-core/typings';
+import type { DeepPartial } from '@vben-core/typings';
 
 import type {
   CustomPreferencesField,
@@ -10,8 +10,8 @@ import type {
 
 import { markRaw, reactive, readonly, watch } from 'vue';
 
-import { StorageManager } from '@hunyuan-core/shared/cache';
-import { isMacOs, merge } from '@hunyuan-core/shared/utils';
+import { StorageManager } from '@vben-core/shared/cache';
+import { isMacOs, merge } from '@vben-core/shared/utils';
 
 import {
   breakpointsTailwind,

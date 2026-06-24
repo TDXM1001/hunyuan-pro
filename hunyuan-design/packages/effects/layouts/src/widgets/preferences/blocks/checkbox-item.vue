@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { SelectOption } from '@hunyuan/types';
+import type { SelectOption } from '@vben/types';
 
 import { useSlots } from 'vue';
 
-import { CircleHelp } from '@hunyuan/icons';
+import { CircleHelp } from '@vben/icons';
 
-import { HunyuanCheckButtonGroup, HunyuanTooltip } from '@hunyuan-core/shadcn-ui';
+import { VbenCheckButtonGroup, VbenTooltip } from '@vben-core/shadcn-ui';
 
 defineOptions({
   name: 'PreferenceCheckboxItem',
@@ -44,14 +44,14 @@ const slots = useSlots();
     <span class="flex items-center text-sm">
       <slot></slot>
 
-      <HunyuanTooltip v-if="slots.tip" side="bottom">
+      <VbenTooltip v-if="slots.tip" side="bottom">
         <template #trigger>
           <CircleHelp class="ml-1 size-3 cursor-help" />
         </template>
         <slot name="tip"></slot>
-      </HunyuanTooltip>
+      </VbenTooltip>
     </span>
-    <HunyuanCheckButtonGroup
+    <VbenCheckButtonGroup
       v-model="inputValue"
       class="h-8 w-41.25"
       :options="items"

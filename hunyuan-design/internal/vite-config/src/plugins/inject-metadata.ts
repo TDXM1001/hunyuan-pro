@@ -5,7 +5,7 @@ import {
   findMonorepoRoot,
   getPackages,
   readPackageJSON,
-} from '@hunyuan/node-utils';
+} from '@vben/node-utils';
 
 import { readWorkspaceManifest } from '@pnpm/workspace.read-manifest';
 
@@ -87,7 +87,7 @@ async function viteMetadataPlugin(
 
       return {
         define: {
-          __HUNYUAN_ADMIN_METADATA__: JSON.stringify({
+          __VBEN_ADMIN_METADATA__: JSON.stringify({
             authorEmail,
             authorName,
             authorUrl,

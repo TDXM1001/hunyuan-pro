@@ -3,11 +3,11 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 import type { Extensions } from '@tiptap/vue-3';
 
-import type { ImageUploadOptions, HunyuanTiptapExtensionOptions } from './types';
+import type { ImageUploadOptions, VbenTiptapExtensionOptions } from './types';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
-import { alert } from '@hunyuan-core/popup-ui';
+import { alert } from '@vben-core/popup-ui';
 
 import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
@@ -209,21 +209,21 @@ function createCustomImage(
         }
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'hunyuan-tiptap-upload-wrapper';
+        wrapper.className = 'vben-tiptap-upload-wrapper';
 
         const img = document.createElement('img');
         img.src = node.attrs.src;
-        img.className = 'hunyuan-tiptap__image';
+        img.className = 'vben-tiptap__image';
         wrapper.append(img);
 
         const spinner = document.createElement('div');
-        spinner.className = 'hunyuan-tiptap-upload-spinner';
+        spinner.className = 'vben-tiptap-upload-spinner';
         wrapper.append(spinner);
 
         const progressBar = document.createElement('div');
-        progressBar.className = 'hunyuan-tiptap-upload-progress';
+        progressBar.className = 'vben-tiptap-upload-progress';
         const progressFill = document.createElement('div');
-        progressFill.className = 'hunyuan-tiptap-upload-progress-fill';
+        progressFill.className = 'vben-tiptap-upload-progress-fill';
         progressBar.append(progressFill);
         wrapper.append(progressBar);
 
@@ -401,7 +401,7 @@ function createCustomImage(
 }
 
 export function createDefaultTiptapExtensions(
-  options: HunyuanTiptapExtensionOptions = {},
+  options: VbenTiptapExtensionOptions = {},
 ): Extensions {
   return [
     StarterKit.configure({
@@ -434,13 +434,13 @@ export function createDefaultTiptapExtensions(
         ).configure({
           allowBase64: true,
           HTMLAttributes: {
-            class: 'hunyuan-tiptap__image',
+            class: 'vben-tiptap__image',
           },
         })
       : Image.configure({
           allowBase64: true,
           HTMLAttributes: {
-            class: 'hunyuan-tiptap__image',
+            class: 'vben-tiptap__image',
           },
         }),
     Placeholder.configure({

@@ -2,8 +2,8 @@
 import { computed, unref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { preferences } from '@hunyuan/preferences';
-import { getTabKey, storeToRefs, useTabbarStore } from '@hunyuan/stores';
+import { preferences } from '@vben/preferences';
+import { getTabKey, storeToRefs, useTabbarStore } from '@vben/stores';
 
 import { transformComponent, useLayoutHook } from '../hooks';
 

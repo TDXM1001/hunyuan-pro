@@ -1,20 +1,20 @@
 <script lang="ts" setup>
-import type { HunyuanFormSchema } from '@hunyuan/common-ui';
-import type { Recordable } from '@hunyuan/types';
+import type { VbenFormSchema } from '@vben/common-ui';
+import type { Recordable } from '@vben/types';
 
 import { computed, ref } from 'vue';
 
-import { AuthenticationForgetPassword, z } from '@hunyuan/common-ui';
-import { $t } from '@hunyuan/locales';
+import { AuthenticationForgetPassword, z } from '@vben/common-ui';
+import { $t } from '@vben/locales';
 
 defineOptions({ name: 'ForgetPassword' });
 
 const loading = ref(false);
 
-const formSchema = computed((): HunyuanFormSchema[] => {
+const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
-      component: 'HunyuanInput',
+      component: 'VbenInput',
       componentProps: {
         placeholder: 'example@example.com',
       },

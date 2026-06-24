@@ -4,9 +4,9 @@ import type {
   ComponentRecordType,
   GenerateMenuAndRoutesOptions,
   RouteRecordStringComponent,
-} from '@hunyuan-core/typings';
+} from '@vben-core/typings';
 
-import { mapTree } from '@hunyuan-core/shared/utils';
+import { mapTree } from '@vben-core/shared/utils';
 
 /**
  * 判断路由是否在菜单中显示但访问时展示 403（让用户知悉功能并申请权限）
@@ -102,7 +102,7 @@ function normalizeViewPath(path: string): string {
     ? normalizedPath
     : `/${normalizedPath}`;
 
-  // 这里耦合了hunyuan-design的目录结构
+  // 这里耦合了vben-admin的目录结构
   return viewPath.replace(/^\/views/, '');
 }
 export { generateRoutesByBackend };

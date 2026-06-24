@@ -1,4 +1,4 @@
 export * from './helpers';
-export * from '@hunyuan-core/shared/cache';
-export * from '@hunyuan-core/shared/color';
-export * from '@hunyuan-core/shared/utils';
+export * from '@vben-core/shared/cache';
+export * from '@vben-core/shared/color';
+export * from '@vben-core/shared/utils';

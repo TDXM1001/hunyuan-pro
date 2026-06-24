@@ -2,10 +2,10 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "hunyuan/hunyuan-design" }
+    { "repo": "vbenjs/vue-vben-admin" }
   ],
   "commit": false,
-  "fixed": [["@hunyuan-core/*", "@hunyuan/*"]],
+  "fixed": [["@vben-core/*", "@vben/*"]],
   "snapshot": {
     "prereleaseTemplate": "{tag}-{datetime}"
   },

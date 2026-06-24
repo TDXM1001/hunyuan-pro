@@ -9,9 +9,9 @@ import { DESCRIPTIONS_ITEM_NAME } from './use-descriptions';
 
 /**
  * 子节点用法的标记组件，本身不渲染任何内容。
- * 其 props 与默认插槽会被父级 HunyuanDescriptions 收集为列表项。
+ * 其 props 与默认插槽会被父级 VbenDescriptions 收集为列表项。
  */
-const HunyuanDescriptionsItem = defineComponent({
+const VbenDescriptionsItem = defineComponent({
   name: DESCRIPTIONS_ITEM_NAME,
   props: {
     content: {
@@ -51,7 +51,7 @@ const HunyuanDescriptionsItem = defineComponent({
 });
 
 // 额外标记，便于在 vnode 中稳健识别
-(HunyuanDescriptionsItem as Record<string, any>).__isDescriptionsItem = true;
+(VbenDescriptionsItem as Record<string, any>).__isDescriptionsItem = true;
 
-export default HunyuanDescriptionsItem;
+export default VbenDescriptionsItem;
 </script>

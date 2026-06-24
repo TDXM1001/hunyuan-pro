@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { SupportedLanguagesType } from '@hunyuan/locales';
-import type { CustomPreferencesRecord } from '@hunyuan/preferences';
+import type { SupportedLanguagesType } from '@vben/locales';
+import type { CustomPreferencesRecord } from '@vben/preferences';
 import type {
   BreadcrumbStyleType,
   BuiltinThemeType,
@@ -11,29 +11,29 @@ import type {
   NavigationStyleType,
   PreferencesButtonPositionType,
   ThemeModeType,
-} from '@hunyuan/types';
+} from '@vben/types';
 
-import type { SegmentedItem } from '@hunyuan-core/shadcn-ui';
+import type { SegmentedItem } from '@vben-core/shadcn-ui';
 
 import { computed, ref } from 'vue';
 
-import { Copy, Pin, PinOff, RotateCw } from '@hunyuan/icons';
-import { $t, loadLocaleMessages } from '@hunyuan/locales';
+import { Copy, Pin, PinOff, RotateCw } from '@vben/icons';
+import { $t, loadLocaleMessages } from '@vben/locales';
 import {
   clearCache,
   preferences,
   resetPreferences,
   updateCustomPreferences,
   usePreferences,
-} from '@hunyuan/preferences';
+} from '@vben/preferences';
 
-import { useHunyuanDrawer } from '@hunyuan-core/popup-ui';
+import { useVbenDrawer } from '@vben-core/popup-ui';
 import {
-  HunyuanButton,
-  HunyuanIconButton,
-  HunyuanSegmented,
-} from '@hunyuan-core/shadcn-ui';
-import { globalShareState } from '@hunyuan-core/shared/global-state';
+  VbenButton,
+  VbenIconButton,
+  VbenSegmented,
+} from '@vben-core/shadcn-ui';
+import { globalShareState } from '@vben-core/shared/global-state';
 
 import { useClipboard } from '@vueuse/core';
 
@@ -200,7 +200,7 @@ const {
 } = usePreferences();
 const { copy } = useClipboard({ legacy: true });
 
-const [Drawer] = useHunyuanDrawer();
+const [Drawer] = useVbenDrawer();
 
 const activeTab = ref('appearance');
 
@@ -314,7 +314,7 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
     >
       <template #extra>
         <div class="flex items-center">
-          <HunyuanIconButton
+          <VbenIconButton
             :disabled="!mergedDiffPreference"
             :tooltip="$t('preferences.resetTip')"
             class="relative"
@@ -325,8 +325,8 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
               class="absolute top-0.5 right-0.5 size-2 rounded-sm bg-primary"
             ></span>
             <RotateCw class="size-4" />
-          </HunyuanIconButton>
-          <HunyuanIconButton
+          </VbenIconButton>
+          <VbenIconButton
             :tooltip="
               appEnableStickyPreferencesNavigationBar
                 ? $t('preferences.disableStickyPreferencesNavigationBar')
@@ -344,12 +344,12 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
               class="size-4"
             />
             <Pin v-else class="size-4" />
-          </HunyuanIconButton>
+          </VbenIconButton>
         </div>
       </template>
 
       <div>
-        <HunyuanSegmented
+        <VbenSegmented
           v-model="activeTab"
           :tabs="tabs"
           :class="{
@@ -536,11 +536,11 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
               />
             </Block>
           </template>
-        </HunyuanSegmented>
+        </VbenSegmented>
       </div>
 
       <template #footer>
-        <HunyuanButton
+        <VbenButton
           v-if="appEnableCopyPreferences"
           :disabled="!mergedDiffPreference"
           class="mx-4 w-full"
@@ -550,8 +550,8 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
         >
           <Copy class="mr-2 size-3" />
           {{ $t('preferences.copyPreferences') }}
-        </HunyuanButton>
-        <HunyuanButton
+        </VbenButton>
+        <VbenButton
           :disabled="!mergedDiffPreference"
           class="mr-4 w-full"
           size="sm"
@@ -559,7 +559,7 @@ function handleCustomPreferencesUpdate(updates: CustomPreferencesRecord) {
           @click="handleClearCache"
         >
           {{ $t('preferences.clearAndLogout') }}
-        </HunyuanButton>
+        </VbenButton>
       </template>
     </Drawer>
   </div>

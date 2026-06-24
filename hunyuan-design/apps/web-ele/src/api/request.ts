@@ -1,17 +1,17 @@
 /**
  * 该文件可自行根据业务逻辑进行调整
  */
-import type { RequestClientOptions } from '@hunyuan/request';
+import type { RequestClientOptions } from '@vben/request';
 
-import { useAppConfig } from '@hunyuan/hooks';
-import { preferences } from '@hunyuan/preferences';
+import { useAppConfig } from '@vben/hooks';
+import { preferences } from '@vben/preferences';
 import {
   authenticateResponseInterceptor,
   defaultResponseInterceptor,
   errorMessageResponseInterceptor,
   RequestClient,
-} from '@hunyuan/request';
-import { useAccessStore } from '@hunyuan/stores';
+} from '@vben/request';
+import { useAccessStore } from '@vben/stores';
 
 import { ElMessage } from 'element-plus';
 

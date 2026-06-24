@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { ButtonVariants } from '../../ui';
-import type { HunyuanButtonProps } from './button';
+import type { VbenButtonProps } from './button';
 
 import { computed, useSlots } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
-import { HunyuanTooltip } from '../tooltip';
-import HunyuanButton from './button.vue';
+import { VbenTooltip } from '../tooltip';
+import VbenButton from './button.vue';
 
-interface Props extends HunyuanButtonProps {
+interface Props extends VbenButtonProps {
   class?: any;
   disabled?: boolean;
   onClick?: () => void;
@@ -33,7 +33,7 @@ const showTooltip = computed(() => !!slots.tooltip || !!props.tooltip);
 </script>
 
 <template>
-  <HunyuanButton
+  <VbenButton
     v-if="!showTooltip"
     :class="cn('rounded-full', props.class)"
     :disabled="disabled"
@@ -42,15 +42,15 @@ const showTooltip = computed(() => !!slots.tooltip || !!props.tooltip);
     @click="onClick"
   >
     <slot></slot>
-  </HunyuanButton>
+  </VbenButton>
 
-  <HunyuanTooltip
+  <VbenTooltip
     v-else
     :delay-duration="tooltipDelayDuration"
     :side="tooltipSide"
   >
     <template #trigger>
-      <HunyuanButton
+      <VbenButton
         :class="cn('rounded-full', props.class)"
         :disabled="disabled"
         :variant="variant"
@@ -58,11 +58,11 @@ const showTooltip = computed(() => !!slots.tooltip || !!props.tooltip);
         @click="onClick"
       >
         <slot></slot>
-      </HunyuanButton>
+      </VbenButton>
     </template>
     <slot v-if="slots.tooltip" name="tooltip"> </slot>
     <template v-else>
       {{ tooltip }}
     </template>
-  </HunyuanTooltip>
+  </VbenTooltip>
 </template>

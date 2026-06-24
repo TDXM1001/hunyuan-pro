@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { Recordable } from '@hunyuan/types';
+import type { Recordable } from '@vben/types';
 
-import type { HunyuanFormSchema } from '@hunyuan-core/form-ui';
+import type { VbenFormSchema } from '@vben-core/form-ui';
 
 import { computed, reactive } from 'vue';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
-import { useHunyuanForm } from '@hunyuan-core/form-ui';
-import { HunyuanButton } from '@hunyuan-core/shadcn-ui';
+import { useVbenForm } from '@vben-core/form-ui';
+import { VbenButton } from '@vben-core/shadcn-ui';
 
 interface Props {
-  formSchema?: HunyuanFormSchema[];
+  formSchema?: VbenFormSchema[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,7 +22,7 @@ const emit = defineEmits<{
   submit: [Recordable<any>];
 }>();
 
-const [Form, formApi] = useHunyuanForm(
+const [Form, formApi] = useVbenForm(
   reactive({
     commonConfig: {
       // 所有表单项
@@ -51,8 +51,8 @@ defineExpose({
 <template>
   <div @keydown.enter.prevent="handleSubmit">
     <Form />
-    <HunyuanButton type="submit" class="mt-4" @click="handleSubmit">
+    <VbenButton type="submit" class="mt-4" @click="handleSubmit">
       {{ $t('profile.updateBasicProfile') }}
-    </HunyuanButton>
+    </VbenButton>
   </div>
 </template>

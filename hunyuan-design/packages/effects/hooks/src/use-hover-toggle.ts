@@ -4,7 +4,7 @@ import type { Ref } from 'vue';
 
 import { computed, effectScope, ref, unref, watch } from 'vue';
 
-import { isFunction } from '@hunyuan/utils';
+import { isFunction } from '@vben/utils';
 
 import { tryOnScopeDispose, useElementHover } from '@vueuse/core';
 

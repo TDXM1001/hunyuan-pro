@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Recordable } from '@hunyuan-core/typings';
+import type { Recordable } from '@vben-core/typings';
 
 import type { CollapsibleParamSchema } from './type';
 
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 
-import { useNamespace } from '@hunyuan-core/composables';
+import { useNamespace } from '@vben-core/composables';
 
 import { ChevronsDown } from '@lucide/vue';
 import {
@@ -221,7 +221,7 @@ defineExpose({
   </CollapsibleRoot>
 </template>
 <style>
-.hunyuan-collapsible-params {
+.vben-collapsible-params {
   .wrapper {
     --column1: 11.25rem;
     --column2: 18.25rem;

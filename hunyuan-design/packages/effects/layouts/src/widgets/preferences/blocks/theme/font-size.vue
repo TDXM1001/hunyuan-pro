@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
 import {
   NumberField,
@@ -9,7 +9,7 @@ import {
   NumberFieldDecrement,
   NumberFieldIncrement,
   NumberFieldInput,
-} from '@hunyuan-core/shadcn-ui';
+} from '@vben-core/shadcn-ui';
 
 defineOptions({
   name: 'PreferenceFontSize',

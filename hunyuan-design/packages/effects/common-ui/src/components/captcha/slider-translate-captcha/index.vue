@@ -16,7 +16,7 @@ import {
   watch,
 } from 'vue';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
 import SliderCaptcha from '../slider-captcha/index.vue';
 

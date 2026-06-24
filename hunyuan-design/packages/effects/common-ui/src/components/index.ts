@@ -11,31 +11,31 @@ export * from './page';
 export * from './resize';
 export * from './tippy';
 export * from './tree';
-export * from '@hunyuan-core/form-ui';
-export * from '@hunyuan-core/popup-ui';
+export * from '@vben-core/form-ui';
+export * from '@vben-core/popup-ui';
 
 // 给文档用
 export {
-  HunyuanAvatar,
-  HunyuanButton,
-  HunyuanButtonGroup,
-  HunyuanCheckbox,
-  HunyuanCheckButtonGroup,
-  HunyuanCollapsibleParams,
-  HunyuanContextMenu,
-  HunyuanCountToAnimator,
-  HunyuanDescriptions,
-  HunyuanDescriptionsItem,
-  HunyuanFullScreen,
-  HunyuanIconButton,
-  HunyuanInputPassword,
-  HunyuanLoading,
-  HunyuanLogo,
-  HunyuanPinInput,
-  HunyuanSelect,
-  HunyuanSpinner,
-  HunyuanTableAction,
-} from '@hunyuan-core/shadcn-ui';
+  VbenAvatar,
+  VbenButton,
+  VbenButtonGroup,
+  VbenCheckbox,
+  VbenCheckButtonGroup,
+  VbenCollapsibleParams,
+  VbenContextMenu,
+  VbenCountToAnimator,
+  VbenDescriptions,
+  VbenDescriptionsItem,
+  VbenFullScreen,
+  VbenIconButton,
+  VbenInputPassword,
+  VbenLoading,
+  VbenLogo,
+  VbenPinInput,
+  VbenSelect,
+  VbenSpinner,
+  VbenTableAction,
+} from '@vben-core/shadcn-ui';
 
 export type {
   ActionItem,
@@ -47,5 +47,5 @@ export type {
   DescriptionsSize,
   FlattenedItem,
   TableActionProps,
-} from '@hunyuan-core/shadcn-ui';
-export { globalShareState } from '@hunyuan-core/shared/global-state';
+} from '@vben-core/shadcn-ui';
+export { globalShareState } from '@vben-core/shared/global-state';

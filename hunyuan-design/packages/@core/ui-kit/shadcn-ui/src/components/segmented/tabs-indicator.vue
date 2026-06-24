@@ -3,7 +3,7 @@ import type { TabsIndicatorProps } from 'reka-ui';
 
 import { computed } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { TabsIndicator, useForwardProps } from 'reka-ui';
 

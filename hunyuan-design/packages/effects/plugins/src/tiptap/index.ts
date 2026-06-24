@@ -1,4 +1,4 @@
-export { default as HunyuanTiptapPreview } from './preview.vue';
-export { default as HunyuanTiptap } from './tiptap.vue';
+export { default as VbenTiptapPreview } from './preview.vue';
+export { default as VbenTiptap } from './tiptap.vue';
 
 export * from './types';

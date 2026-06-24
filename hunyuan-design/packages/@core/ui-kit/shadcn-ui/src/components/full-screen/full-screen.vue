@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { Maximize, Minimize } from '@hunyuan-core/icons';
+import { Maximize, Minimize } from '@vben-core/icons';
 
 import { useFullscreen } from '@vueuse/core';
 
-import { HunyuanIconButton } from '../button';
+import { VbenIconButton } from '../button';
 
 defineOptions({ name: 'FullScreen' });
 
@@ -21,11 +21,11 @@ isFullscreen.value = !!(
 );
 </script>
 <template>
-  <HunyuanIconButton
+  <VbenIconButton
     class="hover:animate-[shrink_0.3s_ease-in-out]"
     @click="toggle"
   >
     <Minimize v-if="isFullscreen" class="text-foreground size-4" />
     <Maximize v-else class="text-foreground size-4" />
-  </HunyuanIconButton>
+  </VbenIconButton>
 </template>

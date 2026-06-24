@@ -2,11 +2,11 @@
 import type {
   CustomPreferencesField,
   CustomPreferencesRecord,
-} from '@hunyuan/preferences';
+} from '@vben/preferences';
 
 import { computed } from 'vue';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
 import InputItem from '../input-item.vue';
 import NumberFieldItem from '../number-field-item.vue';

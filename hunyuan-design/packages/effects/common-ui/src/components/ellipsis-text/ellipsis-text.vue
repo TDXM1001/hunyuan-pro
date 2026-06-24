@@ -10,7 +10,7 @@ import {
   watchEffect,
 } from 'vue';
 
-import { HunyuanTooltip } from '@hunyuan-core/shadcn-ui';
+import { VbenTooltip } from '@vben-core/shadcn-ui';
 
 import { useElementSize } from '@vueuse/core';
 
@@ -184,7 +184,7 @@ function handleExpand() {
 </script>
 <template>
   <div>
-    <HunyuanTooltip
+    <VbenTooltip
       :content-style="{
         ...tooltipOverlayStyle,
         maxWidth: `${defaultTooltipMaxWidth}px`,
@@ -220,7 +220,7 @@ function handleExpand() {
           <slot></slot>
         </div>
       </template>
-    </HunyuanTooltip>
+    </VbenTooltip>
   </div>
 </template>
 

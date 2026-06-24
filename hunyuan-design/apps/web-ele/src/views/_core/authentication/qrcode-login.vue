@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { AuthenticationQrCodeLogin } from '@hunyuan/common-ui';
-import { LOGIN_PATH } from '@hunyuan/constants';
+import { AuthenticationQrCodeLogin } from '@vben/common-ui';
+import { LOGIN_PATH } from '@vben/constants';
 
 defineOptions({ name: 'QrCodeLogin' });
 </script>

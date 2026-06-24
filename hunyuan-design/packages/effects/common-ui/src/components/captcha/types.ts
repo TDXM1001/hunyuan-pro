@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'vue';
 
-import type { ClassType } from '@hunyuan/types';
+import type { ClassType } from '@vben/types';
 
 export interface CaptchaData {
   /**

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { SelectOption } from '@hunyuan/types';
+import type { SelectOption } from '@vben/types';
 
 import { computed } from 'vue';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
 import SwitchItem from '../switch-item.vue';
 import ToggleItem from '../toggle-item.vue';

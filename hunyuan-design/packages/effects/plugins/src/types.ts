@@ -1,24 +1,24 @@
 import type { Component } from 'vue';
 
-export interface HunyuanPluginsFormOptions {
-  useHunyuanForm: (...args: any[]) => any;
+export interface VbenPluginsFormOptions {
+  useVbenForm: (...args: any[]) => any;
 }
 
-export interface HunyuanPluginsModalOptions {
-  useHunyuanModal?: () => any;
+export interface VbenPluginsModalOptions {
+  useVbenModal?: () => any;
 }
 
-export interface HunyuanPluginsMessageOptions {
+export interface VbenPluginsMessageOptions {
   useMessage?: () => any;
 }
 
-export interface HunyuanPluginsComponentsOptions {
+export interface VbenPluginsComponentsOptions {
   [key: string]: Component;
 }
 
-export interface HunyuanPluginsOptions {
-  form?: HunyuanPluginsFormOptions;
-  modal?: HunyuanPluginsModalOptions;
-  message?: HunyuanPluginsMessageOptions;
-  components?: HunyuanPluginsComponentsOptions;
+export interface VbenPluginsOptions {
+  form?: VbenPluginsFormOptions;
+  modal?: VbenPluginsModalOptions;
+  message?: VbenPluginsMessageOptions;
+  components?: VbenPluginsComponentsOptions;
 }

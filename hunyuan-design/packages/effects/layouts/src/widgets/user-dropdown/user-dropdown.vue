@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 
-import type { AnyFunction } from '@hunyuan/types';
+import type { AnyFunction } from '@vben/types';
 
 import { computed, useTemplateRef, watch } from 'vue';
 
-import { useHoverToggle } from '@hunyuan/hooks';
-import { LockKeyhole, LogOut, Settings } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
-import { preferences, usePreferences } from '@hunyuan/preferences';
-import { useAccessStore } from '@hunyuan/stores';
-import { isWindowsOs } from '@hunyuan/utils';
+import { useHoverToggle } from '@vben/hooks';
+import { LockKeyhole, LogOut, Settings } from '@vben/icons';
+import { $t } from '@vben/locales';
+import { preferences, usePreferences } from '@vben/preferences';
+import { useAccessStore } from '@vben/stores';
+import { isWindowsOs } from '@vben/utils';
 
-import { useHunyuanModal } from '@hunyuan-core/popup-ui';
+import { useVbenModal } from '@vben-core/popup-ui';
 import {
   Badge,
   DropdownMenu,
@@ -22,9 +22,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-  HunyuanAvatar,
-  HunyuanIcon,
-} from '@hunyuan-core/shadcn-ui';
+  VbenAvatar,
+  VbenIcon,
+} from '@vben-core/shadcn-ui';
 
 import { useMagicKeys, whenever } from '@vueuse/core';
 
@@ -91,10 +91,10 @@ const {
   preferencesButtonPosition,
 } = usePreferences();
 const accessStore = useAccessStore();
-const [LockModal, lockModalApi] = useHunyuanModal({
+const [LockModal, lockModalApi] = useVbenModal({
   connectedComponent: LockScreenModal,
 });
-const [LogoutModal, logoutModalApi] = useHunyuanModal({
+const [LogoutModal, logoutModalApi] = useVbenModal({
   onConfirm() {
     handleSubmitLogout();
   },
@@ -216,14 +216,14 @@ if (enableShortcutKey.value) {
     <DropdownMenuTrigger ref="refTrigger" :disabled="props.trigger === 'hover'">
       <div class="mr-2 ml-1 cursor-pointer rounded-full p-1.5 hover:bg-accent">
         <div class="flex-center hover:text-accent-foreground">
-          <HunyuanAvatar :alt="text" :src="avatar" class="size-8" dot />
+          <VbenAvatar :alt="text" :src="avatar" class="size-8" dot />
         </div>
       </div>
     </DropdownMenuTrigger>
     <DropdownMenuContent class="mr-2 min-w-60 p-0 pb-1">
       <div ref="refContent">
         <DropdownMenuLabel class="flex items-center p-3">
-          <HunyuanAvatar
+          <VbenAvatar
             :alt="text"
             :src="avatar"
             class="size-12"
@@ -258,7 +258,7 @@ if (enableShortcutKey.value) {
           class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
           @click="menu.handler"
         >
-          <HunyuanIcon :icon="menu.icon" class="mr-2 size-4" />
+          <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
           {{ menu.text }}
         </DropdownMenuItem>
         <DropdownMenuSeparator />

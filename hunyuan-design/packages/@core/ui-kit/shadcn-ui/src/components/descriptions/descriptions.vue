@@ -5,7 +5,7 @@ import type { DescriptionsItemType, DescriptionsProps } from './types';
 
 import { computed, useSlots } from 'vue';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import DescriptionsRow from './descriptions-row.vue';
 import {
@@ -16,7 +16,7 @@ import {
   useScreens,
 } from './use-descriptions';
 
-defineOptions({ name: 'HunyuanDescriptions' });
+defineOptions({ name: 'VbenDescriptions' });
 
 const props = withDefaults(defineProps<DescriptionsProps>(), {
   bordered: false,
@@ -35,7 +35,7 @@ const props = withDefaults(defineProps<DescriptionsProps>(), {
 const slots = useSlots();
 const screens = useScreens();
 
-// 优先使用 items；否则从默认插槽中解析 HunyuanDescriptionsItem
+// 优先使用 items；否则从默认插槽中解析 VbenDescriptionsItem
 const resolvedItems = computed<DescriptionsItemType[]>(() => {
   if (props.items && props.items.length > 0) return props.items;
   const nodes = (slots.default?.() ?? []) as VNode[];

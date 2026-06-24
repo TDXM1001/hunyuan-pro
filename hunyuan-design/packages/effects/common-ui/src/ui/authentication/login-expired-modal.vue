@@ -3,10 +3,10 @@ import type { AuthenticationProps } from './types';
 
 import { computed, watch } from 'vue';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
-import { useHunyuanModal } from '@hunyuan-core/popup-ui';
-import { Slot, HunyuanAvatar } from '@hunyuan-core/shadcn-ui';
+import { useVbenModal } from '@vben-core/popup-ui';
+import { Slot, VbenAvatar } from '@vben-core/shadcn-ui';
 
 interface Props extends AuthenticationProps {
   avatar?: string;
@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const open = defineModel<boolean>('open');
 
-const [Modal, modalApi] = useHunyuanModal();
+const [Modal, modalApi] = useVbenModal();
 
 watch(
   () => open.value,
@@ -80,7 +80,7 @@ function calcZIndex() {
       :z-index="getZIndex"
       class="border-none px-10 py-6 text-center shadow-xl sm:w-150 sm:rounded-2xl md:h-[unset]"
     >
-      <HunyuanAvatar :src="avatar" class="mx-auto mb-6 size-20" />
+      <VbenAvatar :src="avatar" class="mx-auto mb-6 size-20" />
       <Slot
         :show-forget-password="false"
         :show-register="false"

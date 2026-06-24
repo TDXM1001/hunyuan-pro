@@ -1,4 +1,4 @@
-import { getScrollbarWidth, needsScrollbar } from '@hunyuan-core/shared/utils';
+import { getScrollbarWidth, needsScrollbar } from '@vben-core/shared/utils';
 
 import {
   useScrollLock as _useScrollLock,

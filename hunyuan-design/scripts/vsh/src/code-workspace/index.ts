@@ -11,9 +11,9 @@ import {
   gitAdd,
   outputJSON,
   toPosixPath,
-} from '@hunyuan/node-utils';
+} from '@vben/node-utils';
 
-const CODE_WORKSPACE_FILE = join('hunyuan-design.code-workspace');
+const CODE_WORKSPACE_FILE = join('vben-admin.code-workspace');
 
 interface CodeWorkspaceCommandOptions {
   autoCommit?: boolean;

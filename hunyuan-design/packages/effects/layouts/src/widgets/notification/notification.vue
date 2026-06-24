@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import type { NotificationItem } from './types';
 
-import { Bell, CircleCheckBig, CircleX, MailCheck } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { Bell, CircleCheckBig, CircleX, MailCheck } from '@vben/icons';
+import { $t } from '@vben/locales';
 
 import {
-  HunyuanButton,
-  HunyuanIconButton,
-  HunyuanPopover,
-  HunyuanScrollbar,
-} from '@hunyuan-core/shadcn-ui';
+  VbenButton,
+  VbenIconButton,
+  VbenPopover,
+  VbenScrollbar,
+} from '@vben-core/shadcn-ui';
 
 import { useToggle } from '@vueuse/core';
 
@@ -57,31 +57,31 @@ const handleClear = () => {
 };
 </script>
 <template>
-  <HunyuanPopover v-model:open="open" content-class="relative right-2 w-90 p-0">
+  <VbenPopover v-model:open="open" content-class="relative right-2 w-90 p-0">
     <template #trigger>
       <div class="mr-2 flex-center h-full" @click.stop="toggle()">
-        <HunyuanIconButton class="bell-button relative text-foreground">
+        <VbenIconButton class="bell-button relative text-foreground">
           <span
             v-if="dot"
             class="absolute top-0.5 right-0.5 size-2 rounded-sm bg-primary"
           ></span>
           <Bell class="size-4" />
-        </HunyuanIconButton>
+        </VbenIconButton>
       </div>
     </template>
 
     <div class="relative">
       <div class="flex items-center justify-between p-4 py-3">
         <div class="text-foreground">{{ $t('ui.widgets.notifications') }}</div>
-        <HunyuanIconButton
+        <VbenIconButton
           :disabled="notifications.length <= 0"
           :tooltip="$t('ui.widgets.markAllAsRead')"
           @click="handleMakeAll"
         >
           <MailCheck class="size-4" />
-        </HunyuanIconButton>
+        </VbenIconButton>
       </div>
-      <HunyuanScrollbar v-if="notifications.length > 0">
+      <VbenScrollbar v-if="notifications.length > 0">
         <ul class="flex! max-h-90 w-full flex-col">
           <template v-for="item in notifications" :key="item.id ?? item.title">
             <li
@@ -116,7 +116,7 @@ const handleClear = () => {
                 >
                   <slot name="action" :item="item">
                     <slot name="action-prepend" :item="item"></slot>
-                    <HunyuanIconButton
+                    <VbenIconButton
                       v-if="!item.isRead"
                       size="xs"
                       variant="ghost"
@@ -125,8 +125,8 @@ const handleClear = () => {
                       @click.stop="emit('read', item)"
                     >
                       <CircleCheckBig class="size-4" />
-                    </HunyuanIconButton>
-                    <HunyuanIconButton
+                    </VbenIconButton>
+                    <VbenIconButton
                       v-if="item.isRead"
                       size="xs"
                       variant="ghost"
@@ -135,7 +135,7 @@ const handleClear = () => {
                       @click.stop="emit('remove', item)"
                     >
                       <CircleX class="size-4" />
-                    </HunyuanIconButton>
+                    </VbenIconButton>
                     <slot name="action-append" :item="item"></slot>
                   </slot>
                 </div>
@@ -143,7 +143,7 @@ const handleClear = () => {
             </li>
           </template>
         </ul>
-      </HunyuanScrollbar>
+      </VbenScrollbar>
 
       <template v-else>
         <div class="flex-center min-h-37.5 w-full text-muted-foreground">
@@ -154,20 +154,20 @@ const handleClear = () => {
       <div
         class="flex items-center justify-between border-t border-border px-4 py-3"
       >
-        <HunyuanButton
+        <VbenButton
           :disabled="notifications.length <= 0"
           size="sm"
           variant="ghost"
           @click="handleClear"
         >
           {{ $t('ui.widgets.clearNotifications') }}
-        </HunyuanButton>
-        <HunyuanButton size="sm" @click="handleViewAll">
+        </VbenButton>
+        <VbenButton size="sm" @click="handleViewAll">
           {{ $t('ui.widgets.viewAll') }}
-        </HunyuanButton>
+        </VbenButton>
       </div>
     </div>
-  </HunyuanPopover>
+  </VbenPopover>
 </template>
 
 <style scoped>

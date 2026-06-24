@@ -58,7 +58,7 @@ export interface DescriptionsProps {
   contentStyle?: CSSProperties;
   /** 操作区域，位于标题右侧 */
   extra?: string;
-  /** 数据驱动的列表项；不传则读取默认插槽中的 HunyuanDescriptionsItem */
+  /** 数据驱动的列表项；不传则读取默认插槽中的 VbenDescriptionsItem */
   items?: DescriptionsItemType[];
   /** 统一的标签样式 */
   labelStyle?: CSSProperties;

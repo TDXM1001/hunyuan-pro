@@ -1,1 +1,1 @@
-export { default as HunyuanLogo } from './logo.vue';
+export { default as VbenLogo } from './logo.vue';

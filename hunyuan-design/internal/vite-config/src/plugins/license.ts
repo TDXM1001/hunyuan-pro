@@ -2,7 +2,7 @@ import type { PluginOption } from 'vite';
 
 import { EOL } from 'node:os';
 
-import { dateUtil, readPackageJSON } from '@hunyuan/node-utils';
+import { dateUtil, readPackageJSON } from '@vben/node-utils';
 
 /**
  * 用于注入版权信息
@@ -24,10 +24,10 @@ async function viteLicensePlugin(
       handler(_options, bundle) {
         const date = dateUtil().format('YYYY-MM-DD ');
         const copyrightText = `/*!
-  * Hunyuan Design
+  * Vben Admin
   * Version: ${version}
   * Author: vben
-  * Copyright (C) 2024 Hunyuan
+  * Copyright (C) 2024 Vben
   * License: MIT License
   * Description: ${description}
   * Date Created: ${date}

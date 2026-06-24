@@ -1,15 +1,15 @@
 import type {
-  HunyuanFormProps as FormProps,
-  HunyuanFormSchema as FormSchema,
-} from '@hunyuan/common-ui';
+  VbenFormProps as FormProps,
+  VbenFormSchema as FormSchema,
+} from '@vben/common-ui';
 
 import type { ComponentPropsMap, ComponentType } from './component';
 
-import { setupHunyuanForm, useHunyuanForm as useForm, z } from '@hunyuan/common-ui';
-import { $t } from '@hunyuan/locales';
+import { setupVbenForm, useVbenForm as useForm, z } from '@vben/common-ui';
+import { $t } from '@vben/locales';
 
-async function initSetupHunyuanForm() {
-  setupHunyuanForm<ComponentType>({
+async function initSetupVbenForm() {
+  setupVbenForm<ComponentType>({
     config: {
       modelPropNameMap: {
         Upload: 'fileList',
@@ -33,9 +33,9 @@ async function initSetupHunyuanForm() {
   });
 }
 
-const useHunyuanForm = useForm<ComponentType, ComponentPropsMap>;
+const useVbenForm = useForm<ComponentType, ComponentPropsMap>;
 
-export { initSetupHunyuanForm, useHunyuanForm, z };
+export { initSetupVbenForm, useVbenForm, z };
 
-export type HunyuanFormSchema = FormSchema<ComponentType, ComponentPropsMap>;
-export type HunyuanFormProps = FormProps<ComponentType, ComponentPropsMap>;
+export type VbenFormSchema = FormSchema<ComponentType, ComponentPropsMap>;
+export type VbenFormProps = FormProps<ComponentType, ComponentPropsMap>;

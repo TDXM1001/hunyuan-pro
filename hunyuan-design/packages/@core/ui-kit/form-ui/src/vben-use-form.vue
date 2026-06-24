@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Recordable } from '@hunyuan-core/typings';
+import type { Recordable } from '@vben-core/typings';
 
-import type { ExtendedFormApi, HunyuanFormProps } from './types';
+import type { ExtendedFormApi, VbenFormProps } from './types';
 
 import { nextTick, onMounted, watch } from 'vue';
 
-import { useForwardPriorityValues } from '@hunyuan-core/composables';
-import { cloneDeep, get, isEqual, set } from '@hunyuan-core/shared/utils';
+import { useForwardPriorityValues } from '@vben-core/composables';
+import { cloneDeep, get, isEqual, set } from '@vben-core/shared/utils';
 
 import { useDebounceFn } from '@vueuse/core';
 
@@ -24,7 +24,7 @@ import {
 } from './use-form-context';
 
 // 通过 extends 会导致热更新卡死，所以重复写了一遍
-interface Props extends HunyuanFormProps {
+interface Props extends VbenFormProps {
   formApi?: ExtendedFormApi;
 }
 

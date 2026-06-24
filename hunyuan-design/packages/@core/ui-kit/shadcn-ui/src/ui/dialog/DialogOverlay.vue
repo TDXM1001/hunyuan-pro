@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { inject } from 'vue';
 
-import { useScrollLock } from '@hunyuan-core/composables';
-import { cn } from '@hunyuan-core/shared/utils';
+import { useScrollLock } from '@vben-core/composables';
+import { cn } from '@vben-core/shared/utils';
 
 const props = withDefaults(
   defineProps<{

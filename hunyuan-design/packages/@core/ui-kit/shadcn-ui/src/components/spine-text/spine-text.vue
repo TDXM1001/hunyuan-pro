@@ -16,12 +16,12 @@ const style = computed(() => {
 });
 </script>
 <template>
-  <div :style="style" class="hunyuan-spine-text bg-clip-text! text-transparent">
+  <div :style="style" class="vben-spine-text bg-clip-text! text-transparent">
     <slot></slot>
   </div>
 </template>
 <style>
-.hunyuan-spine-text {
+.vben-spine-text {
   background:
     radial-gradient(circle at center, rgb(255 255 255 / 80%), #f000) -200% 50% /
       200% 100% no-repeat,
@@ -30,7 +30,7 @@ const style = computed(() => {
   /* animation: shine 3s linear infinite; */
 }
 
-.dark .hunyuan-spine-text {
+.dark .vben-spine-text {
   background:
     radial-gradient(circle at center, rgb(24 24 26 / 80%), transparent) -200%
       50% / 200% 100% no-repeat,

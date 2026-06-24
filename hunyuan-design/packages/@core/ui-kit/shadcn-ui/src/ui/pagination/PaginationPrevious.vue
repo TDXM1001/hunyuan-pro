@@ -5,7 +5,7 @@ import type { HTMLAttributes } from 'vue';
 
 import type { ButtonVariants } from '../button';
 
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { ChevronLeft } from '@lucide/vue';
 import { reactiveOmit } from '@vueuse/core';

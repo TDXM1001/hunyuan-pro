@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import type { HunyuanFormSchema } from '@hunyuan-core/form-ui';
+import type { VbenFormSchema } from '@vben-core/form-ui';
 
 import { computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { $t } from '@hunyuan/locales';
+import { $t } from '@vben/locales';
 
-import { useHunyuanForm } from '@hunyuan-core/form-ui';
-import { HunyuanButton } from '@hunyuan-core/shadcn-ui';
+import { useVbenForm } from '@vben-core/form-ui';
+import { VbenButton } from '@vben-core/shadcn-ui';
 
 import Title from './auth-title.vue';
 
 interface Props {
-  formSchema: HunyuanFormSchema[];
+  formSchema: VbenFormSchema[];
   /**
    * @zh_CN 是否处于加载处理状态
    */
@@ -51,7 +51,7 @@ const emit = defineEmits<{
   submit: [Record<string, any>];
 }>();
 
-const [Form, formApi] = useHunyuanForm(
+const [Form, formApi] = useVbenForm(
   reactive({
     commonConfig: {
       hideLabel: true,
@@ -96,7 +96,7 @@ defineExpose({
     <Form />
 
     <div>
-      <HunyuanButton
+      <VbenButton
         :class="{
           'cursor-wait': loading,
         }"
@@ -107,10 +107,10 @@ defineExpose({
         <slot name="submitButtonText">
           {{ submitButtonText || $t('authentication.sendResetLink') }}
         </slot>
-      </HunyuanButton>
-      <HunyuanButton class="mt-4 w-full" variant="outline" @click="goToLogin()">
+      </VbenButton>
+      <VbenButton class="mt-4 w-full" variant="outline" @click="goToLogin()">
         {{ $t('common.back') }}
-      </HunyuanButton>
+      </VbenButton>
     </div>
   </div>
 </template>

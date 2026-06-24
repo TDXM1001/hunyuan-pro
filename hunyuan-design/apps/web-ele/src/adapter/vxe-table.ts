@@ -1,19 +1,19 @@
-import type { VxeTableGridOptions } from '@hunyuan/plugins/vxe-table';
+import type { VxeTableGridOptions } from '@vben/plugins/vxe-table';
 
 import type { ComponentPropsMap, ComponentType } from './component';
 
 import { h } from 'vue';
 
 import {
-  setupHunyuanVxeTable,
-  useHunyuanVxeGrid as useGrid,
-} from '@hunyuan/plugins/vxe-table';
+  setupVbenVxeTable,
+  useVbenVxeGrid as useGrid,
+} from '@vben/plugins/vxe-table';
 
 import { ElButton, ElImage } from 'element-plus';
 
-import { useHunyuanForm } from './form';
+import { useVbenForm } from './form';
 
-setupHunyuanVxeTable({
+setupVbenVxeTable({
   configVxeTable: (vxeUI) => {
     vxeUI.setConfig({
       grid: {
@@ -68,11 +68,11 @@ setupHunyuanVxeTable({
     // 这里可以自行扩展 vxe-table 的全局配置，比如自定义格式化
     // vxeUI.formats.add
   },
-  useHunyuanForm,
+  useVbenForm,
 });
 
-export const useHunyuanVxeGrid = <T extends Record<string, any>>(
+export const useVbenVxeGrid = <T extends Record<string, any>>(
   ...rest: Parameters<typeof useGrid<T, ComponentType, ComponentPropsMap>>
 ) => useGrid<T, ComponentType, ComponentPropsMap>(...rest);
 
-export type * from '@hunyuan/plugins/vxe-table';
+export type * from '@vben/plugins/vxe-table';

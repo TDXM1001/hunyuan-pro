@@ -1,3 +1,3 @@
-export { default as HunyuanBreadcrumbView } from './breadcrumb-view.vue';
+export { default as VbenBreadcrumbView } from './breadcrumb-view.vue';
 
 export type * from './types';

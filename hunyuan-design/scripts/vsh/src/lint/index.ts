@@ -3,7 +3,7 @@ import type { CAC } from 'cac';
 import { execSync } from 'node:child_process';
 import { availableParallelism, freemem } from 'node:os';
 
-import { execaCommand } from '@hunyuan/node-utils';
+import { execaCommand } from '@vben/node-utils';
 
 interface LintCommandOptions {
   /**

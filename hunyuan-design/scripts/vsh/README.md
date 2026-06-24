@@ -1,6 +1,6 @@
-# @hunyuan/vsh
+# @vben/vsh
 
-一个 Shell 脚本工具集合，用于 Hunyuan Design 项目的开发和管理。
+一个 Shell 脚本工具集合，用于 Vue Vben Admin 项目的开发和管理。
 
 ## 功能特性
 
@@ -14,13 +14,13 @@
 
 ```bash
 # 使用 pnpm 安装
-pnpm add -D @hunyuan/vsh
+pnpm add -D @vben/vsh
 
 # 或者使用 npm
-npm install -D @hunyuan/vsh
+npm install -D @vben/vsh
 
 # 或者使用 yarn
-yarn add -D @hunyuan/vsh
+yarn add -D @vben/vsh
 ```
 
 ## 使用方法
@@ -29,7 +29,7 @@ yarn add -D @hunyuan/vsh
 
 ```bash
 # 全局安装
-pnpm add -g @hunyuan/vsh
+pnpm add -g @vben/vsh
 
 # 使用 vsh 命令
 vsh [command]

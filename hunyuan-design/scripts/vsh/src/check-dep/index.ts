@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { execa } from '@hunyuan/node-utils';
+import { execa } from '@vben/node-utils';
 
 const require = createRequire(import.meta.url);
 const knipMain = require.resolve('knip');
@@ -16,13 +16,13 @@ const DEFAULT_CONFIG = {
   ignoreBinaries: [] as string[],
   ignoreDependencies: [
     '@iconify/json',
-    '@hunyuan-core/design',
-    '@hunyuan/commitlint-config',
-    '@hunyuan/eslint-config',
-    '@hunyuan/stylelint-config',
-    '@hunyuan/tailwind-config',
-    '@hunyuan/vite-config',
-    '@hunyuan/oxlint-config',
+    '@vben-core/design',
+    '@vben/commitlint-config',
+    '@vben/eslint-config',
+    '@vben/stylelint-config',
+    '@vben/tailwind-config',
+    '@vben/vite-config',
+    '@vben/oxlint-config',
     'playwright',
     'rimraf',
     'tailwindcss',

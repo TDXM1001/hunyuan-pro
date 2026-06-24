@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
 
-import { Settings } from '@hunyuan/icons';
-import { $t, loadLocaleMessages } from '@hunyuan/locales';
-import { preferences, updatePreferences } from '@hunyuan/preferences';
-import { capitalizeFirstLetter } from '@hunyuan/utils';
+import { Settings } from '@vben/icons';
+import { $t, loadLocaleMessages } from '@vben/locales';
+import { preferences, updatePreferences } from '@vben/preferences';
+import { capitalizeFirstLetter } from '@vben/utils';
 
-import { useHunyuanDrawer } from '@hunyuan-core/popup-ui';
-import { HunyuanButton } from '@hunyuan-core/shadcn-ui';
+import { useVbenDrawer } from '@vben-core/popup-ui';
+import { VbenButton } from '@vben-core/shadcn-ui';
 
 import PreferencesDrawer from './preferences-drawer.vue';
 
@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ clearPreferencesAndLogout: [] }>();
 
-const [Drawer, drawerApi] = useHunyuanDrawer({
+const [Drawer, drawerApi] = useVbenDrawer({
   connectedComponent: PreferencesDrawer,
 });
 
@@ -80,14 +80,14 @@ const listen = computed(() => {
 
     <!-- 触发打开抽屉的按钮(可覆盖) -->
     <slot>
-      <HunyuanButton
+      <VbenButton
         v-if="props.showButton"
         :title="$t('preferences.title')"
         class="flex-col-center size-10 cursor-pointer rounded-l-lg rounded-r-none border-none bg-primary"
         @click="() => drawerApi.open()"
       >
         <Settings class="size-5" />
-      </HunyuanButton>
+      </VbenButton>
     </slot>
   </div>
 </template>

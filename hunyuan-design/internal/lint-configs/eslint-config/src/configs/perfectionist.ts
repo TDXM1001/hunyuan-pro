@@ -24,13 +24,13 @@ export async function perfectionist(): Promise<Linter.Config[]> {
             customGroups: [
               {
                 selector: 'type',
-                groupName: 'hunyuan-core-type',
-                elementNamePattern: '^@hunyuan-core/.+',
+                groupName: 'vben-core-type',
+                elementNamePattern: '^@vben-core/.+',
               },
               {
                 selector: 'type',
-                groupName: 'hunyuan-type',
-                elementNamePattern: '^@hunyuan/.+',
+                groupName: 'vben-type',
+                elementNamePattern: '^@vben/.+',
               },
               {
                 selector: 'type',
@@ -39,11 +39,11 @@ export async function perfectionist(): Promise<Linter.Config[]> {
               },
               {
                 groupName: 'vben',
-                elementNamePattern: '^@hunyuan/.+',
+                elementNamePattern: '^@vben/.+',
               },
               {
-                groupName: 'hunyuan-core',
-                elementNamePattern: '^@hunyuan-core/.+',
+                groupName: 'vben-core',
+                elementNamePattern: '^@vben-core/.+',
               },
               {
                 groupName: 'vue',
@@ -54,14 +54,14 @@ export async function perfectionist(): Promise<Linter.Config[]> {
             groups: [
               ['type-external', 'type-builtin', 'type-import'],
               'vue-type',
-              'hunyuan-type',
-              'hunyuan-core-type',
+              'vben-type',
+              'vben-core-type',
               ['type-parent', 'type-sibling', 'type-index'],
               ['type-internal'],
               'value-builtin',
               'vue',
               'vben',
-              'hunyuan-core',
+              'vben-core',
               'value-external',
               'value-internal',
               ['value-parent', 'value-sibling', 'value-index'],

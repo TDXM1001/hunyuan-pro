@@ -1,4 +1,4 @@
-import { createIconifyIcon } from '@hunyuan-core/icons';
+import { createIconifyIcon } from '@vben-core/icons';
 
 import './load.js';
 

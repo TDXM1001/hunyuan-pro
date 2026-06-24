@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 
-import type { LayoutType } from '@hunyuan/types';
+import type { LayoutType } from '@vben/types';
 
 import { computed } from 'vue';
 
-import { CircleHelp } from '@hunyuan/icons';
-import { $t } from '@hunyuan/locales';
+import { CircleHelp } from '@vben/icons';
+import { $t } from '@vben/locales';
 
-import { HunyuanTooltip } from '@hunyuan-core/shadcn-ui';
+import { VbenTooltip } from '@vben-core/shadcn-ui';
 
 import {
   FullContent,
@@ -99,12 +99,12 @@ function activeClass(theme: string): string[] {
           class="mt-2 flex-center text-center text-xs text-muted-foreground hover:text-foreground"
         >
           {{ theme.name }}
-          <HunyuanTooltip v-if="theme.tip" side="bottom">
+          <VbenTooltip v-if="theme.tip" side="bottom">
             <template #trigger>
               <CircleHelp class="ml-1 size-3 cursor-help" />
             </template>
             {{ theme.tip }}
-          </HunyuanTooltip>
+          </VbenTooltip>
         </div>
       </div>
     </template>

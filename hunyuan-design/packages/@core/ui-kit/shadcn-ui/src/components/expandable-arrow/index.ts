@@ -1,1 +1,1 @@
-export { default as HunyuanExpandableArrow } from './expandable-arrow.vue';
+export { default as VbenExpandableArrow } from './expandable-arrow.vue';

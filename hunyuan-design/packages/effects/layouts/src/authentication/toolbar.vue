@@ -3,7 +3,7 @@ import type { ToolbarType } from './types';
 
 import { computed } from 'vue';
 
-import { preferences } from '@hunyuan/preferences';
+import { preferences } from '@vben/preferences';
 
 import {
   AuthenticationColorToggle,

@@ -1,6 +1,6 @@
 import type { Component } from 'vue';
 
-import type { BreadcrumbStyleType } from '@hunyuan-core/typings';
+import type { BreadcrumbStyleType } from '@vben-core/typings';
 
 export interface IBreadcrumb {
   icon?: Component | string;

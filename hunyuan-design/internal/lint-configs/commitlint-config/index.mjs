@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
 
-import { getPackagesSync } from '@hunyuan/node-utils';
+import { getPackagesSync } from '@vben/node-utils';
 
 const { packages } = getPackagesSync();
 

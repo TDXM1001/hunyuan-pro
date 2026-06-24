@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import type { HunyuanFormSchema } from '#/adapter/form';
+import type { VbenFormSchema } from '#/adapter/form';
 
 import { computed } from 'vue';
 
-import { ProfilePasswordSetting, z } from '@hunyuan/common-ui';
+import { ProfilePasswordSetting, z } from '@vben/common-ui';
 
 import { ElMessage } from 'element-plus';
 
-const formSchema = computed((): HunyuanFormSchema[] => {
+const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
       fieldName: 'oldPassword',
       label: '旧密码',
-      component: 'HunyuanInputPassword',
+      component: 'VbenInputPassword',
       componentProps: {
         placeholder: '请输入旧密码',
       },
@@ -20,7 +20,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
     {
       fieldName: 'newPassword',
       label: '新密码',
-      component: 'HunyuanInputPassword',
+      component: 'VbenInputPassword',
       componentProps: {
         passwordStrength: true,
         placeholder: '请输入新密码',
@@ -29,7 +29,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
     {
       fieldName: 'confirmPassword',
       label: '确认密码',
-      component: 'HunyuanInputPassword',
+      component: 'VbenInputPassword',
       componentProps: {
         passwordStrength: true,
         placeholder: '请再次输入新密码',

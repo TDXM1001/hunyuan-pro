@@ -162,7 +162,7 @@ export function calcRows(
 }
 
 /** 标记组件类型为 DescriptionsItem，便于从插槽 vnode 中识别 */
-export const DESCRIPTIONS_ITEM_NAME = 'HunyuanDescriptionsItem';
+export const DESCRIPTIONS_ITEM_NAME = 'VbenDescriptionsItem';
 
 function isItemVNode(node: VNode): boolean {
   const type = node.type as any;
@@ -186,7 +186,7 @@ function flattenVNodes(nodes: VNode[]): VNode[] {
 
 /**
  * 从默认插槽的 vnode 中解析出列表项，支持
- * <HunyuanDescriptionsItem label="..." :span="2">content</HunyuanDescriptionsItem> 写法
+ * <VbenDescriptionsItem label="..." :span="2">content</VbenDescriptionsItem> 写法
  */
 export function parseItemsFromSlot(nodes: VNode[]): DescriptionsItemType[] {
   return flattenVNodes(nodes)

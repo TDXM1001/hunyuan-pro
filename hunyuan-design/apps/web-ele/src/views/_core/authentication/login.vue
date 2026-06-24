@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import type { HunyuanFormSchema } from '@hunyuan/common-ui';
-import type { BasicOption } from '@hunyuan/types';
+import type { VbenFormSchema } from '@vben/common-ui';
+import type { BasicOption } from '@vben/types';
 
 import { computed, markRaw } from 'vue';
 
-import { AuthenticationLogin, SliderCaptcha, z } from '@hunyuan/common-ui';
-import { $t } from '@hunyuan/locales';
+import { AuthenticationLogin, SliderCaptcha, z } from '@vben/common-ui';
+import { $t } from '@vben/locales';
 
 import { useAuthStore } from '#/store';
 
@@ -16,7 +16,7 @@ const authStore = useAuthStore();
 const MOCK_USER_OPTIONS: BasicOption[] = [
   {
     label: 'Super',
-    value: 'hunyuan',
+    value: 'vben',
   },
   {
     label: 'Admin',
@@ -28,10 +28,10 @@ const MOCK_USER_OPTIONS: BasicOption[] = [
   },
 ];
 
-const formSchema = computed((): HunyuanFormSchema[] => {
+const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
-      component: 'HunyuanSelect',
+      component: 'VbenSelect',
       componentProps: {
         options: MOCK_USER_OPTIONS,
         placeholder: $t('authentication.selectAccount'),
@@ -42,10 +42,10 @@ const formSchema = computed((): HunyuanFormSchema[] => {
         .string()
         .min(1, { message: $t('authentication.selectAccount') })
         .optional()
-        .default('hunyuan'),
+        .default('vben'),
     },
     {
-      component: 'HunyuanInput',
+      component: 'VbenInput',
       componentProps: {
         placeholder: $t('authentication.usernameTip'),
       },
@@ -70,7 +70,7 @@ const formSchema = computed((): HunyuanFormSchema[] => {
       rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
     },
     {
-      component: 'HunyuanInputPassword',
+      component: 'VbenInputPassword',
       componentProps: {
         placeholder: $t('authentication.password'),
       },

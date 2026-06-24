@@ -5,7 +5,7 @@ import type { AlertProps } from './alert';
 
 import { computed, h, nextTick, ref } from 'vue';
 
-import { useSimpleLocale } from '@hunyuan-core/composables';
+import { useSimpleLocale } from '@vben-core/composables';
 import {
   CircleAlert,
   CircleCheckBig,
@@ -13,8 +13,8 @@ import {
   CircleX,
   Info,
   X,
-} from '@hunyuan-core/icons';
-import { usePreferences } from '@hunyuan-core/preferences';
+} from '@vben-core/icons';
+import { usePreferences } from '@vben-core/preferences';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,12 +22,12 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogTitle,
-  HunyuanButton,
-  HunyuanLoading,
-  HunyuanRenderContent,
-} from '@hunyuan-core/shadcn-ui';
-import { globalShareState } from '@hunyuan-core/shared/global-state';
-import { cn } from '@hunyuan-core/shared/utils';
+  VbenButton,
+  VbenLoading,
+  VbenRenderContent,
+} from '@vben-core/shadcn-ui';
+import { globalShareState } from '@vben-core/shared/global-state';
+import { cn } from '@vben-core/shared/utils';
 
 import { provideAlertContext } from './alert';
 
@@ -171,7 +171,7 @@ async function handleOpenChange(val: boolean) {
             <component :is="getIconRender" class="mr-2" />
             <span class="flex-auto">{{ $t(title) }}</span>
             <AlertDialogCancel v-if="showCancel" as-child>
-              <HunyuanButton
+              <VbenButton
                 variant="ghost"
                 size="icon"
                 class="rounded-full"
@@ -179,24 +179,24 @@ async function handleOpenChange(val: boolean) {
                 @click="handleCancel"
               >
                 <X class="size-4 text-muted-foreground" />
-              </HunyuanButton>
+              </VbenButton>
             </AlertDialogCancel>
           </div>
         </AlertDialogTitle>
         <AlertDialogDescription>
           <div class="m-4 min-h-7.5">
-            <HunyuanRenderContent :content="content" render-br />
+            <VbenRenderContent :content="content" render-br />
           </div>
-          <HunyuanLoading v-if="loading && contentMasking" :spinning="loading" />
+          <VbenLoading v-if="loading && contentMasking" :spinning="loading" />
         </AlertDialogDescription>
         <div
           class="flex items-center justify-end gap-x-2"
           :class="`justify-${buttonAlign}`"
         >
-          <HunyuanRenderContent :content="footer" />
+          <VbenRenderContent :content="footer" />
           <AlertDialogCancel v-if="showCancel" as-child>
             <component
-              :is="components.DefaultButton || HunyuanButton"
+              :is="components.DefaultButton || VbenButton"
               :disabled="loading"
               variant="outline"
               @click="handleCancel"
@@ -206,7 +206,7 @@ async function handleOpenChange(val: boolean) {
           </AlertDialogCancel>
           <AlertDialogAction as-child>
             <component
-              :is="components.PrimaryButton || HunyuanButton"
+              :is="components.PrimaryButton || VbenButton"
               :loading="loading"
               @click="handleConfirm"
             >

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 
-import { Settings } from '@hunyuan/icons';
+import { Settings } from '@vben/icons';
 
-import { HunyuanIconButton } from '@hunyuan-core/shadcn-ui';
+import { VbenIconButton } from '@vben-core/shadcn-ui';
 
 import Preferences from './preferences.vue';
 
@@ -21,11 +21,11 @@ const preferencesRef = ref<InstanceType<typeof Preferences> | null>(null);
     ref="preferencesRef"
     @clear-preferences-and-logout="clearPreferencesAndLogout"
   >
-    <HunyuanIconButton
+    <VbenIconButton
       class="hover:animate-[shrink_0.3s_ease-in-out]"
       @click="preferencesRef?.open()"
     >
       <Settings class="size-4 text-foreground" />
-    </HunyuanIconButton>
+    </VbenIconButton>
   </Preferences>
 </template>

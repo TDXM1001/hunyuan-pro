@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 
-import { LockKeyhole } from '@hunyuan/icons';
-import { $t, useI18n } from '@hunyuan/locales';
-import { storeToRefs, useAccessStore } from '@hunyuan/stores';
+import { LockKeyhole } from '@vben/icons';
+import { $t, useI18n } from '@vben/locales';
+import { storeToRefs, useAccessStore } from '@vben/stores';
 
-import { useScrollLock } from '@hunyuan-core/composables';
-import { useHunyuanForm, z } from '@hunyuan-core/form-ui';
-import { HunyuanAvatar, HunyuanButton } from '@hunyuan-core/shadcn-ui';
+import { useScrollLock } from '@vben-core/composables';
+import { useVbenForm, z } from '@vben-core/form-ui';
+import { VbenAvatar, VbenButton } from '@vben-core/shadcn-ui';
 
 import { useDateFormat, useNow } from '@vueuse/core';
 
@@ -37,7 +37,7 @@ const date = useDateFormat(now, 'YYYY-MM-DD dddd', { locales: locale.value });
 const showUnlockForm = ref(false);
 const { lockScreenPassword } = storeToRefs(accessStore);
 
-const [Form, { form, validate, getFieldComponentRef }] = useHunyuanForm(
+const [Form, { form, validate, getFieldComponentRef }] = useVbenForm(
   reactive({
     commonConfig: {
       hideLabel: true,
@@ -45,7 +45,7 @@ const [Form, { form, validate, getFieldComponentRef }] = useHunyuanForm(
     },
     schema: computed(() => [
       {
-        component: 'HunyuanInputPassword' as const,
+        component: 'VbenInputPassword' as const,
         componentProps: {
           placeholder: $t('ui.widgets.lockScreen.placeholder'),
         },
@@ -129,27 +129,27 @@ useScrollLock();
         @keydown.enter.prevent="handleSubmit"
       >
         <div class="mb-10 flex-col-center w-[90%] max-w-75 px-4">
-          <HunyuanAvatar :src="avatar" class="enter-x mb-6 size-20" />
+          <VbenAvatar :src="avatar" class="enter-x mb-6 size-20" />
           <div class="enter-x mb-2 w-full items-center">
             <Form />
           </div>
-          <HunyuanButton class="enter-x w-full" @click="handleSubmit">
+          <VbenButton class="enter-x w-full" @click="handleSubmit">
             {{ $t('ui.widgets.lockScreen.entry') }}
-          </HunyuanButton>
-          <HunyuanButton
+          </VbenButton>
+          <VbenButton
             class="enter-x my-2 w-full"
             variant="ghost"
             @click="$emit('toLogin')"
           >
             {{ $t('ui.widgets.lockScreen.backToLogin') }}
-          </HunyuanButton>
-          <HunyuanButton
+          </VbenButton>
+          <VbenButton
             class="enter-x mr-2 w-full"
             variant="ghost"
             @click="toggleUnlockForm"
           >
             {{ $t('common.back') }}
-          </HunyuanButton>
+          </VbenButton>
         </div>
       </div>
     </transition>

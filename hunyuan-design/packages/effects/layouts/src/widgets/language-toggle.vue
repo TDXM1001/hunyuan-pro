@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { SupportedLanguagesType } from '@hunyuan/locales';
+import type { SupportedLanguagesType } from '@vben/locales';
 
-import { SUPPORT_LANGUAGES } from '@hunyuan/constants';
-import { Languages } from '@hunyuan/icons';
-import { loadLocaleMessages } from '@hunyuan/locales';
-import { preferences, updatePreferences } from '@hunyuan/preferences';
+import { SUPPORT_LANGUAGES } from '@vben/constants';
+import { Languages } from '@vben/icons';
+import { loadLocaleMessages } from '@vben/locales';
+import { preferences, updatePreferences } from '@vben/preferences';
 
-import { HunyuanDropdownRadioMenu, HunyuanIconButton } from '@hunyuan-core/shadcn-ui';
+import { VbenDropdownRadioMenu, VbenIconButton } from '@vben-core/shadcn-ui';
 
 defineOptions({
   name: 'LanguageToggle',
@@ -26,14 +26,14 @@ async function handleUpdate(value: string | undefined) {
 
 <template>
   <div>
-    <HunyuanDropdownRadioMenu
+    <VbenDropdownRadioMenu
       :menus="SUPPORT_LANGUAGES"
       :model-value="preferences.app.locale"
       @update:model-value="handleUpdate"
     >
-      <HunyuanIconButton class="hover:animate-[shrink_0.3s_ease-in-out]">
+      <VbenIconButton class="hover:animate-[shrink_0.3s_ease-in-out]">
         <Languages class="size-4 text-foreground" />
-      </HunyuanIconButton>
-    </HunyuanDropdownRadioMenu>
+      </VbenIconButton>
+    </VbenDropdownRadioMenu>
   </div>
 </template>

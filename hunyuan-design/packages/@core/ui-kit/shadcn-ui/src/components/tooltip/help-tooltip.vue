@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { cn } from '@hunyuan-core/shared/utils';
+import { cn } from '@vben-core/shared/utils';
 
 import { CircleHelp } from '@lucide/vue';
 

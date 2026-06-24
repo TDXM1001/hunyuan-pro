@@ -4,7 +4,7 @@ import type {
   AccessModeType,
   GenerateMenuAndRoutesOptions,
   RouteRecordRaw,
-} from '@hunyuan/types';
+} from '@vben/types';
 
 import { defineComponent, h } from 'vue';
 
@@ -16,7 +16,7 @@ import {
   isFunction,
   isString,
   mapTree,
-} from '@hunyuan/utils';
+} from '@vben/utils';
 
 async function generateAccessible(
   mode: AccessModeType,

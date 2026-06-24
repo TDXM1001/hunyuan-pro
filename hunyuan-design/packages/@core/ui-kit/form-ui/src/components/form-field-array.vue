@@ -3,19 +3,19 @@ import type { FormSchema } from '../types';
 
 import { computed } from 'vue';
 
-import { Plus, X } from '@hunyuan-core/icons';
+import { Plus, X } from '@vben-core/icons';
 import {
-  HunyuanButton,
-  HunyuanIconButton,
-  HunyuanRenderContent,
-} from '@hunyuan-core/shadcn-ui';
-import { cn } from '@hunyuan-core/shared/utils';
+  VbenButton,
+  VbenIconButton,
+  VbenRenderContent,
+} from '@vben-core/shadcn-ui';
+import { cn } from '@vben-core/shared/utils';
 
 import { useFieldArray } from 'vee-validate';
 
 import FormField from '../form-render/form-field.vue';
 
-defineOptions({ name: 'HunyuanFormFieldArray', inheritAttrs: false });
+defineOptions({ name: 'VbenFormFieldArray', inheritAttrs: false });
 
 const props = withDefaults(
   defineProps<{
@@ -122,7 +122,7 @@ function cellProps(col: FormSchema, index: number) {
             :key="col.fieldName"
             class="text-muted-foreground px-2 py-2 text-left text-sm font-normal"
           >
-            <HunyuanRenderContent :content="col.label" />
+            <VbenRenderContent :content="col.label" />
           </th>
           <th
             class="text-muted-foreground w-16 px-2 py-2 text-left text-sm font-normal"
@@ -144,13 +144,13 @@ function cellProps(col: FormSchema, index: number) {
             <FormField v-bind="cellProps(col, index)" />
           </td>
           <td class="px-2 py-3">
-            <HunyuanIconButton
+            <VbenIconButton
               :disabled="disabled || !canRemove"
               :on-click="() => removeRow(index)"
               class="text-muted-foreground hover:text-destructive"
             >
               <X class="size-4" />
-            </HunyuanIconButton>
+            </VbenIconButton>
           </td>
         </tr>
       </tbody>
@@ -163,7 +163,7 @@ function cellProps(col: FormSchema, index: number) {
       {{ emptyText }}
     </div>
 
-    <HunyuanButton
+    <VbenButton
       variant="outline"
       size="sm"
       :disabled="disabled || !canAdd"
@@ -172,6 +172,6 @@ function cellProps(col: FormSchema, index: number) {
     >
       <Plus class="mr-1 size-4" />
       {{ addButtonText }}
-    </HunyuanButton>
+    </VbenButton>
   </div>
 </template>

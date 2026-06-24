@@ -1,6 +1,6 @@
-import type { IconifyIconStructure } from '@hunyuan-core/icons';
+import type { IconifyIconStructure } from '@vben-core/icons';
 
-import { addIcon } from '@hunyuan-core/icons';
+import { addIcon } from '@vben-core/icons';
 
 loadSvgIcons();
 

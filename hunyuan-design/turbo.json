@@ -30,7 +30,7 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "@hunyuan/backend-mock#build": {
+    "@vben/backend-mock#build": {
       "dependsOn": ["^build"],
       "outputs": [".nitro/**", ".output/**"]
     },

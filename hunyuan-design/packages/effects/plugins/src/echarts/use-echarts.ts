@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts';
 
 import type { Ref } from 'vue';
 
-import type { Nullable } from '@hunyuan/types';
+import type { Nullable } from '@vben/types';
 
 import type EchartsUI from './echarts-ui.vue';
 
@@ -18,7 +18,7 @@ import {
   watch,
 } from 'vue';
 
-import { usePreferences } from '@hunyuan/preferences';
+import { usePreferences } from '@vben/preferences';
 
 import {
   tryOnUnmounted,

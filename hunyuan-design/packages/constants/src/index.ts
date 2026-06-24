@@ -1,2 +1,2 @@
 export * from './core';
-export * from '@hunyuan-core/shared/constants';
+export * from '@vben-core/shared/constants';
