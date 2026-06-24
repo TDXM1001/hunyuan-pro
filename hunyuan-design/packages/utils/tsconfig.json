@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@hunyuan/tsconfig/library.json",
+  "compilerOptions": {
+    "types": ["@hunyuan-core/typings/vue-router"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

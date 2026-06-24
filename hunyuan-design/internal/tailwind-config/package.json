@@ -1,0 +1,38 @@
+{
+  "name": "@hunyuan/tailwind-config",
+  "version": "5.7.0",
+  "private": true,
+  "homepage": "https://github.com/hunyuan/hunyuan-design",
+  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "directory": "internal/tailwind-config"
+  },
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./theme": {
+      "default": "./src/theme.css"
+    }
+  },
+  "dependencies": {
+    "@iconify/tailwind4": "catalog:",
+    "@tailwindcss/typography": "catalog:",
+    "tailwindcss": "catalog:",
+    "tw-animate-css": "catalog:"
+  }
+}

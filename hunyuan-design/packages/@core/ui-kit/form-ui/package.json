@@ -1,0 +1,58 @@
+{
+  "name": "@hunyuan-core/form-ui",
+  "version": "5.7.0",
+  "homepage": "https://github.com/hunyuan/hunyuan-design",
+  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "directory": "packages/@hunyuan-core/uikit/form-ui"
+  },
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm exec tsdown",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "production": "./src/index.ts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "dependencies": {
+    "@hunyuan-core/composables": "workspace:*",
+    "@hunyuan-core/icons": "workspace:*",
+    "@hunyuan-core/shadcn-ui": "workspace:*",
+    "@hunyuan-core/shared": "workspace:*",
+    "@hunyuan-core/typings": "workspace:*",
+    "@vee-validate/zod": "catalog:",
+    "@vueuse/core": "catalog:",
+    "vee-validate": "catalog:",
+    "vue": "catalog:",
+    "zod": "catalog:",
+    "zod-defaults": "catalog:"
+  },
+  "devDependencies": {
+    "unplugin-vue": "catalog:"
+  }
+}

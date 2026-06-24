@@ -1,0 +1,164 @@
+{
+  "folders": [
+    {
+      "name": "@hunyuan/backend-mock",
+      "path": "apps/backend-mock"
+    },
+    {
+      "name": "@hunyuan/web-ele",
+      "path": "apps/web-ele"
+    },
+    {
+      "name": "@hunyuan/docs",
+      "path": "docs"
+    },
+    {
+      "name": "@hunyuan/commitlint-config",
+      "path": "internal/lint-configs/commitlint-config"
+    },
+    {
+      "name": "@hunyuan/eslint-config",
+      "path": "internal/lint-configs/eslint-config"
+    },
+    {
+      "name": "@hunyuan/oxfmt-config",
+      "path": "internal/lint-configs/oxfmt-config"
+    },
+    {
+      "name": "@hunyuan/oxlint-config",
+      "path": "internal/lint-configs/oxlint-config"
+    },
+    {
+      "name": "@hunyuan/stylelint-config",
+      "path": "internal/lint-configs/stylelint-config"
+    },
+    {
+      "name": "@hunyuan/node-utils",
+      "path": "internal/node-utils"
+    },
+    {
+      "name": "@hunyuan/tailwind-config",
+      "path": "internal/tailwind-config"
+    },
+    {
+      "name": "@hunyuan/tsconfig",
+      "path": "internal/tsconfig"
+    },
+    {
+      "name": "@hunyuan/vite-config",
+      "path": "internal/vite-config"
+    },
+    {
+      "name": "@hunyuan-core/design",
+      "path": "packages/@core/base/design"
+    },
+    {
+      "name": "@hunyuan-core/icons",
+      "path": "packages/@core/base/icons"
+    },
+    {
+      "name": "@hunyuan-core/shared",
+      "path": "packages/@core/base/shared"
+    },
+    {
+      "name": "@hunyuan-core/typings",
+      "path": "packages/@core/base/typings"
+    },
+    {
+      "name": "@hunyuan-core/composables",
+      "path": "packages/@core/composables"
+    },
+    {
+      "name": "@hunyuan-core/preferences",
+      "path": "packages/@core/preferences"
+    },
+    {
+      "name": "@hunyuan-core/form-ui",
+      "path": "packages/@core/ui-kit/form-ui"
+    },
+    {
+      "name": "@hunyuan-core/layout-ui",
+      "path": "packages/@core/ui-kit/layout-ui"
+    },
+    {
+      "name": "@hunyuan-core/menu-ui",
+      "path": "packages/@core/ui-kit/menu-ui"
+    },
+    {
+      "name": "@hunyuan-core/popup-ui",
+      "path": "packages/@core/ui-kit/popup-ui"
+    },
+    {
+      "name": "@hunyuan-core/shadcn-ui",
+      "path": "packages/@core/ui-kit/shadcn-ui"
+    },
+    {
+      "name": "@hunyuan-core/tabs-ui",
+      "path": "packages/@core/ui-kit/tabs-ui"
+    },
+    {
+      "name": "@hunyuan/constants",
+      "path": "packages/constants"
+    },
+    {
+      "name": "@hunyuan/access",
+      "path": "packages/effects/access"
+    },
+    {
+      "name": "@hunyuan/common-ui",
+      "path": "packages/effects/common-ui"
+    },
+    {
+      "name": "@hunyuan/hooks",
+      "path": "packages/effects/hooks"
+    },
+    {
+      "name": "@hunyuan/layouts",
+      "path": "packages/effects/layouts"
+    },
+    {
+      "name": "@hunyuan/plugins",
+      "path": "packages/effects/plugins"
+    },
+    {
+      "name": "@hunyuan/request",
+      "path": "packages/effects/request"
+    },
+    {
+      "name": "@hunyuan/icons",
+      "path": "packages/icons"
+    },
+    {
+      "name": "@hunyuan/locales",
+      "path": "packages/locales"
+    },
+    {
+      "name": "@hunyuan/preferences",
+      "path": "packages/preferences"
+    },
+    {
+      "name": "@hunyuan/stores",
+      "path": "packages/stores"
+    },
+    {
+      "name": "@hunyuan/styles",
+      "path": "packages/styles"
+    },
+    {
+      "name": "@hunyuan/types",
+      "path": "packages/types"
+    },
+    {
+      "name": "@hunyuan/utils",
+      "path": "packages/utils"
+    },
+    {
+      "name": "@hunyuan/turbo-run",
+      "path": "scripts/turbo-run"
+    },
+    {
+      "name": "@hunyuan/vsh",
+      "path": "scripts/vsh"
+    }
+  ]
+}

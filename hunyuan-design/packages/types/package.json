@@ -1,0 +1,27 @@
+{
+  "name": "@hunyuan/types",
+  "version": "5.7.0",
+  "homepage": "https://github.com/hunyuan/hunyuan-design",
+  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "directory": "packages/types"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./global": {
+      "types": "./global.d.ts"
+    }
+  },
+  "dependencies": {
+    "@hunyuan-core/typings": "workspace:*",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  }
+}

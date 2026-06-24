@@ -1,0 +1,52 @@
+{
+  "name": "@hunyuan-core/shadcn-ui",
+  "version": "5.7.0",
+  "homepage": "https://github.com/hunyuan/hunyuan-design",
+  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "directory": "packages/@hunyuan-core/uikit/shadcn-ui"
+  },
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "components.json",
+    "src"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./src/index.ts",
+        "development": "./src/index.ts",
+        "default": "./src/index.ts"
+      }
+    }
+  },
+  "dependencies": {
+    "@lucide/vue": "catalog:",
+    "@hunyuan-core/composables": "workspace:*",
+    "@hunyuan-core/design": "workspace:*",
+    "@hunyuan-core/icons": "workspace:*",
+    "@hunyuan-core/shared": "workspace:*",
+    "@hunyuan-core/typings": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "class-variance-authority": "catalog:",
+    "reka-ui": "catalog:",
+    "vee-validate": "catalog:",
+    "vue": "catalog:"
+  }
+}

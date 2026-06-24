@@ -1,0 +1,29 @@
+<script setup lang="ts"></script>
+
+<template>
+  <div class="hunyuan-contributors vp-doc">
+    <p>Contributors</p>
+    <a href="https://github.com/hunyuan/hunyuan-design/graphs/contributors">
+      <img
+        alt="Contributors"
+        src="https://opencollective.com/vbenjs/contributors.svg?button=false"
+      />
+    </a>
+  </div>
+</template>
+
+<style scoped>
+.hunyuan-contributors {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 60px;
+
+  p {
+    margin-bottom: 50px;
+    font-size: 30px;
+    font-weight: 700;
+  }
+}
+</style>

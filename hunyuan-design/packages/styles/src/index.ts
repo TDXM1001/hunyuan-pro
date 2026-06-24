@@ -1,0 +1,1 @@
+import '@hunyuan-core/design';

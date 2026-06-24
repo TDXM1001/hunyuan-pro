@@ -1,0 +1,57 @@
+{
+  "name": "@hunyuan/common-ui",
+  "version": "5.7.0",
+  "homepage": "https://github.com/hunyuan/hunyuan-design",
+  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "directory": "packages/effects/common-ui"
+  },
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./es/tippy": {
+      "types": "./src/components/tippy/index.ts",
+      "default": "./src/components/tippy/index.ts"
+    },
+    "./es/loading": {
+      "types": "./src/components/loading/index.ts",
+      "default": "./src/components/loading/index.ts"
+    }
+  },
+  "dependencies": {
+    "@hunyuan-core/design": "workspace:*",
+    "@hunyuan-core/form-ui": "workspace:*",
+    "@hunyuan-core/popup-ui": "workspace:*",
+    "@hunyuan-core/preferences": "workspace:*",
+    "@hunyuan-core/shadcn-ui": "workspace:*",
+    "@hunyuan-core/shared": "workspace:*",
+    "@hunyuan/constants": "workspace:*",
+    "@hunyuan/hooks": "workspace:*",
+    "@hunyuan/icons": "workspace:*",
+    "@hunyuan/locales": "workspace:*",
+    "@hunyuan/types": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "@vueuse/integrations": "catalog:",
+    "json-bigint": "catalog:",
+    "qrcode": "catalog:",
+    "tippy.js": "catalog:",
+    "vue": "catalog:",
+    "vue-json-pretty": "catalog:",
+    "vue-router": "catalog:",
+    "vue-tippy": "catalog:"
+  },
+  "devDependencies": {
+    "@types/json-bigint": "catalog:",
+    "@types/qrcode": "catalog:",
+    "@vue/test-utils": "catalog:"
+  }
+}

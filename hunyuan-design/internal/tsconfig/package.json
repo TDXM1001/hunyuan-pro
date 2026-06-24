@@ -1,0 +1,25 @@
+{
+  "name": "@hunyuan/tsconfig",
+  "version": "5.7.0",
+  "private": true,
+  "homepage": "https://github.com/hunyuan/hunyuan-design",
+  "bugs": "https://github.com/hunyuan/hunyuan-design/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hunyuan/hunyuan-design.git",
+    "directory": "internal/tsconfig"
+  },
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "base.json",
+    "library.json",
+    "node.json",
+    "web-app.json",
+    "web.json"
+  ],
+  "dependencies": {
+    "@hunyuan/types": "workspace:*",
+    "vite": "catalog:"
+  }
+}
