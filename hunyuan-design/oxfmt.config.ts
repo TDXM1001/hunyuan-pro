@@ -1,4 +1,4 @@
-import { defineConfig } from '@hunyuan/oxfmt-config';
+import { defineConfig } from '@vben/oxfmt-config';
 
 export default defineConfig({
   ignorePatterns: [

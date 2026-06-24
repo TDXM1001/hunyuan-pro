@@ -1,4 +1,4 @@
-import { oxlintConfig } from '@hunyuan/oxlint-config';
+import { oxlintConfig } from '@vben/oxlint-config';
 
 import { defineConfig } from 'oxlint';
 
