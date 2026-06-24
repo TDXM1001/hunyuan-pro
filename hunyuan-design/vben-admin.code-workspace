@@ -1,159 +1,159 @@
 {
   "folders": [
     {
-      "name": "@hunyuan/backend-mock",
+      "name": "@vben/backend-mock",
       "path": "apps/backend-mock"
     },
     {
-      "name": "@hunyuan/web-ele",
+      "name": "@vben/web-ele",
       "path": "apps/web-ele"
     },
     {
-      "name": "@hunyuan/commitlint-config",
+      "name": "@vben/commitlint-config",
       "path": "internal/lint-configs/commitlint-config"
     },
     {
-      "name": "@hunyuan/eslint-config",
+      "name": "@vben/eslint-config",
       "path": "internal/lint-configs/eslint-config"
     },
     {
-      "name": "@hunyuan/oxfmt-config",
+      "name": "@vben/oxfmt-config",
       "path": "internal/lint-configs/oxfmt-config"
     },
     {
-      "name": "@hunyuan/oxlint-config",
+      "name": "@vben/oxlint-config",
       "path": "internal/lint-configs/oxlint-config"
     },
     {
-      "name": "@hunyuan/stylelint-config",
+      "name": "@vben/stylelint-config",
       "path": "internal/lint-configs/stylelint-config"
     },
     {
-      "name": "@hunyuan/node-utils",
+      "name": "@vben/node-utils",
       "path": "internal/node-utils"
     },
     {
-      "name": "@hunyuan/tailwind-config",
+      "name": "@vben/tailwind-config",
       "path": "internal/tailwind-config"
     },
     {
-      "name": "@hunyuan/tsconfig",
+      "name": "@vben/tsconfig",
       "path": "internal/tsconfig"
     },
     {
-      "name": "@hunyuan/vite-config",
+      "name": "@vben/vite-config",
       "path": "internal/vite-config"
     },
     {
-      "name": "@hunyuan-core/design",
+      "name": "@vben-core/design",
       "path": "packages/@core/base/design"
     },
     {
-      "name": "@hunyuan-core/icons",
+      "name": "@vben-core/icons",
       "path": "packages/@core/base/icons"
     },
     {
-      "name": "@hunyuan-core/shared",
+      "name": "@vben-core/shared",
       "path": "packages/@core/base/shared"
     },
     {
-      "name": "@hunyuan-core/typings",
+      "name": "@vben-core/typings",
       "path": "packages/@core/base/typings"
     },
     {
-      "name": "@hunyuan-core/composables",
+      "name": "@vben-core/composables",
       "path": "packages/@core/composables"
     },
     {
-      "name": "@hunyuan-core/preferences",
+      "name": "@vben-core/preferences",
       "path": "packages/@core/preferences"
     },
     {
-      "name": "@hunyuan-core/form-ui",
+      "name": "@vben-core/form-ui",
       "path": "packages/@core/ui-kit/form-ui"
     },
     {
-      "name": "@hunyuan-core/layout-ui",
+      "name": "@vben-core/layout-ui",
       "path": "packages/@core/ui-kit/layout-ui"
     },
     {
-      "name": "@hunyuan-core/menu-ui",
+      "name": "@vben-core/menu-ui",
       "path": "packages/@core/ui-kit/menu-ui"
     },
     {
-      "name": "@hunyuan-core/popup-ui",
+      "name": "@vben-core/popup-ui",
       "path": "packages/@core/ui-kit/popup-ui"
     },
     {
-      "name": "@hunyuan-core/shadcn-ui",
+      "name": "@vben-core/shadcn-ui",
       "path": "packages/@core/ui-kit/shadcn-ui"
     },
     {
-      "name": "@hunyuan-core/tabs-ui",
+      "name": "@vben-core/tabs-ui",
       "path": "packages/@core/ui-kit/tabs-ui"
     },
     {
-      "name": "@hunyuan/constants",
+      "name": "@vben/constants",
       "path": "packages/constants"
     },
     {
-      "name": "@hunyuan/access",
+      "name": "@vben/access",
       "path": "packages/effects/access"
     },
     {
-      "name": "@hunyuan/common-ui",
+      "name": "@vben/common-ui",
       "path": "packages/effects/common-ui"
     },
     {
-      "name": "@hunyuan/hooks",
+      "name": "@vben/hooks",
       "path": "packages/effects/hooks"
     },
     {
-      "name": "@hunyuan/layouts",
+      "name": "@vben/layouts",
       "path": "packages/effects/layouts"
     },
     {
-      "name": "@hunyuan/plugins",
+      "name": "@vben/plugins",
       "path": "packages/effects/plugins"
     },
     {
-      "name": "@hunyuan/request",
+      "name": "@vben/request",
       "path": "packages/effects/request"
     },
     {
-      "name": "@hunyuan/icons",
+      "name": "@vben/icons",
       "path": "packages/icons"
     },
     {
-      "name": "@hunyuan/locales",
+      "name": "@vben/locales",
       "path": "packages/locales"
     },
     {
-      "name": "@hunyuan/preferences",
+      "name": "@vben/preferences",
       "path": "packages/preferences"
     },
     {
-      "name": "@hunyuan/stores",
+      "name": "@vben/stores",
       "path": "packages/stores"
     },
     {
-      "name": "@hunyuan/styles",
+      "name": "@vben/styles",
       "path": "packages/styles"
     },
     {
-      "name": "@hunyuan/types",
+      "name": "@vben/types",
       "path": "packages/types"
     },
     {
-      "name": "@hunyuan/utils",
+      "name": "@vben/utils",
       "path": "packages/utils"
     },
     {
-      "name": "@hunyuan/turbo-run",
+      "name": "@vben/turbo-run",
       "path": "scripts/turbo-run"
     },
     {
-      "name": "@hunyuan/vsh",
+      "name": "@vben/vsh",
       "path": "scripts/vsh"
     }
   ]
