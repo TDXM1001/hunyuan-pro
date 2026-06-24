@@ -1,9 +1,9 @@
 spring:
   # 数据库连接信息
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/smart_admin_v3?autoReconnect=true&useServerPreparedStmts=false&rewriteBatchedStatements=true&characterEncoding=UTF-8&useSSL=false&allowMultiQueries=true&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://127.0.0.1:3306/hunyuan?autoReconnect=true&useServerPreparedStmts=false&rewriteBatchedStatements=true&characterEncoding=UTF-8&useSSL=false&allowMultiQueries=true&serverTimezone=Asia/Shanghai
     username: root
-    password: Hunyuan666
+    password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
     initial-size: 10
     min-idle: 10
@@ -99,7 +99,7 @@ file:
   storage:
     mode: local
     local:
-      upload-path: /home/smart_admin_v3/upload/   #文件上传目录
+      upload-path: /home/hunyuan/upload/   #文件上传目录
       url-prefix:
     cloud:
       region: oss-cn-hangzhou

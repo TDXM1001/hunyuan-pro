@@ -25,3 +25,11 @@ mvn clean install -DskipTests
 cd hunyuan-admin
 mvn spring-boot:run
 ```
+
+默认连接本机 MySQL：`127.0.0.1:3306/hunyuan`，账号 `root`，密码 `root`。
+
+首次启动前请导入数据库：
+
+```bash
+mysql -uroot -proot < 数据库SQL脚本/mysql/hunyuan.sql
+```
