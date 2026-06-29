@@ -2,8 +2,11 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { $t } from '#/locales';
 
+const BasicLayout = () => import('#/layouts/basic.vue');
+
 const routes: RouteRecordRaw[] = [
   {
+    component: BasicLayout,
     meta: {
       icon: 'ic:baseline-view-in-ar',
       keepAlive: true,
@@ -13,6 +16,14 @@ const routes: RouteRecordRaw[] = [
     name: 'Demos',
     path: '/demos',
     children: [
+      {
+        meta: {
+          title: 'useTable 测试',
+        },
+        name: 'TableTest',
+        path: 'table-test',
+        component: () => import('#/views/demos/table-test.vue'),
+      },
       {
         meta: {
           title: $t('demos.elementPlus'),
