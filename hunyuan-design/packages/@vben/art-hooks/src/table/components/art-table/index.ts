@@ -3,8 +3,9 @@ import type { ColumnOption } from '../../types'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
 
 import { useWindowSize } from '@vueuse/core'
+import { VbenLoading } from '@vben-core/shadcn-ui'
+import { EmptyIcon } from '@vben/icons'
 import {
-  ElEmpty,
   ElPagination,
   ElTable,
   ElTableColumn,
@@ -32,6 +33,65 @@ interface PaginationOptions {
   pagerCount?: number
   pageSizes?: number[]
   size?: 'default' | 'large' | 'small'
+}
+
+const DEFAULT_TABLE_HEIGHT = 420
+
+const STATUS_COLUMN_PROPS = new Set(['status', 'state'])
+const ACTION_COLUMN_PROPS = new Set(['action', 'actions', 'operation', 'operations'])
+
+function normalizeColumn(col: ColumnOption): ColumnOption {
+  const normalized = { ...col }
+
+  if (!normalized.align) {
+    normalized.align = normalized.type === 'selection' ? 'center' : 'left'
+  }
+
+  if (!normalized.headerAlign) {
+    normalized.headerAlign = normalized.align
+  }
+
+  if (normalized.type === 'globalIndex' || normalized.type === 'index') {
+    normalized.align = 'center'
+    normalized.headerAlign = 'center'
+    normalized.width ??= 70
+  }
+
+  if (normalized.type === 'selection') {
+    normalized.align = 'center'
+    normalized.headerAlign = 'center'
+    normalized.width ??= 52
+  }
+
+  if (normalized.prop && STATUS_COLUMN_PROPS.has(normalized.prop)) {
+    normalized.align ??= 'center'
+    normalized.headerAlign ??= normalized.align
+    normalized.width ??= 110
+  }
+
+  if (normalized.prop && ACTION_COLUMN_PROPS.has(normalized.prop)) {
+    normalized.align ??= 'center'
+    normalized.headerAlign ??= normalized.align
+    normalized.fixed ??= 'right'
+    normalized.width ??= 180
+  }
+
+  if (!normalized.width && !normalized.minWidth) {
+    normalized.minWidth = normalized.useSlot ? 140 : 120
+  }
+
+  if (
+    normalized.showOverflowTooltip === undefined &&
+    normalized.type !== 'selection' &&
+    normalized.type !== 'expand' &&
+    normalized.type !== 'index' &&
+    normalized.type !== 'globalIndex' &&
+    !normalized.useSlot
+  ) {
+    normalized.showOverflowTooltip = true
+  }
+
+  return normalized
 }
 
 function cleanColumnProps(col: ColumnOption) {
@@ -74,10 +134,16 @@ export default defineComponent({
     })
 
     const isEmpty = computed(() => props.data.length === 0)
-    const tableHeight = computed(() => {
+    const showLoadingOverlay = computed(() => props.loading)
+    const resolvedTableHeight = computed(() => {
       if (isFullScreen.value) return '100%'
-      if (isEmpty.value && !props.loading) return props.emptyHeight
-      return props.height || '100%'
+      return props.height ?? DEFAULT_TABLE_HEIGHT
+    })
+    const tableHeight = computed(() => {
+      if (!isEmpty.value || props.loading) {
+        return resolvedTableHeight.value
+      }
+      return props.emptyHeight === '100%' ? resolvedTableHeight.value : props.emptyHeight
     })
 
     const layout = computed(() => {
@@ -100,8 +166,6 @@ export default defineComponent({
     function scrollToTop() {
       nextTick(() => {
         elTableRef.value?.setScrollTop?.(0)
-        const pageBody = document.querySelector('.vben-page-content') || document.documentElement
-        pageBody.scrollTo?.({ behavior: 'smooth', top: 0 })
       })
     }
 
@@ -113,7 +177,8 @@ export default defineComponent({
     expose({ elTableRef, scrollToTop })
 
     return () => {
-      const tableColumns = props.columns.map((col) => {
+      const tableColumns = props.columns.map((rawCol) => {
+        const col = normalizeColumn(rawCol)
         if (col.type === 'globalIndex') {
           return h(
             ElTableColumn,
@@ -200,7 +265,7 @@ export default defineComponent({
                   : 'var(--el-bg-color)',
               },
               height: tableHeight.value,
-              loading: props.loading,
+              loading: false,
               size: tableSize.value,
               stripe: props.stripe ?? isZebra.value,
             },
@@ -209,9 +274,27 @@ export default defineComponent({
               empty: () =>
                 props.loading
                   ? h('div')
-                  : h(ElEmpty, { description: props.emptyText, imageSize: 120 }),
+                  : h('div', { class: 'art-table-empty' }, [
+                      h(EmptyIcon, { class: 'art-table-empty__icon' }),
+                      h('div', { class: 'art-table-empty__title' }, props.emptyText),
+                      h(
+                        'div',
+                        { class: 'art-table-empty__description' },
+                        '可以调整筛选条件后再试，或刷新当前列表。',
+                      ),
+                    ]),
             },
           ),
+          showLoadingOverlay.value
+            ? h(
+                'div',
+                { class: 'art-table-loading' },
+                h(VbenLoading, {
+                  spinning: true,
+                  text: props.data.length > 0 ? '正在刷新列表...' : '正在加载数据...',
+                }),
+              )
+            : null,
           pagination,
         ],
       )

@@ -16,6 +16,10 @@ export interface ColumnOption<T = any> {
   prop?: string
   // 列标题
   label?: string
+  // 水平对齐
+  align?: 'center' | 'left' | 'right'
+  // 表头对齐
+  headerAlign?: 'center' | 'left' | 'right'
   // 列宽度
   width?: string | number
   // 最小列宽度
@@ -24,6 +28,8 @@ export interface ColumnOption<T = any> {
   fixed?: boolean | 'left' | 'right'
   // 是否可排序
   sortable?: boolean | 'custom'
+  // 内容过长时是否展示 tooltip
+  showOverflowTooltip?: boolean
   // 过滤器选项
   filters?: any[]
   // 过滤方法

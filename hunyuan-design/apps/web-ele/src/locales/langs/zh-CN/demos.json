@@ -1,7 +1,13 @@
 {
   "title": "演示",
+  "table": "表格示例",
   "elementPlus": "Element Plus",
   "form": "表单演示",
+  "hunyuan": {
+    "title": "混元设计",
+    "about": "关于",
+    "document": "文档"
+  },
   "vben": {
     "title": "项目",
     "about": "关于",

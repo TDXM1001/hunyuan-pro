@@ -1,18 +1,32 @@
 /* 表格头部工具栏 */
 .art-table-header {
+  /* Table header design tokens */
+  --art-table-toolbar-font-size: 13px;
+  --art-table-toolbar-text-color: var(--el-text-color-regular);
+  --art-table-toolbar-title-color: var(--el-text-color-primary);
+  --art-table-toolbar-border-color: var(--el-border-color-lighter);
+  --art-table-toolbar-radius: var(--radius);
+  --art-table-toolbar-control-size: 36px;
+  --art-table-toolbar-gap: 8px;
+  --art-table-toolbar-section-gap: 12px;
+  --art-table-toolbar-popover-radius: var(--radius);
+  --art-table-toolbar-popover-width: 260px;
+  --art-table-toolbar-settings-width: 160px;
+  --art-table-toolbar-item-padding-x: 8px;
+  --art-table-toolbar-item-padding-y: 4px;
   display: flex;
-  gap: 12px;
+  gap: var(--art-table-toolbar-section-gap);
   align-items: center;
   justify-content: space-between;
-  min-height: 40px;
-  margin-bottom: 12px;
+  min-height: var(--art-table-toolbar-control-size);
+  margin-bottom: var(--art-table-toolbar-section-gap);
 }
 
 .art-table-header .header-left,
 .art-table-header .header-right {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--art-table-toolbar-gap);
   align-items: center;
 }
 
@@ -25,14 +39,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: var(--el-text-color-regular);
+  width: var(--art-table-toolbar-control-size);
+  height: var(--art-table-toolbar-control-size);
+  color: var(--art-table-toolbar-text-color);
   cursor: pointer;
   user-select: none;
   background: var(--el-fill-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border: 1px solid var(--art-table-toolbar-border-color);
+  border-radius: var(--art-table-toolbar-radius);
   transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
@@ -63,9 +77,9 @@
 }
 
 .art-table-header .button.disabled:hover {
-  color: var(--el-text-color-regular);
+  color: var(--art-table-toolbar-text-color);
   background: var(--el-fill-color);
-  border-color: var(--el-border-color-lighter);
+  border-color: var(--art-table-toolbar-border-color);
 }
 
 .art-table-header .button:focus-visible {
@@ -81,7 +95,7 @@
 /* 下拉菜单项内容 */
 .art-table-header .dropdown-item-content {
   display: flex;
-  gap: 8px;
+  gap: var(--art-table-toolbar-gap);
   align-items: center;
   justify-content: space-between;
   min-width: 100px;
@@ -95,7 +109,9 @@
 .art-table-popover.el-popover {
   padding: 0;
   overflow: hidden;
-  border-radius: 8px;
+  border: 1px solid var(--art-table-toolbar-border-color);
+  border-radius: var(--art-table-toolbar-popover-radius);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .art-table-popover .column-panel,
@@ -105,32 +121,33 @@
 }
 
 .art-table-popover .column-panel {
-  width: 260px;
+  width: var(--art-table-toolbar-popover-width);
 }
 
 .art-table-popover .settings-panel {
-  gap: 12px;
-  padding: 12px;
+  gap: var(--art-table-toolbar-section-gap);
+  padding: var(--art-table-toolbar-section-gap);
 }
 
 .art-table-popover .panel-header {
   display: flex;
-  gap: 8px;
+  gap: var(--art-table-toolbar-gap);
   align-items: center;
   justify-content: space-between;
-  padding: 12px 12px 8px;
+  padding: var(--art-table-toolbar-section-gap) var(--art-table-toolbar-section-gap)
+    var(--art-table-toolbar-gap);
 }
 
 .art-table-popover .panel-title {
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
-  color: var(--el-text-color-primary);
+  color: var(--art-table-toolbar-title-color);
 }
 
 .art-table-popover .panel-meta {
-  padding: 0 12px 8px;
-  font-size: 12px;
+  padding: 0 var(--art-table-toolbar-section-gap) var(--art-table-toolbar-gap);
+  font-size: var(--art-table-toolbar-font-size);
   line-height: 18px;
   color: var(--el-text-color-secondary);
   border-bottom: 1px solid var(--el-border-color-lighter);
@@ -145,7 +162,7 @@
 
 .art-table-popover .panel-actions .el-button {
   padding: 0 4px;
-  font-size: 12px;
+  font-size: var(--art-table-toolbar-font-size);
 }
 
 /* 列设置列表 */
@@ -160,10 +177,10 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  min-height: 32px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
+  min-height: var(--art-table-toolbar-control-size);
+  padding: var(--art-table-toolbar-item-padding-y) var(--art-table-toolbar-item-padding-x);
+  border-radius: var(--art-table-toolbar-radius);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .art-table-popover .column-option:hover {
@@ -219,6 +236,7 @@
 .art-table-popover .column-checkbox .el-checkbox__label {
   padding-left: 6px;
   overflow: hidden;
+  font-size: var(--art-table-toolbar-font-size);
   line-height: 20px;
 }
 
@@ -226,7 +244,7 @@
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: var(--art-table-toolbar-font-size);
   white-space: nowrap;
 }
 
@@ -241,8 +259,18 @@
 /* 表格设置面板 */
 .art-table-popover .settings-list {
   display: grid;
-  gap: 12px;
-  min-width: 160px;
+  gap: var(--art-table-toolbar-section-gap);
+  min-width: var(--art-table-toolbar-settings-width);
+}
+
+.art-table-popover .settings-list .el-checkbox {
+  min-height: 20px;
+  font-size: var(--art-table-toolbar-font-size);
+}
+
+.art-table-popover .settings-list .el-checkbox__label {
+  font-size: var(--art-table-toolbar-font-size);
+  line-height: 20px;
 }
 
 /* 响应式布局 */

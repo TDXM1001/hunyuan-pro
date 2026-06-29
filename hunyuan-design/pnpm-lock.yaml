@@ -1268,6 +1268,12 @@ importers:
 
   packages/@vben/art-hooks:
     dependencies:
+      '@vben-core/shadcn-ui':
+        specifier: workspace:*
+        version: link:../../@core/ui-kit/shadcn-ui
+      '@vben/icons':
+        specifier: workspace:*
+        version: link:../../icons
       '@vben/stores':
         specifier: workspace:*
         version: link:../../stores

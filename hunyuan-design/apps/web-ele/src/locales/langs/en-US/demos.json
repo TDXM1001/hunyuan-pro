@@ -1,7 +1,13 @@
 {
   "title": "Demos",
+  "table": "Table Example",
   "elementPlus": "Element Plus",
   "form": "Form",
+  "hunyuan": {
+    "title": "Hunyuan Design",
+    "about": "About",
+    "document": "Document"
+  },
   "vben": {
     "title": "Project",
     "about": "About",

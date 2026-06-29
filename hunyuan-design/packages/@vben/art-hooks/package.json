@@ -13,6 +13,8 @@
     "stub": "tsdown --dts"
   },
   "dependencies": {
+    "@vben-core/shadcn-ui": "workspace:*",
+    "@vben/icons": "workspace:*",
     "@vueuse/core": "catalog:",
     "ohash": "catalog:",
     "vue": "catalog:"

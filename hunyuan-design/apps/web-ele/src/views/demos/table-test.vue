@@ -88,6 +88,25 @@ const columnsFactory = (): ColumnOption<User>[] => [
   { prop: 'operation', label: '操作', width: 220, fixed: 'right', useSlot: true },
 ]
 
+const tableStandards = [
+  {
+    title: '页面结构',
+    description: '统一由概览区、检索区、表格区组成，信息分层清晰，方便业务页面直接套用。',
+  },
+  {
+    title: '列配置',
+    description: '默认包含序号列、关键字段列、状态列、操作列；长文本字段开启溢出提示，操作列固定在右侧。',
+  },
+  {
+    title: '交互约定',
+    description: '搜索项支持重置与防抖刷新，表头统一使用刷新、列设置、尺寸、全屏等通用能力。',
+  },
+  {
+    title: '刷新策略',
+    description: '新增回第一页，更新保持当前页，删除智能回退页码，避免页面状态与用户预期不一致。',
+  },
+]
+
 const {
   data,
   loading,
@@ -127,7 +146,7 @@ const {
     },
   },
   debug: {
-    enableLog: true,
+    enableLog: false,
   },
 })
 
@@ -218,8 +237,8 @@ function handleToggleSearchBar() {
 
 <template>
   <Page
-    title="useTable 表格演示"
-    description="对齐参考项目的卡片式表格观感，并保留当前项目 useTable 的缓存、列配置与刷新能力。"
+    title="通用表格规范示例"
+    description="这是一页可复用的 useTable 标准样板，用来统一通用表格的布局、列配置与刷新交互。"
   >
     <div class="table-test-page">
       <ElCard class="overview-card" shadow="never">
@@ -240,6 +259,24 @@ function handleToggleSearchBar() {
             >
               {{ item.label }}：{{ item.value }}
             </ElTag>
+          </div>
+        </div>
+      </ElCard>
+
+      <ElCard class="standards-card" shadow="never">
+        <div class="table-panel-header">
+          <div>
+            <div class="table-panel-title">通用规范</div>
+            <div class="table-panel-description">
+              后续业务表格优先复用这一套结构，只替换查询项、列定义、插槽内容与接口实现。
+            </div>
+          </div>
+        </div>
+
+        <div class="standards-grid">
+          <div v-for="item in tableStandards" :key="item.title" class="standard-item">
+            <div class="standard-title">{{ item.title }}</div>
+            <div class="standard-description">{{ item.description }}</div>
           </div>
         </div>
       </ElCard>
@@ -281,7 +318,7 @@ function handleToggleSearchBar() {
             <div>
               <div class="table-panel-title">用户列表示例</div>
               <div class="table-panel-description">
-                公共表格样式已经下沉到 ArtTable 组件，这里只保留业务层配置与插槽内容。
+                公共表格样式已经下沉到 ArtTable 组件，这里只保留业务层的查询条件、列定义与插槽内容。
               </div>
             </div>
           </div>
@@ -368,6 +405,7 @@ function handleToggleSearchBar() {
 }
 
 .overview-card,
+.standards-card,
 .toolbar-card,
 .table-panel,
 .test-card {
@@ -407,6 +445,32 @@ function handleToggleSearchBar() {
 
 .toolbar-form {
   margin-bottom: -18px;
+}
+
+.standards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.standard-item {
+  padding: 16px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+  background: var(--el-fill-color-blank);
+}
+
+.standard-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.standard-description {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--el-text-color-secondary);
 }
 
 .table-panel :deep(.el-card__body) {
