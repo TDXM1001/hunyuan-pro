@@ -1,0 +1,269 @@
+/* 表格头部工具栏 */
+.art-table-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  margin-bottom: 12px;
+}
+
+.art-table-header .header-left,
+.art-table-header .header-right {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.art-table-header .header-right {
+  justify-content: flex-end;
+}
+
+/* 工具按钮基础样式 */
+.art-table-header .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  user-select: none;
+  background: var(--el-fill-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.art-table-header .button:hover {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-5);
+}
+
+.art-table-header .button:active {
+  transform: translateY(1px);
+}
+
+.art-table-header .button.active {
+  color: var(--el-color-white);
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+}
+
+.art-table-header .button.loading {
+  pointer-events: none;
+  cursor: wait;
+}
+
+.art-table-header .button.disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.art-table-header .button.disabled:hover {
+  color: var(--el-text-color-regular);
+  background: var(--el-fill-color);
+  border-color: var(--el-border-color-lighter);
+}
+
+.art-table-header .button:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.art-table-header .button-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* 下拉菜单项内容 */
+.art-table-header .dropdown-item-content {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 100px;
+}
+
+.art-table-header .table-size-btn-item .el-dropdown-menu__item {
+  min-width: 120px;
+}
+
+/* 弹层样式（Popover 会 teleport 到 body，必须用 popperClass 选择器） */
+.art-table-popover.el-popover {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.art-table-popover .column-panel,
+.art-table-popover .settings-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.art-table-popover .column-panel {
+  width: 260px;
+}
+
+.art-table-popover .settings-panel {
+  gap: 12px;
+  padding: 12px;
+}
+
+.art-table-popover .panel-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 8px;
+}
+
+.art-table-popover .panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--el-text-color-primary);
+}
+
+.art-table-popover .panel-meta {
+  padding: 0 12px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--el-text-color-secondary);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.art-table-popover .panel-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+}
+
+.art-table-popover .panel-actions .el-button {
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+/* 列设置列表 */
+.art-table-popover .column-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+}
+
+.art-table-popover .column-option {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.art-table-popover .column-option:hover {
+  background: var(--el-fill-color-light);
+}
+
+.art-table-popover .column-option.is-drop-target {
+  background: var(--el-color-primary-light-9);
+}
+
+.art-table-popover .column-option.is-dragging {
+  opacity: 0.45;
+}
+
+.art-table-popover .column-option.fixed-column .drag-handle {
+  cursor: not-allowed;
+  opacity: 0.25;
+}
+
+.art-table-popover .column-option.is-hidden .column-label {
+  color: var(--el-text-color-placeholder);
+}
+
+.art-table-popover .drag-handle {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  cursor: grab;
+  background:
+    radial-gradient(circle, var(--el-text-color-placeholder) 1.5px, transparent 1.5px) 0 0 / 5px 5px,
+    radial-gradient(circle, var(--el-text-color-placeholder) 1.5px, transparent 1.5px) 5px 0 / 5px 5px,
+    radial-gradient(circle, var(--el-text-color-placeholder) 1.5px, transparent 1.5px) 0 5px / 5px 5px,
+    radial-gradient(circle, var(--el-text-color-placeholder) 1.5px, transparent 1.5px) 5px 5px / 5px 5px;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.art-table-popover .column-option:hover .drag-handle:not(.disabled) {
+  opacity: 0.85;
+}
+
+.art-table-popover .drag-handle:active:not(.disabled) {
+  cursor: grabbing;
+}
+
+.art-table-popover .column-checkbox {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  margin-right: 0;
+}
+
+.art-table-popover .column-checkbox .el-checkbox__label {
+  padding-left: 6px;
+  overflow: hidden;
+  line-height: 20px;
+}
+
+.art-table-popover .column-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.art-table-popover .fixed-tag {
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* 表格设置面板 */
+.art-table-popover .settings-list {
+  display: grid;
+  gap: 12px;
+  min-width: 160px;
+}
+
+/* 响应式布局 */
+@media (width <= 768px) {
+  .art-table-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .art-table-header .header-left,
+  .art-table-header .header-right {
+    justify-content: flex-start;
+  }
+
+  .art-table-popover .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .art-table-popover .panel-actions {
+    justify-content: flex-start;
+  }
+}

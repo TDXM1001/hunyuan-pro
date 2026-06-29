@@ -1,0 +1,33 @@
+.art-table-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+}
+
+.art-table-panel.art-table-is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 16px;
+  overflow: hidden;
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-dark);
+}
+
+.art-table-panel.art-table-is-fullscreen .art-table-header {
+  flex-shrink: 0;
+}
+
+.art-table-panel.art-table-is-fullscreen .art-table {
+  flex: 1;
+  min-height: 0;
+}
+
+.art-table-panel.art-table-is-fullscreen .art-table .el-table {
+  height: 100% !important;
+}

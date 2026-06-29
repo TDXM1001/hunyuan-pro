@@ -6,6 +6,7 @@ packages:
   - packages/@core/ui-kit/*
   - packages/@core/forward/*
   - packages/@core/*
+  - packages/@vben/*
   - packages/effects/*
   - packages/business/*
   - apps/*
@@ -145,6 +146,7 @@ catalog:
   naive-ui: ^2.44.1
   nitropack: ^2.13.4
   nprogress: ^0.2.0
+  ohash: ^2.0.11
   ora: ^9.4.0
   oxfmt: ^0.55.0
   oxlint: ^1.70.0

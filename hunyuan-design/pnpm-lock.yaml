@@ -303,6 +303,9 @@ catalogs:
     nprogress:
       specifier: ^0.2.0
       version: 0.2.0
+    ohash:
+      specifier: ^2.0.11
+      version: 2.0.11
     ora:
       specifier: ^9.4.0
       version: 9.4.0
@@ -619,9 +622,15 @@ importers:
 
   apps/web-ele:
     dependencies:
+      '@element-plus/icons-vue':
+        specifier: ^2.3.1
+        version: 2.3.2(vue@3.5.38(typescript@6.0.3))
       '@vben/access':
         specifier: workspace:*
         version: link:../../packages/effects/access
+      '@vben/art-hooks':
+        specifier: workspace:*
+        version: link:../../packages/@vben/art-hooks
       '@vben/common-ui':
         specifier: workspace:*
         version: link:../../packages/effects/common-ui
@@ -1256,6 +1265,34 @@ importers:
       unplugin-vue:
         specifier: 'catalog:'
         version: 7.2.0(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(less@4.6.6)(sass-embedded@1.100.0)(sass@1.101.0)(terser@5.48.0)(vue@3.5.38(typescript@6.0.3))(yaml@2.9.0)
+
+  packages/@vben/art-hooks:
+    dependencies:
+      '@vben/stores':
+        specifier: workspace:*
+        version: link:../../stores
+      '@vben/types':
+        specifier: workspace:*
+        version: link:../../types
+      '@vueuse/core':
+        specifier: 'catalog:'
+        version: 14.3.0(vue@3.5.38(typescript@6.0.3))
+      element-plus:
+        specifier: 'catalog:'
+        version: 2.14.2(vue@3.5.38(typescript@6.0.3))
+      ohash:
+        specifier: 'catalog:'
+        version: 2.0.11
+      vue:
+        specifier: ^3.5.38
+        version: 3.5.38(typescript@6.0.3)
+    devDependencies:
+      '@vben/tsconfig':
+        specifier: workspace:*
+        version: link:../../../internal/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   packages/constants:
     dependencies:

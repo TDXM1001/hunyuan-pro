@@ -1,0 +1,34 @@
+{
+  "name": "@vben/art-hooks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./table": "./src/table/hooks/index.ts",
+    "./table/components": "./src/table/components/index.ts",
+    "./table/composables": "./src/table/composables/useTableSettings.ts"
+  },
+  "scripts": {
+    "stub": "tsdown --dts"
+  },
+  "dependencies": {
+    "@vueuse/core": "catalog:",
+    "ohash": "catalog:",
+    "vue": "catalog:"
+  },
+  "peerDependencies": {
+    "@vben/stores": "workspace:*",
+    "@vben/types": "workspace:*",
+    "element-plus": "catalog:"
+  },
+  "devDependencies": {
+    "@vben/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "tsdown": {
+    "deps": {
+      "neverBundle": ["element-plus", "dayjs", "@vue/reactivity"]
+    }
+  }
+}

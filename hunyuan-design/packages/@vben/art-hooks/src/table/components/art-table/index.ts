@@ -1,0 +1,220 @@
+import type { ColumnOption } from '../../types'
+
+import { computed, defineComponent, h, nextTick, ref } from 'vue'
+
+import { useWindowSize } from '@vueuse/core'
+import {
+  ElEmpty,
+  ElPagination,
+  ElTable,
+  ElTableColumn,
+} from 'element-plus'
+
+import { useTableSettings } from '../../composables/useTableSettings'
+import {
+  getArtTableFullscreenState,
+  useArtTableFullscreen,
+} from '../../composables/useArtTableFullscreen'
+
+import './style.css'
+
+interface PaginationConfig {
+  current: number
+  size: number
+  total: number
+}
+
+interface PaginationOptions {
+  align?: 'center' | 'left' | 'right'
+  background?: boolean
+  hideOnSinglePage?: boolean
+  layout?: string
+  pagerCount?: number
+  pageSizes?: number[]
+  size?: 'default' | 'large' | 'small'
+}
+
+function cleanColumnProps(col: ColumnOption) {
+  const columnProps = { ...col }
+  delete columnProps.headerSlotName
+  delete columnProps.slotName
+  delete columnProps.useHeaderSlot
+  delete columnProps.useSlot
+  return columnProps
+}
+
+export default defineComponent({
+  name: 'ArtTable',
+  props: {
+    border: { default: undefined, type: Boolean },
+    columns: { default: () => [], type: Array as () => ColumnOption[] },
+    data: { default: () => [], type: Array as () => Record<string, any>[] },
+    emptyHeight: { default: '100%', type: String },
+    emptyText: { default: '暂无数据', type: String },
+    height: { default: undefined, type: [Number, String] },
+    loading: { default: false, type: Boolean },
+    pagination: { default: undefined, type: Object as () => PaginationConfig | undefined },
+    paginationOptions: { default: () => ({}), type: Object as () => PaginationOptions },
+    showTableHeader: { default: true, type: Boolean },
+    stripe: { default: undefined, type: Boolean },
+  },
+  emits: ['pagination:current-change', 'pagination:size-change'],
+  setup(props, { attrs, emit, slots, expose }) {
+    const elTableRef = ref<any>(null)
+    const artTableRef = ref<HTMLElement>()
+    const { width } = useWindowSize()
+    const { isBorder, isHeaderBackground, isZebra, tableSize } = useTableSettings()
+    const fullscreenContext = useArtTableFullscreen()
+
+    const isFullScreen = computed(() => {
+      if (fullscreenContext) {
+        return fullscreenContext.isFullScreen.value
+      }
+      return getArtTableFullscreenState(artTableRef.value).value
+    })
+
+    const isEmpty = computed(() => props.data.length === 0)
+    const tableHeight = computed(() => {
+      if (isFullScreen.value) return '100%'
+      if (isEmpty.value && !props.loading) return props.emptyHeight
+      return props.height || '100%'
+    })
+
+    const layout = computed(() => {
+      if (width.value < 768) return 'prev, pager, next, sizes, jumper, total'
+      if (width.value < 1024) return 'prev, pager, next, jumper, total'
+      return 'total, prev, pager, next, sizes, jumper'
+    })
+
+    const mergedPaginationOptions = computed(() => ({
+      align: 'center' as const,
+      background: true,
+      hideOnSinglePage: false,
+      layout: layout.value,
+      pageSizes: [10, 20, 30, 50, 100],
+      pagerCount: width.value > 1200 ? 7 : 5,
+      size: 'default' as const,
+      ...props.paginationOptions,
+    }))
+
+    function scrollToTop() {
+      nextTick(() => {
+        elTableRef.value?.setScrollTop?.(0)
+        const pageBody = document.querySelector('.vben-page-content') || document.documentElement
+        pageBody.scrollTo?.({ behavior: 'smooth', top: 0 })
+      })
+    }
+
+    function getGlobalIndex(index: number) {
+      if (!props.pagination) return index + 1
+      return (props.pagination.current - 1) * props.pagination.size + index + 1
+    }
+
+    expose({ elTableRef, scrollToTop })
+
+    return () => {
+      const tableColumns = props.columns.map((col) => {
+        if (col.type === 'globalIndex') {
+          return h(
+            ElTableColumn,
+            { ...col, key: col.prop || col.type },
+            {
+              default: ({ $index }: { $index: number }) => h('span', getGlobalIndex($index)),
+            },
+          )
+        }
+
+        const columnSlots: Record<string, any> = {}
+        if (col.useHeaderSlot && col.prop) {
+          columnSlots.header = (headerScope: any) =>
+            slots[col.headerSlotName || `${col.prop}-header`]?.({
+              ...headerScope,
+              label: col.label,
+              prop: col.prop,
+            }) || col.label
+        }
+        if (col.useSlot && col.prop) {
+          columnSlots.default = (slotScope: any) => {
+            if (slotScope?.$index !== undefined && slotScope.$index < 0) return null
+            return slots[col.slotName || col.prop!]?.({
+              ...slotScope,
+              prop: col.prop,
+              value: slotScope?.row?.[col.prop!],
+            })
+          }
+        }
+
+        return h(ElTableColumn, { ...cleanColumnProps(col), key: col.prop || col.type }, columnSlots)
+      })
+
+      const pagination = props.pagination && props.data.length > 0
+        ? h(
+            'div',
+            {
+              class: ['pagination', 'custom-pagination', mergedPaginationOptions.value.align],
+              style: {
+                display: 'flex',
+                justifyContent:
+                  mergedPaginationOptions.value.align === 'left'
+                    ? 'flex-start'
+                    : mergedPaginationOptions.value.align === 'right'
+                      ? 'flex-end'
+                      : 'center',
+                marginTop: '12px',
+              },
+            },
+            h(ElPagination, {
+              ...mergedPaginationOptions.value,
+              currentPage: props.pagination.current,
+              disabled: props.loading,
+              pageSize: props.pagination.size,
+              total: props.pagination.total,
+              onCurrentChange: (val: number) => {
+                emit('pagination:current-change', val)
+                scrollToTop()
+              },
+              onSizeChange: (val: number) => emit('pagination:size-change', val),
+            }),
+          )
+        : null
+
+      // 统一由组件层接管表格容器与分页皮肤，页面只负责业务布局。
+      return h(
+        'div',
+        {
+          ref: artTableRef,
+          class: ['art-table', { 'is-empty': isEmpty.value }],
+          style: { minHeight: 0, width: '100%' },
+        },
+        [
+          h(
+            ElTable,
+            {
+              ...attrs,
+              ref: elTableRef,
+              border: props.border ?? isBorder.value,
+              data: props.data,
+              headerCellStyle: {
+                background: isHeaderBackground.value
+                  ? 'var(--el-fill-color-lighter)'
+                  : 'var(--el-bg-color)',
+              },
+              height: tableHeight.value,
+              loading: props.loading,
+              size: tableSize.value,
+              stripe: props.stripe ?? isZebra.value,
+            },
+            {
+              default: () => [...tableColumns, slots.default?.()],
+              empty: () =>
+                props.loading
+                  ? h('div')
+                  : h(ElEmpty, { description: props.emptyText, imageSize: 120 }),
+            },
+          ),
+          pagination,
+        ],
+      )
+    }
+  },
+})
