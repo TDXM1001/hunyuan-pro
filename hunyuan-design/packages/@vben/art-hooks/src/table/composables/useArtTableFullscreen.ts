@@ -4,6 +4,7 @@ import {
   onUnmounted,
   provide,
   ref,
+  shallowRef,
   watch,
   type Ref,
 } from 'vue'
@@ -158,7 +159,7 @@ export function createFallbackFullscreenController(root: HTMLElement | null | un
 
 export function useArtTableFullscreenState(root: Ref<HTMLElement | null | undefined>) {
   const injected = useArtTableFullscreen()
-  const fallback = ref<ReturnType<typeof createFallbackFullscreenController>>(null)
+  const fallback = shallowRef<ReturnType<typeof createFallbackFullscreenController>>(null)
 
   watch(
     () => root.value,

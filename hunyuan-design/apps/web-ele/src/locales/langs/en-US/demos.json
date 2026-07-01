@@ -1,6 +1,8 @@
 {
   "title": "Demos",
   "table": "Table Example",
+  "detail": "Detail Example",
+  "edit": "Edit Example",
   "elementPlus": "Element Plus",
   "form": "Form",
   "hunyuan": {

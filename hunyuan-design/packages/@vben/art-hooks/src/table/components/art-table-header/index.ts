@@ -16,7 +16,6 @@ import {
 import { type TableSize, useTableSettings } from '../../composables/useTableSettings'
 import {
   createFallbackFullscreenController,
-  getArtTableFullscreenState,
   resolveArtTableFullscreenTarget,
   useArtTableFullscreen,
 } from '../../composables/useArtTableFullscreen'

@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./detail": "./src/detail/index.ts",
+    "./edit": "./src/edit/index.ts",
     "./table": "./src/table/hooks/index.ts",
     "./table/components": "./src/table/components/index.ts",
     "./table/composables": "./src/table/composables/useTableSettings.ts"

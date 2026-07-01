@@ -23,6 +23,24 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'DetailTest',
+        path: '/demos/detail-test',
+        component: () => import('#/views/demos/detail-test.vue'),
+        meta: {
+          icon: 'lucide:panel-top-open',
+          title: $t('demos.detail'),
+        },
+      },
+      {
+        name: 'EditTest',
+        path: '/demos/edit-test',
+        component: () => import('#/views/demos/edit-test.vue'),
+        meta: {
+          icon: 'lucide:square-pen',
+          title: $t('demos.edit'),
+        },
+      },
+      {
         name: 'NaiveDemos',
         path: '/demos/element',
         component: () => import('#/views/demos/element/index.vue'),

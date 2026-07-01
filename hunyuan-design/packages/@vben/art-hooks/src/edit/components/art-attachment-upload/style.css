@@ -1,0 +1,46 @@
+.art-attachment-upload {
+  width: 100%;
+}
+
+.art-attachment-upload .el-upload,
+.art-attachment-upload .el-upload-dragger {
+  width: 100%;
+}
+
+.art-attachment-upload .el-upload-dragger {
+  display: flex;
+  min-height: 58px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-color: var(--el-border-color);
+  border-radius: var(--radius);
+}
+
+.art-attachment-upload__icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-placeholder);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.art-attachment-upload__text {
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.art-attachment-upload__tip {
+  margin-top: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
