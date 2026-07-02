@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import type { DetailSection } from '@vben/art-hooks/detail'
+import type { ArtAttachmentItem } from '@vben/art-hooks/edit'
 import type { ColumnOption } from '@vben/art-hooks/table'
 
 import { computed } from 'vue'
 
+import { ArtPageActions, type ArtActionItem } from '@vben/art-hooks/common'
 import { ArtDetail, ArtDetailPage } from '@vben/art-hooks/detail'
+import { ArtAttachmentTable } from '@vben/art-hooks/edit'
 import { ArtTable } from '@vben/art-hooks/table'
 
 import {
   ArrowLeft,
-  Document,
-  Download,
   Edit,
 } from '@element-plus/icons-vue'
 import {
   ElButton,
-  ElIcon,
   ElSpace,
   ElTag,
 } from 'element-plus'
@@ -28,11 +28,6 @@ interface MappingRule {
   matchMode: string
   priority: number
   enabled: boolean
-}
-
-interface AttachmentItem {
-  name: string
-  size: string
 }
 
 interface MasterDataDetail {
@@ -69,8 +64,8 @@ interface MasterDataDetail {
   customAttributes: string
   qualityRequirement: string
   usageInstruction: string
-  documents: AttachmentItem[]
-  attachments: AttachmentItem[]
+  attachments: ArtAttachmentItem[]
+  documents: ArtAttachmentItem[]
 }
 
 const detailData: MasterDataDetail = {
@@ -108,11 +103,35 @@ const detailData: MasterDataDetail = {
   qualityRequirement: '完整率 ≥ 99%，编码重复率 = 0。',
   usageInstruction: '适用于客户画像、营销活动圈选、客服统一视图。',
   documents: [
-    { name: '客户主数据口径说明.pdf', size: '1.8MB' },
-    { name: '字段映射模板.xlsx', size: '860KB' },
+    {
+      category: '口径文档',
+      mimeType: 'application/pdf',
+      name: '客户主数据口径说明.pdf',
+      remark: '评审通过后作为上线依据',
+      size: 1887437,
+      status: 'success',
+      uid: 'doc-1',
+    },
+    {
+      category: '字段模板',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      name: '字段映射模板.xlsx',
+      remark: '用于来源字段与主数据字段对照',
+      size: 880640,
+      status: 'success',
+      uid: 'doc-2',
+    },
   ],
   attachments: [
-    { name: '评审纪要.docx', size: '420KB' },
+    {
+      category: '评审记录',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      name: '评审纪要.docx',
+      remark: '数据治理委员会评审记录',
+      size: 430080,
+      status: 'success',
+      uid: 'attachment-1',
+    },
   ],
 }
 
@@ -156,11 +175,26 @@ const mappingColumns: ColumnOption<MappingRule>[] = [
   { prop: 'enabled', label: '启用状态', width: 120, align: 'center', useSlot: true },
 ]
 
+const masterStatusText = computed(() => detailData.status === 'enabled' ? '启用' : '停用')
+const masterStatusType = computed(() => detailData.status === 'enabled' ? 'success' : 'info')
+
+const pageActions: ArtActionItem[] = [
+  {
+    key: 'back',
+    label: '返回',
+  },
+  {
+    icon: Edit,
+    key: 'edit',
+    label: '编辑',
+    type: 'primary',
+  },
+]
+
 const sections = computed<DetailSection<MasterDataDetail>[]>(() => [
   {
     key: 'basic',
     title: '基础信息',
-    description: '定义主数据的基本属性及管理范围',
     items: [
       { label: '主数据名称', prop: 'name' },
       { label: '主数据编码', prop: 'code' },
@@ -177,7 +211,6 @@ const sections = computed<DetailSection<MasterDataDetail>[]>(() => [
   {
     key: 'source',
     title: '数据源',
-    description: '定义主数据的来源系统及提供方信息',
     items: [
       { label: '数据源名称', prop: 'sourceName' },
       { label: '数据源类型', prop: 'sourceType' },
@@ -193,7 +226,6 @@ const sections = computed<DetailSection<MasterDataDetail>[]>(() => [
   {
     key: 'sync',
     title: '来源同步',
-    description: '定义主数据的来源策略与执行状态',
     items: [
       { label: '同步方式', prop: 'syncMode' },
       { label: '同步频率', prop: 'syncFrequency' },
@@ -211,7 +243,6 @@ const sections = computed<DetailSection<MasterDataDetail>[]>(() => [
   {
     key: 'extend',
     title: '扩展信息',
-    description: '补充业务规则、质量要求等扩展信息',
     items: [
       { label: '自定义属性', prop: 'customAttributes', span: 2 },
       { label: '质量要求', prop: 'qualityRequirement' },
@@ -221,11 +252,10 @@ const sections = computed<DetailSection<MasterDataDetail>[]>(() => [
   {
     key: 'attachments',
     title: '附件信息',
-    description: '上传相关文档与附件，便于理解与追溯',
     items: [
       { label: '文档上传', prop: 'documents', span: 1, useSlot: true },
       { label: '附件上传', prop: 'attachments', span: 1, useSlot: true },
-      { label: '备注补充', value: '附件用于评审与上线交接，业务页面可替换为真实上传列表。' },
+      { label: '备注补充', value: '附件用于评审与上线交接，业务页面可替换为真实上传列表。', span: 3 },
     ],
   },
 ])
@@ -253,118 +283,63 @@ function getSyncStatusText(status: MasterDataDetail['syncStatus']) {
 
 <template>
   <div class="absolute inset-0 box-border flex min-h-0 flex-col overflow-hidden p-4">
-    <ArtDetailPage
-      title="主数据详情"
-      description="查看主数据对象的基础属性、来源、同步策略和扩展信息。"
-    >
+    <ArtDetailPage title="主数据详情">
       <template #back>
         <ElButton :icon="ArrowLeft" circle />
       </template>
 
       <template #extra>
-        <ElTag type="warning" effect="light" round>草稿</ElTag>
+        <ElTag :type="masterStatusType" effect="light" round>{{ masterStatusText }}</ElTag>
       </template>
 
       <template #actions>
-        <ElSpace wrap>
-          <ElButton>返回</ElButton>
-          <ElButton type="primary">
-            <ElIcon><Edit /></ElIcon>
-            编辑
-          </ElButton>
-        </ElSpace>
+        <ArtPageActions :actions="pageActions" />
       </template>
 
       <ArtDetail :data="detailData" :sections="sections" :columns="3" :label-width="112">
-          <template #status="{ value }">
-            <ElTag :type="value === 'enabled' ? 'success' : 'info'" effect="light">
-              {{ value === 'enabled' ? '启用' : '停用' }}
-            </ElTag>
-          </template>
+        <template #status="{ value }">
+          <ElTag :type="value === 'enabled' ? 'success' : 'info'" effect="light">
+            {{ value === 'enabled' ? '启用' : '停用' }}
+          </ElTag>
+        </template>
 
-          <template #tags="{ value }">
-            <ElSpace wrap size="small">
-              <ElTag v-for="tag in value" :key="tag" effect="light" round>
-                {{ tag }}
+        <template #tags="{ value }">
+          <ElSpace wrap size="small">
+            <ElTag v-for="tag in value" :key="tag" effect="light" round>
+              {{ tag }}
+            </ElTag>
+          </ElSpace>
+        </template>
+
+        <template #syncStatus="{ value }">
+          <ElTag :type="getSyncStatusType(value)" effect="light">
+            {{ getSyncStatusText(value) }}
+          </ElTag>
+        </template>
+
+        <template #mappingRules>
+          <ArtTable
+            :columns="mappingColumns"
+            :data="mappingRules"
+            :height="220"
+            empty-text="暂无关联规则"
+          >
+            <template #enabled="{ row }">
+              <ElTag :type="row.enabled ? 'success' : 'info'" size="small" effect="light">
+                {{ row.enabled ? '启用' : '停用' }}
               </ElTag>
-            </ElSpace>
-          </template>
+            </template>
+          </ArtTable>
+        </template>
 
-          <template #syncStatus="{ value }">
-            <ElTag :type="getSyncStatusType(value)" effect="light">
-              {{ getSyncStatusText(value) }}
-            </ElTag>
-          </template>
+        <template #documents="{ value }">
+          <ArtAttachmentTable :model-value="value" readonly :height="180" />
+        </template>
 
-          <template #mappingRules>
-            <ArtTable
-              :columns="mappingColumns"
-              :data="mappingRules"
-              :height="220"
-              empty-text="暂无关联规则"
-            >
-              <template #enabled="{ row }">
-                <ElTag :type="row.enabled ? 'success' : 'info'" size="small" effect="light">
-                  {{ row.enabled ? '启用' : '停用' }}
-                </ElTag>
-              </template>
-            </ArtTable>
-          </template>
-
-          <template #documents="{ value }">
-            <div class="file-list">
-              <div v-for="file in value" :key="file.name" class="file-item">
-                <ElIcon><Document /></ElIcon>
-                <span>{{ file.name }}</span>
-                <em>{{ file.size }}</em>
-                <ElButton :icon="Download" link type="primary">下载</ElButton>
-              </div>
-            </div>
-          </template>
-
-          <template #attachments="{ value }">
-            <div class="file-list">
-              <div v-for="file in value" :key="file.name" class="file-item">
-                <ElIcon><Document /></ElIcon>
-                <span>{{ file.name }}</span>
-                <em>{{ file.size }}</em>
-                <ElButton :icon="Download" link type="primary">下载</ElButton>
-              </div>
-            </div>
-          </template>
-        </ArtDetail>
+        <template #attachments="{ value }">
+          <ArtAttachmentTable :model-value="value" readonly :height="180" />
+        </template>
+      </ArtDetail>
     </ArtDetailPage>
   </div>
 </template>
-
-<style scoped>
-.file-list {
-  display: grid;
-  gap: 8px;
-}
-
-.file-item {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--el-fill-color-lighter);
-  border: 1px dashed var(--el-border-color);
-  border-radius: 10px;
-}
-
-.file-item span {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.file-item em {
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-  font-style: normal;
-}
-</style>

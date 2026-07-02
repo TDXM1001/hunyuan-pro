@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./common": "./src/common/index.ts",
     "./detail": "./src/detail/index.ts",
     "./edit": "./src/edit/index.ts",
     "./table": "./src/table/hooks/index.ts",

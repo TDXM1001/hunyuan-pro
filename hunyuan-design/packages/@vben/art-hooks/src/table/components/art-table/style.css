@@ -60,7 +60,7 @@
 }
 
 .art-table .el-table .el-table__inner-wrapper::before {
-  background-color: var(--art-table-border-color);
+  height: 0;
 }
 
 .art-table .el-table .el-table__row {

@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import type { FormInstance, FormRules } from 'element-plus'
+import type { ArtAttachmentItem } from '@vben/art-hooks/edit'
 import type { ColumnOption } from '@vben/art-hooks/table'
 
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
-import { ArtAttachmentUpload, ArtEditPage, ArtEditSection } from '@vben/art-hooks/edit'
+import {
+  ArtAttachmentTable,
+  ArtAttachmentUpload,
+  ArtEditPage,
+  ArtEditSection,
+  ArtImageUpload,
+} from '@vben/art-hooks/edit'
+import { ArtPageActions, type ArtActionItem } from '@vben/art-hooks/common'
 import { ArtTable } from '@vben/art-hooks/table'
 
 import {
@@ -22,7 +30,6 @@ import {
   ElRadio,
   ElRadioGroup,
   ElSelect,
-  ElSpace,
   ElSwitch,
   ElTag,
 } from 'element-plus'
@@ -141,6 +148,39 @@ const mappingRules = ref<MappingRule[]>([
   },
 ])
 
+const demoImageUrl = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 240%22%3E%3Crect width=%22240%22 height=%22240%22 rx=%2218%22 fill=%22%23eef2ff%22/%3E%3Cpath d=%22M44 158l42-44 32 32 30-38 48 50v30H44z%22 fill=%22%236366f1%22 opacity=%22.82%22/%3E%3Ccircle cx=%2282%22 cy=%2278%22 r=%2220%22 fill=%22%23f59e0b%22/%3E%3C/svg%3E'
+
+const imageAttachments = ref<ArtAttachmentItem[]>([
+  {
+    name: '客户资料封面',
+    status: 'success',
+    thumbnailUrl: demoImageUrl,
+    uid: 'image-1',
+    url: demoImageUrl,
+  },
+])
+
+const tableAttachments = ref<ArtAttachmentItem[]>([
+  {
+    category: '口径文档',
+    mimeType: 'application/pdf',
+    name: '客户主数据口径说明.pdf',
+    remark: '评审通过后作为上线依据',
+    size: 1887437,
+    status: 'success',
+    uid: 'doc-1',
+  },
+  {
+    category: '字段模板',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    name: '字段映射模板.xlsx',
+    remark: '用于来源字段与主数据字段对照',
+    size: 880640,
+    status: 'ready',
+    uid: 'doc-2',
+  },
+])
+
 const mappingColumns: ColumnOption<MappingRule>[] = [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
   { prop: 'name', label: '规则名称', minWidth: 180 },
@@ -151,6 +191,26 @@ const mappingColumns: ColumnOption<MappingRule>[] = [
   { prop: 'enabled', label: '启用状态', width: 120, align: 'center', useSlot: true },
   { prop: 'operation', label: '操作', width: 140, fixed: 'right', useSlot: true },
 ]
+
+const pageActions = computed<ArtActionItem[]>(() => [
+  {
+    key: 'reset',
+    label: '重置',
+    onClick: resetForm,
+  },
+  {
+    key: 'draft',
+    label: '保存草稿',
+    onClick: saveDraft,
+  },
+  {
+    key: 'save',
+    label: '保存',
+    loading: saving.value,
+    onClick: saveForm,
+    type: 'primary',
+  },
+])
 
 function addRule() {
   mappingRules.value.push({
@@ -191,10 +251,7 @@ function resetForm() {
 
 <template>
   <div class="absolute inset-0 box-border flex min-h-0 flex-col overflow-hidden p-4">
-    <ArtEditPage
-      title="编辑主数据"
-      description="填写主数据对象的基础属性、来源、同步策略和扩展信息。"
-    >
+    <ArtEditPage title="编辑主数据">
       <template #back>
         <ElButton :icon="ArrowLeft" circle />
       </template>
@@ -204,11 +261,7 @@ function resetForm() {
       </template>
 
       <template #actions>
-        <ElSpace wrap>
-          <ElButton @click="resetForm">重置</ElButton>
-          <ElButton @click="saveDraft">保存草稿</ElButton>
-          <ElButton type="primary" :loading="saving" @click="saveForm">保存</ElButton>
-        </ElSpace>
+        <ArtPageActions :actions="pageActions" />
       </template>
 
       <ElForm
@@ -218,11 +271,7 @@ function resetForm() {
         :rules="rules"
         label-position="top"
       >
-        <ArtEditSection
-          title="基础信息"
-          description="定义主数据的基本属性及管理范围"
-          :index="1"
-        >
+        <ArtEditSection title="基础信息" :index="1">
           <ElFormItem label="主数据名称" prop="name">
             <ElInput v-model="form.name" placeholder="请输入主数据名称，如：客户" />
           </ElFormItem>
@@ -287,11 +336,7 @@ function resetForm() {
           </ElFormItem>
         </ArtEditSection>
 
-        <ArtEditSection
-          title="数据源"
-          description="定义主数据的来源系统及提供方信息"
-          :index="2"
-        >
+        <ArtEditSection title="数据源" :index="2">
           <ElFormItem label="数据源名称" prop="sourceName">
             <ElInput v-model="form.sourceName" placeholder="请输入数据源名称" />
           </ElFormItem>
@@ -342,11 +387,7 @@ function resetForm() {
           </ElFormItem>
         </ArtEditSection>
 
-        <ArtEditSection
-          title="来源同步"
-          description="定义主数据的来源策略与执行状态"
-          :index="3"
-        >
+        <ArtEditSection title="来源同步" :index="3">
           <ElFormItem label="同步方式" prop="syncMode">
             <ElSelect v-model="form.syncMode" placeholder="请选择同步方式">
               <ElOption label="全量同步" value="全量同步" />
@@ -428,11 +469,7 @@ function resetForm() {
           </ElFormItem>
         </ArtEditSection>
 
-        <ArtEditSection
-          title="扩展信息"
-          description="补充业务规则、质量要求等扩展信息"
-          :index="4"
-        >
+        <ArtEditSection title="扩展信息" :index="4">
           <ElFormItem class="art-edit-section__full" label="自定义属性" prop="customAttributes">
             <ElInput
               v-model="form.customAttributes"
@@ -459,18 +496,17 @@ function resetForm() {
           </ElFormItem>
         </ArtEditSection>
 
-        <ArtEditSection
-          title="附件信息"
-          description="上传相关文档与附件，便于理解与追溯"
-          :index="5"
-        >
-          <ElFormItem label="文档上传">
-            <ArtAttachmentUpload />
+        <ArtEditSection title="附件信息" :index="5">
+          <ElFormItem label="基础附件">
+            <ArtAttachmentUpload text="上传评审材料" />
           </ElFormItem>
-          <ElFormItem label="附件上传">
-            <ArtAttachmentUpload icon="document" />
+          <ElFormItem label="图片材料">
+            <ArtImageUpload v-model="imageAttachments" :max="4" />
           </ElFormItem>
-          <ElFormItem label="备注补充">
+          <ElFormItem class="art-edit-section__full" label="附件清单">
+            <ArtAttachmentTable v-model="tableAttachments" />
+          </ElFormItem>
+          <ElFormItem class="art-edit-section__full" label="备注补充">
             <ElInput
               maxlength="500"
               placeholder="请输入附件相关说明或备注（选填）"

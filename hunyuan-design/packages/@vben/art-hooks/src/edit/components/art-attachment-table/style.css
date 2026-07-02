@@ -1,0 +1,29 @@
+.art-attachment-table {
+  width: 100%;
+}
+
+.art-attachment-table__toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+}
+
+.art-attachment-table__name {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.art-attachment-table__file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--el-text-color-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.art-attachment-table__mime {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}

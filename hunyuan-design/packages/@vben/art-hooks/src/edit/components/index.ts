@@ -1,3 +1,6 @@
+export type { ArtAttachmentItem, ArtAttachmentStatus } from './art-attachment-types'
+export { default as ArtAttachmentTable } from './art-attachment-table'
 export { default as ArtAttachmentUpload } from './art-attachment-upload'
 export { default as ArtEditPage } from './art-edit-page'
 export { default as ArtEditSection } from './art-edit-section'
+export { default as ArtImageUpload } from './art-image-upload'

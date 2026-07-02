@@ -4,6 +4,12 @@ import { ElUpload } from 'element-plus'
 
 import './style.css'
 
+const iconMap = {
+  document: '文',
+  image: '图',
+  upload: '上',
+}
+
 export default defineComponent({
   name: 'ArtAttachmentUpload',
   props: {
@@ -24,11 +30,9 @@ export default defineComponent({
         },
         {
           default: () => [
-            h(
-              'span',
-              { class: 'art-attachment-upload__icon' },
-              props.icon === 'document' ? '□' : '↑',
-            ),
+            h('span', { class: 'art-attachment-upload__icon' }, [
+              iconMap[props.icon as keyof typeof iconMap] || iconMap.upload,
+            ]),
             h('div', { class: 'art-attachment-upload__text' }, props.text),
           ],
           tip: () =>

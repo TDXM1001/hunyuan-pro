@@ -26,10 +26,13 @@
   margin-bottom: 0;
   align-items: center;
   justify-content: center;
-  color: var(--el-text-color-placeholder);
-  font-size: 20px;
+  color: var(--el-color-primary);
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-7);
+  border-radius: 6px;
 }
 
 .art-attachment-upload__text {

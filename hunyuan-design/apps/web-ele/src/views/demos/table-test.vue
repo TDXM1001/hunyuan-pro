@@ -10,19 +10,22 @@ import {
   type TableError,
   useTable,
 } from '@vben/art-hooks/table'
+import {
+  ArtActionGroup,
+  type ArtActionItem,
+  ArtSearchPanel,
+  ArtStatusTag,
+  type ArtStatusTagMap,
+} from '@vben/art-hooks/common'
 import { Page } from '@vben/common-ui'
 
-import { Refresh } from '@element-plus/icons-vue'
 import {
   ElAlert,
   ElButton,
   ElCard,
-  ElForm,
   ElFormItem,
-  ElIcon,
   ElInput,
   ElMessage,
-  ElMessageBox,
   ElSpace,
   ElTag,
 } from 'element-plus'
@@ -87,6 +90,11 @@ const columnsFactory = (): ColumnOption<User>[] => [
   { prop: 'status', label: '状态', width: 110, align: 'center', useSlot: true },
   { prop: 'operation', label: '操作', width: 220, fixed: 'right', useSlot: true },
 ]
+
+const userStatusMap: ArtStatusTagMap = {
+  0: { text: '禁用', type: 'danger' },
+  1: { text: '启用', type: 'success' },
+}
 
 const tableStandards = [
   {
@@ -184,20 +192,32 @@ async function handleEdit(row: User) {
   ElMessage.success('更新成功')
 }
 
-async function handleDelete(row: User) {
-  try {
-    await ElMessageBox.confirm(`确定删除用户 ${row.username} 吗？`, '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+async function handleDelete() {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  await refreshRemove()
+  ElMessage.success('删除成功')
+}
 
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    await refreshRemove()
-    ElMessage.success('删除成功')
-  } catch {
-    // 用户主动取消删除时保持静默，避免打断表格操作节奏。
-  }
+function getUserActions(row: User): ArtActionItem[] {
+  return [
+    {
+      key: 'edit',
+      label: '编辑',
+      onClick: () => handleEdit(row),
+      type: 'primary',
+    },
+    {
+      confirm: {
+        message: `确定删除用户 ${row.username} 吗？`,
+        title: '警告',
+        type: 'warning',
+      },
+      key: 'delete',
+      label: '删除',
+      onClick: handleDelete,
+      type: 'danger',
+    },
+  ]
 }
 
 async function testRefreshCreate() {
@@ -281,36 +301,30 @@ function handleToggleSearchBar() {
         </div>
       </ElCard>
 
-      <ElCard v-show="showSearchBar" class="toolbar-card" shadow="never">
-        <ElForm class="toolbar-form" :inline="true">
-          <ElFormItem label="用户名">
-            <ElInput
-              v-model="searchParams.username"
-              placeholder="输入用户名搜索"
-              clearable
-              @input="handleSearchInput"
-            />
-          </ElFormItem>
-          <ElFormItem label="邮箱">
-            <ElInput
-              v-model="searchParams.email"
-              placeholder="输入邮箱搜索"
-              clearable
-              @input="handleSearchInput"
-            />
-          </ElFormItem>
-          <ElFormItem>
-            <ElSpace wrap>
-              <ElButton type="primary" @click="handleSearch">搜索</ElButton>
-              <ElButton @click="handleReset">重置</ElButton>
-              <ElButton type="success" plain @click="handleRefresh">
-                <ElIcon><Refresh /></ElIcon>
-                刷新
-              </ElButton>
-            </ElSpace>
-          </ElFormItem>
-        </ElForm>
-      </ElCard>
+      <ArtSearchPanel
+        v-show="showSearchBar"
+        :loading="loading"
+        @refresh="handleRefresh"
+        @reset="handleReset"
+        @search="handleSearch"
+      >
+        <ElFormItem label="用户名">
+          <ElInput
+            v-model="searchParams.username"
+            placeholder="输入用户名搜索"
+            clearable
+            @input="handleSearchInput"
+          />
+        </ElFormItem>
+        <ElFormItem label="邮箱">
+          <ElInput
+            v-model="searchParams.email"
+            placeholder="输入邮箱搜索"
+            clearable
+            @input="handleSearchInput"
+          />
+        </ElFormItem>
+      </ArtSearchPanel>
 
       <ElCard class="table-panel" shadow="never">
         <template #header>
@@ -351,20 +365,11 @@ function handleToggleSearchBar() {
             </template>
 
             <template #status="{ row }">
-              <ElTag :type="row.status === 1 ? 'success' : 'danger'" size="small" effect="light">
-                {{ row.status === 1 ? '启用' : '禁用' }}
-              </ElTag>
+              <ArtStatusTag :value="row.status" :map="userStatusMap" />
             </template>
 
             <template #operation="{ row }">
-              <ElSpace size="small" wrap>
-                <ElButton size="small" type="primary" link @click="handleEdit(row)">
-                  编辑
-                </ElButton>
-                <ElButton size="small" type="danger" link @click="handleDelete(row)">
-                  删除
-                </ElButton>
-              </ElSpace>
+              <ArtActionGroup :actions="getUserActions(row)" />
             </template>
           </ArtTable>
         </ArtTablePanel>
@@ -406,7 +411,6 @@ function handleToggleSearchBar() {
 
 .overview-card,
 .standards-card,
-.toolbar-card,
 .table-panel,
 .test-card {
   border: 1px solid var(--el-border-color-lighter);
@@ -441,10 +445,6 @@ function handleToggleSearchBar() {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
-}
-
-.toolbar-form {
-  margin-bottom: -18px;
 }
 
 .standards-grid {
