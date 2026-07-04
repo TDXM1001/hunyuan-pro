@@ -20,6 +20,8 @@ const artOrgTreePath =
 const systemIndexPath = 'apps/hunyuan-system/index.html';
 const systemFaviconPath = 'apps/hunyuan-system/public/favicon.svg';
 const menuPagePath = 'apps/hunyuan-system/src/views/system/menu/index.vue';
+const menuBackendEntryPath =
+  'apps/hunyuan-system/src/views/system/menu/menu-list.vue';
 const menuApiPath = 'apps/hunyuan-system/src/api/system/menu.ts';
 
 const actionPages = [
@@ -127,6 +129,16 @@ describe('organization backend menu docking pages', () => {
     expect(source).toContain('ArtTable');
     expect(source).toContain('row-key="menuId"');
     expect(source).toContain(':tree-props="{ children: \'children\' }"');
+  });
+
+  it('exposes menu management through the backend menu component path', () => {
+    const entryPath = resolve(process.cwd(), menuBackendEntryPath);
+
+    expect(existsSync(entryPath)).toBe(true);
+
+    const source = readFileSync(entryPath, 'utf8');
+    expect(source).toContain("import SystemMenuManagement from './index.vue';");
+    expect(source).toContain('<SystemMenuManagement />');
   });
 
   it('keeps menu management dense without extra page title or explainer copy', () => {
