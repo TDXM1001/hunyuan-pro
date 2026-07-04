@@ -35,3 +35,17 @@ Implemented Task 3 from `E:\my-project\hunyuan-pro\.superpowers\sdd\task-3-brief
 
 - I did not modify login, menu loading, role page behavior, dictionary/config/log pages, or shared route-generation behavior.
 - I left the source contract test untouched because the new page satisfied the existing assertions directly.
+
+## Fixes For Review Findings
+
+- Hid the `新增下级` row action for `menuType === 3` function-point rows and added a defensive `openAddChildDialog` warning/early return so function points cannot open child-creation flow through the handler.
+- Added a page-local `collectDescendantMenuIds` helper plus `disabledParentMenuIds` computed state so the edit dialog parent selector disables the current node and every descendant, preventing cyclic reparenting.
+- Extended the source contract test to assert both protections directly from `apps/hunyuan-system/src/views/system/menu/index.vue`.
+
+### Fix Verification
+
+1. `pnpm --dir hunyuan-design exec vitest run apps/hunyuan-system/src/views/system/organization-modules.test.ts --dom`
+   - Result: passed (`25 passed`)
+
+2. `pnpm --dir hunyuan-design -F @hunyuan/system run typecheck`
+   - Result: passed (`vue-tsc --noEmit --skipLibCheck`)

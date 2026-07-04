@@ -178,6 +178,45 @@ const filteredRows = computed<MenuTreeRow[]>(() => {
 const parentOptions = computed(() =>
   menuRows.value.filter((item) => item.menuType !== 3),
 );
+function collectDescendantMenuIds(
+  menuId: null | number | undefined,
+  nodes: MenuTreeRow[],
+): number[] {
+  if (!menuId) {
+    return [];
+  }
+
+  const queue = [...nodes];
+  let descendants: MenuTreeRow[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (current.menuId === menuId) {
+      descendants = [...(current.children ?? [])];
+      break;
+    }
+    queue.push(...(current.children ?? []));
+  }
+
+  const descendantIds: number[] = [];
+  while (descendants.length > 0) {
+    const current = descendants.shift()!;
+    descendantIds.push(current.menuId);
+    descendants.push(...(current.children ?? []));
+  }
+
+  return descendantIds;
+}
+const disabledParentMenuIds = computed(() => {
+  if (dialogMode.value !== 'edit' || !formData.menuId) {
+    return new Set<number>();
+  }
+
+  return new Set([
+    formData.menuId,
+    ...collectDescendantMenuIds(formData.menuId, menuTreeRows.value),
+  ]);
+});
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'edit') {
     return '编辑菜单';
@@ -240,6 +279,11 @@ function openAddRootDialog() {
 }
 
 function openAddChildDialog(row: MenuTreeRow) {
+  if (row.menuType === 3) {
+    ElMessage.warning('功能点不能新增下级菜单');
+    return;
+  }
+
   dialogMode.value = 'add';
   resetForm();
   formData.parentId = row.menuId;
@@ -382,7 +426,13 @@ onMounted(() => {
 
             <template #actions="{ row }">
               <ElSpace class="menu-page__actions">
-                <ElButton link size="small" type="primary" @click="openAddChildDialog(row)">
+                <ElButton
+                  v-if="row.menuType !== 3"
+                  link
+                  size="small"
+                  type="primary"
+                  @click="openAddChildDialog(row)"
+                >
                   新增下级
                 </ElButton>
                 <ElButton link size="small" type="primary" @click="openEditDialog(row)">
@@ -420,7 +470,7 @@ onMounted(() => {
               <ElOption
                 v-for="item in parentOptions"
                 :key="item.menuId"
-                :disabled="dialogMode === 'edit' && item.menuId === formData.menuId"
+                :disabled="disabledParentMenuIds.has(item.menuId)"
                 :label="item.menuName"
                 :value="item.menuId"
               />

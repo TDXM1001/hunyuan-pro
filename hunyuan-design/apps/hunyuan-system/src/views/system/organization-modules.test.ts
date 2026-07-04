@@ -183,6 +183,24 @@ describe('organization backend menu docking pages', () => {
     expect(source).toContain('margin-left: 0;');
   });
 
+  it('prevents adding children under function-point menu rows', () => {
+    const source = readFileSync(resolve(process.cwd(), menuPagePath), 'utf8');
+
+    expect(source).toContain('function openAddChildDialog(row: MenuTreeRow) {');
+    expect(source).toContain('if (row.menuType === 3) {');
+    expect(source).toContain('ElMessage.warning');
+    expect(source).toContain('v-if="row.menuType !== 3"');
+  });
+
+  it('disables the current menu node and all descendants in the edit parent select', () => {
+    const source = readFileSync(resolve(process.cwd(), menuPagePath), 'utf8');
+
+    expect(source).toContain('function collectDescendantMenuIds(');
+    expect(source).toContain('const disabledParentMenuIds = computed(() =>');
+    expect(source).toContain('collectDescendantMenuIds(formData.menuId');
+    expect(source).toContain(':disabled="disabledParentMenuIds.has(item.menuId)"');
+  });
+
   it('registers Element Plus inputs used by the shared organization tree', () => {
     const pagePath = resolve(process.cwd(), artOrgTreePath);
     const source = readFileSync(pagePath, 'utf8');
