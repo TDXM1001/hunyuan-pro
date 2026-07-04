@@ -27,7 +27,7 @@ export interface MenuTreeRecord extends MenuRecord {
 }
 
 export interface RequestUrlRecord {
-  method?: null | string;
+  comment?: null | string;
   name?: null | string;
   url?: null | string;
 }
@@ -58,6 +58,20 @@ export interface MenuUpdateForm extends MenuAddForm {
 function cleanText(value?: null | string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : '';
+}
+
+function buildRepeatedQueryString(
+  key: string,
+  values: Array<number | string>,
+) {
+  const searchParams = new URLSearchParams();
+
+  values.forEach((value) => {
+    searchParams.append(key, String(value));
+  });
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : '';
 }
 
 export function buildMenuMutationPayload<
@@ -108,9 +122,9 @@ export async function updateMenu(params: MenuUpdateForm) {
 }
 
 export async function batchDeleteMenus(menuIdList: number[]) {
-  return requestClient.get<string>('/menu/batchDelete', {
-    params: { menuIdList },
-  });
+  return requestClient.get<string>(
+    `/menu/batchDelete${buildRepeatedQueryString('menuIdList', menuIdList)}`,
+  );
 }
 
 export async function listAuthUrls() {

@@ -148,8 +148,12 @@ describe('organization backend menu docking pages', () => {
     expect(source).toContain("'/menu/tree'");
     expect(source).toContain("'/menu/add'");
     expect(source).toContain("'/menu/update'");
-    expect(source).toContain("'/menu/batchDelete'");
+    expect(source).toContain(
+      "buildRepeatedQueryString('menuIdList', menuIdList)",
+    );
     expect(source).toContain("'/menu/auth/url'");
+    expect(source).toContain('comment?: null | string;');
+    expect(source).not.toContain('method?: null | string;');
   });
 
   it('surfaces route, component, and permission fields on the menu page', () => {
