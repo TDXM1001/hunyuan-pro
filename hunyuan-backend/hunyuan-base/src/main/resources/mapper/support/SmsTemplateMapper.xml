@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hunyuan.sa.base.module.support.sms.dao.SmsTemplateDao">
+
+    <select id="query" resultType="com.hunyuan.sa.base.module.support.sms.domain.SmsTemplateVO">
+        SELECT
+            template_code,
+            template_name,
+            template_content,
+            disable_flag,
+            remark,
+            update_time,
+            create_time
+        FROM t_sms_template
+        <where>
+            <if test="query.templateCode != null and query.templateCode != ''">
+                AND INSTR(template_code, #{query.templateCode})
+            </if>
+            <if test="query.templateName != null and query.templateName != ''">
+                AND INSTR(template_name, #{query.templateName})
+            </if>
+            <if test="query.disableFlag != null">
+                AND disable_flag = #{query.disableFlag}
+            </if>
+        </where>
+        <if test="query.sortItemList == null or query.sortItemList.size == 0">
+            ORDER BY create_time DESC
+        </if>
+    </select>
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hunyuan.sa.base.module.support.sms.dao.SmsSendLogDao">
+
+    <select id="query" resultType="com.hunyuan.sa.base.module.support.sms.domain.SmsSendLogVO">
+        SELECT
+            sms_send_log_id,
+            provider,
+            request_id,
+            phone,
+            template_code,
+            send_content,
+            send_status,
+            fail_reason,
+            send_time,
+            create_time
+        FROM t_sms_send_log
+        <where>
+            <if test="query.phone != null and query.phone != ''">
+                AND INSTR(phone, #{query.phone})
+            </if>
+            <if test="query.templateCode != null and query.templateCode != ''">
+                AND template_code = #{query.templateCode}
+            </if>
+            <if test="query.sendStatus != null">
+                AND send_status = #{query.sendStatus}
+            </if>
+            <if test="query.startDate != null">
+                AND DATE_FORMAT(create_time, '%Y-%m-%d') &gt;= DATE_FORMAT(#{query.startDate}, '%Y-%m-%d')
+            </if>
+            <if test="query.endDate != null">
+                AND DATE_FORMAT(create_time, '%Y-%m-%d') &lt;= DATE_FORMAT(#{query.endDate}, '%Y-%m-%d')
+            </if>
+        </where>
+        <if test="query.sortItemList == null or query.sortItemList.size == 0">
+            ORDER BY sms_send_log_id DESC
+        </if>
+    </select>
+</mapper>

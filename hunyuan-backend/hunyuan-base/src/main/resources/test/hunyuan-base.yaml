@@ -139,7 +139,16 @@ http:
 # 跨域配置
 access-control-allow-origin: '*'
 
+login:
+  captcha-enabled: false
+  password-plain-enabled: true
+
 # 心跳配置
+sms:
+  mode: mock
+  idempotent-expire-seconds: 300
+  rate-limit-seconds: 60
+
 heart-beat:
   interval-seconds: 300
 
