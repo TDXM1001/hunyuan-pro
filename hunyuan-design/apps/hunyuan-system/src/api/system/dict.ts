@@ -107,62 +107,72 @@ export function buildDictDataMutationPayload<
 
 export async function queryDictPage(params: DictPageQueryParams) {
   return requestClient.post<PageResult<DictRecord>>(
-    '/dict/queryPage',
+    '/support/dict/queryPage',
     buildDictPageQueryPayload(params),
   );
 }
 
 export async function addDict(params: DictAddForm) {
-  return requestClient.post<string>('/dict/add', buildDictMutationPayload(params));
+  return requestClient.post<string>(
+    '/support/dict/add',
+    buildDictMutationPayload(params),
+  );
 }
 
 export async function updateDict(params: DictUpdateForm) {
   return requestClient.post<string>(
-    '/dict/update',
+    '/support/dict/update',
     buildDictMutationPayload(params),
   );
 }
 
 export async function toggleDictDisabled(dictId: number) {
-  return requestClient.get<string>(`/dict/updateDisabled/${dictId}`);
+  return requestClient.get<string>(`/support/dict/updateDisabled/${dictId}`);
 }
 
 export async function batchDeleteDicts(dictIds: number[]) {
-  return requestClient.post<string>('/dict/batchDelete', dictIds);
+  return requestClient.post<string>('/support/dict/batchDelete', dictIds);
 }
 
 export async function deleteDict(dictId: number) {
-  return requestClient.get<string>(`/dict/delete/${dictId}`);
+  return requestClient.get<string>(`/support/dict/delete/${dictId}`);
 }
 
 export async function queryDictDataList(dictId: number) {
-  return requestClient.get<DictDataRecord[]>(`/dict/dictData/queryDictData/${dictId}`);
+  return requestClient.get<DictDataRecord[]>(
+    `/support/dict/dictData/queryDictData/${dictId}`,
+  );
 }
 
 export async function toggleDictDataDisabled(dictDataId: number) {
   return requestClient.get<string>(
-    `/dict/dictData/updateDisabled/${dictDataId}`,
+    `/support/dict/dictData/updateDisabled/${dictDataId}`,
   );
 }
 
 export async function addDictData(params: DictDataAddForm) {
   return requestClient.post<string>(
-    '/dict/dictData/add',
+    '/support/dict/dictData/add',
     buildDictDataMutationPayload(params),
   );
 }
 
 export async function updateDictData(params: DictDataUpdateForm) {
   return requestClient.post<string>(
-    '/dict/dictData/update',
+    '/support/dict/dictData/update',
     buildDictDataMutationPayload(params),
   );
 }
 
 export async function batchDeleteDictData(dictDataIds: number[]) {
-  return requestClient.post<string>('/dict/dictData/batchDelete', dictDataIds);
+  return requestClient.post<string>(
+    '/support/dict/dictData/batchDelete',
+    dictDataIds,
+  );
 }
 
 export async function deleteDictData(dictDataId: number) {
-  return requestClient.get<string>(`/dict/dictData/delete/${dictDataId}`);
+  return requestClient.get<string>(
+    `/support/dict/dictData/delete/${dictDataId}`,
+  );
 }
