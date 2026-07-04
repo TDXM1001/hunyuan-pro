@@ -19,6 +19,8 @@ const artOrgTreePath =
   'packages/@vben/art-hooks/src/tree/components/art-org-tree/tree.vue';
 const systemIndexPath = 'apps/hunyuan-system/index.html';
 const systemFaviconPath = 'apps/hunyuan-system/public/favicon.svg';
+const menuPagePath = 'apps/hunyuan-system/src/views/system/menu/index.vue';
+const menuApiPath = 'apps/hunyuan-system/src/api/system/menu.ts';
 
 const actionPages = [
   {
@@ -111,6 +113,70 @@ describe('organization backend menu docking pages', () => {
 
     expect(source).toContain(':value="viewType.viewType"');
     expect(source).not.toContain(':label="viewType.viewType"');
+  });
+
+  it('provides a real menu management page', () => {
+    const pagePath = resolve(process.cwd(), menuPagePath);
+
+    expect(existsSync(pagePath)).toBe(true);
+
+    const source = readFileSync(pagePath, 'utf8');
+    expect(source).toContain('ArtSearchPanel');
+    expect(source).toContain('ArtTablePanel');
+    expect(source).toContain('ArtTableHeader');
+    expect(source).toContain('ArtTable');
+    expect(source).toContain('row-key="menuId"');
+    expect(source).toContain(':tree-props="{ children: \'children\' }"');
+  });
+
+  it('keeps menu management dense without extra page title or explainer copy', () => {
+    const source = readFileSync(resolve(process.cwd(), menuPagePath), 'utf8');
+
+    expect(source).not.toContain('menu-page__title');
+    expect(source).not.toContain('menu-page__hero');
+    expect(source).not.toContain('menu-page__desc');
+    expect(source).toContain(':collapsible="false"');
+  });
+
+  it('wires menu management to backend menu endpoints', () => {
+    const apiPath = resolve(process.cwd(), menuApiPath);
+
+    expect(existsSync(apiPath)).toBe(true);
+
+    const source = readFileSync(apiPath, 'utf8');
+    expect(source).toContain("'/menu/query'");
+    expect(source).toContain("'/menu/tree'");
+    expect(source).toContain("'/menu/add'");
+    expect(source).toContain("'/menu/update'");
+    expect(source).toContain("'/menu/batchDelete'");
+    expect(source).toContain("'/menu/auth/url'");
+  });
+
+  it('surfaces route, component, and permission fields on the menu page', () => {
+    const source = readFileSync(resolve(process.cwd(), menuPagePath), 'utf8');
+
+    expect(source).toContain('path');
+    expect(source).toContain('component');
+    expect(source).toContain('webPerms');
+    expect(source).toContain('apiPerms');
+    expect(source).toContain('frameFlag');
+    expect(source).toContain('visibleFlag');
+    expect(source).toContain('disabledFlag');
+  });
+
+  it('keeps menu row actions compact and measurable', () => {
+    const source = readFileSync(resolve(process.cwd(), menuPagePath), 'utf8');
+
+    expect(source).toContain('class="menu-page__actions"');
+    expect(source).toContain('.menu-page__actions {');
+    expect(source).toContain('display: inline-flex;');
+    expect(source).toContain('gap: 8px;');
+    expect(source).toContain('.menu-page__actions :deep(.el-button)');
+    expect(source).toContain('font-size: 14px;');
+    expect(source).toContain('line-height: 22px;');
+    expect(source).toContain('padding: 0;');
+    expect(source).toContain('.menu-page__actions :deep(.el-button + .el-button)');
+    expect(source).toContain('margin-left: 0;');
   });
 
   it('registers Element Plus inputs used by the shared organization tree', () => {
