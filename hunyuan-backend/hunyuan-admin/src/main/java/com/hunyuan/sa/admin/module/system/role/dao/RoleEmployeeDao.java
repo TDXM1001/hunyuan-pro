@@ -58,6 +58,11 @@ public interface RoleEmployeeDao extends BaseMapper<RoleEmployeeEntity> {
     List<EmployeeVO> selectRoleEmployeeByName(Page page, @Param("queryForm") RoleEmployeeQueryForm roleEmployeeQueryForm);
 
     /**
+     * 查询角色可添加的候选员工
+     */
+    List<EmployeeVO> selectCandidateEmployeeByName(Page page, @Param("queryForm") RoleEmployeeQueryForm roleEmployeeQueryForm);
+
+    /**
      *
      */
     List<EmployeeVO> selectEmployeeByRoleId(@Param("roleId") Long roleId);

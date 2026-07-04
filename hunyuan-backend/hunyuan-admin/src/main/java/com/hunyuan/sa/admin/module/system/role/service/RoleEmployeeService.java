@@ -69,6 +69,27 @@ public class RoleEmployeeService {
                 .stream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+        this.setDepartmentName(employeeList);
+        PageResult<EmployeeVO> pageResult = SmartPageUtil.convert2PageResult(page, employeeList, EmployeeVO.class);
+        return ResponseDTO.ok(pageResult);
+    }
+
+    /**
+     * 通过角色id，分页获取可添加的候选员工列表
+     *
+     */
+    public ResponseDTO<PageResult<EmployeeVO>> queryCandidateEmployee(RoleEmployeeQueryForm roleEmployeeQueryForm) {
+        Page page = SmartPageUtil.convert2PageQuery(roleEmployeeQueryForm);
+        List<EmployeeVO> employeeList = roleEmployeeDao.selectCandidateEmployeeByName(page, roleEmployeeQueryForm)
+                .stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        this.setDepartmentName(employeeList);
+        PageResult<EmployeeVO> pageResult = SmartPageUtil.convert2PageResult(page, employeeList, EmployeeVO.class);
+        return ResponseDTO.ok(pageResult);
+    }
+
+    private void setDepartmentName(List<EmployeeVO> employeeList) {
         List<Long> departmentIdList = employeeList.stream().filter(e -> e != null && e.getDepartmentId() != null).map(EmployeeVO::getDepartmentId).collect(Collectors.toList());
         if (CollectionUtils.isNotEmpty(departmentIdList)) {
             List<DepartmentEntity> departmentEntities = departmentDao.selectBatchIds(departmentIdList);
@@ -77,8 +98,6 @@ public class RoleEmployeeService {
                 e.setDepartmentName(departmentIdNameMap.getOrDefault(e.getDepartmentId(), StringConst.EMPTY));
             });
         }
-        PageResult<EmployeeVO> pageResult = SmartPageUtil.convert2PageResult(page, employeeList, EmployeeVO.class);
-        return ResponseDTO.ok(pageResult);
     }
 
     public List<EmployeeVO> getAllEmployeeByRoleId(Long roleId) {

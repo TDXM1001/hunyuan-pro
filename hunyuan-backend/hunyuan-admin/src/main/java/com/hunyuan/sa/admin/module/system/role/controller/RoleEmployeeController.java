@@ -39,6 +39,12 @@ public class RoleEmployeeController {
         return roleEmployeeService.queryEmployee(roleEmployeeQueryForm);
     }
 
+    @Operation(summary = "查询某个角色可添加的候选员工列表  @author 卓大")
+    @PostMapping("/role/employee/queryCandidateEmployee")
+    public ResponseDTO<PageResult<EmployeeVO>> queryCandidateEmployee(@Valid @RequestBody RoleEmployeeQueryForm roleEmployeeQueryForm) {
+        return roleEmployeeService.queryCandidateEmployee(roleEmployeeQueryForm);
+    }
+
     @Operation(summary = "获取某个角色下的所有员工列表(无分页)  @author 卓大")
     @GetMapping("/role/employee/getAllEmployeeByRoleId/{roleId}")
     public ResponseDTO<List<EmployeeVO>> listAllEmployeeRoleId(@PathVariable Long roleId) {
