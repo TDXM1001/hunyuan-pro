@@ -52,11 +52,20 @@
 
 ### 3. 当前前端实际落地状态
 
-当前 `apps/hunyuan-system/src/views` 中，与系统设置相关的真实页面只有：
+当前工作区中，系统设置菜单组已经有 3 个真实页面命中本地 `views`：
 
 - `views/system/menu/menu-list.vue`
+- `views/support/config/config-list.vue`
+- `views/support/dict/index.vue`
 
-其余 `views/support/*` 页面目录尚未落地，因此当前仍会落入 `views/system/module-bridge/index.vue`。
+仍然缺失并会落入 `views/system/module-bridge/index.vue` 的模块为：
+
+- `views/support/file/file-list.vue`
+- `views/support/job/job-list.vue`
+- `views/support/message/message-list.vue`
+- `views/support/serial-number/serial-number-list.vue`
+- `views/support/cache/cache-list.vue`
+- `views/support/reload/reload-list.vue`
 
 ## 总体架构
 
@@ -87,69 +96,70 @@ flowchart TD
 
 ## 方案比较
 
-### 方案 A：先做全量梳理，再做一个首模块落地
+### 方案 A：完全按接口逐页直推
 
 优点：
 
-- 最符合 `AGENTS.md` 的“一次一个可验证增量”。
-- 能先统一动态路由、页面路径、接口边界认知。
-- 后续每个 support 页面都能按同一模板复制推进。
+- 与后端能力最贴近，不容易做出假交互。
+- 前端每页都能直接围绕 controller/form/vo 建模。
 
 缺点：
 
-- 第一轮交付不会一次把 8 个待迁移模块全部变成真实页面。
+- 页面之间容易出现风格和交互节奏不统一。
+- `缓存管理 / Reload / 单号管理` 与标准管理页差异会越来越大。
 
-### 方案 B：先补齐 8 个待迁移页面骨架，再逐页补接口动作
+### 方案 B：统一壳子 + 接口驱动分型
 
 优点：
 
-- 系统设置菜单会很快脱离 `module-bridge`。
+- 仍然以后端接口为真，不凭空发明前端能力。
+- 同时能把 6 个模块收敛成两类页面语法：标准管理页、工具操作页。
+- 最符合当前 `参数配置 / 数据字典 / 菜单管理` 已有基线，便于系统设置菜单形成一组一致风格。
 
 缺点：
 
-- 第一轮验证面大，容易出现页面都在但行为深浅不一。
-- 一旦某个模块接口边界理解偏差，会放大返工成本。
+- 需要先做页面分型与 API 边界梳理，前期设计成本稍高。
 
-### 方案 C：按后端成熟度一次性铺开多个模块
+### 方案 C：先补齐全部页面骨架，再逐页补深度
 
 优点：
 
-- 表面推进速度快。
+- 菜单会较快从桥接页切成真实页面。
 
 缺点：
 
-- 容易违背“单增量、可验证”原则。
-- 多个模块同时联调时，typecheck 与接口问题难定位。
+- 容易出现“页面都在，但真实交互不完整”的半成品。
+- 不符合这次“先理解接口，再做合适对接”的要求。
 
 ### 推荐方案
 
-推荐采用 **方案 A**：
+推荐采用 **方案 B**：
 
 1. 先完成系统设置整体对接设计。
-2. 再选择一个后端接口最完整、页面模式最稳定的模块首批落地。
-3. 验证通过后，将同一模式复制到其余模块。
+2. 以后端接口能力为起点，将系统设置剩余 6 个模块分为“标准管理页族”和“工具操作页族”。
+3. 先落地结构最稳定的标准管理页，再单独处理复杂行为页与工具页。
 
 ## 系统设置模块总览
 
-| 模块 | 数据库组件路径 | 当前状态 | 后端入口 | 推荐批次 |
-| --- | --- | --- | --- | --- |
-| 菜单管理 | `/system/menu/menu-list.vue` | 已落地 | `MenuController` `/menu/*` | 基线已完成 |
-| 参数配置 | `/support/config/config-list.vue` | 未落地 | `AdminConfigController` `/config/*` | 第一批 |
-| 数据字典 | `/support/dict/index.vue` | 未落地 | `AdminDictController` `/dict/*` | 第一批 |
-| 文件管理 | `/support/file/file-list.vue` | 未落地 | `AdminFileController` + `FileController` | 第一批 |
-| 定时任务 | `/support/job/job-list.vue` | 未落地 | `AdminSmartJobController` `/job/*` | 第二批 |
-| 消息管理 | `/support/message/message-list.vue` | 未落地 | `AdminMessageController` + `MessageController` | 第二批 |
-| 单号管理 | `/support/serial-number/serial-number-list.vue` | 未落地 | `AdminSerialNumberController` `/serialNumber/*` | 第三批 |
-| 缓存管理 | `/support/cache/cache-list.vue` | 未落地 | `AdminCacheController` `/cache/*` | 第三批 |
-| Reload | `/support/reload/reload-list.vue` | 未落地 | `AdminReloadController` `/reload/*` | 第三批 |
+| 模块 | 数据库组件路径 | 当前状态 | 后端入口 | 页面分型 | 推荐批次 |
+| --- | --- | --- | --- | --- | --- |
+| 菜单管理 | `/system/menu/menu-list.vue` | 已落地 | `MenuController` `/menu/*` | 基线页 | 基线验证 |
+| 参数配置 | `/support/config/config-list.vue` | 已落地 | `AdminConfigController` `/config/*` | 标准管理页 | 基线验证 |
+| 数据字典 | `/support/dict/index.vue` | 已落地 | `AdminDictController` `/dict/*` | 标准管理页 + 子表抽屉 | 基线验证 |
+| 文件管理 | `/support/file/file-list.vue` | 未落地 | `AdminFileController` + `FileController` | 标准管理页 | 第一批 |
+| 定时任务 | `/support/job/job-list.vue` | 未落地 | `AdminSmartJobController` `/job/*` | 标准管理页 + 日志抽屉 | 第二批 |
+| 消息管理 | `/support/message/message-list.vue` | 未落地 | `AdminMessageController` + `MessageController` | 标准管理页 + 发送弹窗 | 第一批 |
+| 单号管理 | `/support/serial-number/serial-number-list.vue` | 未落地 | `AdminSerialNumberController` `/serialNumber/*` | 工具操作页 + 记录抽屉 | 第三批 |
+| 缓存管理 | `/support/cache/cache-list.vue` | 未落地 | `AdminCacheController` `/cache/*` | 工具操作页 + keys 抽屉 | 第三批 |
+| Reload | `/support/reload/reload-list.vue` | 未落地 | `AdminReloadController` `/reload/*` | 工具操作页 + 结果抽屉 | 第三批 |
 
 ### 系统设置现状图
 
 ```mermaid
 flowchart LR
   A["系统设置"] --> B["菜单管理: 已真实页面"]
-  A --> C["参数配置: module-bridge"]
-  A --> D["数据字典: module-bridge"]
+  A --> C["参数配置: 已真实页面"]
+  A --> D["数据字典: 已真实页面"]
   A --> E["文件管理: module-bridge"]
   A --> F["定时任务: module-bridge"]
   A --> G["消息管理: module-bridge"]
@@ -157,6 +167,34 @@ flowchart LR
   A --> I["缓存管理: module-bridge"]
   A --> J["Reload: module-bridge"]
 ```
+
+## 页面分型与 API 拆分
+
+### 页面分型
+
+- 标准管理页族：`文件管理 / 定时任务 / 消息管理`
+  - 采用 `ArtSearchPanel + ArtTablePanel + ArtTableHeader + ArtTable`
+  - 复杂动作放在 `Dialog` 或 `Drawer`，不拆新路由
+- 工具操作页族：`单号管理 / 缓存管理 / Reload`
+  - 以后端工具接口为真，不强行套“新增/编辑/删除”式 CRUD
+  - 采用“主列表 + 右侧抽屉/结果面板”承接次级信息，保持父列表上下文
+
+### API 文件拆分
+
+前端按模块拆分独立 `api/system/*.ts`，保持与现有 `menu.ts / config.ts / dict.ts` 一致：
+
+- `api/system/file.ts`
+- `api/system/job.ts`
+- `api/system/message.ts`
+- `api/system/serial-number.ts`
+- `api/system/cache.ts`
+- `api/system/reload.ts`
+
+这样可以保证：
+
+- DTO / QueryForm / MutationForm 与后端 `form`、`vo`、`entity` 一一对应
+- 单模块联调时更容易定位接口问题
+- 后续页面测试可按模块落地，不必维护一个超大聚合 API 文件
 
 ## 模块逐项设计
 
@@ -286,7 +324,7 @@ flowchart TD
 
 - 展示后端已上传文件记录。
 - 支持查询、查看 URL、下载。
-- 若后续需要上传入口，也只做最小挂接，不重做上传协议。
+- 第一版以后端已有“查询与使用现有文件”能力为主，不主动扩成上传工作台。
 
 核心接口：
 
@@ -311,16 +349,13 @@ flowchart TD
   F --> G["GET /file/getFileUrl?fileKey=..."]
   E --> H["下载文件"]
   H --> I["GET /file/downLoad?fileKey=..."]
-  E --> J["需要时进入上传入口"]
-  J --> K["POST /file/upload"]
-  K --> L["FileService 校验并入库"]
-  L --> M["页面重新查询"]
 ```
 
 第一版边界：
 
 - 以“查询和使用现有文件”为主。
 - 不扩展成素材中心或复杂预览中心。
+- `POST /file/upload` 保留在 API 设计中，但不作为第一版页面主路径。
 
 ### 5. 定时任务
 
@@ -362,8 +397,9 @@ flowchart TD
 
 第一版边界：
 
-- 先完成列表与日志查看闭环。
+- 先完成列表、启停、立即执行、日志查看闭环。
 - `nextJobExecuteTimeList` 作为详情补充信息，不要求第一版复杂呈现。
+- 新增/编辑任务使用页面内弹窗，不拆独立编辑路由。
 
 ### 6. 消息管理
 
@@ -409,6 +445,7 @@ flowchart TD
 
 - 仅做 admin 消息管理，不混入“我的消息”工作台逻辑。
 - 发送消息先做最小表单，不做模板消息编排器。
+- 发送能力先按单条消息表单落地，前端内部可按接口要求封装成单元素数组提交。
 
 ### 7. 单号管理
 
@@ -449,6 +486,7 @@ flowchart TD
 
 - 以“查看定义 + 查看记录 + 手动生成验证”为主。
 - 不开放前端编辑单号规则。
+- 生成记录通过右侧抽屉承接，避免把页面做成永久双栏。
 
 ### 8. 缓存管理
 
@@ -482,6 +520,7 @@ flowchart TD
 
 - 只做安全、可确认的运维工具页。
 - 不做“清空全部缓存”这类高风险快捷动作。
+- `cache key` 明细通过抽屉展示，不做单独子路由。
 
 ### 9. Reload
 
@@ -521,28 +560,39 @@ flowchart TD
 
 - 定位为运维工具页，不做过多视觉包装。
 - 更新动作必须有明确确认提示。
+- 结果历史通过抽屉展示，保持主列表上下文稳定。
 
 ## 推荐实施顺序
 
-### 第一批
+### 基线验证批
 
-1. 参数配置
-2. 数据字典
-3. 文件管理
+1. 菜单管理
+2. 参数配置
+3. 数据字典
 
 原因：
 
-- 后端接口面最完整。
-- 页面形态最接近标准管理页，最适合先沉淀 `support` 页模板。
+- 这 3 个页面已是系统设置的现有基线。
+- 后续新增页面要优先对齐这一组的页面密度、查询节奏和接口分层。
 
-### 第二批
+### 第一批
 
-1. 定时任务
+1. 文件管理
 2. 消息管理
 
 原因：
 
-- 列表页可稳定落地，但动作和状态比第一批更复杂。
+- 都是“查询为主 + 少量动作”的标准管理页。
+- 接口清晰，适合先沉淀 `support` 页通用对接方式。
+
+### 第二批
+
+1. 定时任务
+
+原因：
+
+- 同时包含任务主表、启停、立即执行、日志查看与编辑动作。
+- 交互复杂度明显高于普通管理页，单独成批更稳妥。
 
 ### 第三批
 
@@ -552,19 +602,19 @@ flowchart TD
 
 原因：
 
-- 更偏工具/运维页面，与普通 CRUD 页节奏不同。
+- 更偏工具/运维页面。
+- 这三页都不应被强行做成标准 CRUD，适合作为一组统一收口。
 
 ### 批次图
 
 ```mermaid
 flowchart LR
-  A["第一批: 参数配置"] --> B["第一批: 数据字典"]
-  B --> C["第一批: 文件管理"]
+  A["基线验证: 菜单/参数/字典"] --> B["第一批: 文件管理"]
+  B --> C["第一批: 消息管理"]
   C --> D["第二批: 定时任务"]
-  D --> E["第二批: 消息管理"]
-  E --> F["第三批: 单号管理"]
-  F --> G["第三批: 缓存管理"]
-  G --> H["第三批: Reload"]
+  D --> E["第三批: 单号管理"]
+  E --> F["第三批: 缓存管理"]
+  F --> G["第三批: Reload"]
 ```
 
 ## 验证策略
@@ -591,13 +641,13 @@ flowchart LR
 第一优先验证命令：
 
 ```bash
-pnpm --dir hunyuan-design -F @hunyuan/system run typecheck
+pnpm --dir hunyuan-design -F @vben/web-ele run typecheck
 ```
 
-若改到共享层，再补：
+若补充了页面结构约束或模块命中验证测试，再补对应 `vitest` 校验：
 
 ```bash
-pnpm --dir hunyuan-design -F @vben/web-ele run typecheck
+pnpm --dir hunyuan-design test:unit -- apps/hunyuan-system/src/views/system/organization-modules.test.ts
 ```
 
 ## 成功标准
