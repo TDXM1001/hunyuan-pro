@@ -3,7 +3,7 @@ import type { OrgTreeEmits, OrgTreeNode, OrgTreeProps } from './types';
 
 import { computed, ref, watch } from 'vue';
 
-import { ElTree } from 'element-plus';
+import { ElInput, ElTree } from 'element-plus';
 
 defineOptions({ name: 'ArtOrgTree' });
 
