@@ -46,6 +46,13 @@ Use these values as the default baseline unless an existing sibling page has a s
 - Normal table and form text: `14px`
 - Primary inline value text, such as a person name: `14px`, weight `600`
 
+## Page Title Rules
+
+- For ordinary menu-backed management pages, keep the page header extremely quiet. If the active menu, tab, breadcrumb, or route already makes the page context obvious, do not render an extra page title block.
+- Do not add explainer copy under a page title just to restate what the menu, route, or table already makes obvious.
+- Treat page-level title and description text as exceptions, not defaults. Only add them when the workflow would otherwise be ambiguous without them.
+- Do not create hero-style intro blocks for standard CRUD, dictionary, organization, settings, or other routine admin list pages.
+
 ## Search Area Rules
 
 - Use `ArtSearchPanel` for ordinary admin search forms instead of hand-rolling a custom action row.
@@ -57,6 +64,7 @@ Use these values as the default baseline unless an existing sibling page has a s
 - Page-local search item widths may differ by business field, but labels, input wrappers, select wrappers, and action buttons must sit on the same baseline.
 - Do not stretch every filter to fill available width on desktop. Compact, repeated widths create a calmer scan line than uneven wide controls.
 - When search fields exceed one row on desktop, `ArtSearchPanel` should collapse to one row by default and expose `展开 / 收起`. Do not hand-roll page-local collapse controls.
+- When a page only has one natural search row, disable collapse behavior instead of showing an unnecessary `展开 / 收起` toggle.
 - Search fields and actions should stay in one natural wrapping flow. The action group should align to the right side of its current row with `margin-left: auto`, but the search area must not be split into a wide left field region and a fixed right action region.
 
 ## Toolbar and Button Rules
@@ -80,7 +88,11 @@ Use these values as the default baseline unless an existing sibling page has a s
 - Keep selection, index, key business columns, status columns, and action columns deliberate and readable.
 - Use overflow tooltips for long text instead of widening the whole table excessively.
 - Keep action columns fixed to the right when the page has enough operations to justify it.
-- Keep table row actions small and quiet: `ElButton link size="small"` with a `14px / 22px` action text baseline when the page has three or more inline actions.
+- Keep table row actions small and quiet: `ElButton link size="small"` with a `14px / 22px` action text baseline.
+- Row action groups must use a page-local `__actions` class, such as `employee-table-panel__actions`, instead of relying on default Element Plus button spacing.
+- Row action groups must be `inline-flex`, vertically centered, horizontally centered in the operation column, and use an `8px` action gap.
+- Row action buttons must reset extra button chrome inside the action group: `padding: 0` and `.el-button + .el-button { margin-left: 0; }`.
+- Operation columns should stay fixed right and centered. Use about `136px` for two compact actions and about `180px` for three compact actions; avoid widening the operation column to solve spacing drift.
 - Column and settings popovers should use the shared `ArtTableHeader` compact popover skin: `260px` column panel, `148px` settings panel, `28px` option rows, and `13px` option text.
 - Keep shared table section spacing at `8px` unless a page truly needs a looser rhythm.
 - Prefer shared pagination and table settings instead of page-local replacements.

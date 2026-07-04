@@ -668,9 +668,22 @@ defineExpose({
   font-weight: 600;
 }
 
+.employee-table-panel__actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+}
+
 .employee-table-panel__actions :deep(.el-button) {
   font-size: 14px;
   line-height: 22px;
+  min-height: 22px;
+  padding: 0;
+}
+
+.employee-table-panel__actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .employee-table-panel__transfer-tip {

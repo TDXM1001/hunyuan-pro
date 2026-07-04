@@ -14,6 +14,8 @@
 - Use the existing `@vben/art-hooks` edit/detail page primitives before inventing new page shells.
 - Treat `hunyuan-design/apps/web-ele/src/views/demos/edit-test.vue` and `hunyuan-design/apps/web-ele/src/views/demos/detail-test.vue` as the current reference layout.
 - Keep edit/detail pages quiet, dense, and operational: page header, status/extra slot, action area, sectioned content, and targeted validation.
+- For ordinary menu-backed list/search/table pages, do not add explanatory page copy or standalone page title blocks that repeat the menu or obvious page purpose; if the menu/tab context is already clear, default to no extra title or description.
+- If a list/search page only has one natural search row, disable collapse behavior instead of showing an unnecessary `展开 / 收起` toggle.
 - Do not turn the reference pages into broad generators unless the repeated page code proves the abstraction is needed.
 
 ## Current Goal
