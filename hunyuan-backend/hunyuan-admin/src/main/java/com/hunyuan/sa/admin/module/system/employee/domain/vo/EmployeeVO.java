@@ -32,6 +32,9 @@ public class EmployeeVO {
     @Schema(description = "员工名称")
     private String actualName;
 
+    @Schema(description = "头像")
+    private String avatar;
+
     @Schema(description = "手机号码")
     private String phone;
 

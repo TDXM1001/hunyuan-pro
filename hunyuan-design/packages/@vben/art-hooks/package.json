@@ -10,7 +10,8 @@
     "./edit": "./src/edit/index.ts",
     "./table": "./src/table/hooks/index.ts",
     "./table/components": "./src/table/components/index.ts",
-    "./table/composables": "./src/table/composables/useTableSettings.ts"
+    "./table/composables": "./src/table/composables/useTableSettings.ts",
+    "./tree": "./src/tree/index.ts"
   },
   "scripts": {
     "stub": "tsdown --dts"

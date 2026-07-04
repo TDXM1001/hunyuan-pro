@@ -27,7 +27,9 @@ import com.hunyuan.sa.base.common.enumeration.UserTypeEnum;
 import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import com.hunyuan.sa.base.common.util.SmartPageUtil;
 import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +66,9 @@ public class EmployeeService {
 
     @Resource
     private SecurityPasswordService securityPasswordService;
+
+    @Resource
+    private IFileStorageService fileStorageService;
 
     @Resource
     @Lazy
@@ -111,6 +116,12 @@ public class EmployeeService {
             e.setRoleNameList(employeeRoleNameListMap.getOrDefault(e.getEmployeeId(), Lists.newArrayList()));
             e.setDepartmentName(departmentService.getDepartmentPath(e.getDepartmentId()));
             e.setPositionName(positionNameMap.get(e.getPositionId()));
+            if (StringUtils.isNotBlank(e.getAvatar())) {
+                ResponseDTO<String> avatarUrlResponse = fileStorageService.getFileUrl(e.getAvatar());
+                if (Boolean.TRUE.equals(avatarUrlResponse.getOk())) {
+                    e.setAvatar(avatarUrlResponse.getData());
+                }
+            }
         });
         PageResult<EmployeeVO> pageResult = SmartPageUtil.convert2PageResult(pageParam, employeeList);
         return ResponseDTO.ok(pageResult);
