@@ -19,9 +19,7 @@ const artOrgTreePath =
   'packages/@vben/art-hooks/src/tree/components/art-org-tree/tree.vue';
 const systemIndexPath = 'apps/hunyuan-system/index.html';
 const systemFaviconPath = 'apps/hunyuan-system/public/favicon.svg';
-const menuPagePath = 'apps/hunyuan-system/src/views/system/menu/index.vue';
-const menuBackendEntryPath =
-  'apps/hunyuan-system/src/views/system/menu/menu-list.vue';
+const menuPagePath = 'apps/hunyuan-system/src/views/system/menu/menu-list.vue';
 const menuApiPath = 'apps/hunyuan-system/src/api/system/menu.ts';
 
 const actionPages = [
@@ -131,16 +129,6 @@ describe('organization backend menu docking pages', () => {
     expect(source).toContain(':tree-props="{ children: \'children\' }"');
   });
 
-  it('exposes menu management through the backend menu component path', () => {
-    const entryPath = resolve(process.cwd(), menuBackendEntryPath);
-
-    expect(existsSync(entryPath)).toBe(true);
-
-    const source = readFileSync(entryPath, 'utf8');
-    expect(source).toContain("import SystemMenuManagement from './index.vue';");
-    expect(source).toContain('<SystemMenuManagement />');
-  });
-
   it('keeps menu management dense without extra page title or explainer copy', () => {
     const source = readFileSync(resolve(process.cwd(), menuPagePath), 'utf8');
 
@@ -173,6 +161,7 @@ describe('organization backend menu docking pages', () => {
 
     expect(source).toContain('path');
     expect(source).toContain('component');
+    expect(source).toContain('/system/menu/menu-list.vue');
     expect(source).toContain('webPerms');
     expect(source).toContain('apiPerms');
     expect(source).toContain('frameFlag');
