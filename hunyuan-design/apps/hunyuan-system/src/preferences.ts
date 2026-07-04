@@ -8,7 +8,9 @@ import { appCopyrightPreferences, defineOverridesPreferences } from '@vben/prefe
 export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
+    accessMode: 'backend',
     defaultHomePath: '/system/home',
+    enableRefreshToken: false,
     name: import.meta.env.VITE_APP_TITLE,
   },
   copyright: appCopyrightPreferences,

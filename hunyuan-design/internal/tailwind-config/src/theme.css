@@ -317,6 +317,7 @@
   body,
   html {
     @apply size-full;
+    overflow: hidden;
   }
 
   body {

@@ -1,20 +1,24 @@
-import { baseRequestClient, requestClient } from '#/api/request';
+import { requestClient } from '#/api/request';
+
+import {
+  extractAccessCodes,
+  mapLoginMenusToRoutes,
+  mapLoginResultToUserInfo,
+} from './login-adapter';
 
 export namespace AuthApi {
   /** 登录接口参数 */
   export interface LoginParams {
-    password?: string;
-    username?: string;
+    loginDevice: number;
+    loginName: string;
+    password: string;
   }
 
-  /** 登录接口返回值 */
-  export interface LoginResult {
+  export interface LoginSession {
+    accessCodes: string[];
     accessToken: string;
-  }
-
-  export interface RefreshTokenResult {
-    data: string;
-    status: number;
+    menuRoutes: ReturnType<typeof mapLoginMenusToRoutes>;
+    userInfo: ReturnType<typeof mapLoginResultToUserInfo>;
   }
 }
 
@@ -22,30 +26,33 @@ export namespace AuthApi {
  * 登录
  */
 export async function loginApi(data: AuthApi.LoginParams) {
-  return requestClient.post<AuthApi.LoginResult>('/auth/login', data);
+  const loginResult = await requestClient.post<any>('/login', data);
+
+  return {
+    accessCodes: extractAccessCodes(loginResult.menuList ?? []),
+    accessToken: loginResult.token ?? '',
+    menuRoutes: mapLoginMenusToRoutes(loginResult.menuList ?? []),
+    userInfo: mapLoginResultToUserInfo(loginResult),
+  } satisfies AuthApi.LoginSession;
 }
 
 /**
- * 刷新accessToken
+ * 获取当前登录信息
  */
-export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>('/auth/refresh', {
-    withCredentials: true,
-  });
+export async function getLoginInfoApi() {
+  const loginResult = await requestClient.get<any>('/login/getLoginInfo');
+
+  return {
+    accessCodes: extractAccessCodes(loginResult.menuList ?? []),
+    accessToken: loginResult.token ?? '',
+    menuRoutes: mapLoginMenusToRoutes(loginResult.menuList ?? []),
+    userInfo: mapLoginResultToUserInfo(loginResult),
+  } satisfies AuthApi.LoginSession;
 }
 
 /**
  * 退出登录
  */
 export async function logoutApi() {
-  return baseRequestClient.post('/auth/logout', {
-    withCredentials: true,
-  });
-}
-
-/**
- * 获取用户权限码
- */
-export async function getAccessCodesApi() {
-  return requestClient.get<string[]>('/auth/codes');
+  return requestClient.get('/login/logout');
 }

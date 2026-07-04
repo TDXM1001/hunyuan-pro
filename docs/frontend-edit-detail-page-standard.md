@@ -51,7 +51,7 @@ Use the existing page primitives first:
 
 ## When Not To Use This Pattern
 
-- Do not use this pattern for list/search pages. Follow the table/list page standard and existing table primitives instead.
+- Do not use this pattern for list/search pages. Follow `docs/frontend-list-table-page-standard.md` and the existing table primitives instead.
 - Do not use it for dashboards, reports, authentication, or visual landing pages.
 - Do not force it onto a workflow that already has a stronger established sibling page pattern.
 

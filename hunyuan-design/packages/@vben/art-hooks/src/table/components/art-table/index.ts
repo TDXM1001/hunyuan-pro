@@ -32,6 +32,8 @@ interface PaginationOptions {
   layout?: string
   pagerCount?: number
   pageSizes?: number[]
+  showPageCount?: boolean
+  showTotalSummary?: boolean
   size?: 'default' | 'large' | 'small'
 }
 
@@ -159,9 +161,23 @@ export default defineComponent({
       layout: layout.value,
       pageSizes: [10, 20, 30, 50, 100],
       pagerCount: width.value > 1200 ? 7 : 5,
+      showPageCount: false,
+      showTotalSummary: false,
       size: 'default' as const,
       ...props.paginationOptions,
     }))
+
+    const paginationSummary = computed(() => {
+      if (!props.pagination) return ''
+      const totalText = `共 ${props.pagination.total} 条`
+      if (!mergedPaginationOptions.value.showPageCount) {
+        return totalText
+      }
+      const pageCount = props.pagination.total > 0
+        ? Math.ceil(props.pagination.total / props.pagination.size)
+        : 0
+      return `${totalText} / ${pageCount} 页`
+    })
 
     function scrollToTop() {
       nextTick(() => {
@@ -216,30 +232,39 @@ export default defineComponent({
         ? h(
             'div',
             {
-              class: ['pagination', 'custom-pagination', mergedPaginationOptions.value.align],
-              style: {
-                display: 'flex',
-                justifyContent:
-                  mergedPaginationOptions.value.align === 'left'
-                    ? 'flex-start'
-                    : mergedPaginationOptions.value.align === 'right'
-                      ? 'flex-end'
-                      : 'center',
-                marginTop: '12px',
-              },
+              class: [
+                'pagination',
+                'custom-pagination',
+                mergedPaginationOptions.value.align,
+                {
+                  'has-summary':
+                    mergedPaginationOptions.value.showTotalSummary ||
+                    mergedPaginationOptions.value.showPageCount,
+                },
+              ],
             },
-            h(ElPagination, {
-              ...mergedPaginationOptions.value,
-              currentPage: props.pagination.current,
-              disabled: props.loading,
-              pageSize: props.pagination.size,
-              total: props.pagination.total,
-              onCurrentChange: (val: number) => {
-                emit('pagination:current-change', val)
-                scrollToTop()
-              },
-              onSizeChange: (val: number) => emit('pagination:size-change', val),
-            }),
+            [
+              mergedPaginationOptions.value.showTotalSummary ||
+              mergedPaginationOptions.value.showPageCount
+                ? h(
+                    'span',
+                    { class: 'pagination-summary' },
+                    paginationSummary.value,
+                  )
+                : null,
+              h(ElPagination, {
+                ...mergedPaginationOptions.value,
+                currentPage: props.pagination.current,
+                disabled: props.loading,
+                pageSize: props.pagination.size,
+                total: props.pagination.total,
+                onCurrentChange: (val: number) => {
+                  emit('pagination:current-change', val)
+                  scrollToTop()
+                },
+                onSizeChange: (val: number) => emit('pagination:size-change', val),
+              }),
+            ],
           )
         : null
 

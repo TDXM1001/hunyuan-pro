@@ -34,6 +34,7 @@ import com.hunyuan.sa.base.constant.LoginDeviceEnum;
 import com.hunyuan.sa.base.constant.RedisKeyConst;
 import com.hunyuan.sa.base.module.support.apiencrypt.service.ApiEncryptService;
 import com.hunyuan.sa.base.module.support.captcha.CaptchaService;
+import com.hunyuan.sa.base.module.support.captcha.domain.CaptchaForm;
 import com.hunyuan.sa.base.module.support.captcha.domain.CaptchaVO;
 import com.hunyuan.sa.base.module.support.config.ConfigKeyEnum;
 import com.hunyuan.sa.base.module.support.config.ConfigService;
@@ -48,6 +49,7 @@ import com.hunyuan.sa.base.module.support.securityprotect.domain.LoginFailEntity
 import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
 import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityLoginService;
 import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -68,6 +70,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class LoginService implements StpInterface {
+
+    @Value("${login.captcha-enabled:true}")
+    private boolean captchaEnabled;
+
+    @Value("${login.password-plain-enabled:true}")
+    private boolean passwordPlainEnabled;
 
     /**
      * 万能密码的 sa token loginId 前缀
@@ -133,9 +141,11 @@ public class LoginService implements StpInterface {
         }
 
         // 校验 图形验证码
-        ResponseDTO<String> checkCaptcha = captchaService.checkCaptcha(loginForm);
-        if (!checkCaptcha.getOk()) {
-            return ResponseDTO.error(UserErrorCode.PARAM_ERROR, checkCaptcha.getMsg());
+        if (captchaEnabled) {
+            ResponseDTO<String> checkCaptcha = captchaService.checkCaptcha(buildCaptchaForm(loginForm));
+            if (!checkCaptcha.getOk()) {
+                return ResponseDTO.error(UserErrorCode.PARAM_ERROR, checkCaptcha.getMsg());
+            }
         }
 
         // 验证登录名
@@ -156,7 +166,10 @@ public class LoginService implements StpInterface {
         }
 
         // 解密前端加密的密码
-        String requestPassword = apiEncryptService.decrypt(loginForm.getPassword());
+        String requestPassword = resolveRequestPassword(loginForm.getPassword());
+        if (SmartStringUtil.isEmpty(requestPassword)) {
+            return ResponseDTO.userErrorParam("登录名或密码错误！");
+        }
 
         // 验证密码 是否为万能密码
         String superPassword = configService.getConfigValue(ConfigKeyEnum.SUPER_PASSWORD);
@@ -476,5 +489,25 @@ public class LoginService implements StpInterface {
     public void clearLoginEmployeeCache(Long employeeId) {
         loginManager.clearUserPermission(employeeId);
         loginManager.clearUserLoginInfo(employeeId);
+    }
+
+    private CaptchaForm buildCaptchaForm(LoginForm loginForm) {
+        CaptchaForm captchaForm = new CaptchaForm();
+        captchaForm.setCaptchaCode(loginForm.getCaptchaCode());
+        captchaForm.setCaptchaUuid(loginForm.getCaptchaUuid());
+        return captchaForm;
+    }
+
+    private String resolveRequestPassword(String password) {
+        if (SmartStringUtil.isEmpty(password)) {
+            return StringConst.EMPTY;
+        }
+
+        String decryptedPassword = apiEncryptService.decrypt(password);
+        if (SmartStringUtil.isNotEmpty(decryptedPassword)) {
+            return decryptedPassword;
+        }
+
+        return passwordPlainEnabled ? password : StringConst.EMPTY;
     }
 }

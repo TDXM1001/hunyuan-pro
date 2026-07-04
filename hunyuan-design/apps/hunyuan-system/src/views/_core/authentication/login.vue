@@ -13,59 +13,45 @@ defineOptions({ name: 'Login' });
 
 const authStore = useAuthStore();
 
-const MOCK_USER_OPTIONS: BasicOption[] = [
-  {
-    label: 'Super',
-    value: 'vben',
-  },
+const ACCOUNT_OPTIONS: BasicOption[] = [
   {
     label: 'Admin',
     value: 'admin',
   },
-  {
-    label: 'User',
-    value: 'jack',
-  },
 ];
+
+const LOGIN_DEVICE_PC = 1;
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
       component: 'VbenSelect',
       componentProps: {
-        options: MOCK_USER_OPTIONS,
+        options: ACCOUNT_OPTIONS,
         placeholder: $t('authentication.selectAccount'),
       },
       fieldName: 'selectAccount',
       label: $t('authentication.selectAccount'),
-      rules: z
-        .string()
-        .min(1, { message: $t('authentication.selectAccount') })
-        .optional()
-        .default('vben'),
+      rules: z.string().optional().default('admin'),
     },
     {
       component: 'VbenInput',
       componentProps: {
         placeholder: $t('authentication.usernameTip'),
       },
+      defaultValue: 'admin',
       dependencies: {
         trigger(values, form) {
-          if (values.selectAccount) {
-            const findUser = MOCK_USER_OPTIONS.find(
-              (item) => item.value === values.selectAccount,
-            );
-            if (findUser) {
-              form.setValues({
-                password: '123456',
-                username: findUser.value,
-              });
-            }
+          if (values.selectAccount === 'admin') {
+            form.setValues({
+              loginName: 'admin',
+              password: '123456',
+            });
           }
         },
         triggerFields: ['selectAccount'],
       },
-      fieldName: 'username',
+      fieldName: 'loginName',
       label: $t('authentication.username'),
       rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
     },
@@ -74,9 +60,21 @@ const formSchema = computed((): VbenFormSchema[] => {
       componentProps: {
         placeholder: $t('authentication.password'),
       },
+      defaultValue: '123456',
       fieldName: 'password',
       label: $t('authentication.password'),
       rules: z.string().min(1, { message: $t('authentication.passwordTip') }),
+    },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        type: 'hidden',
+      },
+      defaultValue: LOGIN_DEVICE_PC,
+      fieldName: 'loginDevice',
+      formItemClass: 'hidden',
+      label: 'loginDevice',
+      rules: z.number().default(LOGIN_DEVICE_PC),
     },
   ];
 });
@@ -86,6 +84,11 @@ const formSchema = computed((): VbenFormSchema[] => {
   <AuthenticationLogin
     :form-schema="formSchema"
     :loading="authStore.loginLoading"
+    :show-code-login="false"
+    :show-forget-password="false"
+    :show-qrcode-login="false"
+    :show-register="false"
+    :show-third-party-login="false"
     @submit="authStore.authLogin"
   />
 </template>

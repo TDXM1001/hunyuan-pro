@@ -74,10 +74,10 @@ public class RoleMenuService {
      *
      */
     public List<MenuVO> getMenuList(List<Long> roleIdList, Boolean administratorFlag) {
-        //管理员返回所有菜单
+        //管理员返回所有菜单（只返回目录和菜单，不包括功能点）
         if(administratorFlag){
-            List<MenuEntity> menuEntityList = roleMenuDao.selectMenuListByRoleIdList(Lists.newArrayList(), false);
-            return SmartBeanUtil.copyList(menuEntityList, MenuVO.class);
+            List<Integer> menuTypeList = Lists.newArrayList(1, 2); // 1=目录, 2=菜单
+            return menuDao.queryMenuList(false, false, menuTypeList);
         }
         //非管理员 无角色 返回空菜单
         if (CollectionUtils.isEmpty(roleIdList)) {

@@ -6,34 +6,33 @@ import lombok.Data;
 import com.hunyuan.sa.base.common.swagger.SchemaEnum;
 import com.hunyuan.sa.base.common.validator.enumeration.CheckEnum;
 import com.hunyuan.sa.base.constant.LoginDeviceEnum;
-import com.hunyuan.sa.base.module.support.captcha.domain.CaptchaForm;
 import org.hibernate.validator.constraints.Length;
 
 /**
- * 员工登录
- *
- * @Author 1024创新实验室: 开云
- * @Date 2021-12-19 11:49:45
- * @Wechat zhuoda1024
- * @Email lab1024@163.com
- * @Copyright  <a href="https://1024lab.net">1024创新实验室</a>
+ * Employee login form.
  */
 @Data
-public class LoginForm extends CaptchaForm {
+public class LoginForm {
 
-    @Schema(description = "登录账号")
+    @Schema(description = "Login account")
     @NotBlank(message = "登录账号不能为空")
     @Length(max = 30, message = "登录账号最多30字符")
     private String loginName;
 
-    @Schema(description = "密码")
+    @Schema(description = "Password")
     @NotBlank(message = "密码不能为空")
     private String password;
 
-    @SchemaEnum(desc = "登录终端", value = LoginDeviceEnum.class)
+    @SchemaEnum(desc = "Login device", value = LoginDeviceEnum.class)
     @CheckEnum(value = LoginDeviceEnum.class, required = true, message = "此终端不允许登录")
     private Integer loginDevice;
 
-    @Schema(description = "邮箱验证码")
+    @Schema(description = "Captcha code")
+    private String captchaCode;
+
+    @Schema(description = "Captcha uuid")
+    private String captchaUuid;
+
+    @Schema(description = "Email verification code")
     private String emailCode;
 }

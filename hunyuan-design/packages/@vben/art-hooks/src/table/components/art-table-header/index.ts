@@ -527,7 +527,7 @@ export default defineComponent({
                   placement: 'bottom-end',
                   popperClass: 'art-table-popover',
                   trigger: 'click',
-                  width: 220,
+                  width: 176,
                 },
                 {
                   reference: () => renderToolButton('⚙', { title: '表格设置' }),
