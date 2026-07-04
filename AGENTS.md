@@ -11,11 +11,13 @@
 ## Frontend Page Rules
 - When creating or changing frontend edit/detail pages, read `docs/frontend-edit-detail-page-standard.md` first.
 - When creating or changing frontend list/search/table pages, read `docs/frontend-list-table-page-standard.md` first.
+- Treat the frontend standards as default baselines, not rigid templates. When a page has a stronger business prototype, sibling pattern, or subordinate-detail drawer workflow, follow the stronger scene-specific pattern and explain why it overrides the default baseline.
 - Use the existing `@vben/art-hooks` edit/detail page primitives before inventing new page shells.
 - Treat `hunyuan-design/apps/web-ele/src/views/demos/edit-test.vue` and `hunyuan-design/apps/web-ele/src/views/demos/detail-test.vue` as the current reference layout.
 - Keep edit/detail pages quiet, dense, and operational: page header, status/extra slot, action area, sectioned content, and targeted validation.
 - For ordinary menu-backed list/search/table pages, do not add explanatory page copy or standalone page title blocks that repeat the menu or obvious page purpose; if the menu/tab context is already clear, default to no extra title or description.
 - If a list/search page only has one natural search row, disable collapse behavior instead of showing an unnecessary `展开 / 收起` toggle.
+- When subordinate data needs to keep the parent list context visible, prefer existing drawer/side-surface patterns over forcing a permanent split layout.
 - Do not turn the reference pages into broad generators unless the repeated page code proves the abstraction is needed.
 
 ## Current Goal

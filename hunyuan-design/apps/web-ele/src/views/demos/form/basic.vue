@@ -172,8 +172,8 @@ function setFormValues() {
 </script>
 <template>
   <Page
-    description="我们重新包装了CheckboxGroup、RadioGroup、Select，可以通过options属性传入选项属性数组以自动生成选项"
-    title="表单演示"
+    description="这里主要演示 useVbenDrawer 的调用方式与表单能力，不作为业务后台抽屉样式参考。业务页面请优先遵循 hunyuan-system 的实际页面规范与场景模式。"
+    title="抽屉能力演示"
   >
     <Drawer class="w-150" title="基础表单示例">
       <Form />

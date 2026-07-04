@@ -8,6 +8,8 @@ This standard captures the current Hunyuan Pro edit/detail page layout that futu
 
 - Edit page reference: `hunyuan-design/apps/web-ele/src/views/demos/edit-test.vue`
 - Detail page reference: `hunyuan-design/apps/web-ele/src/views/demos/detail-test.vue`
+- Drawer capability demo: `hunyuan-design/apps/web-ele/src/views/demos/form/basic.vue` (API capability only, not a business-style reference by itself)
+- Business drawer detail reference: `hunyuan-design/apps/hunyuan-system/src/views/support/dict/components/dict-data-drawer.vue`
 - Shared edit components: `hunyuan-design/packages/@vben/art-hooks/src/edit/components/`
 - Shared detail components: `hunyuan-design/packages/@vben/art-hooks/src/detail/components/`
 
@@ -17,6 +19,7 @@ Use the existing page primitives first:
 
 - Edit pages should use `ArtEditPage` plus `ArtEditSection`.
 - Detail pages should use `ArtDetailPage` plus `ArtDetail`.
+- When a detail or subordinate CRUD surface needs to preserve the parent list context, an established drawer/side-surface pattern is acceptable. In that case, keep the same density and component vocabulary instead of forcing a full routed detail page.
 - Use the outer full-content wrapper pattern from the reference pages: full available height, `min-h-0`, hidden outer overflow, and a scrollable page body.
 - Keep the page header stable: back slot on the left, title, optional status/extra slot, and right-aligned actions.
 - Use sectioned content instead of a long flat form or flat detail list.
@@ -53,6 +56,7 @@ Use the existing page primitives first:
 
 - Do not use this pattern for list/search pages. Follow `docs/frontend-list-table-page-standard.md` and the existing table primitives instead.
 - Do not use it for dashboards, reports, authentication, or visual landing pages.
+- Do not use the drawer API demo alone as a style reference for business pages. It only shows the mechanics of `useVbenDrawer`; business pages still need scene-specific structure and copy discipline.
 - Do not force it onto a workflow that already has a stronger established sibling page pattern.
 
 ## Verification

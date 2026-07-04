@@ -8,6 +8,7 @@ This standard defines the default visual baseline for Hunyuan Pro list, search, 
 
 - Demo reference: `hunyuan-design/apps/web-ele/src/views/demos/table-test.vue`
 - Business reference: `hunyuan-design/apps/hunyuan-system/src/views/system/employee/index.vue`
+- Drawer-based subordinate-data reference: `hunyuan-design/apps/hunyuan-system/src/views/support/dict/index.vue` + `hunyuan-design/apps/hunyuan-system/src/views/support/dict/components/dict-data-drawer.vue`
 - Shared primitives:
   - `hunyuan-design/packages/@vben/art-hooks/src/common/components/art-search-panel/`
   - `hunyuan-design/packages/@vben/art-hooks/src/table/components/art-table-panel/`
@@ -16,10 +17,12 @@ This standard defines the default visual baseline for Hunyuan Pro list, search, 
 
 ## Layout Contract
 
+- This standard is a default baseline for ordinary business list pages, not a rigid template. If a stronger business prototype, sibling page pattern, or subordinate-detail workflow exists, follow that stronger scene pattern and document why.
 - Use `Page` as the outer shell with full available height, `min-h-0`, and hidden outer overflow.
 - For business list pages, prefer two major blocks in vertical order: search card first, table card second.
 - Keep the table card as the flexible area that consumes the remaining height.
 - Split page-only concerns from shared concerns. Search layout, toolbar tools, table settings, and pagination should come from shared primitives first.
+- When a row owns subordinate data and the parent list should remain the dominant context, prefer `主表格 + 抽屉/侧滑详情面` over forcing a permanent split-pane page. In that case, keep the list page itself on this standard, and move the subordinate CRUD surface into the drawer.
 
 ## Size Baseline
 
@@ -119,6 +122,7 @@ Use these values as the default baseline unless an existing sibling page has a s
 - Do not use this pattern for edit or detail pages. Follow `docs/frontend-edit-detail-page-standard.md`.
 - Do not use it for dashboards, landing pages, or highly visual workspaces where tables are not the main task surface.
 - Do not replace stronger established sibling patterns without confirming the reuse value first.
+- Do not treat capability demos such as `hunyuan-design/apps/web-ele/src/views/demos/form/basic.vue` as business-style references by themselves. They prove the API exists, but business pages still need to match the repo's operational density and page semantics.
 
 ## Verification
 
