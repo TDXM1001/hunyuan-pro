@@ -48,6 +48,7 @@ P0 需要满足以下目标：
 
 - 遵循 `AGENTS.md`：一次只推进一个可验证增量
 - 遵循 `AGENTS.md`：优先使用现有项目模式，不新增依赖
+- P0 接受真实流程引擎存在，但流程引擎只能作为 `hunyuan-bpm` 内部实现
 - 后端 actor 一律使用 `employeeId`
 - 当前仓的组织解析能力以 `department`、`role` 为 P0 主路径
 - 表单真相使用 BPM 自带表单中心，不复用系统字典充当表单仓库
@@ -132,6 +133,34 @@ P0 推荐在 `hunyuan-backend` 下新增独立模块：
    - 引擎 runtime / history 真相
    - 平台投影表：`bpm_instance`、`bpm_task`
    - 审计补位表：`bpm_task_action_log`、`bpm_instance_copy`
+
+## 流程内核策略
+
+P0 接受“真实流程内核存在”这一事实，不走自研轻状态机路线。否则 `simpleModel JSON -> compile BPMN -> publish snapshot -> run` 这条主线会退化成伪闭环。
+
+P0 的首发候选内核可以参考 `ruoyi-vue-pro-master` 采用 Flowable 的经验，但这里的“参考”只针对能力面与演进路径，不针对其具体版本、配置方式或对外暴露形态做机械继承。
+
+P0 对流程内核的硬约束如下：
+
+- 流程引擎只允许存在于 `hunyuan-bpm` 模块内部
+- `hunyuan-base`、`hunyuan-admin`、未来业务模块都不直接依赖引擎原生类型
+- 管理端 API、员工端 API、跨模块服务契约不直接暴露引擎原生对象
+- 平台对外公开语言统一使用：
+  - `bpm_model`
+  - `bpm_definition`
+  - `bpm_definition_node`
+  - `bpm_instance`
+  - `bpm_task`
+  - `bpm_task_action_log`
+  - `bpm_instance_copy`
+- 引擎原生 `Model / ProcessDefinition / ProcessInstance / Task` 只允许在 `hunyuan-bpm` 内部适配层和运行协调层出现
+- 发布快照、任务投影、实例投影仍以平台表为主，不以引擎表充当系统公开真相
+
+这意味着：
+
+- 我们对齐参考仓的是“完整 BPM 模块面 + 快照分层 + SimpleModel 驱动”
+- 我们不对齐参考仓的，是其具体引擎版本、启动方式、以及引擎对象直接参与上层契约的实现细节
+- 后续实现计划必须单列一项：验证当前 `Spring Boot 3 + Java 17` 环境下的引擎兼容策略
 
 ## 用户与组织模型
 
@@ -708,6 +737,7 @@ P0 对外模块面建议如下：
 2. 如果不引入 `bpm_form`，表单真相会缺位，definition snapshot 无法闭环
 3. 如果让 instance/task 复制引擎全部真相，后续状态漂移修复成本会很高
 4. 如果 listener 在 P0 开放通用执行器，会把底座能力升级成脚本执行平台，风险过高
+5. 如果引擎原生对象泄漏到模块边界之外，后续版本升级、替换内核、投影修复都会被放大
 
 ## 验收标准
 
@@ -721,15 +751,17 @@ P0 对外模块面建议如下：
 6. 实例、任务、时间线、抄送都可通过平台投影表高效查询
 7. P0 不新增 listener 模板表与 form version 表
 8. 现有码规则、消息、短信、邮件能力被复用，而不是重复建设
+9. 引擎原生类型不外溢到 `hunyuan-bpm` 之外的模块和公开 API
 
 ## 实施顺序建议
 
 推荐后续按以下顺序进入实现计划：
 
-1. 建立 `hunyuan-bpm` 模块边界与聚合器接入方式
-2. 设计 9 张表 SQL 与实体
-3. 完成分类、表单、模型、定义管理面
-4. 完成 SimpleModel 校验、编译、发布链路
-5. 完成实例、任务、动作时间线、抄送查询面
-6. 接入通知型监听器
-7. 最后进入员工侧入口与联调验证
+1. 先验证当前 `Spring Boot 3 + Java 17` 环境下的流程引擎兼容策略
+2. 建立 `hunyuan-bpm` 模块边界与聚合器接入方式
+3. 设计 9 张表 SQL 与实体
+4. 完成分类、表单、模型、定义管理面
+5. 完成 SimpleModel 校验、编译、发布链路
+6. 完成实例、任务、动作时间线、抄送查询面
+7. 接入通知型监听器
+8. 最后进入员工侧入口与联调验证
