@@ -33,6 +33,12 @@ const reloadPagePath =
 const reloadDrawerPath =
   'apps/hunyuan-system/src/views/support/reload/components/reload-result-drawer.vue';
 const reloadApiPath = 'apps/hunyuan-system/src/api/system/reload.ts';
+const smsTemplatePagePath =
+  'apps/hunyuan-system/src/views/support/sms/template-list.vue';
+const smsSendLogPagePath =
+  'apps/hunyuan-system/src/views/support/sms/send-log-list.vue';
+const smsApiPath = 'apps/hunyuan-system/src/api/system/sms.ts';
+const smsMenuPatchSqlPath = '../数据库SQL脚本/mysql/sql-update-log/v3.33.0.sql';
 
 describe('system settings support modules', () => {
   it('provides a real parameter config page at the backend-defined component path', () => {
@@ -455,5 +461,106 @@ describe('system settings support modules', () => {
     expect(pageSource).toContain('结果历史');
     expect(drawerSource).toContain('result');
     expect(drawerSource).toContain('exception');
+  });
+
+  it('wires the sms api module to the backend sms endpoints', () => {
+    const apiPath = resolve(process.cwd(), smsApiPath);
+
+    expect(existsSync(apiPath)).toBe(true);
+
+    const source = readFileSync(apiPath, 'utf8');
+    expect(source).toContain("'/support/sms/template/query'");
+    expect(source).toContain("'/support/sms/template/add'");
+    expect(source).toContain("'/support/sms/template/update'");
+    expect(source).toContain(
+      '/support/sms/template/updateDisabled/${encodeURIComponent(',
+    );
+    expect(source).toContain("'/support/sms/sendLog/query'");
+    expect(source).toContain('buildSmsTemplateQueryPayload');
+    expect(source).toContain('buildSmsTemplateMutationPayload');
+    expect(source).toContain('buildSmsTemplateDisabledPath');
+    expect(source).toContain('buildSmsSendLogQueryPayload');
+  });
+
+  it('provides an incremental sql patch that flattens sms pages under system settings', () => {
+    const sqlPath = resolve(process.cwd(), smsMenuPatchSqlPath);
+
+    expect(existsSync(sqlPath)).toBe(true);
+
+    const source = readFileSync(sqlPath, 'utf8');
+    expect(source).toContain('短信菜单目录改为系统设置下的直接页面');
+    expect(source).toContain('WHERE `menu_id` IN (306, 307);');
+    expect(source).toContain('`parent_id` = 50');
+    expect(source).toContain('WHERE `menu_id` = 305;');
+    expect(source).toContain('`deleted_flag` = 1');
+  });
+
+  it('provides a real sms template page at the backend-defined component path', () => {
+    const pagePath = resolve(process.cwd(), smsTemplatePagePath);
+
+    expect(existsSync(pagePath)).toBe(true);
+
+    const source = readFileSync(pagePath, 'utf8');
+    expect(source).toContain('SystemSupportSmsTemplateList');
+    expect(source).toContain('ArtSearchPanel');
+    expect(source).toContain('ArtTablePanel');
+    expect(source).toContain('ArtTableHeader');
+    expect(source).toContain('ArtTable');
+  });
+
+  it('keeps the sms template page dense and single-row search only', () => {
+    const source = readFileSync(resolve(process.cwd(), smsTemplatePagePath), 'utf8');
+
+    expect(source).toContain(':collapsible="false"');
+    expect(source).not.toContain('template-page__title');
+    expect(source).not.toContain('template-page__hero');
+    expect(source).not.toContain('template-page__desc');
+  });
+
+  it('surfaces sms template query and mutation fields on the page', () => {
+    const source = readFileSync(resolve(process.cwd(), smsTemplatePagePath), 'utf8');
+
+    expect(source).toContain('templateCode');
+    expect(source).toContain('templateName');
+    expect(source).toContain('templateContent');
+    expect(source).toContain('disableFlag');
+    expect(source).toContain('remark');
+    expect(source).toContain('新增模板');
+  });
+
+  it('provides a real sms send-log page at the backend-defined component path', () => {
+    const pagePath = resolve(process.cwd(), smsSendLogPagePath);
+
+    expect(existsSync(pagePath)).toBe(true);
+
+    const source = readFileSync(pagePath, 'utf8');
+    expect(source).toContain('SystemSupportSmsSendLogList');
+    expect(source).toContain('ArtSearchPanel');
+    expect(source).toContain('ArtTablePanel');
+    expect(source).toContain('ArtTableHeader');
+    expect(source).toContain('ArtTable');
+  });
+
+  it('keeps the sms send-log page dense and preserves collapsible multi-filter search', () => {
+    const source = readFileSync(resolve(process.cwd(), smsSendLogPagePath), 'utf8');
+
+    expect(source).not.toContain(':collapsible="false"');
+    expect(source).not.toContain('send-log-page__title');
+    expect(source).not.toContain('send-log-page__hero');
+    expect(source).not.toContain('send-log-page__desc');
+  });
+
+  it('surfaces sms send-log filter and table fields on the page', () => {
+    const source = readFileSync(resolve(process.cwd(), smsSendLogPagePath), 'utf8');
+
+    expect(source).toContain('phone');
+    expect(source).toContain('templateCode');
+    expect(source).toContain('sendStatus');
+    expect(source).toContain('startDate');
+    expect(source).toContain('endDate');
+    expect(source).toContain('provider');
+    expect(source).toContain('requestId');
+    expect(source).toContain('sendContent');
+    expect(source).toContain('failReason');
   });
 });
