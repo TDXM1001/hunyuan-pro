@@ -21,6 +21,8 @@ Use the existing page primitives first:
 - Detail pages should use `ArtDetailPage` plus `ArtDetail`.
 - When a detail or subordinate CRUD surface needs to preserve the parent list context, an established drawer/side-surface pattern is acceptable. In that case, keep the same density and component vocabulary instead of forcing a full routed detail page.
 - Use the outer full-content wrapper pattern from the reference pages: full available height, `min-h-0`, hidden outer overflow, and a scrollable page body.
+- For routed business pages in `hunyuan-design/apps/hunyuan-system`, prefer `Page auto-content-height` with `content-class="!p-3 h-full min-h-0 overflow-hidden"` as the outer shell so the page aligns with the real admin content gutter.
+- Treat the demo pages' `absolute inset-0 ... p-4` wrapper as a demo-scene container, not a business-page wrapper to copy verbatim. Copy the edit/detail structure inside `ArtEditPage` / `ArtDetailPage`, but let the real menu page use the business `Page` shell.
 - Keep the page header stable: back slot on the left, title, optional status/extra slot, and right-aligned actions.
 - Use sectioned content instead of a long flat form or flat detail list.
 - Prefer three columns on desktop, two columns on tablet, and one column on mobile through the shared component styles.
