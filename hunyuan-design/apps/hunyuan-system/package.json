@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@form-create/designer": "^3.4.0",
+    "@form-create/element-ui": "^3.2.38",
     "@vben/access": "workspace:*",
     "@vben/art-hooks": "workspace:*",
     "@vben/common-ui": "workspace:*",
@@ -30,6 +32,8 @@
     "@vben/types": "workspace:*",
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
+    "bpmn-js": "^18.19.0",
+    "bpmn-js-properties-panel": "^5.60.0",
     "dayjs": "catalog:",
     "element-plus": "catalog:",
     "pinia": "catalog:",
