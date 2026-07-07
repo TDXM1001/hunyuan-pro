@@ -43,6 +43,15 @@ export function buildEmptyBpmFormDesignerSnapshot(): BpmFormDesignerSnapshot {
   };
 }
 
+export function buildBpmFormDesignerPayload(
+  snapshot: BpmFormDesignerSnapshot,
+): Pick<BpmFormAddForm, 'layoutJson' | 'schemaJson'> {
+  return {
+    layoutJson: snapshot.layoutJson.trim() || '{}',
+    schemaJson: snapshot.schemaJson.trim() || '[]',
+  };
+}
+
 export function buildBpmFormMutationPayload<
   T extends BpmFormAddForm | BpmFormUpdateForm,
 >(params: T): T {
