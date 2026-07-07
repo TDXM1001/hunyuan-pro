@@ -1,0 +1,6 @@
+bpm:
+  flowable:
+    enabled: true
+    database-schema-update: true
+    async-executor-activate: false
+    history-level: audit

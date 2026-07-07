@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hunyuan.sa.bpm.module.model.dao.BpmModelDao">
+
+    <select id="queryPage" resultType="com.hunyuan.sa.bpm.module.model.domain.vo.BpmModelVO">
+        select
+            m.model_id as modelId,
+            m.model_key as modelKey,
+            m.model_name as modelName,
+            m.category_id as categoryId,
+            c.category_name as categoryName,
+            m.form_type as formType,
+            m.form_id as formId,
+            f.form_name as formName,
+            m.visible_flag as visibleFlag,
+            m.sort,
+            m.description,
+            m.published_definition_id as publishedDefinitionId,
+            m.has_unpublished_changes as hasUnpublishedChanges,
+            m.create_time as createTime,
+            m.update_time as updateTime
+        from t_bpm_model m
+        left join t_bpm_category c on c.category_id = m.category_id and c.deleted_flag = 0
+        left join t_bpm_form f on f.form_id = m.form_id and f.deleted_flag = 0
+        where m.deleted_flag = #{queryForm.deletedFlag}
+        <if test="queryForm.modelKey != null and queryForm.modelKey != ''">
+            and m.model_key like concat('%', #{queryForm.modelKey}, '%')
+        </if>
+        <if test="queryForm.modelName != null and queryForm.modelName != ''">
+            and m.model_name like concat('%', #{queryForm.modelName}, '%')
+        </if>
+        <if test="queryForm.categoryId != null">
+            and m.category_id = #{queryForm.categoryId}
+        </if>
+        <if test="queryForm.formId != null">
+            and m.form_id = #{queryForm.formId}
+        </if>
+        <if test="queryForm.visibleFlag != null">
+            and m.visible_flag = #{queryForm.visibleFlag}
+        </if>
+        order by m.sort asc, m.model_id desc
+    </select>
+
+    <select id="selectOne" resultType="com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity">
+        select *
+        from t_bpm_model
+        where 1 = 1
+        <if test="modelId != null">
+            and model_id = #{modelId}
+        </if>
+        <if test="modelKey != null and modelKey != ''">
+            and model_key = #{modelKey}
+        </if>
+        <if test="deletedFlag != null">
+            and deleted_flag = #{deletedFlag}
+        </if>
+        limit 1
+    </select>
+
+    <select id="queryModelDetail" resultType="com.hunyuan.sa.bpm.module.model.domain.vo.BpmModelVO">
+        select
+            m.model_id as modelId,
+            m.model_key as modelKey,
+            m.model_name as modelName,
+            m.category_id as categoryId,
+            c.category_name as categoryName,
+            m.form_type as formType,
+            m.form_id as formId,
+            f.form_name as formName,
+            m.visible_flag as visibleFlag,
+            m.sort,
+            m.description,
+            m.published_definition_id as publishedDefinitionId,
+            m.has_unpublished_changes as hasUnpublishedChanges,
+            m.create_time as createTime,
+            m.update_time as updateTime
+        from t_bpm_model m
+        left join t_bpm_category c on c.category_id = m.category_id and c.deleted_flag = 0
+        left join t_bpm_form f on f.form_id = m.form_id and f.deleted_flag = 0
+        where m.deleted_flag = 0
+          and m.model_id = #{modelId}
+    </select>
+
+    <select id="queryDesignerDetail" resultType="com.hunyuan.sa.bpm.module.model.domain.vo.BpmDesignerDetailVO">
+        select
+            m.model_id as modelId,
+            m.model_key as modelKey,
+            m.model_name as modelName,
+            m.category_id as categoryId,
+            c.category_name as categoryName,
+            m.form_type as formType,
+            m.form_id as formId,
+            f.form_name as formName,
+            f.schema_json as formSchemaJson,
+            f.layout_json as formLayoutJson,
+            m.simple_model_json as simpleModelJson,
+            m.start_rule_json as startRuleJson,
+            m.manager_scope_json as managerScopeJson,
+            m.title_rule_json as titleRuleJson,
+            m.summary_rule_json as summaryRuleJson,
+            m.variable_mapping_json as variableMappingJson,
+            m.instance_no_rule_id as instanceNoRuleId,
+            m.published_definition_id as publishedDefinitionId,
+            m.has_unpublished_changes as hasUnpublishedChanges
+        from t_bpm_model m
+        left join t_bpm_category c on c.category_id = m.category_id and c.deleted_flag = 0
+        left join t_bpm_form f on f.form_id = m.form_id and f.deleted_flag = 0
+        where m.deleted_flag = 0
+          and m.model_id = #{modelId}
+    </select>
+</mapper>

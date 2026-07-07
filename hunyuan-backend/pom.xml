@@ -12,6 +12,7 @@
 
 	<modules>
         <module>hunyuan-base</module>
+		<module>hunyuan-bpm</module>
 		<module>hunyuan-admin</module>
     </modules>
 
@@ -53,10 +54,19 @@
         <jsoup.version>1.21.1</jsoup.version>
         <tika.version>3.1.0</tika.version>
         <httpcomponents.version>5.5</httpcomponents.version>
+        <flowable.version>7.2.0</flowable.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+
+            <dependency>
+                <groupId>org.flowable</groupId>
+                <artifactId>flowable-bom</artifactId>
+                <version>${flowable.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
             <!--SpringBoot BOM begin-->
             <dependency>
