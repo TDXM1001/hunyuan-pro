@@ -3,6 +3,7 @@ import type { BpmStartableDefinitionRecord } from '#/api/system/bpm';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import {
   ArtTable,
@@ -12,14 +13,15 @@ import {
 } from '@vben/art-hooks/table';
 import { Page } from '@vben/common-ui';
 
-import { ElButton, ElCard, ElMessage, ElMessageBox } from 'element-plus';
+import { ElButton, ElCard, ElMessage } from 'element-plus';
 
-import { queryBpmStartableDefinitions, startBpmInstance } from '#/api/system/bpm';
+import { queryBpmStartableDefinitions } from '#/api/system/bpm';
 
 defineOptions({ name: 'SystemBpmRuntimeStartableList' });
 
 const loading = ref(false);
 const rows = ref<BpmStartableDefinitionRecord[]>([]);
+const router = useRouter();
 
 const columnsFactory = (): ColumnOption<BpmStartableDefinitionRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
@@ -59,16 +61,11 @@ async function loadData() {
   }
 }
 
-async function handleStart(row: BpmStartableDefinitionRecord) {
-  await ElMessageBox.confirm(`确认发起「${row.definitionName}」？`, '发起流程', {
-    type: 'info',
+function handleStart(row: BpmStartableDefinitionRecord) {
+  void router.push({
+    name: 'SystemBpmRuntimeStartFormRoute',
+    query: { definitionId: String(row.definitionId) },
   });
-  await startBpmInstance({
-    definitionId: row.definitionId,
-    formDataJson: '{}',
-    title: row.definitionName,
-  });
-  ElMessage.success('流程已发起');
 }
 
 onMounted(() => {

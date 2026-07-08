@@ -5,6 +5,7 @@ import com.hunyuan.sa.base.module.support.serialnumber.service.SerialNumberServi
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.common.enumeration.BpmCopyTypeEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
@@ -20,13 +21,16 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceResubmitForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceStartForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeStartDraftVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskAssignmentResolver;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +58,8 @@ class BpmRuntimeCommandServiceTest {
 
     private BpmTaskActionLogDao bpmTaskActionLogDao;
 
+    private BpmInstanceCopyService bpmInstanceCopyService;
+
     @BeforeEach
     void setUp() {
         bpmInstanceService = new BpmInstanceService();
@@ -61,10 +67,13 @@ class BpmRuntimeCommandServiceTest {
         bpmInstanceDao = Mockito.mock(BpmInstanceDao.class);
         bpmTaskDao = Mockito.mock(BpmTaskDao.class);
         bpmTaskActionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
+        bpmInstanceCopyService = Mockito.mock(BpmInstanceCopyService.class);
 
         setField(bpmInstanceService, "bpmDefinitionDao", Mockito.mock(BpmDefinitionDao.class));
         setField(bpmInstanceService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
         setField(bpmInstanceService, "bpmInstanceDao", bpmInstanceDao);
+        setField(bpmInstanceService, "bpmTaskDao", bpmTaskDao);
+        setField(bpmInstanceService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
         setField(bpmInstanceService, "flowableProcessInstanceGateway", Mockito.mock(FlowableProcessInstanceGateway.class));
         setField(bpmInstanceService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmInstanceService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
@@ -79,6 +88,8 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmTaskService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmTaskService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
         setField(bpmTaskService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
+        setField(bpmTaskService, "bpmInstanceCopyService", bpmInstanceCopyService);
+        when(bpmInstanceCopyService.createManualCopies(any(), any(), any(), any())).thenReturn(ResponseDTO.ok());
     }
 
     @Test
@@ -275,6 +286,246 @@ class BpmRuntimeCommandServiceTest {
         assertThat(instanceCaptor.getValue().getResultState()).isEqualTo(BpmInstanceResultStateEnum.REJECTED.getValue());
     }
 
+    @Test
+    void approveShouldCreateManualCopiesWhenCopyEmployeesProvided() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
+        when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
+        when(taskServiceProjectionService().syncActiveTasksForInstance(8L)).thenReturn(1);
+
+        BpmTaskApproveForm form = new BpmTaskApproveForm();
+        form.setTaskId(1L);
+        form.setCommentText("同意");
+        form.setCopyEmployeeIds(java.util.List.of(22L, 23L));
+
+        ResponseDTO<String> response = bpmTaskService.approve(form);
+
+        assertThat(response.getOk()).isTrue();
+        verify(bpmInstanceCopyService).createManualCopies(
+                taskEntity,
+                java.util.List.of(22L, 23L),
+                "同意",
+                BpmCopyTypeEnum.MANUAL_APPROVE_COPY
+        );
+    }
+
+    @Test
+    void rejectShouldCreateManualCopiesWhenCopyEmployeesProvided() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
+        when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
+        when(taskServiceProjectionService().syncActiveTasksForInstance(8L)).thenReturn(0);
+
+        BpmTaskRejectForm form = new BpmTaskRejectForm();
+        form.setTaskId(1L);
+        form.setCommentText("不同意");
+        form.setCopyEmployeeIds(java.util.List.of(22L));
+
+        ResponseDTO<String> response = bpmTaskService.reject(form);
+
+        assertThat(response.getOk()).isTrue();
+        verify(bpmInstanceCopyService).createManualCopies(
+                taskEntity,
+                java.util.List.of(22L),
+                "不同意",
+                BpmCopyTypeEnum.MANUAL_REJECT_COPY
+        );
+    }
+
+    @Test
+    void returnShouldCreateManualCopiesWhenCopyEmployeesProvided() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
+
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
+        when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
+
+        BpmTaskReturnForm form = new BpmTaskReturnForm();
+        form.setTaskId(1L);
+        form.setCommentText("请补材料");
+        form.setCopyEmployeeIds(java.util.List.of(23L));
+
+        ResponseDTO<String> response = bpmTaskService.returnToInitiator(form);
+
+        assertThat(response.getOk()).isTrue();
+        verify(bpmInstanceCopyService).createManualCopies(
+                taskEntity,
+                java.util.List.of(23L),
+                "请补材料",
+                BpmCopyTypeEnum.MANUAL_RETURN_COPY
+        );
+    }
+
+    @Test
+    void cancelMyInstanceShouldTerminateEngineAndClosePendingTasks() {
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setDefinitionId(2L);
+        instanceEntity.setEngineProcessInstanceId("process-8");
+        instanceEntity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
+        instanceEntity.setStartEmployeeId(100L);
+
+        BpmTaskEntity taskEntity = new BpmTaskEntity();
+        taskEntity.setTaskId(11L);
+        taskEntity.setInstanceId(8L);
+        taskEntity.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
+                new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null)
+        );
+        when(bpmTaskDao.selectList(any())).thenReturn(java.util.List.of(taskEntity));
+
+        com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCancelForm form =
+                new com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCancelForm();
+        form.setInstanceId(8L);
+        form.setCancelReason("发起人撤销");
+
+        ResponseDTO<String> response = bpmInstanceService.cancelMyInstance(form);
+
+        assertThat(response.getOk()).isTrue();
+        verify(processInstanceGateway()).cancel("process-8", "发起人撤销");
+
+        ArgumentCaptor<BpmTaskEntity> taskCaptor = ArgumentCaptor.forClass(BpmTaskEntity.class);
+        verify(bpmTaskDao).updateById(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getTaskId()).isEqualTo(11L);
+        assertThat(taskCaptor.getValue().getTaskState()).isEqualTo(BpmTaskStateEnum.CANCELLED.getValue());
+        assertThat(taskCaptor.getValue().getTaskResult()).isEqualTo(BpmTaskResultEnum.INSTANCE_CANCELLED.getValue());
+
+        ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
+        verify(bpmInstanceDao).updateById(instanceCaptor.capture());
+        assertThat(instanceCaptor.getValue().getInstanceId()).isEqualTo(8L);
+        assertThat(instanceCaptor.getValue().getRunState()).isEqualTo(BpmInstanceRunStateEnum.CANCELLED.getValue());
+        assertThat(instanceCaptor.getValue().getResultState())
+                .isEqualTo(BpmInstanceResultStateEnum.CANCELLED_BY_START_USER.getValue());
+        assertThat(instanceCaptor.getValue().getFinishedAt()).isNotNull();
+        assertThat(instanceCaptor.getValue().getCancelledAt()).isNotNull();
+
+        ArgumentCaptor<BpmTaskActionLogEntity> logCaptor = ArgumentCaptor.forClass(BpmTaskActionLogEntity.class);
+        verify(bpmTaskActionLogDao).insert(logCaptor.capture());
+        assertThat(logCaptor.getValue().getActionType()).isEqualTo("INSTANCE_CANCELLED");
+        assertThat(logCaptor.getValue().getCommentText()).isEqualTo("发起人撤销");
+    }
+
+    @Test
+    void getResubmitDraftShouldExposeCurrentSnapshotForWaitResubmitInstance() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(2L);
+        definitionEntity.setDefinitionName("请假流程");
+        definitionEntity.setFormNameSnapshot("请假表单");
+        definitionEntity.setFormSchemaSnapshotJson("{\"type\":\"object\"}");
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setDefinitionId(2L);
+        instanceEntity.setStartEmployeeId(100L);
+        instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
+        instanceEntity.setTitle("请假申请");
+        instanceEntity.setSummary("原始摘要");
+        instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":200}");
+
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+
+        ResponseDTO<BpmRuntimeStartDraftVO> response = bpmInstanceService.getResubmitDraft(8L);
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData()).isNotNull();
+        assertThat(response.getData().getDefinitionId()).isEqualTo(2L);
+        assertThat(response.getData().getDefinitionName()).isEqualTo("请假流程");
+        assertThat(response.getData().getFormNameSnapshot()).isEqualTo("请假表单");
+        assertThat(response.getData().getFormSchemaSnapshotJson()).isEqualTo("{\"type\":\"object\"}");
+        assertThat(response.getData().getFormDataJson()).isEqualTo("{\"amount\":200}");
+        assertThat(response.getData().getSourceInstanceId()).isEqualTo(8L);
+        assertThat(response.getData().getSummary()).isEqualTo("原始摘要");
+        assertThat(response.getData().getTitle()).isEqualTo("请假申请");
+    }
+
+    @Test
+    void resubmitMyInstanceShouldReusePlatformInstanceButStartNewEngineRun() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(2L);
+        definitionEntity.setDefinitionKey("leave");
+        definitionEntity.setDefinitionName("请假流程");
+        definitionEntity.setDefinitionVersion(2);
+        definitionEntity.setCategoryIdSnapshot(7L);
+        definitionEntity.setCategoryNameSnapshot("人事流程");
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+        definitionEntity.setEngineProcessDefinitionId("leave:2:2000");
+
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setDefinitionId(2L);
+        instanceEntity.setEngineProcessDefinitionId("leave:1:1000");
+        instanceEntity.setEngineProcessInstanceId("process-1000");
+        instanceEntity.setDefinitionKeySnapshot("leave");
+        instanceEntity.setDefinitionVersionSnapshot(1);
+        instanceEntity.setCategoryIdSnapshot(7L);
+        instanceEntity.setCategoryNameSnapshot("人事流程");
+        instanceEntity.setTitle("请假申请");
+        instanceEntity.setSummary("原始摘要");
+        instanceEntity.setStartEmployeeId(100L);
+        instanceEntity.setStartEmployeeNameSnapshot("张三");
+        instanceEntity.setStartDepartmentIdSnapshot(7L);
+        instanceEntity.setStartDepartmentNameSnapshot("人事部");
+        instanceEntity.setInitialFormDataSnapshotJson("{\"amount\":100}");
+        instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":100}");
+        instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
+
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
+                new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null)
+        );
+        when(definitionNodeDao().selectList(any())).thenReturn(java.util.List.of());
+        when(taskAssignmentResolver().resolve(any(), any())).thenReturn(Map.of());
+        when(processInstanceGateway().start("leave:2:2000", 100L, "{\"amount\":200}", Map.of()))
+                .thenReturn("process-2000");
+
+        BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
+        form.setInstanceId(8L);
+        form.setFormDataJson("{\"amount\":200}");
+        form.setSummary("修改后重提");
+        form.setTitle("请假申请-重提");
+
+        ResponseDTO<Long> response = bpmInstanceService.resubmitMyInstance(form);
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData()).isEqualTo(8L);
+        verify(processInstanceGateway()).start("leave:2:2000", 100L, "{\"amount\":200}", Map.of());
+        verify(taskProjectionService()).syncActiveTasksForInstance(8L);
+
+        ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
+        verify(bpmInstanceDao).updateById(instanceCaptor.capture());
+        assertThat(instanceCaptor.getValue().getInstanceId()).isEqualTo(8L);
+        assertThat(instanceCaptor.getValue().getEngineProcessDefinitionId()).isEqualTo("leave:2:2000");
+        assertThat(instanceCaptor.getValue().getEngineProcessInstanceId()).isEqualTo("process-2000");
+        assertThat(instanceCaptor.getValue().getDefinitionVersionSnapshot()).isEqualTo(2);
+        assertThat(instanceCaptor.getValue().getCurrentFormDataSnapshotJson()).isEqualTo("{\"amount\":200}");
+        assertThat(instanceCaptor.getValue().getInitialFormDataSnapshotJson()).isNull();
+        assertThat(instanceCaptor.getValue().getRunState()).isEqualTo(BpmInstanceRunStateEnum.RUNNING.getValue());
+        assertThat(instanceCaptor.getValue().getSummary()).isEqualTo("修改后重提");
+        assertThat(instanceCaptor.getValue().getTitle()).isEqualTo("请假申请-重提");
+
+        ArgumentCaptor<BpmTaskActionLogEntity> logCaptor = ArgumentCaptor.forClass(BpmTaskActionLogEntity.class);
+        verify(bpmTaskActionLogDao).insert(logCaptor.capture());
+        assertThat(logCaptor.getValue().getActionType()).isEqualTo("RESUBMITTED");
+    }
+
     @SuppressWarnings("unchecked")
     private BpmDefinitionDao definitionDao() {
         return (BpmDefinitionDao) getFieldValue(bpmInstanceService, "bpmDefinitionDao");
@@ -298,6 +549,11 @@ class BpmRuntimeCommandServiceTest {
     @SuppressWarnings("unchecked")
     private BpmCurrentActorProvider taskCurrentActorProvider() {
         return (BpmCurrentActorProvider) getFieldValue(bpmTaskService, "bpmCurrentActorProvider");
+    }
+
+    @SuppressWarnings("unchecked")
+    private BpmDefinitionNodeDao definitionNodeDao() {
+        return (BpmDefinitionNodeDao) getFieldValue(bpmInstanceService, "bpmDefinitionNodeDao");
     }
 
     @SuppressWarnings("unchecked")
@@ -338,6 +594,21 @@ class BpmRuntimeCommandServiceTest {
         } catch (ReflectiveOperationException ex) {
             throw new IllegalStateException("读取测试字段失败: " + fieldName, ex);
         }
+    }
+
+    private BpmTaskEntity buildPendingTask() {
+        BpmTaskEntity taskEntity = new BpmTaskEntity();
+        taskEntity.setTaskId(1L);
+        taskEntity.setInstanceId(8L);
+        taskEntity.setDefinitionId(2L);
+        taskEntity.setDefinitionNodeId(5L);
+        taskEntity.setEngineTaskId("task-1");
+        taskEntity.setEngineProcessInstanceId("process-8");
+        taskEntity.setTaskKey("manager_approve");
+        taskEntity.setTaskName("经理审批");
+        taskEntity.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        taskEntity.setAssigneeEmployeeId(10L);
+        return taskEntity;
     }
 
     private void setField(Object target, String fieldName, Object value) {

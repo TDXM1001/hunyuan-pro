@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 任务拒绝表单。
  */
@@ -16,4 +18,7 @@ public class BpmTaskRejectForm {
 
     @Schema(description = "拒绝意见")
     private String commentText;
+
+    @Schema(description = "手工抄送员工ID列表")
+    private List<Long> copyEmployeeIds;
 }

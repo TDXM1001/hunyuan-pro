@@ -30,4 +30,22 @@
         </if>
         order by assigned_at desc, task_id desc
     </select>
+
+    <select id="queryCurrentTasksByInstanceId" resultType="com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO">
+        select
+            task_id as taskId,
+            instance_id as instanceId,
+            task_name as taskName,
+            instance_no as instanceNo,
+            instance_title as instanceTitle,
+            task_state as taskState,
+            task_result as taskResult,
+            assignee_name_snapshot as assigneeNameSnapshot,
+            assigned_at as assignedAt,
+            completed_at as completedAt
+        from t_bpm_task
+        where instance_id = #{instanceId}
+          and task_state = 1
+        order by assigned_at asc, task_id asc
+    </select>
 </mapper>

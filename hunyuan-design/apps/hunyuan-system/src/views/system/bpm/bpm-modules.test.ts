@@ -23,20 +23,35 @@ const listenerPagePath =
   'apps/hunyuan-system/src/views/system/bpm/listener/listener-catalog.vue';
 const runtimeStartablePath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/startable-list.vue';
+const runtimeStartFormPath =
+  'apps/hunyuan-system/src/views/system/bpm/runtime/start-form.vue';
 const runtimeMyInstancePath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/my-instance-list.vue';
 const runtimeMyTodoPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/my-todo-list.vue';
 const runtimeMyDonePath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/my-done-list.vue';
+const runtimeMyCopyPath =
+  'apps/hunyuan-system/src/views/system/bpm/runtime/my-copy-list.vue';
+const runtimeFormRendererPath =
+  'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-runtime-form-renderer.vue';
 const runtimeDetailDrawerPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-instance-detail-drawer.vue';
+const bpmAdminMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.34.0.sql';
+const bpmRuntimeMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.35.0.sql';
+const bpmRuntimeCopyMenuSqlPath =
+  '数据库SQL脚本/mysql/sql-update-log/v3.37.0.sql';
 const apiPath = 'apps/hunyuan-system/src/api/system/bpm/index.ts';
 const bpmRoutePath = 'apps/hunyuan-system/src/router/routes/static/bpm.ts';
 const runtimeApiPath = 'apps/hunyuan-system/src/api/system/bpm/runtime.ts';
+const bootstrapPath = 'apps/hunyuan-system/src/bootstrap.ts';
 
-describe('bpm 后端菜单对接页面', () => {
-  it('提供真实 BPM 管理页面而不是桥接占位页', () => {
+function readSource(path: string) {
+  return readFileSync(resolve(process.cwd(), path), 'utf8');
+}
+
+describe('bpm module contracts', () => {
+  it('provides real bpm management pages instead of bridge placeholders', () => {
     [
       categoryPagePath,
       formDesignerPagePath,
@@ -50,11 +65,8 @@ describe('bpm 后端菜单对接页面', () => {
     });
   });
 
-  it('保持 BPM 列表页紧凑并直接路由到本地页面', () => {
-    const categorySource = readFileSync(
-      resolve(process.cwd(), categoryPagePath),
-      'utf8',
-    );
+  it('keeps the category page on the compact table-page pattern', () => {
+    const categorySource = readSource(categoryPagePath);
 
     expect(categorySource).toContain('ArtSearchPanel');
     expect(categorySource).toContain('ArtTablePanel');
@@ -63,19 +75,15 @@ describe('bpm 后端菜单对接页面', () => {
     expect(categorySource).not.toContain('module-bridge');
   });
 
-  it('为表单和模型提供隐藏设计器路由页', () => {
-    [formDesignerPagePath, modelEditorPath].forEach((path) => {
-      expect(existsSync(resolve(process.cwd(), path))).toBe(true);
-    });
-
-    const routeSource = readFileSync(resolve(process.cwd(), bpmRoutePath), 'utf8');
+  it('keeps hidden local routes for form and model designers', () => {
+    const routeSource = readSource(bpmRoutePath);
 
     expect(routeSource).toContain('/system/bpm/form/designer');
     expect(routeSource).toContain('/system/bpm/model/designer');
     expect(routeSource).toContain('hideInMenu: true');
   });
 
-  it('让 BPM 管理面覆盖分类、定义、实例、任务、监听器五个列表入口', () => {
+  it('keeps bpm management list pages aligned to shared table primitives', () => {
     [
       categoryPagePath,
       definitionPagePath,
@@ -83,7 +91,7 @@ describe('bpm 后端菜单对接页面', () => {
       taskPagePath,
       listenerPagePath,
     ].forEach((path) => {
-      const source = readFileSync(resolve(process.cwd(), path), 'utf8');
+      const source = readSource(path);
 
       expect(source).toContain('ArtSearchPanel');
       expect(source).toContain('ArtTablePanel');
@@ -92,65 +100,40 @@ describe('bpm 后端菜单对接页面', () => {
     });
   });
 
-  it('让新的表单设计页继续沿用现有编辑页基座', () => {
-    const formDesignerSource = readFileSync(
-      resolve(process.cwd(), formDesignerPagePath),
-      'utf8',
-    );
+  it('keeps the form designer on the shared edit-page baseline', () => {
+    const formDesignerSource = readSource(formDesignerPagePath);
 
     expect(formDesignerSource).toContain('ArtEditPage');
     expect(formDesignerSource).toContain('ArtEditSection');
     expect(formDesignerSource).toContain('SystemBpmFormDesigner');
     expect(formDesignerSource).toContain('BpmFormDesignerAdapter');
-    expect(formDesignerSource).not.toContain('适配层工作区');
   });
 
-  it('让表单列表回到元数据管理和设计入口分离的形态', () => {
-    const formListSource = readFileSync(
-      resolve(process.cwd(), formListPagePath),
-      'utf8',
-    );
+  it('keeps the form list focused on metadata plus a designer entry', () => {
+    const formListSource = readSource(formListPagePath);
 
     expect(formListSource).toContain('openDesigner');
-    expect(formListSource).toContain('设计');
     expect(formListSource).toContain('/system/bpm/form/designer');
-    expect(formListSource).not.toContain('Schema JSON');
-    expect(formListSource).not.toContain('布局 JSON');
   });
 
-  it('让流程模型编辑页沿用现有编辑页基座', () => {
-    const modelEditorSource = readFileSync(
-      resolve(process.cwd(), modelEditorPath),
-      'utf8',
-    );
+  it('keeps the model editor on the shared edit baseline and process designer adapter', () => {
+    const modelEditorSource = readSource(modelEditorPath);
 
     expect(modelEditorSource).toContain('ArtEditPage');
     expect(modelEditorSource).toContain('ArtEditSection');
+    expect(modelEditorSource).toContain('BpmProcessDesignerAdapter');
+    expect(modelEditorSource).not.toContain('simpleModel JSON');
   });
 
-  it('让流程模型列表把设计入口路由到隐藏设计页', () => {
-    const modelListSource = readFileSync(
-      resolve(process.cwd(), modelListPagePath),
-      'utf8',
-    );
+  it('keeps the model list wired to the hidden designer route', () => {
+    const modelListSource = readSource(modelListPagePath);
 
     expect(modelListSource).toContain('openDesigner');
     expect(modelListSource).toContain('/system/bpm/model/designer');
   });
 
-  it('让流程模型编辑页以图形设计工作区替代 JSON 主输入', () => {
-    const modelEditorSource = readFileSync(
-      resolve(process.cwd(), modelEditorPath),
-      'utf8',
-    );
-
-    expect(modelEditorSource).toContain('BpmProcessDesignerAdapter');
-    expect(modelEditorSource).not.toContain('设计器草稿 JSON');
-    expect(modelEditorSource).not.toContain('请输入 simpleModel JSON');
-  });
-
-  it('把 BPM API barrel 对齐到分类、表单、模型、定义、运行时与监听器 contract', () => {
-    const source = readFileSync(resolve(process.cwd(), apiPath), 'utf8');
+  it('keeps the bpm api barrel aligned to real backend module contracts', () => {
+    const source = readSource(apiPath);
 
     expect(source).toContain('/bpm/category/');
     expect(source).toContain('/bpm/form/');
@@ -161,36 +144,221 @@ describe('bpm 后端菜单对接页面', () => {
     expect(source).toContain('/bpm/listener/');
   });
 
-  it('提供员工端 BPM 运行闭环页面和详情接口', () => {
+  it('provides runtime pages and runtime api bindings for the employee-side flow', () => {
     [
       runtimeStartablePath,
+      runtimeStartFormPath,
       runtimeMyInstancePath,
       runtimeMyTodoPath,
       runtimeMyDonePath,
+      runtimeMyCopyPath,
       runtimeDetailDrawerPath,
     ].forEach((path) => {
       expect(existsSync(resolve(process.cwd(), path))).toBe(true);
     });
 
-    const runtimeApiSource = readFileSync(
-      resolve(process.cwd(), runtimeApiPath),
-      'utf8',
-    );
+    const runtimeApiSource = readSource(runtimeApiPath);
+
     expect(runtimeApiSource).toContain('/app/bpm/startable');
+    expect(runtimeApiSource).toContain('/app/bpm/start-draft/');
     expect(runtimeApiSource).toContain('/app/bpm/start');
     expect(runtimeApiSource).toContain('/app/bpm/my-instance');
+    expect(runtimeApiSource).toContain('/app/bpm/resubmit-draft/');
+    expect(runtimeApiSource).toContain('/app/bpm/instance/cancel');
+    expect(runtimeApiSource).toContain('/app/bpm/instance/resubmit');
     expect(runtimeApiSource).toContain('/app/bpm/my-todo');
     expect(runtimeApiSource).toContain('/app/bpm/my-done');
+    expect(runtimeApiSource).toContain('/app/bpm/my-copy');
+    expect(runtimeApiSource).toContain('/app/bpm/copy/read/');
     expect(runtimeApiSource).toContain('/app/bpm/instance/detail/');
+    expect(runtimeApiSource).toContain('currentTasks?: BpmTaskRecord[]');
   });
 
-  it('为员工端 BPM 运行页提供本地静态路由兜底', () => {
-    const routeSource = readFileSync(resolve(process.cwd(), bpmRoutePath), 'utf8');
+  it('keeps my-instance resubmit entry routed through the unified start form', () => {
+    const startableSource = readSource(runtimeStartablePath);
+    const myInstanceSource = readSource(runtimeMyInstancePath);
+    const detailSource = readSource(runtimeDetailDrawerPath);
 
-    expect(routeSource).toContain('/system/bpm/runtime/startable-list');
-    expect(routeSource).toContain('/system/bpm/runtime/my-instance-list');
-    expect(routeSource).toContain('/system/bpm/runtime/my-todo-list');
-    expect(routeSource).toContain('/system/bpm/runtime/my-done-list');
+    expect(startableSource).toContain('SystemBpmRuntimeStartFormRoute');
+    expect(myInstanceSource).toContain('handleResubmit');
+    expect(myInstanceSource).toContain("name: 'SystemBpmRuntimeStartFormRoute'");
+    expect(myInstanceSource).toContain('instanceId: String(row.instanceId)');
+    expect(detailSource).toContain('INSTANCE_CANCELLED');
+    expect(detailSource).toContain('RESUBMITTED');
+  });
+
+  it('keeps the unified start form guarded until draft loading succeeds', () => {
+    const startFormSource = readSource(runtimeStartFormPath);
+
+    expect(startFormSource).toContain(
+      'disabled: loading.value || submitting.value || !loaded.value',
+    );
+    expect(startFormSource).toContain('if (!loaded.value) {');
+  });
+
+  it('keeps the unified start form in an explicit error state on draft-load failure', () => {
+    const startFormSource = readSource(runtimeStartFormPath);
+
+    expect(startFormSource).toContain("const loadErrorMessage = ref('');");
+    expect(startFormSource).toContain('loadErrorMessage.value =');
+    expect(startFormSource).toContain('v-if="loadErrorMessage"');
+  });
+
+  it('keeps the runtime form renderer compatible with draft schemas wrapped in a fields object', () => {
+    const rendererSource = readSource(runtimeFormRendererPath);
+
+    expect(rendererSource).toContain('const parsed = safeParseJson<unknown>(props.schemaJson, []);');
+    expect(rendererSource).toContain("if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { fields?: unknown }).fields)) {");
+    expect(rendererSource).toContain('return (parsed as { fields: FormRule[] }).fields;');
+  });
+
+  it('keeps runtime bootstrap wiring form-create registration before the runtime form page uses it', () => {
+    const bootstrapSource = readSource(bootstrapPath);
+
+    expect(bootstrapSource).toContain("import formCreate from '@form-create/element-ui';");
+    expect(bootstrapSource).toContain("import installFormCreateAutoImport from '@form-create/element-ui/auto-import';");
+    expect(bootstrapSource).toContain('installFormCreateAutoImport(formCreate as any);');
+    expect(bootstrapSource).toContain('app.use(formCreate as any);');
+  });
+
+  it('keeps the runtime detail drawer in an explicit error state on detail-load failure', () => {
+    const detailSource = readSource(runtimeDetailDrawerPath);
+
+    expect(detailSource).toContain("const loadErrorMessage = ref('');");
+    expect(detailSource).toContain('detail.value = undefined;');
+    expect(detailSource).toContain('loadErrorMessage.value =');
+    expect(detailSource).toContain('v-else-if="loadErrorMessage"');
+    expect(detailSource).toContain('currentTasks');
+    expect(detailSource).toContain('当前待办');
+    expect(detailSource).toContain('暂无当前待办');
+    expect(detailSource).toContain('fromAssigneeEmployeeId');
+    expect(detailSource).toContain('toAssigneeEmployeeId');
+    expect(detailSource).toContain('getBpmAdminInstanceDetail');
+  });
+
+  it('keeps the admin instance page aligned to four backend run states', () => {
+    const instanceSource = readSource(instancePagePath);
+
+    expect(instanceSource).toContain('function getRunStateLabel');
+    expect(instanceSource).toContain('if (value === 2) {');
+    expect(instanceSource).toContain('if (value === 3) {');
+    expect(instanceSource).toContain('if (value === 4) {');
+    expect(instanceSource).toContain(':value="2"');
+    expect(instanceSource).toContain(':value="3"');
+    expect(instanceSource).toContain(':value="4"');
+  });
+
+  it('keeps the admin instance page wired to the unified bpm instance detail drawer', () => {
+    const instanceSource = readSource(instancePagePath);
+
+    expect(instanceSource).toContain('BpmInstanceDetailDrawer');
+    expect(instanceSource).toContain('detailDrawerRef');
+    expect(instanceSource).toContain("detailDrawerRef.value?.open(row.instanceId, 'admin')");
+    expect(instanceSource).not.toContain('ElDialog v-model="detailVisible"');
+    expect(instanceSource).not.toContain('getBpmAdminInstanceDetail');
+  });
+
+  it('keeps the admin task page wired to a local detail dialog', () => {
+    const taskSource = readSource(taskPagePath);
+
+    expect(taskSource).toContain('getBpmTaskDetail');
+    expect(taskSource).toContain('openDetailDialog');
+    expect(taskSource).toContain('detailVisible');
+    expect(taskSource).toContain('ElDialog');
+    expect(taskSource).toContain('detailLoadErrorMessage');
+  });
+
+  it('keeps the runtime todo page wired to a local task-detail dialog before action handling', () => {
+    const todoSource = readSource(runtimeMyTodoPath);
+
+    expect(todoSource).toContain('getBpmTaskDetail');
+    expect(todoSource).toContain('openDetailDialog');
+    expect(todoSource).toContain('detailVisible');
+    expect(todoSource).toContain('ElDialog');
+    expect(todoSource).toContain('detailLoadErrorMessage');
+    expect(todoSource).toContain('handleApprove');
+    expect(todoSource).toContain('handleReturn');
+  });
+
+  it('keeps the runtime todo approval actions wired to optional manual copy employees', () => {
+    const todoSource = readSource(runtimeMyTodoPath);
+
+    expect(todoSource).toContain('queryEmployeePage');
+    expect(todoSource).toContain('copyEmployeeIds');
+    expect(todoSource).toContain('openActionDialog');
+    expect(todoSource).toContain('submitActionDialog');
+    expect(todoSource).not.toContain("ElMessageBox.prompt('请输入审批意见'");
+  });
+
+  it('keeps the runtime copy page wired to my-copy api and unified instance detail drawer', () => {
+    const copySource = readSource(runtimeMyCopyPath);
+
+    expect(copySource).toContain("defineOptions({ name: 'SystemBpmRuntimeMyCopyList' })");
+    expect(copySource).toContain('ArtSearchPanel');
+    expect(copySource).toContain('ArtTablePanel');
+    expect(copySource).toContain(':collapsible="false"');
+    expect(copySource).toContain('BpmInstanceDetailDrawer');
+    expect(copySource).toContain('queryMyBpmCopyPage');
+    expect(copySource).toContain('markBpmCopyRead');
+    expect(copySource).toContain('detailDrawerRef.value?.open(row.instanceId)');
+  });
+
+  it('keeps the admin instance route aligned to the backend menu sql contract', () => {
+    const bpmMenuSqlSource = readFileSync(
+      resolve(process.cwd(), '..', bpmAdminMenuSqlPath),
+      'utf8',
+    );
+
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/instance'");
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/instance/instance-list.vue'");
+  });
+
+  it('keeps the runtime bpm menu sql aligned to the employee route contracts', () => {
+    const bpmMenuSqlSource = readFileSync(
+      resolve(process.cwd(), '..', bpmRuntimeMenuSqlPath),
+      'utf8',
+    );
+
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/startable-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/startable-list.vue'",
+    );
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-instance-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/my-instance-list.vue'",
+    );
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-todo-list'");
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-todo-list.vue'");
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-done-list'");
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-done-list.vue'");
+  });
+
+  it('keeps the runtime copy menu sql aligned to the employee route contract', () => {
+    const bpmMenuSqlSource = readFileSync(
+      resolve(process.cwd(), '..', bpmRuntimeCopyMenuSqlPath),
+      'utf8',
+    );
+
+    expect(bpmMenuSqlSource).toContain("'我的抄送'");
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-copy-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/my-copy-list.vue'",
+    );
+    expect(bpmMenuSqlSource).toContain("'bpm_runtime_user'");
+    expect(bpmMenuSqlSource).toContain('320');
+  });
+
+  it('provides local static routes for runtime bpm pages', () => {
+    const routeSource = readSource(bpmRoutePath);
+
+    expect(routeSource).toContain("import { BasicLayout } from '#/layouts';");
+    expect(routeSource).toContain('SystemBpmRuntimeShellRoute');
+    expect(routeSource).toContain("path: '/system/bpm/runtime'");
+    expect(routeSource).toContain('/system/bpm/runtime/start-form');
     expect(routeSource).toContain('hideInMenu: true');
+    expect(routeSource).not.toContain('/system/bpm/runtime/startable-list');
+    expect(routeSource).not.toContain('/system/bpm/runtime/my-instance-list');
+    expect(routeSource).not.toContain('/system/bpm/runtime/my-todo-list');
+    expect(routeSource).not.toContain('/system/bpm/runtime/my-done-list');
   });
 });

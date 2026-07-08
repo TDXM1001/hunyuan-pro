@@ -30,21 +30,48 @@ export interface BpmInstanceDetailRecord extends BpmInstanceRecord {
   actionLogs: BpmTaskActionLogRecord[];
   currentFormDataSnapshotJson?: null | string;
   currentNodeSummaryJson?: null | string;
+  currentTasks?: BpmTaskRecord[];
   startDepartmentNameSnapshot?: null | string;
   summary?: null | string;
 }
 
+export interface BpmInstanceCopyRecord {
+  copyId: number;
+  copyType: string;
+  instanceId: number;
+  instanceNo: string;
+  readAt?: null | string;
+  readState?: null | number;
+  reasonSnapshot?: null | string;
+  resultState?: null | number;
+  runState?: null | number;
+  sentAt?: null | string;
+  sourceNodeName?: null | string;
+  startEmployeeNameSnapshot?: null | string;
+  targetNameSnapshot?: null | string;
+  title: string;
+}
+
 export interface BpmTaskRecord {
   assignedAt?: null | string;
+  assigneeDepartmentNameSnapshot?: null | string;
   assigneeNameSnapshot?: null | string;
   completedAt?: null | string;
   instanceId: number;
   instanceNo: string;
   instanceTitle: string;
+  startEmployeeNameSnapshot?: null | string;
   taskId: number;
+  taskKey?: null | string;
   taskName: string;
+  dueAt?: null | string;
+  runtimeAssignmentSnapshotJson?: null | string;
   taskResult?: null | number;
   taskState?: null | number;
+}
+
+export interface BpmTaskDetailRecord extends BpmTaskRecord {
+  actionLogs: BpmTaskActionLogRecord[];
 }
 
 export interface BpmStartableDefinitionRecord {
@@ -56,11 +83,30 @@ export interface BpmStartableDefinitionRecord {
   formNameSnapshot?: null | string;
 }
 
+export interface BpmRuntimeStartDraftRecord {
+  definitionId: number;
+  definitionName: string;
+  formDataJson: string;
+  formNameSnapshot?: null | string;
+  formSchemaSnapshotJson: string;
+  sourceInstanceId?: null | number;
+  summary?: null | string;
+  title: string;
+}
+
 export interface BpmInstancePageQueryParams {
   instanceNo?: string;
   pageNum: number;
   pageSize: number;
   runState?: null | number;
+  title?: string;
+}
+
+export interface BpmInstanceCopyPageQueryParams {
+  instanceNo?: string;
+  pageNum: number;
+  pageSize: number;
+  readState?: null | number;
   title?: string;
 }
 
@@ -82,18 +128,33 @@ export interface BpmInstanceStartForm {
   title?: null | string;
 }
 
+export interface BpmInstanceCancelForm {
+  cancelReason?: null | string;
+  instanceId: number;
+}
+
+export interface BpmInstanceResubmitForm {
+  formDataJson: string;
+  instanceId: number;
+  summary?: null | string;
+  title?: null | string;
+}
+
 export interface BpmTaskApproveForm {
   commentText?: null | string;
+  copyEmployeeIds?: number[];
   taskId: number;
 }
 
 export interface BpmTaskRejectForm {
   commentText?: null | string;
+  copyEmployeeIds?: number[];
   taskId: number;
 }
 
 export interface BpmTaskReturnForm {
   commentText?: null | string;
+  copyEmployeeIds?: number[];
   taskId: number;
 }
 
@@ -113,6 +174,12 @@ export async function queryBpmInstancePage(params: BpmInstancePageQueryParams) {
   });
 }
 
+export async function getBpmAdminInstanceDetail(instanceId: number) {
+  return requestClient.get<BpmInstanceDetailRecord>(
+    `/bpm/instance/detail/${instanceId}`,
+  );
+}
+
 export async function queryBpmTaskPage(params: BpmTaskPageQueryParams) {
   return requestClient.post<PageResult<BpmTaskRecord>>('/bpm/task/query', {
     instanceNo: params.instanceNo?.trim() || undefined,
@@ -123,8 +190,24 @@ export async function queryBpmTaskPage(params: BpmTaskPageQueryParams) {
   });
 }
 
+export async function getBpmTaskDetail(taskId: number) {
+  return requestClient.get<BpmTaskDetailRecord>(`/bpm/task/detail/${taskId}`);
+}
+
 export async function queryBpmStartableDefinitions() {
   return requestClient.get<BpmStartableDefinitionRecord[]>('/app/bpm/startable');
+}
+
+export async function getBpmStartDraft(definitionId: number) {
+  return requestClient.get<BpmRuntimeStartDraftRecord>(
+    `/app/bpm/start-draft/${definitionId}`,
+  );
+}
+
+export async function getBpmResubmitDraft(instanceId: number) {
+  return requestClient.get<BpmRuntimeStartDraftRecord>(
+    `/app/bpm/resubmit-draft/${instanceId}`,
+  );
 }
 
 export async function startBpmInstance(params: BpmInstanceStartForm) {
@@ -157,6 +240,22 @@ export async function getBpmInstanceDetail(instanceId: number) {
   );
 }
 
+export async function cancelMyBpmInstance(params: BpmInstanceCancelForm) {
+  return requestClient.post<string>('/app/bpm/instance/cancel', {
+    cancelReason: params.cancelReason?.trim() || '',
+    instanceId: params.instanceId,
+  });
+}
+
+export async function resubmitMyBpmInstance(params: BpmInstanceResubmitForm) {
+  return requestClient.post<number>('/app/bpm/instance/resubmit', {
+    formDataJson: params.formDataJson.trim(),
+    instanceId: params.instanceId,
+    summary: params.summary?.trim() || '',
+    title: params.title?.trim() || '',
+  });
+}
+
 export async function queryMyBpmTodoPage(params: BpmTaskPageQueryParams) {
   return requestClient.post<PageResult<BpmTaskRecord>>('/app/bpm/my-todo', {
     instanceNo: params.instanceNo?.trim() || undefined,
@@ -177,9 +276,29 @@ export async function queryMyBpmDonePage(params: BpmTaskPageQueryParams) {
   });
 }
 
+export async function queryMyBpmCopyPage(
+  params: BpmInstanceCopyPageQueryParams,
+) {
+  return requestClient.post<PageResult<BpmInstanceCopyRecord>>(
+    '/app/bpm/my-copy',
+    {
+      instanceNo: params.instanceNo?.trim() || undefined,
+      pageNum: params.pageNum,
+      pageSize: params.pageSize,
+      readState: params.readState ?? undefined,
+      title: params.title?.trim() || undefined,
+    },
+  );
+}
+
+export async function markBpmCopyRead(copyId: number) {
+  return requestClient.post<string>(`/app/bpm/copy/read/${copyId}`);
+}
+
 export async function approveBpmTask(params: BpmTaskApproveForm) {
   return requestClient.post<string>('/app/bpm/task/approve', {
     commentText: params.commentText?.trim() || '',
+    copyEmployeeIds: params.copyEmployeeIds ?? [],
     taskId: params.taskId,
   });
 }
@@ -187,6 +306,7 @@ export async function approveBpmTask(params: BpmTaskApproveForm) {
 export async function rejectBpmTask(params: BpmTaskRejectForm) {
   return requestClient.post<string>('/app/bpm/task/reject', {
     commentText: params.commentText?.trim() || '',
+    copyEmployeeIds: params.copyEmployeeIds ?? [],
     taskId: params.taskId,
   });
 }
@@ -194,6 +314,7 @@ export async function rejectBpmTask(params: BpmTaskRejectForm) {
 export async function returnBpmTaskToInitiator(params: BpmTaskReturnForm) {
   return requestClient.post<string>('/app/bpm/task/returnToInitiator', {
     commentText: params.commentText?.trim() || '',
+    copyEmployeeIds: params.copyEmployeeIds ?? [],
     taskId: params.taskId,
   });
 }

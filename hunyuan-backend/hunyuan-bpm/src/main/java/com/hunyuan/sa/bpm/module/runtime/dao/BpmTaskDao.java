@@ -20,4 +20,9 @@ public interface BpmTaskDao extends BaseMapper<BpmTaskEntity> {
      * 分页查询流程任务。
      */
     List<BpmTaskVO> queryPage(Page page, @Param("queryForm") BpmTaskQueryForm queryForm);
+
+    /**
+     * 查询流程实例当前待办任务。
+     */
+    List<BpmTaskVO> queryCurrentTasksByInstanceId(@Param("instanceId") Long instanceId);
 }

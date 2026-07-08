@@ -1,5 +1,7 @@
 import { createApp, watchEffect } from 'vue';
 
+import formCreate from '@form-create/element-ui';
+import installFormCreateAutoImport from '@form-create/element-ui/auto-import';
 import { registerAccessDirective } from '@vben/access';
 import { registerLoadingDirective } from '@vben/common-ui';
 import { preferences } from '@vben/preferences';
@@ -33,6 +35,8 @@ async function bootstrap(namespace: string) {
   //   zIndex: 2000,
   // });
   const app = createApp(App);
+  installFormCreateAutoImport(formCreate as any);
+  app.use(formCreate as any);
 
   // 注册Element Plus提供的v-loading指令
   app.directive('loading', ElLoading.directive);

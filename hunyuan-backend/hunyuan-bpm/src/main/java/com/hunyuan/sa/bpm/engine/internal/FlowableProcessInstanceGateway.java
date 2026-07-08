@@ -43,4 +43,11 @@ public class FlowableProcessInstanceGateway {
         ProcessInstance processInstance = runtimeService.startProcessInstanceById(engineProcessDefinitionId, variables);
         return processInstance.getProcessInstanceId();
     }
+
+    /**
+     * 取消指定流程实例。
+     */
+    public void cancel(String engineProcessInstanceId, String reason) {
+        runtimeService.deleteProcessInstance(engineProcessInstanceId, reason);
+    }
 }

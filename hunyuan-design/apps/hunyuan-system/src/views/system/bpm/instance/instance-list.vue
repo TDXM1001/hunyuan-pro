@@ -13,15 +13,28 @@ import {
 } from '@vben/art-hooks/table';
 import { Page } from '@vben/common-ui';
 
-import { ElCard, ElFormItem, ElInput, ElMessage, ElOption, ElSelect, ElTag } from 'element-plus';
+import {
+  ElButton,
+  ElCard,
+  ElFormItem,
+  ElInput,
+  ElMessage,
+  ElOption,
+  ElSelect,
+  ElSpace,
+  ElTag,
+} from 'element-plus';
 
 import { queryBpmInstancePage } from '#/api/system/bpm';
+
+import BpmInstanceDetailDrawer from '../runtime/components/bpm-instance-detail-drawer.vue';
 
 defineOptions({ name: 'SystemBpmInstanceList' });
 
 const loading = ref(false);
 const showSearchBar = ref(true);
 const rows = ref<BpmInstanceRecord[]>([]);
+const detailDrawerRef = ref<InstanceType<typeof BpmInstanceDetailDrawer>>();
 
 const searchForm = reactive({
   instanceNo: '',
@@ -44,6 +57,14 @@ const columnsFactory = (): ColumnOption<BpmInstanceRecord>[] => [
   { prop: 'resultState', label: '结果状态', width: 100, align: 'center', useSlot: true },
   { prop: 'startedAt', label: '发起时间', minWidth: 180 },
   { prop: 'finishedAt', label: '结束时间', minWidth: 180 },
+  {
+    prop: 'actions',
+    label: '操作',
+    width: 120,
+    align: 'center',
+    fixed: 'right',
+    useSlot: true,
+  },
 ];
 
 const { columns, columnChecks } = useTableColumns(columnsFactory);
@@ -58,9 +79,12 @@ function getRunStateLabel(value?: null | number) {
     return '运行中';
   }
   if (value === 2) {
-    return '已结束';
+    return '待重交';
   }
   if (value === 3) {
+    return '已结束';
+  }
+  if (value === 4) {
     return '已取消';
   }
   return '未知';
@@ -71,9 +95,12 @@ function getRunStateType(value?: null | number) {
     return 'warning';
   }
   if (value === 2) {
-    return 'success';
+    return 'warning';
   }
   if (value === 3) {
+    return 'success';
+  }
+  if (value === 4) {
     return 'info';
   }
   return 'info';
@@ -147,6 +174,10 @@ function handleToggleSearchBar() {
   showSearchBar.value = !showSearchBar.value;
 }
 
+function openDetail(row: BpmInstanceRecord) {
+  void detailDrawerRef.value?.open(row.instanceId, 'admin');
+}
+
 function handleCurrentChange(value: number) {
   pagination.current = value;
   void loadData();
@@ -197,8 +228,9 @@ onMounted(() => {
           <ElFormItem label="运行状态">
             <ElSelect v-model="searchForm.runState" clearable placeholder="请选择运行状态">
               <ElOption label="运行中" :value="1" />
-              <ElOption label="已结束" :value="2" />
-              <ElOption label="已取消" :value="3" />
+              <ElOption label="待重交" :value="2" />
+              <ElOption label="已结束" :value="3" />
+              <ElOption label="已取消" :value="4" />
             </ElSelect>
           </ElFormItem>
         </ArtSearchPanel>
@@ -242,10 +274,20 @@ onMounted(() => {
                 {{ getResultStateLabel(row.resultState) }}
               </ElTag>
             </template>
+
+            <template #actions="{ row }">
+              <ElSpace class="instance-page__actions">
+                <ElButton link size="small" type="primary" @click="openDetail(row)">
+                  详情
+                </ElButton>
+              </ElSpace>
+            </template>
           </ArtTable>
         </ArtTablePanel>
       </ElCard>
     </div>
+
+    <BpmInstanceDetailDrawer ref="detailDrawerRef" />
   </Page>
 </template>
 
@@ -302,5 +344,23 @@ onMounted(() => {
 
 .instance-page :deep(.art-table) {
   --art-table-section-gap: 8px;
+}
+
+.instance-page__actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.instance-page__actions :deep(.el-button) {
+  font-size: 14px;
+  line-height: 22px;
+  min-height: 22px;
+  padding: 0;
+}
+
+.instance-page__actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 </style>

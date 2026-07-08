@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { BpmInstanceRecord } from '#/api/system/bpm';
+import type { BpmInstanceCopyRecord } from '#/api/system/bpm';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { computed, onMounted, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { ArtSearchPanel } from '@vben/art-hooks/common';
 import {
@@ -20,27 +19,25 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
-  ElMessageBox,
   ElOption,
   ElSelect,
   ElTag,
 } from 'element-plus';
 
-import { cancelMyBpmInstance, queryMyBpmInstancePage } from '#/api/system/bpm';
+import { markBpmCopyRead, queryMyBpmCopyPage } from '#/api/system/bpm';
 
 import BpmInstanceDetailDrawer from './components/bpm-instance-detail-drawer.vue';
 
-defineOptions({ name: 'SystemBpmRuntimeMyInstanceList' });
+defineOptions({ name: 'SystemBpmRuntimeMyCopyList' });
 
 const loading = ref(false);
 const showSearchBar = ref(true);
-const rows = ref<BpmInstanceRecord[]>([]);
+const rows = ref<BpmInstanceCopyRecord[]>([]);
 const detailDrawerRef = ref<InstanceType<typeof BpmInstanceDetailDrawer>>();
-const router = useRouter();
 
 const searchForm = reactive({
   instanceNo: '',
-  runState: undefined as number | undefined,
+  readState: undefined as number | undefined,
   title: '',
 });
 
@@ -50,18 +47,30 @@ const pagination = reactive({
   total: 0,
 });
 
-const columnsFactory = (): ColumnOption<BpmInstanceRecord>[] => [
+const columnsFactory = (): ColumnOption<BpmInstanceCopyRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
-  { prop: 'instanceNo', label: '实例编号', minWidth: 160 },
+  { prop: 'instanceNo', label: '实例编号', minWidth: 150 },
   { prop: 'title', label: '流程标题', minWidth: 220 },
-  { prop: 'runState', label: '运行状态', width: 100, align: 'center', useSlot: true },
-  { prop: 'resultState', label: '结果状态', width: 100, align: 'center', useSlot: true },
-  { prop: 'startedAt', label: '发起时间', minWidth: 180 },
-  { prop: 'finishedAt', label: '结束时间', minWidth: 180 },
+  { prop: 'copyType', label: '抄送类型', minWidth: 150, useSlot: true },
+  { prop: 'sourceNodeName', label: '来源节点', minWidth: 150 },
+  {
+    prop: 'reasonSnapshot',
+    label: '抄送原因',
+    minWidth: 220,
+    showOverflowTooltip: true,
+  },
+  {
+    prop: 'readState',
+    label: '已读状态',
+    width: 110,
+    align: 'center',
+    useSlot: true,
+  },
+  { prop: 'sentAt', label: '发送时间', minWidth: 180 },
   {
     prop: 'actions',
     label: '操作',
-    width: 168,
+    width: 100,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -75,38 +84,31 @@ const tableHeight = computed(() =>
   hasPagination.value ? 'calc(100% - 44px)' : '100%',
 );
 
-function getRunStateLabel(value?: null | number) {
-  if (value === 1) return '流转中';
-  if (value === 2) return '待重交';
-  if (value === 3) return '已结束';
-  if (value === 4) return '已取消';
-  return '未知';
+function getCopyTypeLabel(value?: null | string) {
+  const labelMap: Record<string, string> = {
+    MANUAL_APPROVE_COPY: '审批通过抄送',
+    MANUAL_REJECT_COPY: '审批拒绝抄送',
+    MANUAL_RETURN_COPY: '退回发起人抄送',
+  };
+  return value ? (labelMap[value] ?? value) : '-';
 }
 
-function getResultStateLabel(value?: null | number) {
-  if (value === 1) return '通过';
-  if (value === 2) return '拒绝';
-  if (value === 3) return '发起人取消';
-  if (value === 4) return '管理员取消';
-  return '-';
+function getReadStateLabel(value?: null | number) {
+  return value === 1 ? '已读' : '未读';
 }
 
-function canCancel(row: BpmInstanceRecord) {
-  return row.runState === 1;
-}
-
-function canResubmit(row: BpmInstanceRecord) {
-  return row.runState === 2;
+function getReadStateType(value?: null | number) {
+  return value === 1 ? 'info' : 'warning';
 }
 
 async function loadData() {
   loading.value = true;
   try {
-    const result = await queryMyBpmInstancePage({
+    const result = await queryMyBpmCopyPage({
       instanceNo: searchForm.instanceNo,
       pageNum: pagination.current,
       pageSize: pagination.size,
-      runState: searchForm.runState,
+      readState: searchForm.readState,
       title: searchForm.title,
     });
     rows.value = result?.list ?? [];
@@ -124,7 +126,7 @@ function handleSearch() {
 function handleReset() {
   Object.assign(searchForm, {
     instanceNo: '',
-    runState: undefined,
+    readState: undefined,
     title: '',
   });
   pagination.current = 1;
@@ -146,42 +148,23 @@ function handleSizeChange(value: number) {
   void loadData();
 }
 
-function openDetail(row: BpmInstanceRecord) {
-  void detailDrawerRef.value?.open(row.instanceId);
-}
-
-async function handleCancel(row: BpmInstanceRecord) {
-  const { value } = await ElMessageBox.prompt('请输入取消原因', '取消流程', {
-    inputPattern: /^[\s\S]*.*\S[\s\S]*$/,
-    inputPlaceholder: '取消原因',
-    inputErrorMessage: '取消原因不能为空',
-  });
-  await cancelMyBpmInstance({
-    cancelReason: value,
-    instanceId: row.instanceId,
-  });
-  ElMessage.success('流程已取消');
+async function openDetail(row: BpmInstanceCopyRecord) {
+  await markBpmCopyRead(row.copyId);
   await loadData();
-}
-
-function handleResubmit(row: BpmInstanceRecord) {
-  void router.push({
-    name: 'SystemBpmRuntimeStartFormRoute',
-    query: { instanceId: String(row.instanceId) },
-  });
+  detailDrawerRef.value?.open(row.instanceId);
 }
 
 onMounted(() => {
   void loadData().catch((error) => {
-    ElMessage.error(error?.message || '我的申请加载失败');
+    ElMessage.error(error?.message || '我的抄送加载失败');
   });
 });
 </script>
 
 <template>
   <Page auto-content-height content-class="!p-3 h-full min-h-0 overflow-hidden">
-    <div class="runtime-instance-page">
-      <ElCard v-show="showSearchBar" class="runtime-instance-page__search-card" shadow="never">
+    <div class="runtime-copy-page">
+      <ElCard v-show="showSearchBar" class="runtime-copy-page__search-card" shadow="never">
         <ArtSearchPanel
           :collapsible="false"
           :loading="loading"
@@ -197,18 +180,16 @@ onMounted(() => {
           <ElFormItem label="流程标题">
             <ElInput v-model="searchForm.title" clearable placeholder="请输入流程标题" />
           </ElFormItem>
-          <ElFormItem label="运行状态">
-            <ElSelect v-model="searchForm.runState" clearable placeholder="请选择运行状态">
-              <ElOption label="流转中" :value="1" />
-              <ElOption label="待重新提交" :value="2" />
-              <ElOption label="已结束" :value="3" />
-              <ElOption label="已取消" :value="4" />
+          <ElFormItem label="已读状态">
+            <ElSelect v-model="searchForm.readState" clearable placeholder="请选择已读状态">
+              <ElOption label="未读" :value="0" />
+              <ElOption label="已读" :value="1" />
             </ElSelect>
           </ElFormItem>
         </ArtSearchPanel>
       </ElCard>
 
-      <ElCard class="runtime-instance-page__table-card" shadow="never">
+      <ElCard class="runtime-copy-page__table-card" shadow="never">
         <ArtTablePanel>
           <ArtTableHeader
             v-model="columnChecks"
@@ -234,34 +215,18 @@ onMounted(() => {
             @pagination:current-change="handleCurrentChange"
             @pagination:size-change="handleSizeChange"
           >
-            <template #runState="{ row }">
-              <ElTag effect="plain" size="small">{{ getRunStateLabel(row.runState) }}</ElTag>
+            <template #copyType="{ row }">
+              <ElTag effect="plain" size="small">{{ getCopyTypeLabel(row.copyType) }}</ElTag>
             </template>
-            <template #resultState="{ row }">
-              <ElTag effect="plain" size="small">{{ getResultStateLabel(row.resultState) }}</ElTag>
+            <template #readState="{ row }">
+              <ElTag :type="getReadStateType(row.readState)" effect="plain" size="small">
+                {{ getReadStateLabel(row.readState) }}
+              </ElTag>
             </template>
             <template #actions="{ row }">
-              <div class="runtime-instance-page__actions">
+              <div class="runtime-copy-page__actions">
                 <ElButton link size="small" type="primary" @click="openDetail(row)">
                   详情
-                </ElButton>
-                <ElButton
-                  v-if="canCancel(row)"
-                  link
-                  size="small"
-                  type="danger"
-                  @click="handleCancel(row)"
-                >
-                  取消
-                </ElButton>
-                <ElButton
-                  v-if="canResubmit(row)"
-                  link
-                  size="small"
-                  type="primary"
-                  @click="handleResubmit(row)"
-                >
-                  重新提交
                 </ElButton>
               </div>
             </template>
@@ -274,7 +239,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.runtime-instance-page {
+.runtime-copy-page {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -283,29 +248,29 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.runtime-instance-page__search-card,
-.runtime-instance-page__table-card {
+.runtime-copy-page__search-card,
+.runtime-copy-page__table-card {
   border-radius: 8px;
 }
 
-.runtime-instance-page__search-card {
+.runtime-copy-page__search-card {
   background: var(--el-bg-color);
   border: 0;
   flex-shrink: 0;
 }
 
-.runtime-instance-page__search-card :deep(.el-card__body) {
+.runtime-copy-page__search-card :deep(.el-card__body) {
   padding: 16px;
 }
 
-.runtime-instance-page__table-card {
+.runtime-copy-page__table-card {
   border: 1px solid var(--el-border-color-lighter);
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-.runtime-instance-page__table-card :deep(.el-card__body) {
+.runtime-copy-page__table-card :deep(.el-card__body) {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -314,31 +279,31 @@ onMounted(() => {
   padding: 16px;
 }
 
-.runtime-instance-page :deep(.art-table-panel),
-.runtime-instance-page :deep(.art-table) {
+.runtime-copy-page :deep(.art-table-panel),
+.runtime-copy-page :deep(.art-table) {
   flex: 1;
   min-height: 0;
 }
 
-.runtime-instance-page :deep(.art-table-header) {
+.runtime-copy-page :deep(.art-table-header) {
   margin-bottom: 18px;
 }
 
-.runtime-instance-page__actions {
+.runtime-copy-page__actions {
   align-items: center;
   display: inline-flex;
   gap: 8px;
   justify-content: center;
 }
 
-.runtime-instance-page__actions :deep(.el-button) {
+.runtime-copy-page__actions :deep(.el-button) {
   font-size: 14px;
   line-height: 22px;
   min-height: 22px;
   padding: 0;
 }
 
-.runtime-instance-page__actions :deep(.el-button + .el-button) {
+.runtime-copy-page__actions :deep(.el-button + .el-button) {
   margin-left: 0;
 }
 </style>
