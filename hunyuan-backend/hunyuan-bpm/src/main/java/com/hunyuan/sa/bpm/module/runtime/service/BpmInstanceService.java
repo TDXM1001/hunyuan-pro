@@ -12,6 +12,7 @@ import com.hunyuan.sa.base.common.util.SmartEnumUtil;
 import com.hunyuan.sa.base.common.util.SmartPageUtil;
 import com.hunyuan.sa.base.module.support.serialnumber.constant.SerialNumberIdEnum;
 import com.hunyuan.sa.base.module.support.serialnumber.service.SerialNumberService;
+import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessStartCommand;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
@@ -339,13 +340,38 @@ public class BpmInstanceService {
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> startInstance(BpmInstanceStartForm startForm) {
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
-        BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
         BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(startForm.getDefinitionId());
-        ResponseDTO<Long> validationResponse = validateCurrentStartableDefinition(definitionEntity);
+        return startInstanceWithDefinition(startForm, definitionEntity, employeeId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<Long> startBusinessInstance(BpmBusinessStartCommand command) {
+        if (command == null) {
+            return ResponseDTO.userErrorParam("业务流程发起命令不能为空");
+        }
+        BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectCurrentByDefinitionKey(command.getDefinitionKey());
+        BpmInstanceStartForm startForm = new BpmInstanceStartForm();
+        startForm.setDefinitionId(definitionEntity == null ? null : definitionEntity.getDefinitionId());
+        startForm.setTitle(command.getTitle());
+        startForm.setSummary(command.getSummary());
+        startForm.setFormDataJson(StringUtils.defaultIfBlank(command.getFormDataJson(), "{}"));
+        startForm.setBusinessType(command.getBusinessType());
+        startForm.setBusinessId(command.getBusinessId());
+        startForm.setBusinessKey(command.getBusinessKey());
+        return startInstanceWithDefinition(startForm, definitionEntity, command.getStartEmployeeId());
+    }
+
+    private ResponseDTO<Long> startInstanceWithDefinition(
+            BpmInstanceStartForm startForm,
+            BpmDefinitionEntity definitionEntity,
+            Long employeeId
+    ) {
+        ResponseDTO<Long> validationResponse = validateCurrentStartableDefinition(definitionEntity, employeeId);
         if (validationResponse != null) {
             return validationResponse;
         }
 
+        BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
         SerialNumberIdEnum serialNumberIdEnum = SmartEnumUtil.getEnumByValue(
                 definitionEntity.getInstanceNoRuleIdSnapshot(),
                 SerialNumberIdEnum.class
@@ -425,8 +451,15 @@ public class BpmInstanceService {
     }
 
     private <T> ResponseDTO<T> validateCurrentStartableDefinition(BpmDefinitionEntity definitionEntity) {
+        return validateCurrentStartableDefinition(definitionEntity, bpmCurrentActorProvider.requireCurrentEmployeeId());
+    }
+
+    private <T> ResponseDTO<T> validateCurrentStartableDefinition(BpmDefinitionEntity definitionEntity, Long employeeId) {
         if (definitionEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (employeeId == null) {
+            return ResponseDTO.userErrorParam("发起员工不能为空");
         }
         if (!BpmDefinitionLifecycleStateEnum.CURRENT.equalsValue(definitionEntity.getLifecycleState())) {
             return ResponseDTO.userErrorParam("当前流程定义不是可运行的当前版本");
@@ -434,7 +467,6 @@ public class BpmInstanceService {
         if (!BpmDefinitionStartStateEnum.STARTABLE.equalsValue(definitionEntity.getStartState())) {
             return ResponseDTO.userErrorParam("当前流程定义已停用，无法发起");
         }
-        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         if (!canEmployeeStart(definitionEntity.getStartScopeJson(), employeeId)) {
             return ResponseDTO.userErrorParam("当前流程定义不在可发起范围内");
         }
