@@ -38,7 +38,13 @@ const apiFiles = [
     label: 'runtime',
     needles: [
       '/bpm/instance/query',
+      '/bpm/instance/detail/',
+      '/bpm/task/detail/',
       '/app/bpm/startable',
+      '/app/bpm/start-draft/',
+      '/app/bpm/resubmit-draft/',
+      '/app/bpm/instance/cancel',
+      '/app/bpm/instance/resubmit',
       '/app/bpm/task/approve',
       '/app/bpm/task/returnToInitiator',
     ],

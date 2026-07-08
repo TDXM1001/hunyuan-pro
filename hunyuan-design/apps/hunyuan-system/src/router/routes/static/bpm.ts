@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { BasicLayout } from '#/layouts';
+
 const routes: RouteRecordRaw[] = [
   {
     component: () => import('#/views/system/bpm/form/form-designer.vue'),
@@ -20,40 +22,24 @@ const routes: RouteRecordRaw[] = [
     path: '/system/bpm/model/designer',
   },
   {
-    component: () => import('#/views/system/bpm/runtime/startable-list.vue'),
+    component: BasicLayout,
     meta: {
       hideInMenu: true,
-      title: '可发起流程',
+      title: 'BpmRuntimeShell',
     },
-    name: 'SystemBpmRuntimeStartableRoute',
-    path: '/system/bpm/runtime/startable-list',
-  },
-  {
-    component: () => import('#/views/system/bpm/runtime/my-instance-list.vue'),
-    meta: {
-      hideInMenu: true,
-      title: '我的申请',
-    },
-    name: 'SystemBpmRuntimeMyInstanceRoute',
-    path: '/system/bpm/runtime/my-instance-list',
-  },
-  {
-    component: () => import('#/views/system/bpm/runtime/my-todo-list.vue'),
-    meta: {
-      hideInMenu: true,
-      title: '我的待办',
-    },
-    name: 'SystemBpmRuntimeMyTodoRoute',
-    path: '/system/bpm/runtime/my-todo-list',
-  },
-  {
-    component: () => import('#/views/system/bpm/runtime/my-done-list.vue'),
-    meta: {
-      hideInMenu: true,
-      title: '我的已办',
-    },
-    name: 'SystemBpmRuntimeMyDoneRoute',
-    path: '/system/bpm/runtime/my-done-list',
+    name: 'SystemBpmRuntimeShellRoute',
+    path: '/system/bpm/runtime',
+    children: [
+      {
+        component: () => import('#/views/system/bpm/runtime/start-form.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '流程发起表单',
+        },
+        name: 'SystemBpmRuntimeStartFormRoute',
+        path: 'start-form',
+      },
+    ],
   },
 ];
 

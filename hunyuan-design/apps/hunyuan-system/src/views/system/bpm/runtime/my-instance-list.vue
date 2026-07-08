@@ -3,6 +3,7 @@ import type { BpmInstanceRecord } from '#/api/system/bpm';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { ArtSearchPanel } from '@vben/art-hooks/common';
 import {
@@ -19,12 +20,13 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
+  ElMessageBox,
   ElOption,
   ElSelect,
   ElTag,
 } from 'element-plus';
 
-import { queryMyBpmInstancePage } from '#/api/system/bpm';
+import { cancelMyBpmInstance, queryMyBpmInstancePage } from '#/api/system/bpm';
 
 import BpmInstanceDetailDrawer from './components/bpm-instance-detail-drawer.vue';
 
@@ -34,6 +36,7 @@ const loading = ref(false);
 const showSearchBar = ref(true);
 const rows = ref<BpmInstanceRecord[]>([]);
 const detailDrawerRef = ref<InstanceType<typeof BpmInstanceDetailDrawer>>();
+const router = useRouter();
 
 const searchForm = reactive({
   instanceNo: '',
@@ -58,7 +61,7 @@ const columnsFactory = (): ColumnOption<BpmInstanceRecord>[] => [
   {
     prop: 'actions',
     label: '操作',
-    width: 120,
+    width: 168,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -86,6 +89,14 @@ function getResultStateLabel(value?: null | number) {
   if (value === 3) return '发起人取消';
   if (value === 4) return '管理员取消';
   return '-';
+}
+
+function canCancel(row: BpmInstanceRecord) {
+  return row.runState === 1;
+}
+
+function canResubmit(row: BpmInstanceRecord) {
+  return row.runState === 2;
 }
 
 async function loadData() {
@@ -137,6 +148,27 @@ function handleSizeChange(value: number) {
 
 function openDetail(row: BpmInstanceRecord) {
   void detailDrawerRef.value?.open(row.instanceId);
+}
+
+async function handleCancel(row: BpmInstanceRecord) {
+  const { value } = await ElMessageBox.prompt('请输入取消原因', '取消流程', {
+    inputPattern: /^[\s\S]*.*\S[\s\S]*$/,
+    inputPlaceholder: '取消原因',
+    inputErrorMessage: '取消原因不能为空',
+  });
+  await cancelMyBpmInstance({
+    cancelReason: value,
+    instanceId: row.instanceId,
+  });
+  ElMessage.success('流程已取消');
+  await loadData();
+}
+
+function handleResubmit(row: BpmInstanceRecord) {
+  void router.push({
+    name: 'SystemBpmRuntimeStartFormRoute',
+    query: { instanceId: String(row.instanceId) },
+  });
 }
 
 onMounted(() => {
@@ -213,6 +245,24 @@ onMounted(() => {
                 <ElButton link size="small" type="primary" @click="openDetail(row)">
                   详情
                 </ElButton>
+                <ElButton
+                  v-if="canCancel(row)"
+                  link
+                  size="small"
+                  type="danger"
+                  @click="handleCancel(row)"
+                >
+                  取消
+                </ElButton>
+                <ElButton
+                  v-if="canResubmit(row)"
+                  link
+                  size="small"
+                  type="primary"
+                  @click="handleResubmit(row)"
+                >
+                  重新提交
+                </ElButton>
               </div>
             </template>
           </ArtTable>
@@ -286,5 +336,9 @@ onMounted(() => {
   line-height: 22px;
   min-height: 22px;
   padding: 0;
+}
+
+.runtime-instance-page__actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 </style>

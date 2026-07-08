@@ -10,6 +10,7 @@ import {
   ElDescriptionsItem,
   ElDrawer,
   ElEmpty,
+  ElMessage,
   ElSkeleton,
   ElTag,
   ElTimeline,
@@ -21,11 +22,14 @@ defineOptions({ name: 'SystemBpmInstanceDetailDrawer' });
 const visible = ref(false);
 const loading = ref(false);
 const detail = ref<BpmInstanceDetailRecord>();
+const loadErrorMessage = ref('');
 
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
     APPROVED: '审批通过',
+    INSTANCE_CANCELLED: '实例取消',
     REJECTED: '审批拒绝',
+    RESUBMITTED: '重新提交',
     RETURNED_TO_INITIATOR: '退回发起人',
     TRANSFERRED: '转办',
   };
@@ -35,8 +39,13 @@ function getActionLabel(actionType?: null | string) {
 async function open(instanceId: number) {
   visible.value = true;
   loading.value = true;
+  detail.value = undefined;
+  loadErrorMessage.value = '';
   try {
     detail.value = await getBpmInstanceDetail(instanceId);
+  } catch (error: any) {
+    loadErrorMessage.value = '流程详情加载失败，请稍后重试。';
+    ElMessage.error(error?.message || loadErrorMessage.value);
   } finally {
     loading.value = false;
   }
@@ -48,6 +57,9 @@ defineExpose({ open });
 <template>
   <ElDrawer v-model="visible" title="流程详情" size="640px">
     <ElSkeleton v-if="loading" animated />
+    <div v-else-if="loadErrorMessage" class="bpm-instance-detail__error">
+      <ElEmpty :description="loadErrorMessage" />
+    </div>
     <div v-else-if="detail" class="bpm-instance-detail">
       <ElDescriptions :column="1" border>
         <ElDescriptionsItem label="流程编号">
@@ -101,6 +113,13 @@ defineExpose({ open });
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.bpm-instance-detail__error {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 320px;
 }
 
 .bpm-instance-detail code {

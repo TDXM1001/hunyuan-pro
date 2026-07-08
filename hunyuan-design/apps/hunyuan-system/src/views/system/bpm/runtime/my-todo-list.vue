@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BpmTaskRecord } from '#/api/system/bpm';
+import type { BpmTaskDetailRecord, BpmTaskRecord } from '#/api/system/bpm';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -16,14 +16,22 @@ import { Page } from '@vben/common-ui';
 import {
   ElButton,
   ElCard,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElDialog,
+  ElEmpty,
   ElFormItem,
   ElInput,
   ElMessage,
   ElMessageBox,
+  ElTag,
+  ElTimeline,
+  ElTimelineItem,
 } from 'element-plus';
 
 import {
   approveBpmTask,
+  getBpmTaskDetail,
   queryMyBpmTodoPage,
   rejectBpmTask,
   returnBpmTaskToInitiator,
@@ -35,6 +43,10 @@ defineOptions({ name: 'SystemBpmRuntimeMyTodoList' });
 const loading = ref(false);
 const showSearchBar = ref(true);
 const rows = ref<BpmTaskRecord[]>([]);
+const detailVisible = ref(false);
+const detailLoading = ref(false);
+const detailData = ref<BpmTaskDetailRecord>();
+const detailLoadErrorMessage = ref('');
 
 const searchForm = reactive({
   instanceNo: '',
@@ -56,7 +68,7 @@ const columnsFactory = (): ColumnOption<BpmTaskRecord>[] => [
   {
     prop: 'actions',
     label: '操作',
-    width: 220,
+    width: 280,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -69,6 +81,76 @@ const hasPagination = computed(() => pagination.total > pagination.size);
 const tableHeight = computed(() =>
   hasPagination.value ? 'calc(100% - 44px)' : '100%',
 );
+
+function getTaskStateLabel(value?: null | number) {
+  if (value === 1) {
+    return '待处理';
+  }
+  if (value === 2) {
+    return '已完成';
+  }
+  if (value === 3) {
+    return '已取消';
+  }
+  return '未知';
+}
+
+function getTaskStateType(value?: null | number) {
+  if (value === 1) {
+    return 'warning';
+  }
+  if (value === 2) {
+    return 'success';
+  }
+  if (value === 3) {
+    return 'info';
+  }
+  return 'info';
+}
+
+function getTaskResultLabel(value?: null | number) {
+  if (value === 1) {
+    return '通过';
+  }
+  if (value === 2) {
+    return '拒绝';
+  }
+  if (value === 3) {
+    return '退回';
+  }
+  if (value === 4) {
+    return '转办';
+  }
+  return '-';
+}
+
+function getTaskResultType(value?: null | number) {
+  if (value === 1) {
+    return 'success';
+  }
+  if (value === 2) {
+    return 'danger';
+  }
+  if (value === 3) {
+    return 'warning';
+  }
+  if (value === 4) {
+    return 'info';
+  }
+  return 'info';
+}
+
+function getActionLabel(actionType?: null | string) {
+  const labelMap: Record<string, string> = {
+    APPROVED: '审批通过',
+    INSTANCE_CANCELLED: '实例取消',
+    REJECTED: '审批拒绝',
+    RESUBMITTED: '重新提交',
+    RETURNED_TO_INITIATOR: '退回发起人',
+    TRANSFERRED: '转办',
+  };
+  return actionType ? (labelMap[actionType] ?? actionType) : '-';
+}
 
 async function loadData() {
   loading.value = true;
@@ -102,6 +184,21 @@ function handleReset() {
 
 function handleToggleSearchBar() {
   showSearchBar.value = !showSearchBar.value;
+}
+
+async function openDetailDialog(row: BpmTaskRecord) {
+  detailVisible.value = true;
+  detailLoading.value = true;
+  detailData.value = undefined;
+  detailLoadErrorMessage.value = '';
+  try {
+    detailData.value = await getBpmTaskDetail(row.taskId);
+  } catch (error: any) {
+    detailLoadErrorMessage.value = '流程任务详情加载失败，请稍后重试。';
+    ElMessage.error(error?.message || detailLoadErrorMessage.value);
+  } finally {
+    detailLoading.value = false;
+  }
 }
 
 function handleCurrentChange(value: number) {
@@ -214,6 +311,9 @@ onMounted(() => {
           >
             <template #actions="{ row }">
               <div class="runtime-task-page__actions">
+                <ElButton link size="small" type="primary" @click="openDetailDialog(row)">
+                  详情
+                </ElButton>
                 <ElButton link size="small" type="primary" @click="handleApprove(row)">
                   通过
                 </ElButton>
@@ -230,6 +330,81 @@ onMounted(() => {
         </ArtTablePanel>
       </ElCard>
     </div>
+
+    <ElDialog v-model="detailVisible" title="流程任务详情" width="920px">
+      <div v-loading="detailLoading" class="runtime-task-page__detail">
+        <div v-if="detailLoadErrorMessage" class="runtime-task-page__detail-error">
+          <ElEmpty :description="detailLoadErrorMessage" />
+        </div>
+        <template v-else-if="detailData">
+          <ElDescriptions :column="2" border>
+            <ElDescriptionsItem label="实例编号">
+              {{ detailData.instanceNo }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="流程标题">
+              {{ detailData.instanceTitle }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="任务名称">
+              {{ detailData.taskName }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="任务标识">
+              {{ detailData.taskKey || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="发起人">
+              {{ detailData.startEmployeeNameSnapshot || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="当前处理人">
+              {{ detailData.assigneeNameSnapshot || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="当前处理部门">
+              {{ detailData.assigneeDepartmentNameSnapshot || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="任务状态">
+              <ElTag :type="getTaskStateType(detailData.taskState)" effect="plain" size="small">
+                {{ getTaskStateLabel(detailData.taskState) }}
+              </ElTag>
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="任务结果">
+              <ElTag :type="getTaskResultType(detailData.taskResult)" effect="plain" size="small">
+                {{ getTaskResultLabel(detailData.taskResult) }}
+              </ElTag>
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="到达时间">
+              {{ detailData.assignedAt || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="截止时间">
+              {{ detailData.dueAt || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="完成时间">
+              {{ detailData.completedAt || '-' }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem :span="2" label="运行时分配快照">
+              <code>{{ detailData.runtimeAssignmentSnapshotJson || '-' }}</code>
+            </ElDescriptionsItem>
+          </ElDescriptions>
+
+          <div class="runtime-task-page__timeline-title">动作轨迹</div>
+          <ElTimeline v-if="detailData.actionLogs.length > 0" class="runtime-task-page__timeline">
+            <ElTimelineItem
+              v-for="log in detailData.actionLogs"
+              :key="log.actionLogId"
+              :timestamp="log.actionAt || ''"
+            >
+              <div class="runtime-task-page__timeline-row">
+                <strong>{{ log.actorNameSnapshot || '-' }}</strong>
+                <ElTag effect="plain" size="small">
+                  {{ getActionLabel(log.actionType) }}
+                </ElTag>
+              </div>
+              <p v-if="log.commentText" class="runtime-task-page__comment">
+                {{ log.commentText }}
+              </p>
+            </ElTimelineItem>
+          </ElTimeline>
+          <ElEmpty v-else description="暂无动作轨迹" />
+        </template>
+      </div>
+    </ElDialog>
   </Page>
 </template>
 
@@ -300,5 +475,45 @@ onMounted(() => {
 
 .runtime-task-page__actions :deep(.el-button + .el-button) {
   margin-left: 0;
+}
+
+.runtime-task-page__detail {
+  min-height: 240px;
+}
+
+.runtime-task-page__detail-error {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 320px;
+}
+
+.runtime-task-page__detail code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.runtime-task-page__timeline-title {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  margin-top: 16px;
+}
+
+.runtime-task-page__timeline {
+  padding-top: 4px;
+}
+
+.runtime-task-page__timeline-row {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.runtime-task-page__comment {
+  color: var(--el-text-color-regular);
+  line-height: 22px;
+  margin: 6px 0 0;
 }
 </style>
