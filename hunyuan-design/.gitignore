@@ -60,3 +60,11 @@ vite.config.ts.*
 skills-lock.json
 .atomcode
 datalog
+
+# Playwright / MCP runtime
+.tmp
+.npm-cache
+.playwright-mcp
+playwright
+playwright-mcp-runtime
+test-results

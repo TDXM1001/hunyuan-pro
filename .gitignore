@@ -61,3 +61,11 @@ vite.config.ts.*
 .codex
 skills-lock.json
 .pnpm-store
+
+# Playwright / MCP runtime
+.tmp
+.npm-cache
+.playwright-mcp
+playwright
+playwright-mcp-runtime
+test-results

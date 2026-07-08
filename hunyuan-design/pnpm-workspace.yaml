@@ -215,6 +215,7 @@ catalog:
 allowBuilds:
   '@parcel/watcher': true
   core-js: true
+  core-js-pure: true
   esbuild: true
   lefthook: true
   vue-demi: true
