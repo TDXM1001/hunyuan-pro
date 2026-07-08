@@ -3,7 +3,10 @@ import type { BpmInstanceDetailRecord } from '#/api/system/bpm/runtime';
 
 import { computed, ref } from 'vue';
 
-import { getBpmInstanceDetail } from '#/api/system/bpm/runtime';
+import {
+  getBpmAdminInstanceDetail,
+  getBpmInstanceDetail,
+} from '#/api/system/bpm/runtime';
 
 import {
   ElDescriptions,
@@ -25,6 +28,7 @@ const detail = ref<BpmInstanceDetailRecord>();
 const loadErrorMessage = ref('');
 const currentTasks = computed(() => detail.value?.currentTasks ?? []);
 const actionLogs = computed(() => detail.value?.actionLogs ?? []);
+type DetailSource = 'admin' | 'runtime';
 
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
@@ -38,13 +42,16 @@ function getActionLabel(actionType?: null | string) {
   return actionType ? (labelMap[actionType] ?? actionType) : '-';
 }
 
-async function open(instanceId: number) {
+async function open(instanceId: number, source: DetailSource = 'runtime') {
   visible.value = true;
   loading.value = true;
   detail.value = undefined;
   loadErrorMessage.value = '';
   try {
-    detail.value = await getBpmInstanceDetail(instanceId);
+    detail.value =
+      source === 'admin'
+        ? await getBpmAdminInstanceDetail(instanceId)
+        : await getBpmInstanceDetail(instanceId);
   } catch (error: any) {
     loadErrorMessage.value = '流程详情加载失败，请稍后重试。';
     ElMessage.error(error?.message || loadErrorMessage.value);

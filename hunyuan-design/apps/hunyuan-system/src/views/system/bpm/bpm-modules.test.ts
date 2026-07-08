@@ -226,6 +226,7 @@ describe('bpm module contracts', () => {
     expect(detailSource).toContain('暂无当前待办');
     expect(detailSource).toContain('fromAssigneeEmployeeId');
     expect(detailSource).toContain('toAssigneeEmployeeId');
+    expect(detailSource).toContain('getBpmAdminInstanceDetail');
   });
 
   it('keeps the admin instance page aligned to four backend run states', () => {
@@ -240,14 +241,14 @@ describe('bpm module contracts', () => {
     expect(instanceSource).toContain(':value="4"');
   });
 
-  it('keeps the admin instance page wired to a local detail dialog', () => {
+  it('keeps the admin instance page wired to the unified bpm instance detail drawer', () => {
     const instanceSource = readSource(instancePagePath);
 
-    expect(instanceSource).toContain('getBpmAdminInstanceDetail');
-    expect(instanceSource).toContain('openDetailDialog');
-    expect(instanceSource).toContain('detailVisible');
-    expect(instanceSource).toContain('ElDialog');
-    expect(instanceSource).toContain('detailLoadErrorMessage');
+    expect(instanceSource).toContain('BpmInstanceDetailDrawer');
+    expect(instanceSource).toContain('detailDrawerRef');
+    expect(instanceSource).toContain("detailDrawerRef.value?.open(row.instanceId, 'admin')");
+    expect(instanceSource).not.toContain('ElDialog v-model="detailVisible"');
+    expect(instanceSource).not.toContain('getBpmAdminInstanceDetail');
   });
 
   it('keeps the admin task page wired to a local detail dialog', () => {
