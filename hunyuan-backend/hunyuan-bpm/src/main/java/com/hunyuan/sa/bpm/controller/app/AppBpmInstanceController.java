@@ -3,13 +3,16 @@ package com.hunyuan.sa.bpm.controller.app;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCancelForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCopyQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceResubmitForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceCopyVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeStartDraftVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +37,9 @@ public class AppBpmInstanceController {
 
     @Resource
     private BpmTaskService bpmTaskService;
+
+    @Resource
+    private BpmInstanceCopyService bpmInstanceCopyService;
 
     @Operation(summary = "查询我发起的流程实例")
     @PostMapping("/app/bpm/my-instance")
@@ -63,6 +69,18 @@ public class AppBpmInstanceController {
     @GetMapping("/app/bpm/instance/detail/{instanceId}")
     public ResponseDTO<BpmInstanceDetailVO> detail(@PathVariable Long instanceId) {
         return bpmInstanceService.getDetail(instanceId);
+    }
+
+    @Operation(summary = "查询我的抄送")
+    @PostMapping("/app/bpm/my-copy")
+    public ResponseDTO<PageResult<BpmInstanceCopyVO>> queryMyCopy(@RequestBody @Valid BpmInstanceCopyQueryForm queryForm) {
+        return bpmInstanceCopyService.queryMyCopyPage(queryForm);
+    }
+
+    @Operation(summary = "标记我的抄送已读")
+    @PostMapping("/app/bpm/copy/read/{copyId}")
+    public ResponseDTO<String> markCopyRead(@PathVariable Long copyId) {
+        return bpmInstanceCopyService.markRead(copyId);
     }
 
     @Operation(summary = "查询我的待办任务")

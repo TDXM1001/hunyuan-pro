@@ -37,6 +37,8 @@ const runtimeDetailDrawerPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-instance-detail-drawer.vue';
 const bpmAdminMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.34.0.sql';
 const bpmRuntimeMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.35.0.sql';
+const bpmRuntimeCopyMenuSqlPath =
+  '数据库SQL脚本/mysql/sql-update-log/v3.37.0.sql';
 const apiPath = 'apps/hunyuan-system/src/api/system/bpm/index.ts';
 const bpmRoutePath = 'apps/hunyuan-system/src/router/routes/static/bpm.ts';
 const runtimeApiPath = 'apps/hunyuan-system/src/api/system/bpm/runtime.ts';
@@ -301,6 +303,21 @@ describe('bpm module contracts', () => {
     expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-todo-list.vue'");
     expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-done-list'");
     expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-done-list.vue'");
+  });
+
+  it('keeps the runtime copy menu sql aligned to the employee route contract', () => {
+    const bpmMenuSqlSource = readFileSync(
+      resolve(process.cwd(), '..', bpmRuntimeCopyMenuSqlPath),
+      'utf8',
+    );
+
+    expect(bpmMenuSqlSource).toContain("'我的抄送'");
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-copy-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/my-copy-list.vue'",
+    );
+    expect(bpmMenuSqlSource).toContain("'bpm_runtime_user'");
+    expect(bpmMenuSqlSource).toContain('320');
   });
 
   it('provides local static routes for runtime bpm pages', () => {

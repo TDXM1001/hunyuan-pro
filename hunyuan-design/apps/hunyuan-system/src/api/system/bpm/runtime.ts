@@ -35,6 +35,23 @@ export interface BpmInstanceDetailRecord extends BpmInstanceRecord {
   summary?: null | string;
 }
 
+export interface BpmInstanceCopyRecord {
+  copyId: number;
+  copyType: string;
+  instanceId: number;
+  instanceNo: string;
+  readAt?: null | string;
+  readState?: null | number;
+  reasonSnapshot?: null | string;
+  resultState?: null | number;
+  runState?: null | number;
+  sentAt?: null | string;
+  sourceNodeName?: null | string;
+  startEmployeeNameSnapshot?: null | string;
+  targetNameSnapshot?: null | string;
+  title: string;
+}
+
 export interface BpmTaskRecord {
   assignedAt?: null | string;
   assigneeDepartmentNameSnapshot?: null | string;
@@ -85,6 +102,14 @@ export interface BpmInstancePageQueryParams {
   title?: string;
 }
 
+export interface BpmInstanceCopyPageQueryParams {
+  instanceNo?: string;
+  pageNum: number;
+  pageSize: number;
+  readState?: null | number;
+  title?: string;
+}
+
 export interface BpmTaskPageQueryParams {
   instanceNo?: string;
   instanceTitle?: string;
@@ -117,16 +142,19 @@ export interface BpmInstanceResubmitForm {
 
 export interface BpmTaskApproveForm {
   commentText?: null | string;
+  copyEmployeeIds?: number[];
   taskId: number;
 }
 
 export interface BpmTaskRejectForm {
   commentText?: null | string;
+  copyEmployeeIds?: number[];
   taskId: number;
 }
 
 export interface BpmTaskReturnForm {
   commentText?: null | string;
+  copyEmployeeIds?: number[];
   taskId: number;
 }
 
@@ -248,9 +276,29 @@ export async function queryMyBpmDonePage(params: BpmTaskPageQueryParams) {
   });
 }
 
+export async function queryMyBpmCopyPage(
+  params: BpmInstanceCopyPageQueryParams,
+) {
+  return requestClient.post<PageResult<BpmInstanceCopyRecord>>(
+    '/app/bpm/my-copy',
+    {
+      instanceNo: params.instanceNo?.trim() || undefined,
+      pageNum: params.pageNum,
+      pageSize: params.pageSize,
+      readState: params.readState ?? undefined,
+      title: params.title?.trim() || undefined,
+    },
+  );
+}
+
+export async function markBpmCopyRead(copyId: number) {
+  return requestClient.post<string>(`/app/bpm/copy/read/${copyId}`);
+}
+
 export async function approveBpmTask(params: BpmTaskApproveForm) {
   return requestClient.post<string>('/app/bpm/task/approve', {
     commentText: params.commentText?.trim() || '',
+    copyEmployeeIds: params.copyEmployeeIds ?? [],
     taskId: params.taskId,
   });
 }
@@ -258,6 +306,7 @@ export async function approveBpmTask(params: BpmTaskApproveForm) {
 export async function rejectBpmTask(params: BpmTaskRejectForm) {
   return requestClient.post<string>('/app/bpm/task/reject', {
     commentText: params.commentText?.trim() || '',
+    copyEmployeeIds: params.copyEmployeeIds ?? [],
     taskId: params.taskId,
   });
 }
@@ -265,6 +314,7 @@ export async function rejectBpmTask(params: BpmTaskRejectForm) {
 export async function returnBpmTaskToInitiator(params: BpmTaskReturnForm) {
   return requestClient.post<string>('/app/bpm/task/returnToInitiator', {
     commentText: params.commentText?.trim() || '',
+    copyEmployeeIds: params.copyEmployeeIds ?? [],
     taskId: params.taskId,
   });
 }
