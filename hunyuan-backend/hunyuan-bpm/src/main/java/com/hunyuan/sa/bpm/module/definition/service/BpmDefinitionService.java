@@ -1,5 +1,8 @@
 package com.hunyuan.sa.bpm.module.definition.service;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
@@ -24,17 +27,21 @@ import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionPublishForm;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionQueryForm;
+import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDiffVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDetailVO;
+import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionValidationReportVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionVO;
 import com.hunyuan.sa.bpm.module.form.dao.BpmFormDao;
 import com.hunyuan.sa.bpm.module.form.domain.entity.BpmFormEntity;
 import com.hunyuan.sa.bpm.module.model.dao.BpmModelDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 流程定义服务。
@@ -86,11 +93,94 @@ public class BpmDefinitionService {
         return ResponseDTO.ok(detail);
     }
 
+    public ResponseDTO<BpmDefinitionValidationReportVO> validateForPublish(Long modelId) {
+        BpmModelEntity modelEntity = bpmModelDao.selectById(modelId);
+        if (modelEntity == null || Boolean.TRUE.equals(modelEntity.getDeletedFlag())) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+
+        BpmDefinitionValidationReportVO report = new BpmDefinitionValidationReportVO();
+        report.setPass(Boolean.TRUE);
+        report.setBlockingCount(0);
+        report.setWarningCount(0);
+
+        JSONObject simpleModelObject;
+        try {
+            simpleModelObject = JSON.parseObject(modelEntity.getSimpleModelJson());
+        } catch (Exception ex) {
+            addFinding(report, "BLOCKING", "SIMPLE_MODEL_JSON_INVALID", "设计器草稿 JSON 不合法", null, "simpleModelJson");
+            finishReport(report);
+            return ResponseDTO.ok(report);
+        }
+
+        JSONArray nodes = simpleModelObject == null ? null : simpleModelObject.getJSONArray("nodes");
+        if (nodes != null) {
+            for (int i = 0; i < nodes.size(); i++) {
+                JSONObject nodeObject = nodes.getJSONObject(i);
+                if (nodeObject == null || !"userTask".equals(nodeObject.getString("type"))) {
+                    continue;
+                }
+                String resolverType = firstNonBlank(
+                        nodeObject.getString("candidateResolverType"),
+                        nodeObject.getString("resolverType")
+                );
+                if (StringUtils.isBlank(resolverType)) {
+                    addFinding(
+                            report,
+                            "BLOCKING",
+                            "USER_TASK_CANDIDATE_EMPTY",
+                            "审批节点缺少处理人规则",
+                            nodeObject.getString("nodeKey"),
+                            "candidateResolverType"
+                    );
+                }
+            }
+        }
+
+        finishReport(report);
+        return ResponseDTO.ok(report);
+    }
+
+    public ResponseDTO<BpmDefinitionDiffVO> previewPublishDiff(Long modelId) {
+        BpmModelEntity modelEntity = bpmModelDao.selectById(modelId);
+        if (modelEntity == null || Boolean.TRUE.equals(modelEntity.getDeletedFlag())) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+
+        BpmDefinitionDiffVO diff = new BpmDefinitionDiffVO();
+        diff.setModelId(modelId);
+        diff.getChangedItems().add("发布后将生成新的不可变流程定义版本");
+
+        if (modelEntity.getPublishedDefinitionId() != null) {
+            BpmDefinitionEntity previousDefinition = bpmDefinitionDao.selectById(modelEntity.getPublishedDefinitionId());
+            if (previousDefinition != null) {
+                diff.setPreviousDefinitionId(previousDefinition.getDefinitionId());
+                diff.setPreviousVersion(previousDefinition.getDefinitionVersion());
+                if (!Objects.equals(previousDefinition.getSimpleModelSnapshotJson(), modelEntity.getSimpleModelJson())) {
+                    diff.getChangedItems().add("流程节点设计已变化");
+                }
+                if (!Objects.equals(previousDefinition.getStartRuleSnapshotJson(), modelEntity.getStartRuleJson())) {
+                    diff.getChangedItems().add("发起规则已变化");
+                }
+            }
+        }
+
+        return ResponseDTO.ok(diff);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> publish(BpmDefinitionPublishForm publishForm) {
         BpmModelEntity modelEntity = bpmModelDao.selectById(publishForm.getModelId());
         if (modelEntity == null || Boolean.TRUE.equals(modelEntity.getDeletedFlag())) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+
+        ResponseDTO<BpmDefinitionValidationReportVO> reportResponse = validateForPublish(publishForm.getModelId());
+        if (!Boolean.TRUE.equals(reportResponse.getOk())) {
+            return ResponseDTO.userErrorParam(reportResponse.getMsg());
+        }
+        if (!Boolean.TRUE.equals(reportResponse.getData().getPass())) {
+            return ResponseDTO.userErrorParam("流程发布校验未通过");
         }
 
         ResponseDTO<String> validateResponse = simpleModelValidator.validate(
@@ -169,6 +259,39 @@ public class BpmDefinitionService {
         bpmModelDao.updateById(updateModelEntity);
 
         return ResponseDTO.ok(definitionEntity.getDefinitionId());
+    }
+
+    private void addFinding(
+            BpmDefinitionValidationReportVO report,
+            String level,
+            String code,
+            String message,
+            String nodeKey,
+            String field
+    ) {
+        BpmDefinitionValidationReportVO.Finding finding = new BpmDefinitionValidationReportVO.Finding();
+        finding.setLevel(level);
+        finding.setCode(code);
+        finding.setMessage(message);
+        finding.setNodeKey(nodeKey);
+        finding.setField(field);
+        report.getFindings().add(finding);
+    }
+
+    private void finishReport(BpmDefinitionValidationReportVO report) {
+        int blockingCount = (int) report.getFindings().stream()
+                .filter(item -> "BLOCKING".equals(item.getLevel()))
+                .count();
+        report.setBlockingCount(blockingCount);
+        report.setWarningCount(report.getFindings().size() - blockingCount);
+        report.setPass(blockingCount == 0);
+    }
+
+    private String firstNonBlank(String firstValue, String secondValue) {
+        if (StringUtils.isNotBlank(firstValue)) {
+            return firstValue;
+        }
+        return secondValue;
     }
 
     private BpmDefinitionEntity buildDefinitionEntity(

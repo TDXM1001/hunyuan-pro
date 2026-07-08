@@ -9,7 +9,9 @@ import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionPublishForm;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionQueryForm;
+import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDiffVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDetailVO;
+import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionValidationReportVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionVO;
 import com.hunyuan.sa.bpm.module.definition.service.BpmDefinitionService;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +31,20 @@ public class AdminBpmDefinitionController {
     @SaCheckPermission("bpm:definition:publish")
     public ResponseDTO<Long> publish(@RequestBody @Valid BpmDefinitionPublishForm publishForm) {
         return bpmDefinitionService.publish(publishForm);
+    }
+
+    @Operation(summary = "发布前校验流程定义")
+    @GetMapping("/bpm/definition/validateForPublish/{modelId}")
+    @SaCheckPermission("bpm:definition:publish")
+    public ResponseDTO<BpmDefinitionValidationReportVO> validateForPublish(@PathVariable Long modelId) {
+        return bpmDefinitionService.validateForPublish(modelId);
+    }
+
+    @Operation(summary = "预览流程定义发布差异")
+    @GetMapping("/bpm/definition/publishDiff/{modelId}")
+    @SaCheckPermission("bpm:definition:publish")
+    public ResponseDTO<BpmDefinitionDiffVO> publishDiff(@PathVariable Long modelId) {
+        return bpmDefinitionService.previewPublishDiff(modelId);
     }
 
     @Operation(summary = "分页查询流程定义")

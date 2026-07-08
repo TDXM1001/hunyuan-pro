@@ -166,7 +166,7 @@ class BpmDefinitionPublishServiceTest {
         entity.setCategoryId(7L);
         entity.setFormType(1);
         entity.setFormId(9L);
-        entity.setSimpleModelJson("{\"nodes\":[{\"nodeKey\":\"approve\",\"type\":\"userTask\",\"name\":\"部门审批\",\"approvalMode\":\"single\",\"listeners\":[{\"channel\":\"MESSAGE\"}]}]}");
+        entity.setSimpleModelJson("{\"nodes\":[{\"nodeKey\":\"approve\",\"type\":\"userTask\",\"name\":\"部门审批\",\"approvalMode\":\"single\",\"candidateResolverType\":\"DEPARTMENT_MANAGER\",\"listeners\":[{\"channel\":\"MESSAGE\"}]}]}");
         entity.setStartRuleJson("{\"allowAll\":true}");
         entity.setVariableMappingJson("{\"days\":\"form.days\"}");
         entity.setManagerScopeJson("{\"scope\":\"department\"}");
