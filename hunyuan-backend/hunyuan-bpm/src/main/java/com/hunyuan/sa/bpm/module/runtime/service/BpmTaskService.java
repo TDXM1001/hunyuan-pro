@@ -1,5 +1,6 @@
 package com.hunyuan.sa.bpm.module.runtime.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
@@ -22,9 +23,13 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminTaskTransferForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskAddSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskDelegateForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRecallForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReduceSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
@@ -35,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 流程任务服务。
@@ -229,6 +235,199 @@ public class BpmTaskService {
                 targetSnapshot
         );
         return ResponseDTO.ok();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> delegate(BpmTaskDelegateForm delegateForm) {
+        return delegateInternal(delegateForm, true);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> adminDelegate(BpmTaskDelegateForm delegateForm) {
+        return delegateInternal(delegateForm, false);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> addSign(BpmTaskAddSignForm addSignForm) {
+        BpmTaskEntity taskEntity = bpmTaskDao.selectById(addSignForm.getTaskId());
+        if (taskEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())) {
+            return ResponseDTO.userErrorParam("当前流程任务状态不支持加签");
+        }
+
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        if (!Objects.equals(taskEntity.getAssigneeEmployeeId(), employeeId)) {
+            return ResponseDTO.userErrorParam("只能对自己的待办任务加签");
+        }
+        BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        BpmEmployeeSnapshot targetSnapshot = bpmOrgIdentityGateway.requireEmployee(addSignForm.getTargetEmployeeId());
+
+        LocalDateTime now = LocalDateTime.now();
+        BpmTaskEntity addSignTask = buildAddSignTask(taskEntity, targetSnapshot, now);
+        bpmTaskDao.insert(addSignTask);
+        bpmTaskActionLogDao.insert(buildActionLog(
+                taskEntity,
+                actorSnapshot,
+                "ADD_SIGNED",
+                addSignForm.getReason(),
+                taskEntity.getAssigneeEmployeeId(),
+                targetSnapshot.employeeId(),
+                now
+        ));
+        return ResponseDTO.ok();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> reduceSign(BpmTaskReduceSignForm reduceSignForm) {
+        BpmTaskEntity taskEntity = bpmTaskDao.selectById(reduceSignForm.getTaskId());
+        if (taskEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())) {
+            return ResponseDTO.userErrorParam("当前流程任务状态不支持减签");
+        }
+        if (taskEntity.getRuntimeAssignmentSnapshotJson() == null
+                || !taskEntity.getRuntimeAssignmentSnapshotJson().contains("\"addSign\":true")) {
+            return ResponseDTO.userErrorParam("只能减签加签任务");
+        }
+
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        LocalDateTime now = LocalDateTime.now();
+        BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
+        updateTaskEntity.setTaskId(taskEntity.getTaskId());
+        updateTaskEntity.setTaskState(BpmTaskStateEnum.CANCELLED.getValue());
+        updateTaskEntity.setTaskResult(BpmTaskResultEnum.ADD_SIGN_REDUCED.getValue());
+        updateTaskEntity.setCancelledAt(now);
+        updateTaskEntity.setLastActionAt(now);
+        bpmTaskDao.updateById(updateTaskEntity);
+
+        bpmTaskActionLogDao.insert(buildActionLog(
+                taskEntity,
+                actorSnapshot,
+                "REDUCE_SIGNED",
+                reduceSignForm.getReason(),
+                taskEntity.getAssigneeEmployeeId(),
+                null,
+                now
+        ));
+        return ResponseDTO.ok();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> recall(BpmTaskRecallForm recallForm) {
+        BpmTaskEntity taskEntity = bpmTaskDao.selectById(recallForm.getTaskId());
+        if (taskEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(taskEntity.getInstanceId());
+        if (instanceEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        if (!Objects.equals(instanceEntity.getStartEmployeeId(), employeeId)) {
+            return ResponseDTO.userErrorParam("只能撤回自己发起的流程");
+        }
+        if (!BpmInstanceRunStateEnum.RUNNING.equalsValue(instanceEntity.getRunState())) {
+            return ResponseDTO.userErrorParam("当前流程实例状态不支持撤回");
+        }
+
+        BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        LocalDateTime now = LocalDateTime.now();
+        List<BpmTaskEntity> pendingTasks = bpmTaskDao.selectList(Wrappers.<BpmTaskEntity>lambdaQuery()
+                .eq(BpmTaskEntity::getInstanceId, instanceEntity.getInstanceId())
+                .eq(BpmTaskEntity::getTaskState, BpmTaskStateEnum.PENDING.getValue()));
+        for (BpmTaskEntity pendingTask : pendingTasks) {
+            BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
+            updateTaskEntity.setTaskId(pendingTask.getTaskId());
+            updateTaskEntity.setTaskState(BpmTaskStateEnum.CANCELLED.getValue());
+            updateTaskEntity.setTaskResult(BpmTaskResultEnum.RECALLED.getValue());
+            updateTaskEntity.setCancelledAt(now);
+            updateTaskEntity.setLastActionAt(now);
+            bpmTaskDao.updateById(updateTaskEntity);
+        }
+
+        BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
+        updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
+        updateInstanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
+        updateInstanceEntity.setActiveTaskCount(0);
+        updateInstanceEntity.setCurrentNodeSummaryJson(null);
+        updateInstanceEntity.setLastActionAt(now);
+        bpmInstanceDao.updateById(updateInstanceEntity);
+
+        bpmTaskActionLogDao.insert(buildActionLog(
+                taskEntity,
+                actorSnapshot,
+                "RECALLED",
+                recallForm.getReason(),
+                taskEntity.getAssigneeEmployeeId(),
+                null,
+                now
+        ));
+        return ResponseDTO.ok();
+    }
+
+    private ResponseDTO<String> delegateInternal(BpmTaskDelegateForm delegateForm, boolean requireCurrentAssignee) {
+        BpmTaskEntity taskEntity = bpmTaskDao.selectById(delegateForm.getTaskId());
+        if (taskEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())) {
+            return ResponseDTO.userErrorParam("当前流程任务状态不支持委派");
+        }
+
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        if (requireCurrentAssignee && !Objects.equals(taskEntity.getAssigneeEmployeeId(), employeeId)) {
+            return ResponseDTO.userErrorParam("只能委派自己的待办任务");
+        }
+        BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        BpmEmployeeSnapshot targetSnapshot = bpmOrgIdentityGateway.requireEmployee(delegateForm.getTargetEmployeeId());
+        flowableTaskGateway.transfer(taskEntity.getEngineTaskId(), targetSnapshot.employeeId());
+        updateTaskAssigneeAndWriteLog(
+                taskEntity,
+                actorSnapshot,
+                "DELEGATED",
+                delegateForm.getReason(),
+                targetSnapshot
+        );
+        return ResponseDTO.ok();
+    }
+
+    private BpmTaskEntity buildAddSignTask(
+            BpmTaskEntity sourceTask,
+            BpmEmployeeSnapshot targetSnapshot,
+            LocalDateTime assignedAt
+    ) {
+        BpmTaskEntity task = new BpmTaskEntity();
+        task.setInstanceId(sourceTask.getInstanceId());
+        task.setDefinitionId(sourceTask.getDefinitionId());
+        task.setDefinitionNodeId(sourceTask.getDefinitionNodeId());
+        task.setEngineTaskId(sourceTask.getEngineTaskId() + ":add-sign:" + targetSnapshot.employeeId());
+        task.setEngineExecutionId(sourceTask.getEngineExecutionId());
+        task.setEngineProcessInstanceId(sourceTask.getEngineProcessInstanceId());
+        task.setTaskKey(sourceTask.getTaskKey());
+        task.setTaskName(sourceTask.getTaskName() + "加签");
+        task.setInstanceNo(sourceTask.getInstanceNo());
+        task.setInstanceTitle(sourceTask.getInstanceTitle());
+        task.setStartEmployeeId(sourceTask.getStartEmployeeId());
+        task.setStartEmployeeNameSnapshot(sourceTask.getStartEmployeeNameSnapshot());
+        task.setCategoryIdSnapshot(sourceTask.getCategoryIdSnapshot());
+        task.setCategoryNameSnapshot(sourceTask.getCategoryNameSnapshot());
+        task.setAssigneeEmployeeId(targetSnapshot.employeeId());
+        task.setAssigneeNameSnapshot(targetSnapshot.actualName());
+        task.setAssigneeDepartmentIdSnapshot(targetSnapshot.departmentId());
+        task.setAssigneeDepartmentNameSnapshot(targetSnapshot.departmentName());
+        task.setRuntimeAssignmentSnapshotJson("{\"addSign\":true,\"sourceTaskId\":"
+                + sourceTask.getTaskId()
+                + ",\"assigneeEmployeeId\":"
+                + targetSnapshot.employeeId()
+                + "}");
+        task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        task.setAssignedAt(assignedAt);
+        task.setLastActionAt(assignedAt);
+        return task;
     }
 
     private ResponseDTO<String> completeTask(

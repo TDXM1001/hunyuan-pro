@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminTaskTransferForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskDelegateForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
@@ -47,5 +48,12 @@ public class AdminBpmTaskController {
     @SaCheckPermission("bpm:task:update")
     public ResponseDTO<String> adminTransfer(@RequestBody @Valid BpmAdminTaskTransferForm form) {
         return bpmTaskService.adminTransfer(form);
+    }
+
+    @Operation(summary = "管理员委派流程任务")
+    @PostMapping("/bpm/task/adminDelegate")
+    @SaCheckPermission("bpm:task:update")
+    public ResponseDTO<String> adminDelegate(@RequestBody @Valid BpmTaskDelegateForm form) {
+        return bpmTaskService.adminDelegate(form);
     }
 }

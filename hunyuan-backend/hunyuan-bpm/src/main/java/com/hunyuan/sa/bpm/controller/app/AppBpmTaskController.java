@@ -5,8 +5,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskAddSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskDelegateForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRecallForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReduceSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
@@ -46,5 +50,29 @@ public class AppBpmTaskController {
     @PostMapping("/app/bpm/task/transfer")
     public ResponseDTO<String> transfer(@RequestBody @Valid BpmTaskTransferForm transferForm) {
         return bpmTaskService.transfer(transferForm);
+    }
+
+    @Operation(summary = "委派任务")
+    @PostMapping("/app/bpm/task/delegate")
+    public ResponseDTO<String> delegate(@RequestBody @Valid BpmTaskDelegateForm delegateForm) {
+        return bpmTaskService.delegate(delegateForm);
+    }
+
+    @Operation(summary = "加签任务")
+    @PostMapping("/app/bpm/task/addSign")
+    public ResponseDTO<String> addSign(@RequestBody @Valid BpmTaskAddSignForm addSignForm) {
+        return bpmTaskService.addSign(addSignForm);
+    }
+
+    @Operation(summary = "减签任务")
+    @PostMapping("/app/bpm/task/reduceSign")
+    public ResponseDTO<String> reduceSign(@RequestBody @Valid BpmTaskReduceSignForm reduceSignForm) {
+        return bpmTaskService.reduceSign(reduceSignForm);
+    }
+
+    @Operation(summary = "撤回任务")
+    @PostMapping("/app/bpm/task/recall")
+    public ResponseDTO<String> recall(@RequestBody @Valid BpmTaskRecallForm recallForm) {
+        return bpmTaskService.recall(recallForm);
     }
 }
