@@ -31,7 +31,20 @@ const apiFiles = [
   },
   {
     label: 'definition',
-    needles: ['/bpm/definition/query', '/bpm/definition/detail/'],
+    needles: [
+      '/bpm/definition/query',
+      '/bpm/definition/detail/',
+      'validateBpmDefinitionForPublish',
+      '/bpm/definition/validateForPublish/',
+      'getBpmDefinitionPublishDiff',
+      '/bpm/definition/publishDiff/',
+      'saveBpmDefinitionStartScope',
+      '/bpm/definition/startScope/save',
+      'suspendBpmDefinitionStart',
+      '/bpm/definition/suspendStart/',
+      'enableBpmDefinitionStart',
+      '/bpm/definition/enableStart/',
+    ],
     path: 'apps/hunyuan-system/src/api/system/bpm/definition.ts',
   },
   {

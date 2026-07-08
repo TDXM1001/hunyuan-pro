@@ -31,6 +31,33 @@ export interface BpmDefinitionDetailRecord extends BpmDefinitionRecord {
   variableMappingSnapshotJson?: null | string;
 }
 
+export interface BpmDefinitionValidationFinding {
+  code: string;
+  field?: string;
+  level: 'BLOCKING' | 'WARNING';
+  message: string;
+  nodeKey?: string;
+}
+
+export interface BpmDefinitionValidationReport {
+  blockingCount: number;
+  findings: BpmDefinitionValidationFinding[];
+  pass: boolean;
+  warningCount: number;
+}
+
+export interface BpmDefinitionDiff {
+  changedItems: string[];
+  modelId: number;
+  previousDefinitionId?: number;
+  previousVersion?: number;
+}
+
+export interface BpmDefinitionStartScopeSaveForm {
+  definitionId: number;
+  startScopeJson: string;
+}
+
 export interface BpmDefinitionPageQueryParams {
   definitionKey?: string;
   definitionName?: string;
@@ -60,4 +87,28 @@ export async function getBpmDefinitionDetail(definitionId: number) {
   return requestClient.get<BpmDefinitionDetailRecord>(
     `/bpm/definition/detail/${definitionId}`,
   );
+}
+
+export function validateBpmDefinitionForPublish(modelId: number) {
+  return requestClient.get<BpmDefinitionValidationReport>(
+    `/bpm/definition/validateForPublish/${modelId}`,
+  );
+}
+
+export function getBpmDefinitionPublishDiff(modelId: number) {
+  return requestClient.get<BpmDefinitionDiff>(
+    `/bpm/definition/publishDiff/${modelId}`,
+  );
+}
+
+export function saveBpmDefinitionStartScope(data: BpmDefinitionStartScopeSaveForm) {
+  return requestClient.post<string>('/bpm/definition/startScope/save', data);
+}
+
+export function suspendBpmDefinitionStart(definitionId: number) {
+  return requestClient.post<string>(`/bpm/definition/suspendStart/${definitionId}`);
+}
+
+export function enableBpmDefinitionStart(definitionId: number) {
+  return requestClient.post<string>(`/bpm/definition/enableStart/${definitionId}`);
 }

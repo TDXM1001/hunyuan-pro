@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { ArtActionItem } from '@vben/art-hooks/common';
-import type { BpmDesignerSaveForm } from '#/api/system/bpm';
+import type {
+  BpmDefinitionDiff,
+  BpmDefinitionValidationReport,
+  BpmDesignerSaveForm,
+} from '#/api/system/bpm';
 import type {
   BpmProcessDesignerExpose,
   BpmProcessDesignerSnapshot,
@@ -21,15 +25,18 @@ import {
   ElInput,
   ElInputNumber,
   ElMessage,
+  ElMessageBox,
   ElTag,
 } from 'element-plus';
 
 import {
   buildEmptyBpmDesignerDraft,
+  getBpmDefinitionPublishDiff,
   getBpmDesignerDetail,
   publishBpmDefinition,
   saveBpmDesignerDraft,
   simulateBpmDesignerDraft,
+  validateBpmDefinitionForPublish,
   validateBpmDesignerDraft,
 } from '#/api/system/bpm';
 import BpmProcessDesignerAdapter from '#/components/bpm/adapters/bpm-process-designer-adapter.vue';
@@ -62,6 +69,8 @@ const validating = ref(false);
 const simulating = ref(false);
 const publishing = ref(false);
 const loaded = ref(false);
+const validationReport = ref<BpmDefinitionValidationReport>();
+const publishDiff = ref<BpmDefinitionDiff>();
 
 const baseInfo = reactive<DesignerBaseInfo>({
   categoryName: '',
@@ -273,6 +282,32 @@ async function handlePublish() {
 
   publishing.value = true;
   try {
+    validationReport.value = await validateBpmDefinitionForPublish(formData.modelId);
+    if (!validationReport.value.pass) {
+      const firstFinding = validationReport.value.findings[0];
+      ElMessage.warning(firstFinding?.message || '流程发布校验未通过');
+      return;
+    }
+
+    publishDiff.value = await getBpmDefinitionPublishDiff(formData.modelId);
+    const changedItems = publishDiff.value.changedItems.length > 0
+      ? publishDiff.value.changedItems.join('、')
+      : '无发布差异';
+    const confirmed = await ElMessageBox.confirm(
+      `确认发布流程定义？${changedItems}`,
+      '发布确认',
+      {
+        cancelButtonText: '取消',
+        confirmButtonText: '发布',
+        type: 'warning',
+      },
+    )
+      .then(() => true)
+      .catch(() => false);
+    if (!confirmed) {
+      return;
+    }
+
     await publishBpmDefinition({ modelId: formData.modelId });
     baseInfo.hasUnpublishedChanges = false;
     ElMessage.success('流程定义发布成功');

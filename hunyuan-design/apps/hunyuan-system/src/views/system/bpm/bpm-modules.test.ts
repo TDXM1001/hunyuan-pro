@@ -122,7 +122,20 @@ describe('bpm module contracts', () => {
     expect(modelEditorSource).toContain('ArtEditPage');
     expect(modelEditorSource).toContain('ArtEditSection');
     expect(modelEditorSource).toContain('BpmProcessDesignerAdapter');
+    expect(modelEditorSource).toContain('validateBpmDefinitionForPublish');
+    expect(modelEditorSource).toContain('getBpmDefinitionPublishDiff');
+    expect(modelEditorSource).toContain('validationReport');
+    expect(modelEditorSource).toContain('publishDiff');
     expect(modelEditorSource).not.toContain('simpleModel JSON');
+  });
+
+  it('keeps the definition list wired to P1.1 governance actions', () => {
+    const definitionSource = readSource(definitionPagePath);
+
+    expect(definitionSource).toContain('suspendBpmDefinitionStart');
+    expect(definitionSource).toContain('enableBpmDefinitionStart');
+    expect(definitionSource).toContain('handleSuspendStart');
+    expect(definitionSource).toContain('handleEnableStart');
   });
 
   it('keeps the model list wired to the hidden designer route', () => {

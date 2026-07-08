@@ -20,13 +20,19 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
+  ElMessageBox,
   ElOption,
   ElSelect,
   ElSpace,
   ElTag,
 } from 'element-plus';
 
-import { getBpmDefinitionDetail, queryBpmDefinitionPage } from '#/api/system/bpm';
+import {
+  enableBpmDefinitionStart,
+  getBpmDefinitionDetail,
+  queryBpmDefinitionPage,
+  suspendBpmDefinitionStart,
+} from '#/api/system/bpm';
 
 defineOptions({ name: 'SystemBpmDefinitionList' });
 
@@ -64,7 +70,7 @@ const columnsFactory = (): ColumnOption<BpmDefinitionRecord>[] => [
   {
     prop: 'actions',
     label: '操作',
-    width: 120,
+    width: 150,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -139,6 +145,36 @@ async function openDetailDialog(row: BpmDefinitionRecord) {
     detailData.value = await getBpmDefinitionDetail(row.definitionId);
   } finally {
     detailLoading.value = false;
+  }
+}
+
+async function handleSuspendStart(row: BpmDefinitionRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确定停用流程定义“${row.definitionName}”的发起入口吗？`,
+      '停用发起确认',
+      { type: 'warning' },
+    );
+    await suspendBpmDefinitionStart(row.definitionId);
+    ElMessage.success('已停用发起入口');
+    await loadData();
+  } catch {
+    // 用户取消
+  }
+}
+
+async function handleEnableStart(row: BpmDefinitionRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确定启用流程定义“${row.definitionName}”的发起入口吗？`,
+      '启用发起确认',
+      { type: 'warning' },
+    );
+    await enableBpmDefinitionStart(row.definitionId);
+    ElMessage.success('已启用发起入口');
+    await loadData();
+  } catch {
+    // 用户取消
   }
 }
 
@@ -251,6 +287,24 @@ onMounted(() => {
               <ElSpace class="definition-page__actions">
                 <ElButton link size="small" type="primary" @click="openDetailDialog(row)">
                   详情
+                </ElButton>
+                <ElButton
+                  v-if="row.startState === 1"
+                  link
+                  size="small"
+                  type="warning"
+                  @click="handleSuspendStart(row)"
+                >
+                  停用
+                </ElButton>
+                <ElButton
+                  v-else
+                  link
+                  size="small"
+                  type="success"
+                  @click="handleEnableStart(row)"
+                >
+                  启用
                 </ElButton>
               </ElSpace>
             </template>
