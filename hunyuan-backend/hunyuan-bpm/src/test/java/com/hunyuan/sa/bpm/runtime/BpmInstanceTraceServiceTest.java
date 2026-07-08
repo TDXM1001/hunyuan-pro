@@ -7,10 +7,12 @@ import com.hunyuan.sa.bpm.module.integration.domain.vo.BpmCommandRecordVO;
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessIntegrationRecordService;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceTraceVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmNotificationRecordVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskActionLogVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceTraceService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -29,13 +31,17 @@ class BpmInstanceTraceServiceTest {
 
     private BpmBusinessIntegrationRecordService integrationRecordService;
 
+    private BpmNotificationRecordService notificationRecordService;
+
     @BeforeEach
     void setUp() {
         traceService = new BpmInstanceTraceService();
         bpmInstanceService = Mockito.mock(BpmInstanceService.class);
         integrationRecordService = Mockito.mock(BpmBusinessIntegrationRecordService.class);
+        notificationRecordService = Mockito.mock(BpmNotificationRecordService.class);
         setField(traceService, "bpmInstanceService", bpmInstanceService);
         setField(traceService, "integrationRecordService", integrationRecordService);
+        setField(traceService, "notificationRecordService", notificationRecordService);
     }
 
     @Test
@@ -58,9 +64,13 @@ class BpmInstanceTraceServiceTest {
         BpmCommandRecordVO commandRecord = new BpmCommandRecordVO();
         commandRecord.setCommandRecordId(41L);
         commandRecord.setInstanceId(88L);
+        BpmNotificationRecordVO notificationRecord = new BpmNotificationRecordVO();
+        notificationRecord.setNotificationRecordId(51L);
+        notificationRecord.setInstanceId(88L);
         when(bpmInstanceService.getDetail(88L)).thenReturn(ResponseDTO.ok(detail));
         when(integrationRecordService.queryCallbackRecordsByInstanceId(88L)).thenReturn(List.of(callbackRecord));
         when(integrationRecordService.queryCommandRecordsByInstanceId(88L)).thenReturn(List.of(commandRecord));
+        when(notificationRecordService.queryByInstanceId(88L)).thenReturn(List.of(notificationRecord));
 
         ResponseDTO<BpmInstanceTraceVO> response = traceService.getTrace(88L);
 
@@ -70,6 +80,7 @@ class BpmInstanceTraceServiceTest {
         assertThat(response.getData().getActionLogs()).hasSize(1);
         assertThat(response.getData().getCallbackRecords()).hasSize(1);
         assertThat(response.getData().getCommandRecords()).hasSize(1);
+        assertThat(response.getData().getNotificationRecords()).hasSize(1);
     }
 
     @Test

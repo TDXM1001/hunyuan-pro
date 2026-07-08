@@ -13,7 +13,13 @@ import java.util.List;
  */
 public record BpmNotificationCommand(
         List<String> channels,
+        Long instanceId,
+        Long taskId,
+        Long definitionId,
+        Long definitionNodeId,
+        String eventKey,
         Long receiverEmployeeId,
+        String receiverSnapshotJson,
         String receiverPhone,
         List<String> receiverMailList,
         String title,
@@ -38,7 +44,7 @@ public record BpmNotificationCommand(
         sendForm.setPhone(receiverPhone);
         sendForm.setTemplateCode(smsTemplateCode == null ? "bpm_notify" : smsTemplateCode);
         sendForm.setContent(content);
-        sendForm.setIdempotentKey(String.valueOf(receiverEmployeeId));
+        sendForm.setIdempotentKey(instanceId + ":" + taskId + ":" + receiverEmployeeId);
         return sendForm;
     }
 

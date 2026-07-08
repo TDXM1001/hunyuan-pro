@@ -37,6 +37,7 @@ const currentTasks = computed(() => detail.value?.currentTasks ?? []);
 const actionLogs = computed(() => detail.value?.actionLogs ?? []);
 const callbackRecords = computed(() => trace.value?.callbackRecords ?? []);
 const commandRecords = computed(() => trace.value?.commandRecords ?? []);
+const notificationRecords = computed(() => trace.value?.notificationRecords ?? []);
 const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
 const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
 type DetailSource = 'admin' | 'runtime';
@@ -51,6 +52,19 @@ function getActionLabel(actionType?: null | string) {
     TRANSFERRED: '转办',
   };
   return actionType ? (labelMap[actionType] ?? actionType) : '-';
+}
+
+function getNotificationStatusLabel(sendStatus?: null | number) {
+  if (sendStatus === 0) {
+    return '待发送';
+  }
+  if (sendStatus === 1) {
+    return '成功';
+  }
+  if (sendStatus === 2) {
+    return '失败';
+  }
+  return '-';
 }
 
 async function open(instanceId: number, source: DetailSource = 'runtime') {
@@ -171,6 +185,10 @@ defineExpose({ open });
             <span>命令记录</span>
             <strong>{{ commandRecords.length }}</strong>
           </div>
+          <div class="bpm-instance-detail__trace-item">
+            <span>通知记录</span>
+            <strong>{{ notificationRecords.length }}</strong>
+          </div>
         </div>
 
         <div class="bpm-instance-detail__sub-title">回调记录</div>
@@ -224,6 +242,31 @@ defineExpose({ open });
           />
         </ElTable>
         <ElEmpty v-else description="暂无命令记录" />
+
+        <div class="bpm-instance-detail__sub-title">通知记录</div>
+        <ElTable
+          v-if="notificationRecords.length > 0"
+          :data="notificationRecords"
+          border
+          size="small"
+        >
+          <ElTableColumn label="事件" min-width="120" prop="eventKey" show-overflow-tooltip />
+          <ElTableColumn label="渠道" min-width="80" prop="channel" />
+          <ElTableColumn label="接收员工" min-width="90" prop="receiverEmployeeId" />
+          <ElTableColumn label="状态" min-width="80">
+            <template #default="{ row }">
+              {{ getNotificationStatusLabel(row.sendStatus) }}
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="发送时间" min-width="150" prop="sentAt" />
+          <ElTableColumn
+            label="失败原因"
+            min-width="160"
+            prop="failReason"
+            show-overflow-tooltip
+          />
+        </ElTable>
+        <ElEmpty v-else description="暂无通知记录" />
       </template>
     </div>
   </ElDrawer>
@@ -275,7 +318,7 @@ defineExpose({ open });
 .bpm-instance-detail__trace-summary {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
 }
 
 .bpm-instance-detail__trace-item {

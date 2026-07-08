@@ -1,0 +1,27 @@
+-- BPM P2.2：通知投递记录
+CREATE TABLE `t_bpm_notification_record` (
+  `notification_record_id` bigint NOT NULL AUTO_INCREMENT COMMENT '通知记录ID',
+  `instance_id` bigint NOT NULL COMMENT '流程实例ID',
+  `task_id` bigint NULL COMMENT '流程任务ID',
+  `definition_id` bigint NULL COMMENT '流程定义ID',
+  `definition_node_id` bigint NULL COMMENT '流程定义节点ID',
+  `event_key` varchar(64) NOT NULL COMMENT '事件键',
+  `channel` varchar(32) NOT NULL COMMENT '通知渠道',
+  `receiver_employee_id` bigint NULL COMMENT '接收员工ID',
+  `receiver_snapshot_json` longtext NULL COMMENT '接收人快照',
+  `template_code` varchar(128) NULL COMMENT '模板编码',
+  `title` varchar(200) NULL COMMENT '通知标题',
+  `content_snapshot` varchar(1000) NULL COMMENT '通知内容快照',
+  `send_status` tinyint NOT NULL COMMENT '发送状态',
+  `request_payload_json` longtext NULL COMMENT '请求快照',
+  `response_snapshot_json` longtext NULL COMMENT '响应快照',
+  `fail_reason` varchar(1000) NULL COMMENT '失败原因',
+  `sent_at` datetime NULL COMMENT '发送完成时间',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`notification_record_id`),
+  KEY `idx_bpm_notification_instance` (`instance_id`),
+  KEY `idx_bpm_notification_task` (`task_id`),
+  KEY `idx_bpm_notification_event` (`event_key`),
+  KEY `idx_bpm_notification_channel_status` (`channel`, `send_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='BPM通知投递记录';

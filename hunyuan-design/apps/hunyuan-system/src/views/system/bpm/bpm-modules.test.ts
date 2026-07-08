@@ -276,6 +276,8 @@ describe('bpm module contracts', () => {
     expect(detailSource).toContain('可靠性追踪');
     expect(detailSource).toContain('callbackRecords');
     expect(detailSource).toContain('commandRecords');
+    expect(detailSource).toContain('notificationRecords');
+    expect(detailSource).toContain('通知记录');
   });
 
   it('keeps the admin instance page aligned to four backend run states', () => {

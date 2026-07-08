@@ -12,6 +12,8 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationCommand;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationListenerService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +38,7 @@ class BpmTaskProjectionServiceTest {
     private BpmDefinitionNodeDao bpmDefinitionNodeDao;
     private FlowableTaskGateway flowableTaskGateway;
     private BpmOrgIdentityGateway bpmOrgIdentityGateway;
+    private BpmNotificationListenerService bpmNotificationListenerService;
 
     @BeforeEach
     void setUp() {
@@ -44,11 +48,13 @@ class BpmTaskProjectionServiceTest {
         bpmDefinitionNodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
         flowableTaskGateway = Mockito.mock(FlowableTaskGateway.class);
         bpmOrgIdentityGateway = Mockito.mock(BpmOrgIdentityGateway.class);
+        bpmNotificationListenerService = Mockito.mock(BpmNotificationListenerService.class);
         setField(service, "bpmInstanceDao", bpmInstanceDao);
         setField(service, "bpmTaskDao", bpmTaskDao);
         setField(service, "bpmDefinitionNodeDao", bpmDefinitionNodeDao);
         setField(service, "flowableTaskGateway", flowableTaskGateway);
         setField(service, "bpmOrgIdentityGateway", bpmOrgIdentityGateway);
+        setField(service, "bpmNotificationListenerService", bpmNotificationListenerService);
     }
 
     @Test
@@ -92,6 +98,87 @@ class BpmTaskProjectionServiceTest {
         assertThat(instanceCaptor.getValue().getInstanceId()).isEqualTo(8L);
         assertThat(instanceCaptor.getValue().getActiveTaskCount()).isEqualTo(1);
         assertThat(instanceCaptor.getValue().getCurrentNodeSummaryJson()).contains("approve_1");
+    }
+
+    @Test
+    void syncActiveTasksShouldDispatchNotificationWhenNewTaskHasMessageListener() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(5L);
+        node.setNodeKey("approve_1");
+        node.setCompiledNodeSnapshotJson("{\"listeners\":[{\"channel\":\"MESSAGE\"}]}");
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot("task-1", "execution-1", "process-1", "approve_1", "一级审批", 22L)
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(bpmDefinitionNodeDao.selectOne(any(Wrapper.class))).thenReturn(node);
+        when(bpmOrgIdentityGateway.requireEmployee(22L)).thenReturn(new BpmEmployeeSnapshot(22L, "李四", 9L, "财务部", "13800000000", "lisi@example.com"));
+        when(bpmTaskDao.insert(any(BpmTaskEntity.class))).thenAnswer(invocation -> {
+            BpmTaskEntity task = invocation.getArgument(0);
+            task.setTaskId(11L);
+            return 1;
+        });
+
+        service.syncActiveTasksForInstance(8L);
+
+        ArgumentCaptor<BpmNotificationCommand> commandCaptor = ArgumentCaptor.forClass(BpmNotificationCommand.class);
+        verify(bpmNotificationListenerService).dispatch(commandCaptor.capture());
+        assertThat(commandCaptor.getValue().safeChannels()).containsExactly("MESSAGE");
+        assertThat(commandCaptor.getValue().instanceId()).isEqualTo(8L);
+        assertThat(commandCaptor.getValue().taskId()).isEqualTo(11L);
+        assertThat(commandCaptor.getValue().definitionNodeId()).isEqualTo(5L);
+        assertThat(commandCaptor.getValue().eventKey()).isEqualTo("TASK_CREATED");
+        assertThat(commandCaptor.getValue().receiverEmployeeId()).isEqualTo(22L);
+    }
+
+    @Test
+    void syncActiveTasksShouldNotDispatchNotificationWhenTaskAlreadyExists() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmTaskEntity existingTask = new BpmTaskEntity();
+        existingTask.setTaskId(11L);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot("task-1", "execution-1", "process-1", "approve_1", "一级审批", 22L)
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(existingTask);
+
+        service.syncActiveTasksForInstance(8L);
+
+        verify(bpmNotificationListenerService, never()).dispatch(any(BpmNotificationCommand.class));
+    }
+
+    @Test
+    void syncActiveTasksShouldNotDispatchNotificationWhenAssigneeIsMissing() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(5L);
+        node.setNodeKey("approve_1");
+        node.setCompiledNodeSnapshotJson("{\"listeners\":[{\"channel\":\"MESSAGE\"}]}");
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot("task-1", "execution-1", "process-1", "approve_1", "一级审批", null)
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(bpmDefinitionNodeDao.selectOne(any(Wrapper.class))).thenReturn(node);
+
+        service.syncActiveTasksForInstance(8L);
+
+        verify(bpmNotificationListenerService, never()).dispatch(any(BpmNotificationCommand.class));
+    }
+
+    private BpmInstanceEntity buildInstance() {
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(8L);
+        instance.setDefinitionId(2L);
+        instance.setEngineProcessInstanceId("process-1");
+        instance.setInstanceNo("SN-2026-0001");
+        instance.setTitle("请假申请");
+        instance.setStartEmployeeId(100L);
+        instance.setStartEmployeeNameSnapshot("张三");
+        instance.setCategoryIdSnapshot(7L);
+        instance.setCategoryNameSnapshot("人事流程");
+        return instance;
     }
 
     private static void setField(Object target, String fieldName, Object value) {

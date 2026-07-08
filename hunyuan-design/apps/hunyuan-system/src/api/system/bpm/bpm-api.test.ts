@@ -55,6 +55,8 @@ const apiFiles = [
       '/bpm/instance/trace/',
       'getBpmAdminInstanceTrace',
       'BpmInstanceTraceRecord',
+      'BpmNotificationRecordVO',
+      'notificationRecords',
       '/bpm/task/detail/',
       '/app/bpm/startable',
       '/app/bpm/start-draft/',

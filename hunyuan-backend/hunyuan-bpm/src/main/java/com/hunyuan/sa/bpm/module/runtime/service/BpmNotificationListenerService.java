@@ -1,13 +1,8 @@
 package com.hunyuan.sa.bpm.module.runtime.service;
 
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmNotificationRecordVO;
 import jakarta.annotation.Resource;
-import jakarta.mail.MessagingException;
-import com.hunyuan.sa.base.module.support.mail.MailService;
-import com.hunyuan.sa.base.module.support.message.service.MessageService;
-import com.hunyuan.sa.base.module.support.sms.service.SmsService;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * BPM 通知型监听器分发服务。
@@ -16,29 +11,22 @@ import java.util.List;
 public class BpmNotificationListenerService {
 
     @Resource
-    private MessageService messageService;
+    private BpmNotificationRecordService notificationRecordService;
 
     @Resource
-    private SmsService smsService;
-
-    @Resource
-    private MailService mailService;
+    private BpmNotificationChannelSender channelSender;
 
     /**
-     * 按渠道分发站内信、短信、邮件通知。
+     * 按渠道分发通知，并为每个渠道写入 BPM 自己的投递记录。
      */
     public void dispatch(BpmNotificationCommand command) {
-        if (command.safeChannels().contains("MESSAGE")) {
-            messageService.sendMessage(command.toMessageSendForm());
-        }
-        if (command.safeChannels().contains("SMS")) {
-            smsService.send(command.toSmsSendForm());
-        }
-        if (command.safeChannels().contains("MAIL")) {
+        for (String channel : command.safeChannels()) {
+            BpmNotificationRecordVO record = notificationRecordService.createPendingRecord(command, channel);
             try {
-                mailService.sendMail(command.subject(), command.content(), List.of(), command.receiverMailList(), true);
-            } catch (MessagingException ex) {
-                throw new IllegalStateException("BPM 邮件监听通知发送失败", ex);
+                channelSender.send(command, channel);
+                notificationRecordService.markSuccess(record.getNotificationRecordId(), "{}");
+            } catch (Exception ex) {
+                notificationRecordService.markFail(record.getNotificationRecordId(), ex.getMessage());
             }
         }
     }

@@ -22,6 +22,9 @@ public class BpmInstanceTraceService {
     @Resource
     private BpmBusinessIntegrationRecordService integrationRecordService;
 
+    @Resource
+    private BpmNotificationRecordService notificationRecordService;
+
     public ResponseDTO<BpmInstanceTraceVO> getTrace(Long instanceId) {
         ResponseDTO<BpmInstanceDetailVO> detailResponse = bpmInstanceService.getDetail(instanceId);
         if (!Boolean.TRUE.equals(detailResponse.getOk()) || detailResponse.getData() == null) {
@@ -35,6 +38,7 @@ public class BpmInstanceTraceService {
         trace.setActionLogs(detail.getActionLogs() == null ? List.of() : detail.getActionLogs());
         trace.setCallbackRecords(integrationRecordService.queryCallbackRecordsByInstanceId(instanceId));
         trace.setCommandRecords(integrationRecordService.queryCommandRecordsByInstanceId(instanceId));
+        trace.setNotificationRecords(notificationRecordService.queryByInstanceId(instanceId));
         return ResponseDTO.ok(trace);
     }
 }

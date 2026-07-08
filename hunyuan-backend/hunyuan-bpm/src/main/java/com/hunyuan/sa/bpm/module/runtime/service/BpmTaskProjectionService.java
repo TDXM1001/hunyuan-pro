@@ -1,5 +1,6 @@
 package com.hunyuan.sa.bpm.module.runtime.service;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -7,6 +8,7 @@ import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.exception.BusinessException;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.common.enumeration.BpmNotificationChannelEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableActiveTaskSnapshot;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -43,6 +46,9 @@ public class BpmTaskProjectionService {
 
     @Resource
     private BpmOrgIdentityGateway bpmOrgIdentityGateway;
+
+    @Resource
+    private BpmNotificationListenerService bpmNotificationListenerService;
 
     @Transactional(rollbackFor = Exception.class)
     public int syncActiveTasksForInstance(Long instanceId) {
@@ -96,6 +102,7 @@ public class BpmTaskProjectionService {
         task.setAssignedAt(now);
         task.setLastActionAt(now);
         bpmTaskDao.insert(task);
+        dispatchTaskCreatedNotification(instance, task, node, assigneeSnapshot);
     }
 
     private void fillAssigneeSnapshot(BpmTaskEntity task, BpmEmployeeSnapshot assigneeSnapshot) {
@@ -108,6 +115,88 @@ public class BpmTaskProjectionService {
         JSONObject assignment = new JSONObject();
         assignment.put("assigneeEmployeeId", assigneeSnapshot.employeeId());
         task.setRuntimeAssignmentSnapshotJson(assignment.toJSONString());
+    }
+
+    private void dispatchTaskCreatedNotification(
+            BpmInstanceEntity instance,
+            BpmTaskEntity task,
+            BpmDefinitionNodeEntity node,
+            BpmEmployeeSnapshot assigneeSnapshot
+    ) {
+        if (assigneeSnapshot == null) {
+            return;
+        }
+        List<String> channels = parseNotificationChannels(node);
+        if (channels.isEmpty()) {
+            return;
+        }
+
+        BpmNotificationCommand command = new BpmNotificationCommand(
+                channels,
+                instance.getInstanceId(),
+                task.getTaskId(),
+                instance.getDefinitionId(),
+                task.getDefinitionNodeId(),
+                "TASK_CREATED",
+                task.getAssigneeEmployeeId(),
+                buildReceiverSnapshotJson(assigneeSnapshot),
+                assigneeSnapshot.phone(),
+                assigneeSnapshot.email() == null ? List.of() : List.of(assigneeSnapshot.email()),
+                "流程待办提醒",
+                "流程待办提醒",
+                "你有一个新的流程待办：" + task.getInstanceTitle(),
+                "bpm_task_created"
+        );
+        bpmNotificationListenerService.dispatch(command);
+    }
+
+    private List<String> parseNotificationChannels(BpmDefinitionNodeEntity node) {
+        if (node == null || node.getCompiledNodeSnapshotJson() == null) {
+            return List.of();
+        }
+        try {
+            JSONObject nodeSnapshot = JSON.parseObject(node.getCompiledNodeSnapshotJson());
+            JSONArray listeners = nodeSnapshot.getJSONArray("listeners");
+            if (listeners == null || listeners.isEmpty()) {
+                return List.of();
+            }
+            List<String> channels = new ArrayList<>();
+            for (Object listener : listeners) {
+                if (!(listener instanceof JSONObject listenerObject)) {
+                    continue;
+                }
+                String channel = listenerObject.getString("channel");
+                if (isSupportedChannel(channel) && !channels.contains(channel)) {
+                    channels.add(channel);
+                }
+            }
+            return channels;
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private boolean isSupportedChannel(String channel) {
+        if (channel == null) {
+            return false;
+        }
+        for (BpmNotificationChannelEnum channelEnum : BpmNotificationChannelEnum.values()) {
+            if (channelEnum.name().equals(channel)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String buildReceiverSnapshotJson(BpmEmployeeSnapshot assigneeSnapshot) {
+        JSONObject snapshot = new JSONObject();
+        snapshot.put("employeeId", assigneeSnapshot.employeeId());
+        snapshot.put("actualName", assigneeSnapshot.actualName());
+        snapshot.put("departmentId", assigneeSnapshot.departmentId());
+        snapshot.put("departmentName", assigneeSnapshot.departmentName());
+        snapshot.put("phone", assigneeSnapshot.phone());
+        snapshot.put("email", assigneeSnapshot.email());
+        return snapshot.toJSONString();
     }
 
     private void updateInstanceActiveTaskSummary(Long instanceId, List<FlowableActiveTaskSnapshot> activeTasks) {

@@ -39,12 +39,35 @@ export interface BpmInstanceDetailRecord extends BpmInstanceRecord {
   summary?: null | string;
 }
 
+export interface BpmNotificationRecordVO {
+  channel: string;
+  contentSnapshot?: null | string;
+  createTime?: null | string;
+  definitionId?: null | number;
+  definitionNodeId?: null | number;
+  eventKey: string;
+  failReason?: null | string;
+  instanceId: number;
+  notificationRecordId: number;
+  receiverEmployeeId?: null | number;
+  receiverSnapshotJson?: null | string;
+  requestPayloadJson?: null | string;
+  responseSnapshotJson?: null | string;
+  sendStatus?: null | number;
+  sentAt?: null | string;
+  taskId?: null | number;
+  templateCode?: null | string;
+  title?: null | string;
+  updateTime?: null | string;
+}
+
 export interface BpmInstanceTraceRecord {
   actionLogs: BpmTaskActionLogRecord[];
   callbackRecords: BpmCallbackRecordVO[];
   commandRecords: BpmCommandRecordVO[];
   currentTasks: BpmTaskRecord[];
   instance: BpmInstanceDetailRecord;
+  notificationRecords: BpmNotificationRecordVO[];
 }
 
 export interface BpmInstanceCopyRecord {
