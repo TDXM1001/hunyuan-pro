@@ -31,6 +31,8 @@ const runtimeMyTodoPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/my-todo-list.vue';
 const runtimeMyDonePath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/my-done-list.vue';
+const runtimeMyCopyPath =
+  'apps/hunyuan-system/src/views/system/bpm/runtime/my-copy-list.vue';
 const runtimeFormRendererPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-runtime-form-renderer.vue';
 const runtimeDetailDrawerPath =
@@ -149,6 +151,7 @@ describe('bpm module contracts', () => {
       runtimeMyInstancePath,
       runtimeMyTodoPath,
       runtimeMyDonePath,
+      runtimeMyCopyPath,
       runtimeDetailDrawerPath,
     ].forEach((path) => {
       expect(existsSync(resolve(process.cwd(), path))).toBe(true);
@@ -165,6 +168,8 @@ describe('bpm module contracts', () => {
     expect(runtimeApiSource).toContain('/app/bpm/instance/resubmit');
     expect(runtimeApiSource).toContain('/app/bpm/my-todo');
     expect(runtimeApiSource).toContain('/app/bpm/my-done');
+    expect(runtimeApiSource).toContain('/app/bpm/my-copy');
+    expect(runtimeApiSource).toContain('/app/bpm/copy/read/');
     expect(runtimeApiSource).toContain('/app/bpm/instance/detail/');
     expect(runtimeApiSource).toContain('currentTasks?: BpmTaskRecord[]');
   });
@@ -273,6 +278,19 @@ describe('bpm module contracts', () => {
     expect(todoSource).toContain('detailLoadErrorMessage');
     expect(todoSource).toContain('handleApprove');
     expect(todoSource).toContain('handleReturn');
+  });
+
+  it('keeps the runtime copy page wired to my-copy api and unified instance detail drawer', () => {
+    const copySource = readSource(runtimeMyCopyPath);
+
+    expect(copySource).toContain("defineOptions({ name: 'SystemBpmRuntimeMyCopyList' })");
+    expect(copySource).toContain('ArtSearchPanel');
+    expect(copySource).toContain('ArtTablePanel');
+    expect(copySource).toContain(':collapsible="false"');
+    expect(copySource).toContain('BpmInstanceDetailDrawer');
+    expect(copySource).toContain('queryMyBpmCopyPage');
+    expect(copySource).toContain('markBpmCopyRead');
+    expect(copySource).toContain('detailDrawerRef.value?.open(row.instanceId)');
   });
 
   it('keeps the admin instance route aligned to the backend menu sql contract', () => {
