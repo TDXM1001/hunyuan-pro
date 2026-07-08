@@ -280,6 +280,16 @@ describe('bpm module contracts', () => {
     expect(todoSource).toContain('handleReturn');
   });
 
+  it('keeps the runtime todo approval actions wired to optional manual copy employees', () => {
+    const todoSource = readSource(runtimeMyTodoPath);
+
+    expect(todoSource).toContain('queryEmployeePage');
+    expect(todoSource).toContain('copyEmployeeIds');
+    expect(todoSource).toContain('openActionDialog');
+    expect(todoSource).toContain('submitActionDialog');
+    expect(todoSource).not.toContain("ElMessageBox.prompt('请输入审批意见'");
+  });
+
   it('keeps the runtime copy page wired to my-copy api and unified instance detail drawer', () => {
     const copySource = readSource(runtimeMyCopyPath);
 

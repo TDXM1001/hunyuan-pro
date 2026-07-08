@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BpmTaskDetailRecord, BpmTaskRecord } from '#/api/system/bpm';
+import type { EmployeeRecord } from '#/api/system/organization';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -24,6 +25,8 @@ import {
   ElInput,
   ElMessage,
   ElMessageBox,
+  ElOption,
+  ElSelect,
   ElTag,
   ElTimeline,
   ElTimelineItem,
@@ -37,8 +40,11 @@ import {
   returnBpmTaskToInitiator,
   transferBpmTask,
 } from '#/api/system/bpm';
+import { queryEmployeePage } from '#/api/system/organization';
 
 defineOptions({ name: 'SystemBpmRuntimeMyTodoList' });
+
+type TodoActionType = 'approve' | 'reject' | 'return';
 
 const loading = ref(false);
 const showSearchBar = ref(true);
@@ -47,6 +53,17 @@ const detailVisible = ref(false);
 const detailLoading = ref(false);
 const detailData = ref<BpmTaskDetailRecord>();
 const detailLoadErrorMessage = ref('');
+const actionDialogVisible = ref(false);
+const actionSubmitting = ref(false);
+const employeeLoading = ref(false);
+const employeeOptions = ref<EmployeeRecord[]>([]);
+const currentActionRow = ref<BpmTaskRecord>();
+
+const actionForm = reactive({
+  commentText: '',
+  copyEmployeeIds: [] as number[],
+  type: 'approve' as TodoActionType,
+});
 
 const searchForm = reactive({
   instanceNo: '',
@@ -212,31 +229,90 @@ function handleSizeChange(value: number) {
   void loadData();
 }
 
-async function handleApprove(row: BpmTaskRecord) {
-  const { value } = await ElMessageBox.prompt('请输入审批意见', '审批通过', {
-    inputPlaceholder: '同意',
-  });
-  await approveBpmTask({ commentText: value, taskId: row.taskId });
-  ElMessage.success('审批已通过');
-  await loadData();
+function getActionDialogTitle() {
+  if (actionForm.type === 'approve') {
+    return '审批通过';
+  }
+  if (actionForm.type === 'reject') {
+    return '审批拒绝';
+  }
+  return '退回发起人';
 }
 
-async function handleReject(row: BpmTaskRecord) {
-  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '审批拒绝', {
-    inputPlaceholder: '不同意',
-  });
-  await rejectBpmTask({ commentText: value, taskId: row.taskId });
-  ElMessage.success('审批已拒绝');
-  await loadData();
+function getActionPlaceholder() {
+  if (actionForm.type === 'approve') {
+    return '同意';
+  }
+  if (actionForm.type === 'reject') {
+    return '不同意';
+  }
+  return '请补充材料';
 }
 
-async function handleReturn(row: BpmTaskRecord) {
-  const { value } = await ElMessageBox.prompt('请输入退回原因', '退回发起人', {
-    inputPlaceholder: '请补充材料',
+async function loadEmployeeOptions(keyword = '') {
+  employeeLoading.value = true;
+  try {
+    const result = await queryEmployeePage({
+      disabledFlag: false,
+      keyword,
+      pageNum: 1,
+      pageSize: 20,
+    });
+    employeeOptions.value = result?.list ?? [];
+  } finally {
+    employeeLoading.value = false;
+  }
+}
+
+async function openActionDialog(type: TodoActionType, row: BpmTaskRecord) {
+  currentActionRow.value = row;
+  Object.assign(actionForm, {
+    commentText: '',
+    copyEmployeeIds: [],
+    type,
   });
-  await returnBpmTaskToInitiator({ commentText: value, taskId: row.taskId });
-  ElMessage.success('已退回发起人');
-  await loadData();
+  actionDialogVisible.value = true;
+  await loadEmployeeOptions();
+}
+
+function handleApprove(row: BpmTaskRecord) {
+  void openActionDialog('approve', row);
+}
+
+function handleReject(row: BpmTaskRecord) {
+  void openActionDialog('reject', row);
+}
+
+function handleReturn(row: BpmTaskRecord) {
+  void openActionDialog('return', row);
+}
+
+async function submitActionDialog() {
+  if (!currentActionRow.value) {
+    return;
+  }
+  actionSubmitting.value = true;
+  try {
+    const payload = {
+      commentText: actionForm.commentText,
+      copyEmployeeIds: actionForm.copyEmployeeIds,
+      taskId: currentActionRow.value.taskId,
+    };
+    if (actionForm.type === 'approve') {
+      await approveBpmTask(payload);
+      ElMessage.success('审批已通过');
+    } else if (actionForm.type === 'reject') {
+      await rejectBpmTask(payload);
+      ElMessage.success('审批已拒绝');
+    } else {
+      await returnBpmTaskToInitiator(payload);
+      ElMessage.success('已退回发起人');
+    }
+    actionDialogVisible.value = false;
+    await loadData();
+  } finally {
+    actionSubmitting.value = false;
+  }
 }
 
 async function handleTransfer(row: BpmTaskRecord) {
@@ -405,6 +481,45 @@ onMounted(() => {
         </template>
       </div>
     </ElDialog>
+
+    <ElDialog v-model="actionDialogVisible" :title="getActionDialogTitle()" width="560px">
+      <div class="runtime-task-page__action-form">
+        <ElFormItem label="处理意见">
+          <ElInput
+            v-model="actionForm.commentText"
+            :placeholder="getActionPlaceholder()"
+            :rows="3"
+            type="textarea"
+          />
+        </ElFormItem>
+        <ElFormItem label="抄送员工">
+          <ElSelect
+            v-model="actionForm.copyEmployeeIds"
+            clearable
+            filterable
+            :loading="employeeLoading"
+            multiple
+            placeholder="可选，选择需要知会的员工"
+            remote
+            :remote-method="loadEmployeeOptions"
+            style="width: 100%"
+          >
+            <ElOption
+              v-for="employee in employeeOptions"
+              :key="employee.employeeId"
+              :label="employee.actualName"
+              :value="employee.employeeId"
+            />
+          </ElSelect>
+        </ElFormItem>
+      </div>
+      <template #footer>
+        <ElButton @click="actionDialogVisible = false">取消</ElButton>
+        <ElButton :loading="actionSubmitting" type="primary" @click="submitActionDialog">
+          确定
+        </ElButton>
+      </template>
+    </ElDialog>
   </Page>
 </template>
 
@@ -479,6 +594,16 @@ onMounted(() => {
 
 .runtime-task-page__detail {
   min-height: 240px;
+}
+
+.runtime-task-page__action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.runtime-task-page__action-form :deep(.el-form-item) {
+  margin-bottom: 0;
 }
 
 .runtime-task-page__detail-error {
