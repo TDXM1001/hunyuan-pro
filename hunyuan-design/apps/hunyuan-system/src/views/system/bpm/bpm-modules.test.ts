@@ -45,6 +45,8 @@ const bpmAdminMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.34.0.sql
 const bpmRuntimeMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.35.0.sql';
 const bpmRuntimeCopyMenuSqlPath =
   '数据库SQL脚本/mysql/sql-update-log/v3.37.0.sql';
+const bpmIntegrationMenuSqlPath =
+  '数据库SQL脚本/mysql/sql-update-log/v3.39.0.sql';
 const apiPath = 'apps/hunyuan-system/src/api/system/bpm/index.ts';
 const bpmRoutePath = 'apps/hunyuan-system/src/router/routes/static/bpm.ts';
 const runtimeApiPath = 'apps/hunyuan-system/src/api/system/bpm/runtime.ts';
@@ -380,6 +382,26 @@ describe('bpm module contracts', () => {
     );
     expect(bpmMenuSqlSource).toContain("'bpm_runtime_user'");
     expect(bpmMenuSqlSource).toContain('320');
+  });
+
+  it('keeps the bpm integration monitor menu sql aligned to page and permission contracts', () => {
+    const bpmMenuSqlSource = readFileSync(
+      resolve(process.cwd(), '..', bpmIntegrationMenuSqlPath),
+      'utf8',
+    );
+
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/integration/callback-record-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/integration/callback-record-list.vue'",
+    );
+    expect(bpmMenuSqlSource).toContain("'/system/bpm/integration/command-record-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/integration/command-record-list.vue'",
+    );
+    expect(bpmMenuSqlSource).toContain("'bpm:integration:query'");
+    expect(bpmMenuSqlSource).toContain("'bpm:integration:update'");
+    expect(bpmMenuSqlSource).toContain('321');
+    expect(bpmMenuSqlSource).toContain('325');
   });
 
   it('provides local static routes for runtime bpm pages', () => {
