@@ -1,4 +1,8 @@
 import type { PageResult } from '#/api/system/organization';
+import type {
+  BpmCallbackRecordVO,
+  BpmCommandRecordVO,
+} from '#/api/system/bpm/integration';
 
 import { requestClient } from '#/api/request';
 
@@ -33,6 +37,14 @@ export interface BpmInstanceDetailRecord extends BpmInstanceRecord {
   currentTasks?: BpmTaskRecord[];
   startDepartmentNameSnapshot?: null | string;
   summary?: null | string;
+}
+
+export interface BpmInstanceTraceRecord {
+  actionLogs: BpmTaskActionLogRecord[];
+  callbackRecords: BpmCallbackRecordVO[];
+  commandRecords: BpmCommandRecordVO[];
+  currentTasks: BpmTaskRecord[];
+  instance: BpmInstanceDetailRecord;
 }
 
 export interface BpmInstanceCopyRecord {
@@ -177,6 +189,12 @@ export async function queryBpmInstancePage(params: BpmInstancePageQueryParams) {
 export async function getBpmAdminInstanceDetail(instanceId: number) {
   return requestClient.get<BpmInstanceDetailRecord>(
     `/bpm/instance/detail/${instanceId}`,
+  );
+}
+
+export async function getBpmAdminInstanceTrace(instanceId: number) {
+  return requestClient.get<BpmInstanceTraceRecord>(
+    `/bpm/instance/trace/${instanceId}`,
   );
 }
 

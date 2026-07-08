@@ -52,6 +52,9 @@ const apiFiles = [
     needles: [
       '/bpm/instance/query',
       '/bpm/instance/detail/',
+      '/bpm/instance/trace/',
+      'getBpmAdminInstanceTrace',
+      'BpmInstanceTraceRecord',
       '/bpm/task/detail/',
       '/app/bpm/startable',
       '/app/bpm/start-draft/',
@@ -76,6 +79,7 @@ const apiFiles = [
     needles: [
       'queryBpmCallbackRecordPage',
       '/bpm/integration/callback/query',
+      'instanceId: data.instanceId',
       'retryBpmCallbackRecord',
       '/bpm/integration/callback/retry/',
       'queryBpmCommandRecordPage',

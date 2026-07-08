@@ -50,6 +50,30 @@ public class BpmBusinessIntegrationRecordService {
         return ResponseDTO.ok(toPageResult(result, records));
     }
 
+    public List<BpmCallbackRecordVO> queryCallbackRecordsByInstanceId(Long instanceId) {
+        if (instanceId == null) {
+            return List.of();
+        }
+        return bpmCallbackRecordDao.selectList(Wrappers.<BpmCallbackRecordEntity>lambdaQuery()
+                        .eq(BpmCallbackRecordEntity::getInstanceId, instanceId)
+                        .orderByAsc(BpmCallbackRecordEntity::getCreateTime, BpmCallbackRecordEntity::getCallbackRecordId))
+                .stream()
+                .map(this::toCallbackRecordVO)
+                .toList();
+    }
+
+    public List<BpmCommandRecordVO> queryCommandRecordsByInstanceId(Long instanceId) {
+        if (instanceId == null) {
+            return List.of();
+        }
+        return bpmCommandRecordDao.selectList(Wrappers.<BpmCommandRecordEntity>lambdaQuery()
+                        .eq(BpmCommandRecordEntity::getInstanceId, instanceId)
+                        .orderByAsc(BpmCommandRecordEntity::getCreateTime, BpmCommandRecordEntity::getCommandRecordId))
+                .stream()
+                .map(this::toCommandRecordVO)
+                .toList();
+    }
+
     private <T> Page<T> buildPage(PageParam queryForm) {
         Page<T> page = new Page<>(queryForm.getPageNum(), queryForm.getPageSize());
         if (queryForm.getSearchCount() != null) {
@@ -72,6 +96,7 @@ public class BpmBusinessIntegrationRecordService {
     private LambdaQueryWrapper<BpmCallbackRecordEntity> buildCallbackQuery(BpmCallbackRecordQueryForm queryForm) {
         return Wrappers.<BpmCallbackRecordEntity>lambdaQuery()
                 .eq(StringUtils.isNotBlank(queryForm.getEventId()), BpmCallbackRecordEntity::getEventId, queryForm.getEventId())
+                .eq(queryForm.getInstanceId() != null, BpmCallbackRecordEntity::getInstanceId, queryForm.getInstanceId())
                 .eq(StringUtils.isNotBlank(queryForm.getBusinessType()), BpmCallbackRecordEntity::getBusinessType, queryForm.getBusinessType())
                 .eq(queryForm.getBusinessId() != null, BpmCallbackRecordEntity::getBusinessId, queryForm.getBusinessId())
                 .eq(queryForm.getCallbackStatus() != null, BpmCallbackRecordEntity::getCallbackStatus, queryForm.getCallbackStatus())
@@ -81,6 +106,7 @@ public class BpmBusinessIntegrationRecordService {
     private LambdaQueryWrapper<BpmCommandRecordEntity> buildCommandQuery(BpmCommandRecordQueryForm queryForm) {
         return Wrappers.<BpmCommandRecordEntity>lambdaQuery()
                 .eq(StringUtils.isNotBlank(queryForm.getCommandKey()), BpmCommandRecordEntity::getCommandKey, queryForm.getCommandKey())
+                .eq(queryForm.getInstanceId() != null, BpmCommandRecordEntity::getInstanceId, queryForm.getInstanceId())
                 .eq(StringUtils.isNotBlank(queryForm.getBusinessType()), BpmCommandRecordEntity::getBusinessType, queryForm.getBusinessType())
                 .eq(queryForm.getBusinessId() != null, BpmCommandRecordEntity::getBusinessId, queryForm.getBusinessId())
                 .eq(queryForm.getCommandStatus() != null, BpmCommandRecordEntity::getCommandStatus, queryForm.getCommandStatus())

@@ -270,6 +270,12 @@ describe('bpm module contracts', () => {
     expect(detailSource).toContain('fromAssigneeEmployeeId');
     expect(detailSource).toContain('toAssigneeEmployeeId');
     expect(detailSource).toContain('getBpmAdminInstanceDetail');
+    expect(detailSource).toContain('getBpmAdminInstanceTrace');
+    expect(detailSource).toContain("source === 'admin'");
+    expect(detailSource).toContain('trace.value = undefined;');
+    expect(detailSource).toContain('可靠性追踪');
+    expect(detailSource).toContain('callbackRecords');
+    expect(detailSource).toContain('commandRecords');
   });
 
   it('keeps the admin instance page aligned to four backend run states', () => {

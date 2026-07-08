@@ -10,8 +10,10 @@ import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminInstanceCancelForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceTraceVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceTraceService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +30,9 @@ public class AdminBpmInstanceController {
     @Resource
     private BpmInstanceService bpmInstanceService;
 
+    @Resource
+    private BpmInstanceTraceService bpmInstanceTraceService;
+
     @Operation(summary = "分页查询流程实例")
     @PostMapping("/bpm/instance/query")
     @SaCheckPermission("bpm:instance:query")
@@ -40,6 +45,13 @@ public class AdminBpmInstanceController {
     @SaCheckPermission("bpm:instance:detail")
     public ResponseDTO<BpmInstanceDetailVO> detail(@PathVariable Long instanceId) {
         return bpmInstanceService.getDetail(instanceId);
+    }
+
+    @Operation(summary = "查询流程实例可靠性追踪")
+    @GetMapping("/bpm/instance/trace/{instanceId}")
+    @SaCheckPermission("bpm:instance:detail")
+    public ResponseDTO<BpmInstanceTraceVO> trace(@PathVariable Long instanceId) {
+        return bpmInstanceTraceService.getTrace(instanceId);
     }
 
     @Operation(summary = "管理员取消流程实例")

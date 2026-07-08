@@ -60,6 +60,7 @@ class BpmBusinessIntegrationRecordServiceTest {
         BpmCallbackRecordQueryForm queryForm = new BpmCallbackRecordQueryForm();
         queryForm.setPageNum(1L);
         queryForm.setPageSize(10L);
+        queryForm.setInstanceId(88L);
         queryForm.setBusinessType("expense");
 
         ResponseDTO<PageResult<BpmCallbackRecordVO>> response = recordService.queryCallbackPage(queryForm);
@@ -68,6 +69,7 @@ class BpmBusinessIntegrationRecordServiceTest {
         assertThat(response.getData().getList()).hasSize(1);
         assertThat(response.getData().getList().get(0).getCallbackRecordId()).isEqualTo(1L);
         assertThat(response.getData().getList().get(0).getEventId()).isEqualTo("event-1");
+        assertThat(response.getData().getList().get(0).getInstanceId()).isEqualTo(88L);
         assertThat(response.getData().getList().get(0).getRetryCount()).isEqualTo(3);
     }
 
@@ -91,6 +93,7 @@ class BpmBusinessIntegrationRecordServiceTest {
         BpmCommandRecordQueryForm queryForm = new BpmCommandRecordQueryForm();
         queryForm.setPageNum(1L);
         queryForm.setPageSize(10L);
+        queryForm.setInstanceId(88L);
         queryForm.setBusinessType("expense");
 
         ResponseDTO<PageResult<BpmCommandRecordVO>> response = recordService.queryCommandPage(queryForm);
@@ -99,7 +102,48 @@ class BpmBusinessIntegrationRecordServiceTest {
         assertThat(response.getData().getList()).hasSize(1);
         assertThat(response.getData().getList().get(0).getCommandRecordId()).isEqualTo(2L);
         assertThat(response.getData().getList().get(0).getCommandKey()).isEqualTo("START:expense:1001:expense_apply");
+        assertThat(response.getData().getList().get(0).getInstanceId()).isEqualTo(88L);
         assertThat(response.getData().getList().get(0).getCommandStatus()).isEqualTo(1);
+    }
+
+    @Test
+    void queryCallbackRecordsByInstanceIdShouldReturnMappedRecords() {
+        BpmCallbackRecordEntity record = new BpmCallbackRecordEntity();
+        record.setCallbackRecordId(1L);
+        record.setEventId("event-88");
+        record.setInstanceId(88L);
+        record.setBusinessType("expense");
+        record.setBusinessId(1001L);
+        record.setCallbackStatus(2);
+        record.setRetryCount(1);
+        when(bpmCallbackRecordDao.selectList(any())).thenReturn(List.of(record));
+
+        List<BpmCallbackRecordVO> records = recordService.queryCallbackRecordsByInstanceId(88L);
+
+        assertThat(records).hasSize(1);
+        assertThat(records.get(0).getCallbackRecordId()).isEqualTo(1L);
+        assertThat(records.get(0).getInstanceId()).isEqualTo(88L);
+        assertThat(records.get(0).getEventId()).isEqualTo("event-88");
+    }
+
+    @Test
+    void queryCommandRecordsByInstanceIdShouldReturnMappedRecords() {
+        BpmCommandRecordEntity record = new BpmCommandRecordEntity();
+        record.setCommandRecordId(2L);
+        record.setCommandKey("START:expense:1001:expense_apply");
+        record.setCommandType("START");
+        record.setInstanceId(88L);
+        record.setBusinessType("expense");
+        record.setBusinessId(1001L);
+        record.setCommandStatus(1);
+        when(bpmCommandRecordDao.selectList(any())).thenReturn(List.of(record));
+
+        List<BpmCommandRecordVO> records = recordService.queryCommandRecordsByInstanceId(88L);
+
+        assertThat(records).hasSize(1);
+        assertThat(records.get(0).getCommandRecordId()).isEqualTo(2L);
+        assertThat(records.get(0).getInstanceId()).isEqualTo(88L);
+        assertThat(records.get(0).getCommandKey()).isEqualTo("START:expense:1001:expense_apply");
     }
 
     private void setField(Object target, String fieldName, Object value) {

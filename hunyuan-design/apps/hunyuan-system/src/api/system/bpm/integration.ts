@@ -34,6 +34,7 @@ export interface BpmCallbackRecordPageQueryParams {
   businessType?: string;
   callbackStatus?: null | number;
   eventId?: string;
+  instanceId?: null | number;
   pageNum: number;
   pageSize: number;
 }
@@ -43,6 +44,7 @@ export interface BpmCommandRecordPageQueryParams {
   businessType?: string;
   commandKey?: string;
   commandStatus?: null | number;
+  instanceId?: null | number;
   pageNum: number;
   pageSize: number;
 }
@@ -57,6 +59,7 @@ export async function queryBpmCallbackRecordPage(
       businessType: data.businessType?.trim() || undefined,
       callbackStatus: data.callbackStatus ?? undefined,
       eventId: data.eventId?.trim() || undefined,
+      instanceId: data.instanceId ?? undefined,
       pageNum: data.pageNum,
       pageSize: data.pageSize,
     },
@@ -79,6 +82,7 @@ export async function queryBpmCommandRecordPage(
       businessType: data.businessType?.trim() || undefined,
       commandKey: data.commandKey?.trim() || undefined,
       commandStatus: data.commandStatus ?? undefined,
+      instanceId: data.instanceId ?? undefined,
       pageNum: data.pageNum,
       pageSize: data.pageSize,
     },

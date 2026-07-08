@@ -15,6 +15,9 @@ public class BpmCallbackRecordQueryForm extends PageParam {
     @Schema(description = "事件ID")
     private String eventId;
 
+    @Schema(description = "流程实例ID")
+    private Long instanceId;
+
     @Schema(description = "业务类型")
     private String businessType;
 

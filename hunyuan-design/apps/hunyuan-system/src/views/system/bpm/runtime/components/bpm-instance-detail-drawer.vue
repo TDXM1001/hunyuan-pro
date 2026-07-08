@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import type { BpmInstanceDetailRecord } from '#/api/system/bpm/runtime';
+import type {
+  BpmInstanceDetailRecord,
+  BpmInstanceTraceRecord,
+} from '#/api/system/bpm/runtime';
 
 import { computed, ref } from 'vue';
 
 import {
   getBpmAdminInstanceDetail,
+  getBpmAdminInstanceTrace,
   getBpmInstanceDetail,
 } from '#/api/system/bpm/runtime';
 
@@ -15,6 +19,8 @@ import {
   ElEmpty,
   ElMessage,
   ElSkeleton,
+  ElTable,
+  ElTableColumn,
   ElTag,
   ElTimeline,
   ElTimelineItem,
@@ -25,9 +31,14 @@ defineOptions({ name: 'SystemBpmInstanceDetailDrawer' });
 const visible = ref(false);
 const loading = ref(false);
 const detail = ref<BpmInstanceDetailRecord>();
+const trace = ref<BpmInstanceTraceRecord>();
 const loadErrorMessage = ref('');
 const currentTasks = computed(() => detail.value?.currentTasks ?? []);
 const actionLogs = computed(() => detail.value?.actionLogs ?? []);
+const callbackRecords = computed(() => trace.value?.callbackRecords ?? []);
+const commandRecords = computed(() => trace.value?.commandRecords ?? []);
+const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
+const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
 type DetailSource = 'admin' | 'runtime';
 
 function getActionLabel(actionType?: null | string) {
@@ -46,12 +57,19 @@ async function open(instanceId: number, source: DetailSource = 'runtime') {
   visible.value = true;
   loading.value = true;
   detail.value = undefined;
+  trace.value = undefined;
   loadErrorMessage.value = '';
   try {
-    detail.value =
-      source === 'admin'
-        ? await getBpmAdminInstanceDetail(instanceId)
-        : await getBpmInstanceDetail(instanceId);
+    if (source === 'admin') {
+      const [detailRecord, traceRecord] = await Promise.all([
+        getBpmAdminInstanceDetail(instanceId),
+        getBpmAdminInstanceTrace(instanceId),
+      ]);
+      detail.value = detailRecord;
+      trace.value = traceRecord;
+    } else {
+      detail.value = await getBpmInstanceDetail(instanceId);
+    }
   } catch (error: any) {
     loadErrorMessage.value = '流程详情加载失败，请稍后重试。';
     ElMessage.error(error?.message || loadErrorMessage.value);
@@ -133,6 +151,80 @@ defineExpose({ open });
         </ElTimelineItem>
       </ElTimeline>
       <ElEmpty v-else description="暂无动作轨迹" />
+
+      <template v-if="trace">
+        <div class="bpm-instance-detail__section-title">可靠性追踪</div>
+        <div class="bpm-instance-detail__trace-summary">
+          <div class="bpm-instance-detail__trace-item">
+            <span>当前任务</span>
+            <strong>{{ traceCurrentTasks.length }}</strong>
+          </div>
+          <div class="bpm-instance-detail__trace-item">
+            <span>动作轨迹</span>
+            <strong>{{ traceActionLogs.length }}</strong>
+          </div>
+          <div class="bpm-instance-detail__trace-item">
+            <span>回调记录</span>
+            <strong>{{ callbackRecords.length }}</strong>
+          </div>
+          <div class="bpm-instance-detail__trace-item">
+            <span>命令记录</span>
+            <strong>{{ commandRecords.length }}</strong>
+          </div>
+        </div>
+
+        <div class="bpm-instance-detail__sub-title">回调记录</div>
+        <ElTable
+          v-if="callbackRecords.length > 0"
+          :data="callbackRecords"
+          border
+          size="small"
+        >
+          <ElTableColumn
+            label="事件ID"
+            min-width="150"
+            prop="eventId"
+            show-overflow-tooltip
+          />
+          <ElTableColumn label="业务类型" min-width="100" prop="businessType" />
+          <ElTableColumn label="业务ID" min-width="90" prop="businessId" />
+          <ElTableColumn label="状态" min-width="80" prop="callbackStatus" />
+          <ElTableColumn label="重试" min-width="70" prop="retryCount" />
+          <ElTableColumn
+            label="失败原因"
+            min-width="160"
+            prop="failureReason"
+            show-overflow-tooltip
+          />
+        </ElTable>
+        <ElEmpty v-else description="暂无回调记录" />
+
+        <div class="bpm-instance-detail__sub-title">命令记录</div>
+        <ElTable
+          v-if="commandRecords.length > 0"
+          :data="commandRecords"
+          border
+          size="small"
+        >
+          <ElTableColumn
+            label="命令键"
+            min-width="180"
+            prop="commandKey"
+            show-overflow-tooltip
+          />
+          <ElTableColumn label="命令类型" min-width="90" prop="commandType" />
+          <ElTableColumn label="业务类型" min-width="100" prop="businessType" />
+          <ElTableColumn label="业务ID" min-width="90" prop="businessId" />
+          <ElTableColumn label="状态" min-width="80" prop="commandStatus" />
+          <ElTableColumn
+            label="失败原因"
+            min-width="160"
+            prop="failureReason"
+            show-overflow-tooltip
+          />
+        </ElTable>
+        <ElEmpty v-else description="暂无命令记录" />
+      </template>
     </div>
   </ElDrawer>
 </template>
@@ -178,6 +270,41 @@ defineExpose({ open });
   grid-template-columns: minmax(120px, 1fr) minmax(80px, 120px) minmax(140px, 180px);
   min-height: 36px;
   padding: 8px 10px;
+}
+
+.bpm-instance-detail__trace-summary {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.bpm-instance-detail__trace-item {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 54px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.bpm-instance-detail__trace-item span {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.bpm-instance-detail__trace-item strong {
+  color: var(--el-text-color-primary);
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.bpm-instance-detail__sub-title {
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
 }
 
 .bpm-instance-detail__timeline {
