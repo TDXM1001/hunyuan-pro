@@ -71,6 +71,18 @@ const apiFiles = [
     needles: ['/bpm/listener/query', '/bpm/listener/channelOptions'],
     path: 'apps/hunyuan-system/src/api/system/bpm/listener.ts',
   },
+  {
+    label: 'integration',
+    needles: [
+      'queryBpmCallbackRecordPage',
+      '/bpm/integration/callback/query',
+      'retryBpmCallbackRecord',
+      '/bpm/integration/callback/retry/',
+      'queryBpmCommandRecordPage',
+      '/bpm/integration/command/query',
+    ],
+    path: 'apps/hunyuan-system/src/api/system/bpm/integration.ts',
+  },
 ] as const;
 
 describe('bpm api 模块', () => {

@@ -21,6 +21,10 @@ const taskPagePath =
   'apps/hunyuan-system/src/views/system/bpm/task/task-list.vue';
 const listenerPagePath =
   'apps/hunyuan-system/src/views/system/bpm/listener/listener-catalog.vue';
+const callbackRecordPagePath =
+  'apps/hunyuan-system/src/views/system/bpm/integration/callback-record-list.vue';
+const commandRecordPagePath =
+  'apps/hunyuan-system/src/views/system/bpm/integration/command-record-list.vue';
 const runtimeStartablePath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/startable-list.vue';
 const runtimeStartFormPath =
@@ -60,6 +64,8 @@ describe('bpm module contracts', () => {
       instancePagePath,
       taskPagePath,
       listenerPagePath,
+      callbackRecordPagePath,
+      commandRecordPagePath,
     ].forEach((path) => {
       expect(existsSync(resolve(process.cwd(), path))).toBe(true);
     });
@@ -90,6 +96,8 @@ describe('bpm module contracts', () => {
       instancePagePath,
       taskPagePath,
       listenerPagePath,
+      callbackRecordPagePath,
+      commandRecordPagePath,
     ].forEach((path) => {
       const source = readSource(path);
 
@@ -155,6 +163,19 @@ describe('bpm module contracts', () => {
     expect(source).toContain('/bpm/designer/');
     expect(source).toContain('/bpm/task/');
     expect(source).toContain('/bpm/listener/');
+    expect(source).toContain('/bpm/integration/');
+  });
+
+  it('keeps bpm integration monitoring pages wired to reliability APIs', () => {
+    const callbackSource = readSource(callbackRecordPagePath);
+    const commandSource = readSource(commandRecordPagePath);
+
+    expect(callbackSource).toContain('queryBpmCallbackRecordPage');
+    expect(callbackSource).toContain('retryBpmCallbackRecord');
+    expect(callbackSource).toContain(':collapsible="false"');
+    expect(callbackSource).toContain('callbackStatus === 2');
+    expect(commandSource).toContain('queryBpmCommandRecordPage');
+    expect(commandSource).toContain(':collapsible="false"');
   });
 
   it('provides runtime pages and runtime api bindings for the employee-side flow', () => {
