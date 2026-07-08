@@ -48,6 +48,9 @@ public class BpmInstanceDetailVO {
     @Schema(description = "完成时间")
     private LocalDateTime finishedAt;
 
+    @Schema(description = "当前待办任务")
+    private List<BpmTaskVO> currentTasks;
+
     @Schema(description = "动作轨迹")
     private List<BpmTaskActionLogVO> actionLogs;
 }

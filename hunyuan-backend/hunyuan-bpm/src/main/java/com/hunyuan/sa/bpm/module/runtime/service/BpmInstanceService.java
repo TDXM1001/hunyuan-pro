@@ -135,6 +135,7 @@ public class BpmInstanceService {
         detail.setCurrentNodeSummaryJson(instance.getCurrentNodeSummaryJson());
         detail.setStartedAt(instance.getStartedAt());
         detail.setFinishedAt(instance.getFinishedAt());
+        detail.setCurrentTasks(bpmTaskDao.queryCurrentTasksByInstanceId(instanceId));
         detail.setActionLogs(bpmTaskActionLogDao.queryByInstanceId(instanceId));
         return ResponseDTO.ok(detail);
     }
