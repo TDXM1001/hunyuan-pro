@@ -32,13 +32,13 @@ class BpmTaskDetailServiceTest {
         task.setInstanceNo("SN-2026-0002");
         task.setInstanceTitle("请假申请");
         task.setTaskName("部门审批");
-        task.setAssigneeNameSnapshot("鏉庡洓");
+        task.setAssigneeNameSnapshot("李四");
         task.setRuntimeAssignmentSnapshotJson("{\"assigneeEmployeeId\":9}");
 
         BpmTaskActionLogVO log = new BpmTaskActionLogVO();
         log.setTaskId(18L);
         log.setActionType("TRANSFERRED");
-        log.setActorNameSnapshot("鐜嬩簲");
+        log.setActorNameSnapshot("王五");
 
         when(taskDao.selectById(18L)).thenReturn(task);
         when(actionLogDao.queryByInstanceId(8L)).thenReturn(List.of(log));
@@ -50,6 +50,20 @@ class BpmTaskDetailServiceTest {
         assertThat(response.getData().getInstanceNo()).isEqualTo("SN-2026-0002");
         assertThat(response.getData().getActionLogs()).hasSize(1);
         assertThat(response.getData().getActionLogs().get(0).getActionType()).isEqualTo("TRANSFERRED");
+    }
+
+    @Test
+    void getDetailShouldReturnDataNotExistWhenTaskMissing() {
+        BpmTaskService service = new BpmTaskService();
+        BpmTaskDao taskDao = Mockito.mock(BpmTaskDao.class);
+        setField(service, "bpmTaskDao", taskDao);
+
+        when(taskDao.selectById(404L)).thenReturn(null);
+
+        ResponseDTO<BpmTaskDetailVO> response = service.getDetail(404L);
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getCode()).isNotNull();
     }
 
     private static void setField(Object target, String fieldName, Object value) {
