@@ -164,6 +164,7 @@ describe('bpm module contracts', () => {
     expect(runtimeApiSource).toContain('/app/bpm/my-todo');
     expect(runtimeApiSource).toContain('/app/bpm/my-done');
     expect(runtimeApiSource).toContain('/app/bpm/instance/detail/');
+    expect(runtimeApiSource).toContain('currentTasks?: BpmTaskRecord[]');
   });
 
   it('keeps my-instance resubmit entry routed through the unified start form', () => {
@@ -220,6 +221,11 @@ describe('bpm module contracts', () => {
     expect(detailSource).toContain('detail.value = undefined;');
     expect(detailSource).toContain('loadErrorMessage.value =');
     expect(detailSource).toContain('v-else-if="loadErrorMessage"');
+    expect(detailSource).toContain('currentTasks');
+    expect(detailSource).toContain('当前待办');
+    expect(detailSource).toContain('暂无当前待办');
+    expect(detailSource).toContain('fromAssigneeEmployeeId');
+    expect(detailSource).toContain('toAssigneeEmployeeId');
   });
 
   it('keeps the admin instance page aligned to four backend run states', () => {

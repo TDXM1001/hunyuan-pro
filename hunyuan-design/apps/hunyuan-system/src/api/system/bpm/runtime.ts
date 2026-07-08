@@ -30,6 +30,7 @@ export interface BpmInstanceDetailRecord extends BpmInstanceRecord {
   actionLogs: BpmTaskActionLogRecord[];
   currentFormDataSnapshotJson?: null | string;
   currentNodeSummaryJson?: null | string;
+  currentTasks?: BpmTaskRecord[];
   startDepartmentNameSnapshot?: null | string;
   summary?: null | string;
 }
