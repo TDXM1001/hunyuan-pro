@@ -8,8 +8,11 @@ import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,5 +32,12 @@ public class AdminBpmTaskController {
     @SaCheckPermission("bpm:task:query")
     public ResponseDTO<PageResult<BpmTaskVO>> query(@RequestBody @Valid BpmTaskQueryForm queryForm) {
         return bpmTaskService.queryAdminPage(queryForm);
+    }
+
+    @Operation(summary = "查询流程任务详情")
+    @GetMapping("/bpm/task/detail/{taskId}")
+    @SaCheckPermission("bpm:task:detail")
+    public ResponseDTO<BpmTaskDetailVO> detail(@PathVariable Long taskId) {
+        return bpmTaskService.getDetail(taskId);
     }
 }

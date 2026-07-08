@@ -25,6 +25,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +76,32 @@ public class BpmTaskService {
         queryForm.setAssigneeEmployeeId(bpmCurrentActorProvider.requireCurrentEmployeeId());
         queryForm.setTaskState(BpmTaskStateEnum.COMPLETED.getValue());
         return queryAdminPage(queryForm);
+    }
+
+    public ResponseDTO<BpmTaskDetailVO> getDetail(Long taskId) {
+        BpmTaskEntity taskEntity = bpmTaskDao.selectById(taskId);
+        if (taskEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+
+        BpmTaskDetailVO detailVO = new BpmTaskDetailVO();
+        detailVO.setTaskId(taskEntity.getTaskId());
+        detailVO.setInstanceId(taskEntity.getInstanceId());
+        detailVO.setInstanceNo(taskEntity.getInstanceNo());
+        detailVO.setInstanceTitle(taskEntity.getInstanceTitle());
+        detailVO.setTaskKey(taskEntity.getTaskKey());
+        detailVO.setTaskName(taskEntity.getTaskName());
+        detailVO.setStartEmployeeNameSnapshot(taskEntity.getStartEmployeeNameSnapshot());
+        detailVO.setAssigneeNameSnapshot(taskEntity.getAssigneeNameSnapshot());
+        detailVO.setAssigneeDepartmentNameSnapshot(taskEntity.getAssigneeDepartmentNameSnapshot());
+        detailVO.setRuntimeAssignmentSnapshotJson(taskEntity.getRuntimeAssignmentSnapshotJson());
+        detailVO.setTaskState(taskEntity.getTaskState());
+        detailVO.setTaskResult(taskEntity.getTaskResult());
+        detailVO.setAssignedAt(taskEntity.getAssignedAt());
+        detailVO.setDueAt(taskEntity.getDueAt());
+        detailVO.setCompletedAt(taskEntity.getCompletedAt());
+        detailVO.setActionLogs(bpmTaskActionLogDao.queryByInstanceId(taskEntity.getInstanceId()));
+        return ResponseDTO.ok(detailVO);
     }
 
     @Transactional(rollbackFor = Exception.class)
