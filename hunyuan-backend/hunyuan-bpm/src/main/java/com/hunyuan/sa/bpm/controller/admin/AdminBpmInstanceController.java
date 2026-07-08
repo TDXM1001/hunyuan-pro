@@ -7,6 +7,7 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminInstanceCancelForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO;
@@ -39,5 +40,19 @@ public class AdminBpmInstanceController {
     @SaCheckPermission("bpm:instance:detail")
     public ResponseDTO<BpmInstanceDetailVO> detail(@PathVariable Long instanceId) {
         return bpmInstanceService.getDetail(instanceId);
+    }
+
+    @Operation(summary = "管理员取消流程实例")
+    @PostMapping("/bpm/instance/adminCancel")
+    @SaCheckPermission("bpm:instance:update")
+    public ResponseDTO<String> adminCancel(@RequestBody @Valid BpmAdminInstanceCancelForm form) {
+        return bpmInstanceService.adminCancel(form);
+    }
+
+    @Operation(summary = "重同步流程实例任务投影")
+    @PostMapping("/bpm/instance/resyncProjection/{instanceId}")
+    @SaCheckPermission("bpm:instance:update")
+    public ResponseDTO<String> resyncProjection(@PathVariable Long instanceId) {
+        return bpmInstanceService.resyncProjection(instanceId);
     }
 }

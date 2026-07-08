@@ -21,6 +21,7 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
@@ -198,26 +199,35 @@ public class BpmTaskService {
         BpmEmployeeSnapshot targetSnapshot = bpmOrgIdentityGateway.requireEmployee(transferForm.getToEmployeeId());
         flowableTaskGateway.transfer(taskEntity.getEngineTaskId(), transferForm.getToEmployeeId());
 
-        LocalDateTime now = LocalDateTime.now();
-        BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
-        updateTaskEntity.setTaskId(taskEntity.getTaskId());
-        updateTaskEntity.setAssigneeEmployeeId(targetSnapshot.employeeId());
-        updateTaskEntity.setAssigneeNameSnapshot(targetSnapshot.actualName());
-        updateTaskEntity.setAssigneeDepartmentIdSnapshot(targetSnapshot.departmentId());
-        updateTaskEntity.setAssigneeDepartmentNameSnapshot(targetSnapshot.departmentName());
-        updateTaskEntity.setRuntimeAssignmentSnapshotJson("{\"assigneeEmployeeId\":" + targetSnapshot.employeeId() + "}");
-        updateTaskEntity.setLastActionAt(now);
-        bpmTaskDao.updateById(updateTaskEntity);
-
-        bpmTaskActionLogDao.insert(buildActionLog(
+        updateTaskAssigneeAndWriteLog(
                 taskEntity,
                 actorSnapshot,
                 "TRANSFERRED",
                 transferForm.getCommentText(),
-                taskEntity.getAssigneeEmployeeId(),
-                targetSnapshot.employeeId(),
-                now
-        ));
+                targetSnapshot
+        );
+        return ResponseDTO.ok();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> adminTransfer(BpmAdminTaskTransferForm transferForm) {
+        BpmTaskEntity taskEntity = bpmTaskDao.selectById(transferForm.getTaskId());
+        if (taskEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        BpmEmployeeSnapshot targetSnapshot = bpmOrgIdentityGateway.requireEmployee(transferForm.getTargetEmployeeId());
+        flowableTaskGateway.transfer(taskEntity.getEngineTaskId(), transferForm.getTargetEmployeeId());
+
+        updateTaskAssigneeAndWriteLog(
+                taskEntity,
+                actorSnapshot,
+                "ADMIN_TRANSFERRED",
+                transferForm.getReason(),
+                targetSnapshot
+        );
         return ResponseDTO.ok();
     }
 
@@ -284,6 +294,35 @@ public class BpmTaskService {
         updateInstanceEntity.setFinishedAt(now);
         updateInstanceEntity.setLastActionAt(now);
         bpmInstanceDao.updateById(updateInstanceEntity);
+    }
+
+    private void updateTaskAssigneeAndWriteLog(
+            BpmTaskEntity taskEntity,
+            BpmEmployeeSnapshot actorSnapshot,
+            String actionType,
+            String commentText,
+            BpmEmployeeSnapshot targetSnapshot
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
+        updateTaskEntity.setTaskId(taskEntity.getTaskId());
+        updateTaskEntity.setAssigneeEmployeeId(targetSnapshot.employeeId());
+        updateTaskEntity.setAssigneeNameSnapshot(targetSnapshot.actualName());
+        updateTaskEntity.setAssigneeDepartmentIdSnapshot(targetSnapshot.departmentId());
+        updateTaskEntity.setAssigneeDepartmentNameSnapshot(targetSnapshot.departmentName());
+        updateTaskEntity.setRuntimeAssignmentSnapshotJson("{\"assigneeEmployeeId\":" + targetSnapshot.employeeId() + "}");
+        updateTaskEntity.setLastActionAt(now);
+        bpmTaskDao.updateById(updateTaskEntity);
+
+        bpmTaskActionLogDao.insert(buildActionLog(
+                taskEntity,
+                actorSnapshot,
+                actionType,
+                commentText,
+                taskEntity.getAssigneeEmployeeId(),
+                targetSnapshot.employeeId(),
+                now
+        ));
     }
 
     private BpmTaskActionLogEntity buildActionLog(

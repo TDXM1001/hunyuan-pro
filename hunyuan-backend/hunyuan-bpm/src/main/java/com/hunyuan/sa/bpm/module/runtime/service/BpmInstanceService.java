@@ -32,6 +32,7 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminInstanceCancelForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCancelForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceResubmitForm;
@@ -197,18 +198,7 @@ public class BpmInstanceService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        List<BpmTaskEntity> pendingTasks = bpmTaskDao.selectList(Wrappers.<BpmTaskEntity>lambdaQuery()
-                .eq(BpmTaskEntity::getInstanceId, instanceEntity.getInstanceId())
-                .eq(BpmTaskEntity::getTaskState, BpmTaskStateEnum.PENDING.getValue()));
-        for (BpmTaskEntity pendingTask : pendingTasks) {
-            BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
-            updateTaskEntity.setTaskId(pendingTask.getTaskId());
-            updateTaskEntity.setTaskState(BpmTaskStateEnum.CANCELLED.getValue());
-            updateTaskEntity.setTaskResult(BpmTaskResultEnum.INSTANCE_CANCELLED.getValue());
-            updateTaskEntity.setCancelledAt(now);
-            updateTaskEntity.setLastActionAt(now);
-            bpmTaskDao.updateById(updateTaskEntity);
-        }
+        closePendingTasks(instanceEntity.getInstanceId(), now);
 
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
@@ -225,6 +215,58 @@ public class BpmInstanceService {
         bpmInstanceDao.updateById(updateInstanceEntity);
 
         bpmTaskActionLogDao.insert(buildInstanceActionLog(instanceEntity, employeeSnapshot, cancelForm.getCancelReason(), now));
+        return ResponseDTO.ok();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> adminCancel(BpmAdminInstanceCancelForm cancelForm) {
+        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(cancelForm.getInstanceId());
+        if (instanceEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!BpmInstanceRunStateEnum.RUNNING.equalsValue(instanceEntity.getRunState())
+                && !BpmInstanceRunStateEnum.WAIT_RESUBMIT.equalsValue(instanceEntity.getRunState())) {
+            return ResponseDTO.userErrorParam("当前流程实例状态不支持管理员取消");
+        }
+
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        if (BpmInstanceRunStateEnum.RUNNING.equalsValue(instanceEntity.getRunState())) {
+            flowableProcessInstanceGateway.cancel(instanceEntity.getEngineProcessInstanceId(), cancelForm.getCancelReason());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        closePendingTasks(instanceEntity.getInstanceId(), now);
+
+        BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
+        updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
+        updateInstanceEntity.setRunState(BpmInstanceRunStateEnum.CANCELLED.getValue());
+        updateInstanceEntity.setResultState(BpmInstanceResultStateEnum.CANCELLED_BY_ADMIN.getValue());
+        updateInstanceEntity.setActiveTaskCount(0);
+        updateInstanceEntity.setCurrentNodeSummaryJson(null);
+        updateInstanceEntity.setCancelByEmployeeId(actorSnapshot.employeeId());
+        updateInstanceEntity.setCancelByNameSnapshot(actorSnapshot.actualName());
+        updateInstanceEntity.setCancelReason(cancelForm.getCancelReason());
+        updateInstanceEntity.setLastActionAt(now);
+        updateInstanceEntity.setFinishedAt(now);
+        updateInstanceEntity.setCancelledAt(now);
+        bpmInstanceDao.updateById(updateInstanceEntity);
+
+        bpmTaskActionLogDao.insert(buildAdminInstanceCancelActionLog(
+                instanceEntity,
+                actorSnapshot,
+                cancelForm.getCancelReason(),
+                now
+        ));
+        return ResponseDTO.ok();
+    }
+
+    public ResponseDTO<String> resyncProjection(Long instanceId) {
+        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(instanceId);
+        if (instanceEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        bpmTaskProjectionService.syncActiveTasksForInstance(instanceId);
         return ResponseDTO.ok();
     }
 
@@ -446,6 +488,21 @@ public class BpmInstanceService {
         return false;
     }
 
+    private void closePendingTasks(Long instanceId, LocalDateTime actionAt) {
+        List<BpmTaskEntity> pendingTasks = bpmTaskDao.selectList(Wrappers.<BpmTaskEntity>lambdaQuery()
+                .eq(BpmTaskEntity::getInstanceId, instanceId)
+                .eq(BpmTaskEntity::getTaskState, BpmTaskStateEnum.PENDING.getValue()));
+        for (BpmTaskEntity pendingTask : pendingTasks) {
+            BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
+            updateTaskEntity.setTaskId(pendingTask.getTaskId());
+            updateTaskEntity.setTaskState(BpmTaskStateEnum.CANCELLED.getValue());
+            updateTaskEntity.setTaskResult(BpmTaskResultEnum.INSTANCE_CANCELLED.getValue());
+            updateTaskEntity.setCancelledAt(actionAt);
+            updateTaskEntity.setLastActionAt(actionAt);
+            bpmTaskDao.updateById(updateTaskEntity);
+        }
+    }
+
     private BpmTaskActionLogEntity buildInstanceActionLog(
             BpmInstanceEntity instanceEntity,
             BpmEmployeeSnapshot actorSnapshot,
@@ -456,6 +513,23 @@ public class BpmInstanceService {
         actionLogEntity.setInstanceId(instanceEntity.getInstanceId());
         actionLogEntity.setDefinitionId(instanceEntity.getDefinitionId());
         actionLogEntity.setActionType("INSTANCE_CANCELLED");
+        actionLogEntity.setActorEmployeeId(actorSnapshot.employeeId());
+        actionLogEntity.setActorNameSnapshot(actorSnapshot.actualName());
+        actionLogEntity.setCommentText(commentText);
+        actionLogEntity.setActionAt(actionAt);
+        return actionLogEntity;
+    }
+
+    private BpmTaskActionLogEntity buildAdminInstanceCancelActionLog(
+            BpmInstanceEntity instanceEntity,
+            BpmEmployeeSnapshot actorSnapshot,
+            String commentText,
+            LocalDateTime actionAt
+    ) {
+        BpmTaskActionLogEntity actionLogEntity = new BpmTaskActionLogEntity();
+        actionLogEntity.setInstanceId(instanceEntity.getInstanceId());
+        actionLogEntity.setDefinitionId(instanceEntity.getDefinitionId());
+        actionLogEntity.setActionType("ADMIN_INSTANCE_CANCELLED");
         actionLogEntity.setActorEmployeeId(actorSnapshot.employeeId());
         actionLogEntity.setActorNameSnapshot(actorSnapshot.actualName());
         actionLogEntity.setCommentText(commentText);
