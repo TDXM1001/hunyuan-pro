@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 任务退回发起人表单。
  */
@@ -16,4 +18,7 @@ public class BpmTaskReturnForm {
 
     @Schema(description = "退回意见")
     private String commentText;
+
+    @Schema(description = "手工抄送员工ID列表")
+    private List<Long> copyEmployeeIds;
 }

@@ -9,6 +9,7 @@ import com.hunyuan.sa.base.common.util.SmartPageUtil;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.common.enumeration.BpmCopyTypeEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -59,6 +61,9 @@ public class BpmTaskService {
 
     @Resource
     private BpmTaskProjectionService bpmTaskProjectionService;
+
+    @Resource
+    private BpmInstanceCopyService bpmInstanceCopyService;
 
     public ResponseDTO<PageResult<BpmTaskVO>> queryAdminPage(BpmTaskQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
@@ -106,12 +111,26 @@ public class BpmTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> approve(BpmTaskApproveForm approveForm) {
-        return completeTask(approveForm.getTaskId(), approveForm.getCommentText(), BpmTaskResultEnum.APPROVED, "APPROVED");
+        return completeTask(
+                approveForm.getTaskId(),
+                approveForm.getCommentText(),
+                BpmTaskResultEnum.APPROVED,
+                "APPROVED",
+                approveForm.getCopyEmployeeIds(),
+                BpmCopyTypeEnum.MANUAL_APPROVE_COPY
+        );
     }
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> reject(BpmTaskRejectForm rejectForm) {
-        return completeTask(rejectForm.getTaskId(), rejectForm.getCommentText(), BpmTaskResultEnum.REJECTED, "REJECTED");
+        return completeTask(
+                rejectForm.getTaskId(),
+                rejectForm.getCommentText(),
+                BpmTaskResultEnum.REJECTED,
+                "REJECTED",
+                rejectForm.getCopyEmployeeIds(),
+                BpmCopyTypeEnum.MANUAL_REJECT_COPY
+        );
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -155,6 +174,15 @@ public class BpmTaskService {
                 taskEntity.getAssigneeEmployeeId(),
                 now
         ));
+        ResponseDTO<String> copyResponse = bpmInstanceCopyService.createManualCopies(
+                taskEntity,
+                returnForm.getCopyEmployeeIds(),
+                returnForm.getCommentText(),
+                BpmCopyTypeEnum.MANUAL_RETURN_COPY
+        );
+        if (!copyResponse.getOk()) {
+            return copyResponse;
+        }
         return ResponseDTO.ok();
     }
 
@@ -193,7 +221,14 @@ public class BpmTaskService {
         return ResponseDTO.ok();
     }
 
-    private ResponseDTO<String> completeTask(Long taskId, String commentText, BpmTaskResultEnum resultEnum, String actionType) {
+    private ResponseDTO<String> completeTask(
+            Long taskId,
+            String commentText,
+            BpmTaskResultEnum resultEnum,
+            String actionType,
+            Collection<Long> copyEmployeeIds,
+            BpmCopyTypeEnum copyTypeEnum
+    ) {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(taskId);
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
@@ -225,6 +260,15 @@ public class BpmTaskService {
             finishInstance(taskEntity.getInstanceId(), BpmInstanceResultStateEnum.REJECTED);
         } else if (activeTaskCount == 0) {
             finishInstance(taskEntity.getInstanceId(), BpmInstanceResultStateEnum.APPROVED);
+        }
+        ResponseDTO<String> copyResponse = bpmInstanceCopyService.createManualCopies(
+                taskEntity,
+                copyEmployeeIds,
+                commentText,
+                copyTypeEnum
+        );
+        if (!copyResponse.getOk()) {
+            return copyResponse;
         }
         return ResponseDTO.ok();
     }
