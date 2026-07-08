@@ -83,7 +83,8 @@
             definition_name as definitionName,
             definition_version as definitionVersion,
             category_name_snapshot as categoryNameSnapshot,
-            form_name_snapshot as formNameSnapshot
+            form_name_snapshot as formNameSnapshot,
+            start_scope_json as startScopeJson
         from t_bpm_definition
         where lifecycle_state = 1
           and start_state = 1

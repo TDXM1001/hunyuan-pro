@@ -9,6 +9,7 @@ import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionPublishForm;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionQueryForm;
+import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionStartScopeSaveForm;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDiffVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDetailVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionValidationReportVO;
@@ -45,6 +46,27 @@ public class AdminBpmDefinitionController {
     @SaCheckPermission("bpm:definition:publish")
     public ResponseDTO<BpmDefinitionDiffVO> publishDiff(@PathVariable Long modelId) {
         return bpmDefinitionService.previewPublishDiff(modelId);
+    }
+
+    @Operation(summary = "保存流程定义可发起范围")
+    @PostMapping("/bpm/definition/startScope/save")
+    @SaCheckPermission("bpm:definition:update")
+    public ResponseDTO<String> saveStartScope(@RequestBody @Valid BpmDefinitionStartScopeSaveForm form) {
+        return bpmDefinitionService.saveStartScope(form);
+    }
+
+    @Operation(summary = "停用流程定义发起")
+    @PostMapping("/bpm/definition/suspendStart/{definitionId}")
+    @SaCheckPermission("bpm:definition:update")
+    public ResponseDTO<String> suspendStart(@PathVariable Long definitionId) {
+        return bpmDefinitionService.suspendStart(definitionId);
+    }
+
+    @Operation(summary = "启用流程定义发起")
+    @PostMapping("/bpm/definition/enableStart/{definitionId}")
+    @SaCheckPermission("bpm:definition:update")
+    public ResponseDTO<String> enableStart(@PathVariable Long definitionId) {
+        return bpmDefinitionService.enableStart(definitionId);
     }
 
     @Operation(summary = "分页查询流程定义")

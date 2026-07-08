@@ -26,4 +26,7 @@ public class BpmStartableDefinitionVO {
 
     @Schema(description = "表单名称")
     private String formNameSnapshot;
+
+    @Schema(description = "可发起范围JSON")
+    private String startScopeJson;
 }

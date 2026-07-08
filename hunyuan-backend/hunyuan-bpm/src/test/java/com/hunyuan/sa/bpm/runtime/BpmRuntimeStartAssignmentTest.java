@@ -13,6 +13,7 @@ import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntit
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceStartForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmStartableDefinitionVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskAssignmentResolver;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
@@ -27,6 +28,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,6 +63,44 @@ class BpmRuntimeStartAssignmentTest {
         setField(assignmentResolver, "bpmOrgIdentityGateway", identityGateway());
         setField(service, "bpmTaskAssignmentResolver", assignmentResolver);
         setField(service, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
+    }
+
+    @Test
+    void queryStartableDefinitionsShouldHideDefinitionOutsideEmployeeStartScope() {
+        BpmStartableDefinitionVO definition = new BpmStartableDefinitionVO();
+        definition.setDefinitionId(100L);
+        definition.setDefinitionName("费用申请");
+        definition.setStartScopeJson("{\"type\":\"EMPLOYEE\",\"employeeIds\":[200]}");
+
+        when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(definitionDao.queryStartableList(100L)).thenReturn(List.of(definition));
+
+        ResponseDTO<List<BpmStartableDefinitionVO>> response = service.queryStartableDefinitions();
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData()).isEmpty();
+    }
+
+    @Test
+    void startInstanceShouldRejectDefinitionOutsideEmployeeStartScope() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(1L);
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+        definitionEntity.setStartScopeJson("{\"type\":\"EMPLOYEE\",\"employeeIds\":[200]}");
+
+        when(definitionDao.selectById(1L)).thenReturn(definitionEntity);
+        when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+
+        BpmInstanceStartForm form = new BpmInstanceStartForm();
+        form.setDefinitionId(1L);
+        form.setFormDataJson("{\"amount\":100}");
+
+        ResponseDTO<Long> response = service.startInstance(form);
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("可发起范围");
+        verify(processInstanceGateway, never()).start(any(), any(), any(), any());
     }
 
     @Test

@@ -59,6 +59,8 @@ public class BpmDefinitionEntity {
 
     private Integer startState;
 
+    private String startScopeJson;
+
     private String engineProcessDefinitionId;
 
     private Long publishedByEmployeeId;

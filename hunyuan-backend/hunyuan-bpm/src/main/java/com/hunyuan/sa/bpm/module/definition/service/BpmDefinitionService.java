@@ -27,6 +27,7 @@ import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionPublishForm;
 import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionQueryForm;
+import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionStartScopeSaveForm;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDiffVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDetailVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionValidationReportVO;
@@ -168,6 +169,26 @@ public class BpmDefinitionService {
         return ResponseDTO.ok(diff);
     }
 
+    public ResponseDTO<String> saveStartScope(BpmDefinitionStartScopeSaveForm form) {
+        BpmDefinitionEntity entity = bpmDefinitionDao.selectById(form.getDefinitionId());
+        if (entity == null) {
+            return ResponseDTO.userErrorParam("流程定义不存在");
+        }
+        BpmDefinitionEntity updateEntity = new BpmDefinitionEntity();
+        updateEntity.setDefinitionId(form.getDefinitionId());
+        updateEntity.setStartScopeJson(form.getStartScopeJson());
+        bpmDefinitionDao.updateById(updateEntity);
+        return ResponseDTO.ok();
+    }
+
+    public ResponseDTO<String> suspendStart(Long definitionId) {
+        return updateStartState(definitionId, BpmDefinitionStartStateEnum.SUSPENDED.getValue());
+    }
+
+    public ResponseDTO<String> enableStart(Long definitionId) {
+        return updateStartState(definitionId, BpmDefinitionStartStateEnum.STARTABLE.getValue());
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> publish(BpmDefinitionPublishForm publishForm) {
         BpmModelEntity modelEntity = bpmModelDao.selectById(publishForm.getModelId());
@@ -292,6 +313,18 @@ public class BpmDefinitionService {
             return firstValue;
         }
         return secondValue;
+    }
+
+    private ResponseDTO<String> updateStartState(Long definitionId, Integer startState) {
+        BpmDefinitionEntity entity = bpmDefinitionDao.selectById(definitionId);
+        if (entity == null) {
+            return ResponseDTO.userErrorParam("流程定义不存在");
+        }
+        BpmDefinitionEntity updateEntity = new BpmDefinitionEntity();
+        updateEntity.setDefinitionId(definitionId);
+        updateEntity.setStartState(startState);
+        bpmDefinitionDao.updateById(updateEntity);
+        return ResponseDTO.ok();
     }
 
     private BpmDefinitionEntity buildDefinitionEntity(

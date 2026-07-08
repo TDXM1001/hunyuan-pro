@@ -1,9 +1,11 @@
 package com.hunyuan.sa.bpm.definition;
 
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
 import com.hunyuan.sa.bpm.engine.compiler.SimpleModelValidator;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.form.BpmDefinitionStartScopeSaveForm;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionDiffVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionValidationReportVO;
 import com.hunyuan.sa.bpm.module.definition.service.BpmDefinitionService;
@@ -11,11 +13,13 @@ import com.hunyuan.sa.bpm.module.model.dao.BpmModelDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BpmDefinitionGovernanceServiceTest {
@@ -99,6 +103,34 @@ class BpmDefinitionGovernanceServiceTest {
         assertThat(response.getData().getPreviousVersion()).isEqualTo(3);
         assertThat(response.getData().getChangedItems())
                 .contains("流程节点设计已变化", "发起规则已变化");
+    }
+
+    @Test
+    void saveStartScopeAndStartStateShouldUpdateDefinitionGovernanceFields() {
+        BpmDefinitionEntity definition = new BpmDefinitionEntity();
+        definition.setDefinitionId(21L);
+        when(bpmDefinitionDao.selectById(21L)).thenReturn(definition);
+
+        BpmDefinitionStartScopeSaveForm form = new BpmDefinitionStartScopeSaveForm();
+        form.setDefinitionId(21L);
+        form.setStartScopeJson("{\"type\":\"EMPLOYEE\",\"employeeIds\":[100]}");
+
+        ResponseDTO<String> saveResponse = bpmDefinitionService.saveStartScope(form);
+        ResponseDTO<String> suspendResponse = bpmDefinitionService.suspendStart(21L);
+        ResponseDTO<String> enableResponse = bpmDefinitionService.enableStart(21L);
+
+        assertThat(saveResponse.getOk()).isTrue();
+        assertThat(suspendResponse.getOk()).isTrue();
+        assertThat(enableResponse.getOk()).isTrue();
+
+        ArgumentCaptor<BpmDefinitionEntity> updateCaptor = ArgumentCaptor.forClass(BpmDefinitionEntity.class);
+        verify(bpmDefinitionDao, Mockito.times(3)).updateById(updateCaptor.capture());
+        assertThat(updateCaptor.getAllValues().get(0).getStartScopeJson())
+                .isEqualTo("{\"type\":\"EMPLOYEE\",\"employeeIds\":[100]}");
+        assertThat(updateCaptor.getAllValues().get(1).getStartState())
+                .isEqualTo(BpmDefinitionStartStateEnum.SUSPENDED.getValue());
+        assertThat(updateCaptor.getAllValues().get(2).getStartState())
+                .isEqualTo(BpmDefinitionStartStateEnum.STARTABLE.getValue());
     }
 
     private void setField(Object target, String fieldName, Object value) {

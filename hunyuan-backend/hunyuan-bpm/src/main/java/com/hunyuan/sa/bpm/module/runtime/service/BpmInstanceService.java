@@ -1,5 +1,8 @@
 package com.hunyuan.sa.bpm.module.runtime.service;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
@@ -98,7 +101,10 @@ public class BpmInstanceService {
 
     public ResponseDTO<List<BpmStartableDefinitionVO>> queryStartableDefinitions() {
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
-        return ResponseDTO.ok(bpmDefinitionDao.queryStartableList(employeeId));
+        List<BpmStartableDefinitionVO> list = bpmDefinitionDao.queryStartableList(employeeId).stream()
+                .filter(definition -> canEmployeeStart(definition.getStartScopeJson(), employeeId))
+                .toList();
+        return ResponseDTO.ok(list);
     }
 
     public ResponseDTO<BpmRuntimeStartDraftVO> getStartDraft(Long definitionId) {
@@ -386,7 +392,58 @@ public class BpmInstanceService {
         if (!BpmDefinitionStartStateEnum.STARTABLE.equalsValue(definitionEntity.getStartState())) {
             return ResponseDTO.userErrorParam("当前流程定义已停用，无法发起");
         }
+        Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        if (!canEmployeeStart(definitionEntity.getStartScopeJson(), employeeId)) {
+            return ResponseDTO.userErrorParam("当前流程定义不在可发起范围内");
+        }
         return null;
+    }
+
+    private boolean canEmployeeStart(String startScopeJson, Long employeeId) {
+        if (StringUtils.isBlank(startScopeJson)) {
+            return true;
+        }
+        try {
+            JSONObject scopeObject = JSON.parseObject(startScopeJson);
+            String type = scopeObject.getString("type");
+            if (StringUtils.isBlank(type) || "ALL".equalsIgnoreCase(type)) {
+                return true;
+            }
+            if ("EMPLOYEE".equalsIgnoreCase(type)) {
+                return containsLong(scopeObject.getJSONArray("employeeIds"), employeeId);
+            }
+            if ("DEPARTMENT".equalsIgnoreCase(type)) {
+                BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+                return containsLong(scopeObject.getJSONArray("departmentIds"), employeeSnapshot.departmentId());
+            }
+            if ("ROLE".equalsIgnoreCase(type)) {
+                JSONArray roleIds = scopeObject.getJSONArray("roleIds");
+                if (roleIds == null || roleIds.isEmpty()) {
+                    return false;
+                }
+                for (Object roleId : roleIds) {
+                    if (roleId != null && bpmOrgIdentityGateway.listEmployeeIdsByRoleId(Long.valueOf(roleId.toString())).contains(employeeId)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return false;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean containsLong(JSONArray values, Long targetValue) {
+        if (values == null || targetValue == null) {
+            return false;
+        }
+        for (Object value : values) {
+            if (value != null && targetValue.toString().equals(value.toString())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private BpmTaskActionLogEntity buildInstanceActionLog(
