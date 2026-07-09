@@ -11,7 +11,8 @@ public enum BpmCandidateResolverTypeEnum implements BaseEnum {
     DEPARTMENT_MANAGER("DEPARTMENT_MANAGER", "部门主管"),
     ROLE("ROLE", "角色成员"),
     START_EMPLOYEE("START_EMPLOYEE", "发起人本人"),
-    START_DEPARTMENT_MANAGER("START_DEPARTMENT_MANAGER", "发起人部门主管");
+    START_DEPARTMENT_MANAGER("START_DEPARTMENT_MANAGER", "发起人部门主管"),
+    EMPLOYEE_SELECT_AT_START("EMPLOYEE_SELECT_AT_START", "发起时自选审批人");
 
     private final String value;
 

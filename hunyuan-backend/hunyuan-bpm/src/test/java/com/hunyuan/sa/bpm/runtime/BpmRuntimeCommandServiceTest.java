@@ -116,7 +116,7 @@ class BpmRuntimeCommandServiceTest {
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
         when(serialNumberService().generate(any())).thenReturn("SN-2026-0001");
-        when(taskAssignmentResolver().resolve(any(), any())).thenReturn(Map.of());
+        when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
         when(processInstanceGateway().start("leave:1:1000", 100L, "{\"amount\":100}", Map.of())).thenReturn("process-1000");
         when(bpmInstanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
             BpmInstanceEntity entity = invocation.getArgument(0);
@@ -574,7 +574,7 @@ class BpmRuntimeCommandServiceTest {
                 new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null)
         );
         when(definitionNodeDao().selectList(any())).thenReturn(java.util.List.of());
-        when(taskAssignmentResolver().resolve(any(), any())).thenReturn(Map.of());
+        when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
         when(processInstanceGateway().start("leave:2:2000", 100L, "{\"amount\":200}", Map.of()))
                 .thenReturn("process-2000");
 

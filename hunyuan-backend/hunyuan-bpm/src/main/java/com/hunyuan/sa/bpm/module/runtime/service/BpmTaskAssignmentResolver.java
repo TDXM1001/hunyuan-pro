@@ -25,23 +25,31 @@ public class BpmTaskAssignmentResolver {
     private BpmOrgIdentityGateway bpmOrgIdentityGateway;
 
     public Map<String, Object> resolve(List<BpmDefinitionNodeEntity> definitionNodes, BpmEmployeeSnapshot startEmployeeSnapshot) {
+        return resolve(definitionNodes, new BpmTaskAssignmentContext(startEmployeeSnapshot, "{}"));
+    }
+
+    public Map<String, Object> resolve(List<BpmDefinitionNodeEntity> definitionNodes, BpmTaskAssignmentContext context) {
         Map<String, Object> variables = new HashMap<>();
         if (definitionNodes == null || definitionNodes.isEmpty()) {
             return variables;
         }
 
+        BpmTaskAssignmentContext safeContext = context == null
+                ? new BpmTaskAssignmentContext(null, "{}")
+                : context;
         definitionNodes.stream()
                 .filter(node -> "userTask".equals(node.getNodeType()))
                 .sorted(Comparator.comparing(BpmDefinitionNodeEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
                 .forEach(node -> {
-                    Long assigneeEmployeeId = resolveNodeAssignee(node, startEmployeeSnapshot);
+                    Long assigneeEmployeeId = resolveNodeAssignee(node, safeContext);
                     variables.put("assignee_" + node.getNodeKey(), String.valueOf(assigneeEmployeeId));
                 });
         return variables;
     }
 
-    private Long resolveNodeAssignee(BpmDefinitionNodeEntity node, BpmEmployeeSnapshot startEmployeeSnapshot) {
+    private Long resolveNodeAssignee(BpmDefinitionNodeEntity node, BpmTaskAssignmentContext context) {
         JSONObject nodeObject = parseNodeObject(node);
+        BpmEmployeeSnapshot startEmployeeSnapshot = context.startEmployeeSnapshot();
         String resolverType = firstNonBlank(
                 nodeObject.getString("candidateResolverType"),
                 nodeObject.getString("resolverType")
@@ -66,6 +74,25 @@ public class BpmTaskAssignmentResolver {
                 throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到发起人部门主管");
             }
             return managerEmployeeId;
+        }
+
+        if ("EMPLOYEE_SELECT_AT_START".equalsIgnoreCase(resolverType)) {
+            String fieldKey = firstNonBlank(
+                    nodeObject.getString("employeeSelectFieldKey"),
+                    nodeObject.getString("candidateFieldKey"),
+                    nodeObject.getString("assigneeFieldKey")
+            );
+            if (StringUtils.isBlank(fieldKey)) {
+                throw new IllegalArgumentException("审批节点【" + nodeName + "】未配置发起时自选审批人字段");
+            }
+            Long employeeId = readEmployeeIdFromFormData(context.formDataJson(), fieldKey);
+            if (employeeId == null) {
+                throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到发起时自选审批人");
+            }
+            if (employeeId <= 0) {
+                throw new IllegalArgumentException("审批节点【" + nodeName + "】发起时自选审批人无效");
+            }
+            return employeeId;
         }
 
         if ("DEPARTMENT_MANAGER".equalsIgnoreCase(resolverType)) {
@@ -120,6 +147,41 @@ public class BpmTaskAssignmentResolver {
         try {
             JSONObject nodeObject = JSON.parseObject(jsonText);
             return nodeObject == null ? new JSONObject() : nodeObject;
+        } catch (Exception ex) {
+            return new JSONObject();
+        }
+    }
+
+    private Long readEmployeeIdFromFormData(String formDataJson, String fieldKey) {
+        JSONObject formDataObject = parseFormDataObject(formDataJson);
+        Object rawValue = formDataObject.get(fieldKey);
+        if (rawValue == null) {
+            return null;
+        }
+        if (rawValue instanceof Number numberValue) {
+            return numberValue.longValue();
+        }
+        if (rawValue instanceof JSONArray || rawValue instanceof Iterable<?>) {
+            return -1L;
+        }
+        String text = String.valueOf(rawValue).trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        if (text.contains(",")) {
+            return -1L;
+        }
+        Long value = parseLong(text);
+        return value == null ? -1L : value;
+    }
+
+    private JSONObject parseFormDataObject(String formDataJson) {
+        if (StringUtils.isBlank(formDataJson)) {
+            return new JSONObject();
+        }
+        try {
+            JSONObject formDataObject = JSON.parseObject(formDataJson);
+            return formDataObject == null ? new JSONObject() : formDataObject;
         } catch (Exception ex) {
             return new JSONObject();
         }
