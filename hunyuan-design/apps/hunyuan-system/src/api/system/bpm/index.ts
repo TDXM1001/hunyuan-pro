@@ -7,6 +7,7 @@ export const BPM_ENDPOINT_INDEX = {
   listener: '/bpm/listener/',
   model: '/bpm/model/',
   runtimeTask: '/bpm/task/',
+  sampleExpense: '/bpm/sample/expense/',
 } as const;
 
 export * from './category';
@@ -16,3 +17,4 @@ export * from './integration';
 export * from './listener';
 export * from './model';
 export * from './runtime';
+export * from './sample-expense';

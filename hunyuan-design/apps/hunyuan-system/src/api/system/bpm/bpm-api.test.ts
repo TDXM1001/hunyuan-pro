@@ -77,6 +77,21 @@ const apiFiles = [
     path: 'apps/hunyuan-system/src/api/system/bpm/listener.ts',
   },
   {
+    label: 'sampleExpense',
+    needles: [
+      'createBpmSampleExpense',
+      '/bpm/sample/expense/create',
+      'startBpmSampleExpense',
+      '/bpm/sample/expense/start/',
+      'getBpmSampleExpenseDetail',
+      '/bpm/sample/expense/detail/',
+      'markNextBpmSampleExpenseCallbackFailed',
+      '/bpm/sample/expense/markNextCallbackFailed/',
+      'BpmSampleExpenseVO',
+    ],
+    path: 'apps/hunyuan-system/src/api/system/bpm/sample-expense.ts',
+  },
+  {
     label: 'integration',
     needles: [
       'queryBpmCallbackRecordPage',
