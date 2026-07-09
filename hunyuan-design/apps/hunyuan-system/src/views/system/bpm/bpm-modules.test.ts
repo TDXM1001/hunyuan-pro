@@ -255,6 +255,8 @@ describe('bpm module contracts', () => {
     expect(rendererSource).toContain('const parsed = safeParseJson<unknown>(props.schemaJson, []);');
     expect(rendererSource).toContain("if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { fields?: unknown }).fields)) {");
     expect(rendererSource).toContain('return (parsed as { fields: FormRule[] }).fields;');
+    expect(rendererSource).toContain('normalizeRuntimeFormRules');
+    expect(rendererSource).toContain('queryEmployeePage');
   });
 
   it('keeps runtime bootstrap wiring form-create registration before the runtime form page uses it', () => {

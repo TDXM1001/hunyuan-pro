@@ -3,9 +3,16 @@ import type { Api, FormRule, Options } from '@form-create/element-ui';
 import type { Component } from 'vue';
 
 import formCreate from '@form-create/element-ui';
-import { computed, markRaw, ref } from 'vue';
+import { computed, markRaw, ref, watch } from 'vue';
 
 import { ElEmpty } from 'element-plus';
+
+import { queryEmployeePage } from '#/api/system/organization';
+
+import {
+  hasEmployeeSelectRule,
+  normalizeRuntimeFormRules,
+} from './bpm-runtime-form-rules';
 
 defineOptions({ name: 'BpmRuntimeFormRenderer' });
 
@@ -30,8 +37,9 @@ const formApi = ref<Api>();
 const formCreateComponent = markRaw(
   (((formCreate as any).default ?? formCreate) as Component),
 );
+const employeeOptions = ref<{ label: string; value: number }[]>([]);
 
-const formRules = computed<FormRule[]>(() => {
+const rawFormRules = computed<FormRule[]>(() => {
   const parsed = safeParseJson<unknown>(props.schemaJson, []);
   if (Array.isArray(parsed)) {
     return parsed as FormRule[];
@@ -41,6 +49,14 @@ const formRules = computed<FormRule[]>(() => {
   }
   return [];
 });
+
+const formRules = computed<FormRule[]>(() =>
+  normalizeRuntimeFormRules(
+    rawFormRules.value,
+    employeeOptions.value,
+    loadEmployeeOptions,
+  ),
+);
 
 const hasRules = computed(() => formRules.value.length > 0);
 
@@ -78,6 +94,19 @@ function safeParseJson<T>(jsonText: string | undefined, fallbackValue: T): T {
   }
 }
 
+async function loadEmployeeOptions(keyword = '') {
+  const result = await queryEmployeePage({
+    disabledFlag: false,
+    keyword,
+    pageNum: 1,
+    pageSize: 20,
+  });
+  employeeOptions.value = (result?.list ?? []).map((item) => ({
+    label: `${item.actualName}（${item.departmentName || '未分配部门'}）`,
+    value: item.employeeId,
+  }));
+}
+
 async function submit() {
   if (!hasRules.value || !formApi.value) {
     return cloneJson(props.modelValue ?? {});
@@ -96,6 +125,16 @@ async function submit() {
     );
   });
 }
+
+watch(
+  rawFormRules,
+  (rules) => {
+    if (hasEmployeeSelectRule(rules)) {
+      void loadEmployeeOptions();
+    }
+  },
+  { immediate: true },
+);
 
 defineExpose({ submit });
 </script>
