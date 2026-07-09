@@ -1,5 +1,8 @@
 package com.hunyuan.sa.bpm.module.sampleexpense.service;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
@@ -16,6 +19,7 @@ import com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * BPM 样板费用申请流程定义初始化服务。
@@ -29,7 +33,11 @@ public class BpmSampleExpenseDefinitionSeedService {
 
     private static final String FORM_KEY = "sample_expense_form";
 
-    private static final String SIMPLE_MODEL_JSON = "{\"nodes\":[{\"nodeKey\":\"sample_approve\",\"type\":\"userTask\",\"name\":\"样板审批\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1}]}";
+    private static final String APPROVE_NODE_KEY = "sample_approve";
+
+    private static final String NOTIFICATION_CHANNEL_MESSAGE = "MESSAGE";
+
+    private static final String SIMPLE_MODEL_JSON = "{\"nodes\":[{\"nodeKey\":\"sample_approve\",\"type\":\"userTask\",\"name\":\"样板审批\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1,\"listeners\":[{\"channel\":\"MESSAGE\"}]}]}";
 
     private static final String START_RULE_JSON = "{\"allowAll\":true}";
 
@@ -55,7 +63,7 @@ public class BpmSampleExpenseDefinitionSeedService {
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> prepare() {
         BpmDefinitionEntity currentDefinition = bpmDefinitionDao.selectCurrentByDefinitionKey(DEFINITION_KEY);
-        if (isCurrentStartable(currentDefinition)) {
+        if (isCurrentStartable(currentDefinition) && hasSampleTaskNotificationListener(currentDefinition)) {
             return ResponseDTO.ok(currentDefinition.getDefinitionId());
         }
 
@@ -76,6 +84,43 @@ public class BpmSampleExpenseDefinitionSeedService {
         return definition != null
                 && BpmDefinitionLifecycleStateEnum.CURRENT.getValue().equals(definition.getLifecycleState())
                 && BpmDefinitionStartStateEnum.STARTABLE.getValue().equals(definition.getStartState());
+    }
+
+    /**
+     * 旧样板定义可能已经可发起，但缺少待办通知监听器；此时需要发布一次新版补齐 P2.2 可靠性记录触发点。
+     */
+    private boolean hasSampleTaskNotificationListener(BpmDefinitionEntity definition) {
+        if (definition == null || !StringUtils.hasText(definition.getSimpleModelSnapshotJson())) {
+            return false;
+        }
+        try {
+            JSONObject simpleModelObject = JSON.parseObject(definition.getSimpleModelSnapshotJson());
+            JSONArray nodes = simpleModelObject == null ? null : simpleModelObject.getJSONArray("nodes");
+            if (nodes == null) {
+                return false;
+            }
+            for (int index = 0; index < nodes.size(); index++) {
+                JSONObject nodeObject = nodes.getJSONObject(index);
+                if (nodeObject == null || !APPROVE_NODE_KEY.equals(nodeObject.getString("nodeKey"))) {
+                    continue;
+                }
+                JSONArray listeners = nodeObject.getJSONArray("listeners");
+                if (listeners == null) {
+                    return false;
+                }
+                for (int listenerIndex = 0; listenerIndex < listeners.size(); listenerIndex++) {
+                    JSONObject listenerObject = listeners.getJSONObject(listenerIndex);
+                    if (listenerObject != null
+                            && NOTIFICATION_CHANNEL_MESSAGE.equals(listenerObject.getString("channel"))) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return false;
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     private BpmCategoryEntity ensureCategory() {

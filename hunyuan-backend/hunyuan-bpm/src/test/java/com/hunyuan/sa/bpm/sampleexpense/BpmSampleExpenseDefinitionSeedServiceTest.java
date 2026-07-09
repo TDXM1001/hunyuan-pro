@@ -63,6 +63,7 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         currentDefinition.setDefinitionId(77L);
         currentDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.CURRENT.getValue());
         currentDefinition.setStartState(BpmDefinitionStartStateEnum.STARTABLE.getValue());
+        currentDefinition.setSimpleModelSnapshotJson("{\"nodes\":[{\"nodeKey\":\"sample_approve\",\"listeners\":[{\"channel\":\"MESSAGE\"}]}]}");
         when(definitionDao.selectCurrentByDefinitionKey("sample_expense_apply")).thenReturn(currentDefinition);
 
         ResponseDTO<Long> response = service.prepare();
@@ -125,6 +126,7 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_approve\"");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"candidateResolverType\":\"EMPLOYEE\"");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"employeeId\":1");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"listeners\":[{\"channel\":\"MESSAGE\"}]");
         assertThat(modelCaptor.getValue().getStartRuleJson()).isEqualTo("{\"allowAll\":true}");
         assertThat(modelCaptor.getValue().getHasUnpublishedChanges()).isTrue();
 
@@ -165,7 +167,38 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         assertThat(modelUpdateCaptor.getValue().getCategoryId()).isEqualTo(10L);
         assertThat(modelUpdateCaptor.getValue().getFormId()).isEqualTo(20L);
         assertThat(modelUpdateCaptor.getValue().getSimpleModelJson()).contains("\"employeeId\":1");
+        assertThat(modelUpdateCaptor.getValue().getSimpleModelJson()).contains("\"listeners\":[{\"channel\":\"MESSAGE\"}]");
         assertThat(modelUpdateCaptor.getValue().getHasUnpublishedChanges()).isTrue();
+    }
+
+    @Test
+    void prepareShouldPublishNewVersionWhenCurrentDefinitionMissesNotificationListener() {
+        BpmDefinitionEntity currentDefinition = new BpmDefinitionEntity();
+        currentDefinition.setDefinitionId(77L);
+        currentDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.CURRENT.getValue());
+        currentDefinition.setStartState(BpmDefinitionStartStateEnum.STARTABLE.getValue());
+        currentDefinition.setSimpleModelSnapshotJson("{\"nodes\":[{\"nodeKey\":\"sample_approve\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1}]}");
+        BpmCategoryEntity category = new BpmCategoryEntity();
+        category.setCategoryId(10L);
+        BpmFormEntity form = new BpmFormEntity();
+        form.setFormId(20L);
+        BpmModelEntity model = new BpmModelEntity();
+        model.setModelId(30L);
+
+        when(definitionDao.selectCurrentByDefinitionKey("sample_expense_apply")).thenReturn(currentDefinition);
+        when(categoryDao.selectOne(any(BpmCategoryEntity.class))).thenReturn(category);
+        when(formDao.selectOne(any(BpmFormEntity.class))).thenReturn(form);
+        when(modelDao.selectOne(any(BpmModelEntity.class))).thenReturn(model);
+        when(definitionService.publish(any(BpmDefinitionPublishForm.class))).thenReturn(ResponseDTO.ok(88L));
+
+        ResponseDTO<Long> response = service.prepare();
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData()).isEqualTo(88L);
+        ArgumentCaptor<BpmModelEntity> modelUpdateCaptor = ArgumentCaptor.forClass(BpmModelEntity.class);
+        verify(modelDao).updateById(modelUpdateCaptor.capture());
+        assertThat(modelUpdateCaptor.getValue().getSimpleModelJson()).contains("\"listeners\":[{\"channel\":\"MESSAGE\"}]");
+        verify(definitionService).publish(any(BpmDefinitionPublishForm.class));
     }
 
     @Test
