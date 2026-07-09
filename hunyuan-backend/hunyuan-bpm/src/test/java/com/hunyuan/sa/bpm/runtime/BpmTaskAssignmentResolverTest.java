@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 class BpmTaskAssignmentResolverTest {
@@ -73,6 +74,78 @@ class BpmTaskAssignmentResolverTest {
         );
 
         assertThat(variables).containsEntry("assignee_task_role", "15");
+    }
+
+    @Test
+    void resolveShouldUseStartEmployeeWhenNodeUsesStartEmployeeStrategy() {
+        BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null);
+
+        Map<String, Object> variables = resolver.resolve(
+                List.of(buildNode(
+                        "task_self",
+                        "{\"nodeKey\":\"task_self\",\"name\":\"发起人自审\",\"type\":\"userTask\",\"candidateResolverType\":\"START_EMPLOYEE\"}"
+                )),
+                startEmployee
+        );
+
+        assertThat(variables).containsEntry("assignee_task_self", "100");
+    }
+
+    @Test
+    void resolveShouldRejectStartEmployeeStrategyWhenStartEmployeeMissing() {
+        assertThatThrownBy(() -> resolver.resolve(
+                List.of(buildNode(
+                        "task_self",
+                        "{\"nodeKey\":\"task_self\",\"name\":\"发起人自审\",\"type\":\"userTask\",\"candidateResolverType\":\"START_EMPLOYEE\"}"
+                )),
+                null
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("审批节点【发起人自审】未找到发起人");
+    }
+
+    @Test
+    void resolveShouldUseStartEmployeeDepartmentManagerWhenNodeUsesStartDepartmentManagerStrategy() {
+        BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null);
+        when(identityGateway.resolveDepartmentManagerEmployeeId(7L)).thenReturn(200L);
+
+        Map<String, Object> variables = resolver.resolve(
+                List.of(buildNode(
+                        "task_start_manager",
+                        "{\"nodeKey\":\"task_start_manager\",\"name\":\"发起人部门主管审批\",\"type\":\"userTask\",\"candidateResolverType\":\"START_DEPARTMENT_MANAGER\"}"
+                )),
+                startEmployee
+        );
+
+        assertThat(variables).containsEntry("assignee_task_start_manager", "200");
+    }
+
+    @Test
+    void resolveShouldRejectStartDepartmentManagerStrategyWhenStartDepartmentMissing() {
+        BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", null, null, null, null);
+
+        assertThatThrownBy(() -> resolver.resolve(
+                List.of(buildNode(
+                        "task_start_manager",
+                        "{\"nodeKey\":\"task_start_manager\",\"name\":\"发起人部门主管审批\",\"type\":\"userTask\",\"candidateResolverType\":\"START_DEPARTMENT_MANAGER\"}"
+                )),
+                startEmployee
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("审批节点【发起人部门主管审批】未找到发起人部门");
+    }
+
+    @Test
+    void resolveShouldRejectStartDepartmentManagerStrategyWhenManagerMissing() {
+        BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null);
+        when(identityGateway.resolveDepartmentManagerEmployeeId(7L)).thenReturn(null);
+
+        assertThatThrownBy(() -> resolver.resolve(
+                List.of(buildNode(
+                        "task_start_manager",
+                        "{\"nodeKey\":\"task_start_manager\",\"name\":\"发起人部门主管审批\",\"type\":\"userTask\",\"candidateResolverType\":\"START_DEPARTMENT_MANAGER\"}"
+                )),
+                startEmployee
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("审批节点【发起人部门主管审批】未找到发起人部门主管");
     }
 
     private BpmDefinitionNodeEntity buildNode(String nodeKey, String authoredRuleSnapshotJson) {

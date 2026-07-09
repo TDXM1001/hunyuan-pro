@@ -48,6 +48,26 @@ public class BpmTaskAssignmentResolver {
         );
         String nodeName = firstNonBlank(nodeObject.getString("name"), node.getNodeNameSnapshot(), node.getNodeKey());
 
+        if ("START_EMPLOYEE".equalsIgnoreCase(resolverType)) {
+            Long employeeId = startEmployeeSnapshot == null ? null : startEmployeeSnapshot.employeeId();
+            if (employeeId == null) {
+                throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到发起人");
+            }
+            return employeeId;
+        }
+
+        if ("START_DEPARTMENT_MANAGER".equalsIgnoreCase(resolverType)) {
+            Long departmentId = startEmployeeSnapshot == null ? null : startEmployeeSnapshot.departmentId();
+            if (departmentId == null) {
+                throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到发起人部门");
+            }
+            Long managerEmployeeId = bpmOrgIdentityGateway.resolveDepartmentManagerEmployeeId(departmentId);
+            if (managerEmployeeId == null) {
+                throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到发起人部门主管");
+            }
+            return managerEmployeeId;
+        }
+
         if ("DEPARTMENT_MANAGER".equalsIgnoreCase(resolverType)) {
             Long departmentId = firstNonNull(
                     readLong(nodeObject, "departmentId"),
