@@ -35,6 +35,28 @@ class SimpleModelValidatorTest {
                 .contains("DEPARTMENT_MANAGER")
                 .contains("ROLE")
                 .contains("START_EMPLOYEE")
-                .contains("START_DEPARTMENT_MANAGER");
+                .contains("START_DEPARTMENT_MANAGER")
+                .contains("EMPLOYEE_SELECT_AT_START");
+    }
+
+    @Test
+    void validateShouldAcceptEmployeeSelectAtStartWhenFieldKeyConfigured() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"nodes\":[{\"id\":\"task_selected\",\"nodeKey\":\"task_selected\",\"name\":\"发起时选择审批\",\"type\":\"userTask\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\",\"employeeSelectFieldKey\":\"approverEmployeeId\"}]}",
+                "{\"type\":\"ALL\"}"
+        );
+
+        assertThat(response.getOk()).isTrue();
+    }
+
+    @Test
+    void validateShouldRejectEmployeeSelectAtStartWhenFieldKeyMissing() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"nodes\":[{\"id\":\"task_selected\",\"nodeKey\":\"task_selected\",\"name\":\"发起时选择审批\",\"type\":\"userTask\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\"}]}",
+                "{\"type\":\"ALL\"}"
+        );
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("发起时自选审批人字段");
     }
 }

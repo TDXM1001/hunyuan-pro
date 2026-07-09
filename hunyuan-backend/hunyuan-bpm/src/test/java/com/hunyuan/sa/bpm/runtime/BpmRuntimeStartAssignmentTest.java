@@ -210,6 +210,59 @@ class BpmRuntimeStartAssignmentTest {
         assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_self", "100");
     }
 
+    @Test
+    void startInstanceShouldPassEmployeeSelectedFromStartFormDataToFlowable() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(1L);
+        definitionEntity.setEngineProcessDefinitionId("expense:1:1000");
+        definitionEntity.setDefinitionKey("expense");
+        definitionEntity.setDefinitionVersion(1);
+        definitionEntity.setCategoryIdSnapshot(7L);
+        definitionEntity.setCategoryNameSnapshot("费用流程");
+        definitionEntity.setInstanceNoRuleIdSnapshot(1);
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+
+        BpmDefinitionNodeEntity nodeEntity = new BpmDefinitionNodeEntity();
+        nodeEntity.setNodeKey("task_selected");
+        nodeEntity.setNodeType("userTask");
+        nodeEntity.setNodeNameSnapshot("发起时选择审批");
+        nodeEntity.setAuthoredRuleSnapshotJson(
+                "{\"nodeKey\":\"task_selected\",\"name\":\"发起时选择审批\",\"type\":\"userTask\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\",\"employeeSelectFieldKey\":\"approverEmployeeId\"}"
+        );
+
+        when(definitionDao.selectById(1L)).thenReturn(definitionEntity);
+        when(definitionNodeDao.selectList(any())).thenReturn(List.of(nodeEntity));
+        when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
+        when(serialNumberService().generate(any())).thenReturn("SN-2026-0004");
+        when(processInstanceGateway.start("expense:1:1000", 100L, "{\"amount\":100,\"approverEmployeeId\":301}", Map.of("assignee_task_selected", "301")))
+                .thenReturn("process-1003");
+        when(instanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
+            BpmInstanceEntity entity = invocation.getArgument(0);
+            entity.setInstanceId(11L);
+            return 1;
+        });
+
+        BpmInstanceStartForm form = new BpmInstanceStartForm();
+        form.setDefinitionId(1L);
+        form.setFormDataJson("{\"amount\":100,\"approverEmployeeId\":301}");
+        form.setTitle("费用申请");
+
+        ResponseDTO<Long> response = service.startInstance(form);
+
+        assertThat(response.getOk()).isTrue();
+
+        ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(processInstanceGateway).start(
+                Mockito.eq("expense:1:1000"),
+                Mockito.eq(100L),
+                Mockito.eq("{\"amount\":100,\"approverEmployeeId\":301}"),
+                variablesCaptor.capture()
+        );
+        assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_selected", "301");
+    }
+
     @SuppressWarnings("unchecked")
     private BpmCurrentActorProvider currentActorProvider() {
         return (BpmCurrentActorProvider) getFieldValue("bpmCurrentActorProvider");

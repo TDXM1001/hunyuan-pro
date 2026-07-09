@@ -301,7 +301,10 @@ public class BpmInstanceService {
 
         Map<String, Object> runtimeAssignmentVariables;
         try {
-            runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(definitionNodes, employeeSnapshot);
+            runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(
+                    definitionNodes,
+                    new BpmTaskAssignmentContext(employeeSnapshot, resubmitForm.getFormDataJson())
+            );
         } catch (IllegalArgumentException ex) {
             return ResponseDTO.userErrorParam(ex.getMessage());
         }
@@ -389,7 +392,10 @@ public class BpmInstanceService {
 
         Map<String, Object> runtimeAssignmentVariables;
         try {
-            runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(definitionNodes, employeeSnapshot);
+            runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(
+                    definitionNodes,
+                    new BpmTaskAssignmentContext(employeeSnapshot, startForm.getFormDataJson())
+            );
         } catch (IllegalArgumentException ex) {
             return ResponseDTO.userErrorParam(ex.getMessage());
         }

@@ -55,7 +55,15 @@ public class SimpleModelValidator {
                     nodeObject.getString("resolverType")
             );
             if (StringUtils.isNotBlank(resolverType) && !isSupportedResolverType(resolverType)) {
-                return ResponseDTO.userErrorParam("当前只支持 EMPLOYEE、DEPARTMENT_MANAGER、ROLE、START_EMPLOYEE、START_DEPARTMENT_MANAGER 五类候选人解析类型");
+                return ResponseDTO.userErrorParam("当前只支持 EMPLOYEE、DEPARTMENT_MANAGER、ROLE、START_EMPLOYEE、START_DEPARTMENT_MANAGER、EMPLOYEE_SELECT_AT_START 六类候选人解析类型");
+            }
+            if ("EMPLOYEE_SELECT_AT_START".equalsIgnoreCase(resolverType)
+                    && StringUtils.isBlank(firstNonBlank(
+                    nodeObject.getString("employeeSelectFieldKey"),
+                    nodeObject.getString("candidateFieldKey"),
+                    nodeObject.getString("assigneeFieldKey")
+            ))) {
+                return ResponseDTO.userErrorParam("审批节点【" + firstNonBlank(nodeObject.getString("name"), nodeObject.getString("nodeKey"), nodeObject.getString("id")) + "】未配置发起时自选审批人字段");
             }
         }
 
@@ -93,10 +101,12 @@ public class SimpleModelValidator {
         return false;
     }
 
-    private String firstNonBlank(String firstValue, String secondValue) {
-        if (StringUtils.isNotBlank(firstValue)) {
-            return firstValue;
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (StringUtils.isNotBlank(value)) {
+                return value;
+            }
         }
-        return secondValue;
+        return null;
     }
 }
