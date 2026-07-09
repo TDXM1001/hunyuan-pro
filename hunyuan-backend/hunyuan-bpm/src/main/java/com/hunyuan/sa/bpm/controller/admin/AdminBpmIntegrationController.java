@@ -3,6 +3,7 @@ package com.hunyuan.sa.bpm.controller.admin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.bpm.module.integration.domain.form.BpmCallbackCompensateForm;
 import com.hunyuan.sa.bpm.module.integration.domain.form.BpmCallbackRecordQueryForm;
 import com.hunyuan.sa.bpm.module.integration.domain.form.BpmCommandRecordQueryForm;
 import com.hunyuan.sa.bpm.module.integration.domain.vo.BpmCallbackRecordVO;
@@ -45,6 +46,16 @@ public class AdminBpmIntegrationController {
     @SaCheckPermission("bpm:integration:update")
     public ResponseDTO<String> retryCallback(@PathVariable Long callbackRecordId) {
         return bpmBusinessCallbackService.retry(callbackRecordId);
+    }
+
+    @Operation(summary = "人工补偿 BPM 业务回调")
+    @PostMapping("/bpm/integration/callback/compensate/{callbackRecordId}")
+    @SaCheckPermission("bpm:integration:update")
+    public ResponseDTO<String> compensateCallback(
+            @PathVariable Long callbackRecordId,
+            @RequestBody @Valid BpmCallbackCompensateForm form
+    ) {
+        return bpmBusinessCallbackService.compensate(callbackRecordId, form);
     }
 
     @Operation(summary = "分页查询 BPM 命令执行记录")
