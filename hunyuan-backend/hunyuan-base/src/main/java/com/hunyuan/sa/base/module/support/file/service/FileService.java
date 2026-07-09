@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.constant.StringConst;
 import com.hunyuan.sa.base.common.domain.PageResult;
@@ -41,6 +42,7 @@ import java.util.stream.Collectors;
  * @Email lab1024@163.com
  * @Copyright <a href="https://1024lab.net">1024创新实验室</a>
  */
+@Slf4j
 @Service
 public class FileService {
 
@@ -108,7 +110,12 @@ public class FileService {
         fileEntity.setCreatorId(requestUser == null ? null : requestUser.getUserId());
         fileEntity.setCreatorName(requestUser == null ? null : requestUser.getUserName());
         fileEntity.setCreatorUserType(requestUser == null ? null : requestUser.getUserType().getValue());
-        fileDao.insert(fileEntity);
+        try {
+            fileDao.insert(fileEntity);
+        } catch (RuntimeException ex) {
+            compensateUploadedFile(uploadVO.getFileKey(), ex);
+            throw ex;
+        }
 
         // 将fileId 返回给前端
         uploadVO.setFileId(fileEntity.getFileId());
@@ -191,6 +198,24 @@ public class FileService {
             download.getData().getMetadata().setFileName(fileVO.getFileName());
         }
         return download;
+    }
+
+    /**
+     * 上传已成功但文件记录落库失败时，清理刚写入的存储文件，避免出现不可追踪的孤儿文件。
+     */
+    private void compensateUploadedFile(String fileKey, RuntimeException dbException) {
+        if (StringUtils.isBlank(fileKey)) {
+            log.error("文件上传落库失败，且上传结果缺少 fileKey，无法执行补偿清理", dbException);
+            return;
+        }
+        try {
+            ResponseDTO<String> deleteResponse = fileStorageService.delete(fileKey);
+            if (!Boolean.TRUE.equals(deleteResponse.getOk())) {
+                log.error("文件上传落库失败后的补偿删除未成功，fileKey={}，deleteMsg={}", fileKey, deleteResponse.getMsg(), dbException);
+            }
+        } catch (RuntimeException deleteException) {
+            log.error("文件上传落库失败后的补偿删除异常，fileKey={}", fileKey, deleteException);
+        }
     }
 
     /**
