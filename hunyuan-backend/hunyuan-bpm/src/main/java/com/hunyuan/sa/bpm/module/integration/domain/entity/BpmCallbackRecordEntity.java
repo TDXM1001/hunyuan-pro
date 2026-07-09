@@ -39,6 +39,12 @@ public class BpmCallbackRecordEntity {
 
     private LocalDateTime nextRetryAt;
 
+    private LocalDateTime compensatedAt;
+
+    private Long compensatedBy;
+
+    private String compensationReason;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

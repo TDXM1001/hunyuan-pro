@@ -28,6 +28,12 @@ public class BpmCallbackRecordVO {
 
     private LocalDateTime nextRetryAt;
 
+    private LocalDateTime compensatedAt;
+
+    private Long compensatedBy;
+
+    private String compensationReason;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

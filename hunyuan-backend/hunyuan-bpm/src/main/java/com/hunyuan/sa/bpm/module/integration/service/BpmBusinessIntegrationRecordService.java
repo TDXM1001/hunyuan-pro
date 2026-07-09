@@ -124,6 +124,9 @@ public class BpmBusinessIntegrationRecordService {
         vo.setFailureReason(entity.getFailureReason());
         vo.setRetryCount(entity.getRetryCount());
         vo.setNextRetryAt(entity.getNextRetryAt());
+        vo.setCompensatedAt(entity.getCompensatedAt());
+        vo.setCompensatedBy(entity.getCompensatedBy());
+        vo.setCompensationReason(entity.getCompensationReason());
         vo.setCreateTime(entity.getCreateTime());
         vo.setUpdateTime(entity.getUpdateTime());
         return vo;

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +51,10 @@ class BpmBusinessIntegrationRecordServiceTest {
         record.setBusinessId(1001L);
         record.setCallbackStatus(2);
         record.setRetryCount(3);
+        LocalDateTime compensatedAt = LocalDateTime.of(2026, 7, 9, 10, 30);
+        record.setCompensatedAt(compensatedAt);
+        record.setCompensatedBy(900L);
+        record.setCompensationReason("业务侧已线下补偿");
         when(bpmCallbackRecordDao.selectPage(any(Page.class), any())).thenAnswer(invocation -> {
             Page<BpmCallbackRecordEntity> page = invocation.getArgument(0);
             page.setRecords(List.of(record));
@@ -71,6 +76,9 @@ class BpmBusinessIntegrationRecordServiceTest {
         assertThat(response.getData().getList().get(0).getEventId()).isEqualTo("event-1");
         assertThat(response.getData().getList().get(0).getInstanceId()).isEqualTo(88L);
         assertThat(response.getData().getList().get(0).getRetryCount()).isEqualTo(3);
+        assertThat(response.getData().getList().get(0).getCompensatedAt()).isEqualTo(compensatedAt);
+        assertThat(response.getData().getList().get(0).getCompensatedBy()).isEqualTo(900L);
+        assertThat(response.getData().getList().get(0).getCompensationReason()).isEqualTo("业务侧已线下补偿");
     }
 
     @Test
@@ -116,6 +124,10 @@ class BpmBusinessIntegrationRecordServiceTest {
         record.setBusinessId(1001L);
         record.setCallbackStatus(2);
         record.setRetryCount(1);
+        LocalDateTime compensatedAt = LocalDateTime.of(2026, 7, 9, 11, 0);
+        record.setCompensatedAt(compensatedAt);
+        record.setCompensatedBy(901L);
+        record.setCompensationReason("管理员确认补偿完成");
         when(bpmCallbackRecordDao.selectList(any())).thenReturn(List.of(record));
 
         List<BpmCallbackRecordVO> records = recordService.queryCallbackRecordsByInstanceId(88L);
@@ -124,6 +136,9 @@ class BpmBusinessIntegrationRecordServiceTest {
         assertThat(records.get(0).getCallbackRecordId()).isEqualTo(1L);
         assertThat(records.get(0).getInstanceId()).isEqualTo(88L);
         assertThat(records.get(0).getEventId()).isEqualTo("event-88");
+        assertThat(records.get(0).getCompensatedAt()).isEqualTo(compensatedAt);
+        assertThat(records.get(0).getCompensatedBy()).isEqualTo(901L);
+        assertThat(records.get(0).getCompensationReason()).isEqualTo("管理员确认补偿完成");
     }
 
     @Test
