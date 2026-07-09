@@ -8,6 +8,10 @@ function normalizeNode(rawNode: Record<string, any>): BpmProcessNodeDraft {
     approvalMode: rawNode.approvalMode || 'single',
     candidateResolverType:
       rawNode.candidateResolverType || rawNode.resolverType || 'EMPLOYEE',
+    employeeSelectFieldKey:
+      typeof rawNode.employeeSelectFieldKey === 'string'
+        ? rawNode.employeeSelectFieldKey.trim()
+        : undefined,
     id: nodeId,
     listeners: Array.isArray(rawNode.listeners) ? rawNode.listeners : [],
     name: String(rawNode.name || '审批节点').trim(),
@@ -42,6 +46,9 @@ export function stringifySimpleModelDraft(nodes: BpmProcessNodeDraft[]): string 
       type: 'userTask',
       approvalMode: node.approvalMode || 'single',
       candidateResolverType: node.candidateResolverType || 'EMPLOYEE',
+      ...(node.employeeSelectFieldKey
+        ? { employeeSelectFieldKey: node.employeeSelectFieldKey }
+        : {}),
       listeners: node.listeners || [],
     })),
   });

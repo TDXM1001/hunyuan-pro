@@ -244,11 +244,26 @@ onBeforeUnmount(() => {
               <ElOption label="部门负责人" value="DEPARTMENT_MANAGER" />
               <ElOption label="发起人本人" value="START_EMPLOYEE" />
               <ElOption
+                label="发起时自选审批人"
+                value="EMPLOYEE_SELECT_AT_START"
+              />
+              <ElOption
                 label="发起人部门主管"
                 value="START_DEPARTMENT_MANAGER"
               />
               <ElOption label="角色" value="ROLE" />
             </ElSelect>
+          </ElFormItem>
+          <ElFormItem
+            v-if="selectedNode.candidateResolverType === 'EMPLOYEE_SELECT_AT_START'"
+            label="自选字段"
+          >
+            <ElInput
+              v-model="selectedNode.employeeSelectFieldKey"
+              :disabled="disabled || readonly"
+              placeholder="例如 approverEmployeeId"
+              @change="handleStateChange"
+            />
           </ElFormItem>
           <ElFormItem label="审批模式">
             <ElSelect

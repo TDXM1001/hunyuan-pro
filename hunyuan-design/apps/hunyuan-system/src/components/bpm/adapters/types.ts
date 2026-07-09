@@ -13,9 +13,11 @@ export interface BpmProcessNodeDraft {
   candidateResolverType?:
     | 'DEPARTMENT_MANAGER'
     | 'EMPLOYEE'
+    | 'EMPLOYEE_SELECT_AT_START'
     | 'ROLE'
     | 'START_DEPARTMENT_MANAGER'
     | 'START_EMPLOYEE';
+  employeeSelectFieldKey?: string;
   id: string;
   listeners: BpmListenerBinding[];
   name: string;

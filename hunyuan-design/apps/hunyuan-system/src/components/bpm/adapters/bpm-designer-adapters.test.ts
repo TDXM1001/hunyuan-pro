@@ -110,6 +110,41 @@ describe('bpm designer adapters', () => {
     );
   });
 
+  it('保留发起时自选审批人的字段 key 合同', () => {
+    const parsedNodes = parseSimpleModelDraft(
+      JSON.stringify({
+        nodes: [
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'EMPLOYEE_SELECT_AT_START',
+            employeeSelectFieldKey: 'approverEmployeeId',
+            id: 'task_selected',
+            listeners: [],
+            name: '发起时选择审批',
+            type: 'userTask',
+          },
+        ],
+      }),
+    );
+
+    expect(parsedNodes).toEqual([
+      {
+        approvalMode: 'single',
+        candidateResolverType: 'EMPLOYEE_SELECT_AT_START',
+        employeeSelectFieldKey: 'approverEmployeeId',
+        id: 'task_selected',
+        listeners: [],
+        name: '发起时选择审批',
+        nodeKey: 'task_selected',
+        type: 'userTask',
+      },
+    ]);
+
+    expect(stringifySimpleModelDraft(parsedNodes)).toContain(
+      '"employeeSelectFieldKey":"approverEmployeeId"',
+    );
+  });
+
   it('根据顺序审批节点生成只读 BPMN XML 预览', () => {
     const xml = buildReadonlyBpmnXml('leave_apply', '请假流程', [
       {
