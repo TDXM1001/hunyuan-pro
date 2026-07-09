@@ -9,6 +9,8 @@ import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackExecutor
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackHandler;
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackResult;
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackTriggerType;
+import com.hunyuan.sa.bpm.module.sampleexpense.service.BpmSampleExpenseCallbackHandler;
+import com.hunyuan.sa.bpm.module.sampleexpense.service.BpmSampleExpenseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -141,6 +143,30 @@ class BpmBusinessCallbackExecutorTest {
         verify(bpmCallbackRecordDao).update(captor.capture(), any());
         assertThat(captor.getValue().getFailureReason()).contains("未找到业务回调处理器");
         assertThat(handlerCalls.get()).isZero();
+    }
+
+    @Test
+    void executeShouldCallSampleExpenseHandlerByBusinessType() {
+        BpmSampleExpenseService sampleService = Mockito.mock(BpmSampleExpenseService.class);
+        BpmSampleExpenseCallbackHandler sampleHandler = new BpmSampleExpenseCallbackHandler();
+        setField(sampleHandler, "bpmSampleExpenseService", sampleService);
+        setHandlers(List.of(sampleHandler));
+        BpmCallbackRecordEntity record = buildRecord(BpmCallbackStatusEnum.PENDING.getValue(), 0);
+        record.setBusinessType("sample_expense");
+        record.setRequestPayloadJson("{\"eventId\":\"event-1\",\"instanceId\":88,\"businessType\":\"sample_expense\",\"businessId\":1001,\"resultState\":1}");
+        when(bpmCallbackRecordDao.selectById(1L)).thenReturn(record);
+        when(sampleService.handleCallback(any(BpmBusinessCallbackContext.class)))
+                .thenReturn(BpmBusinessCallbackResult.success("{\"approvalStatus\":2}"));
+
+        BpmBusinessCallbackExecuteResult result = executor.execute(1L, BpmBusinessCallbackTriggerType.MANUAL);
+
+        assertThat(result.processed()).isTrue();
+        assertThat(result.succeeded()).isTrue();
+        verify(sampleService).handleCallback(any(BpmBusinessCallbackContext.class));
+        ArgumentCaptor<BpmCallbackRecordEntity> captor = ArgumentCaptor.forClass(BpmCallbackRecordEntity.class);
+        verify(bpmCallbackRecordDao).update(captor.capture(), any());
+        assertThat(captor.getValue().getCallbackStatus()).isEqualTo(BpmCallbackStatusEnum.SUCCEEDED.getValue());
+        assertThat(captor.getValue().getResponsePayloadJson()).isEqualTo("{\"approvalStatus\":2}");
     }
 
     private BpmCallbackRecordEntity buildRecord(Integer status, Integer retryCount) {
