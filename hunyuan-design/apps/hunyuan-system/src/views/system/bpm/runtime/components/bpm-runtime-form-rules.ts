@@ -8,11 +8,15 @@ export interface BpmRuntimeEmployeeOption {
 type RuntimeRule = FormRule & Record<string, any>;
 
 function isEmployeeSelectRule(rule: RuntimeRule) {
+  const props =
+    rule.props && typeof rule.props === 'object'
+      ? (rule.props as Record<string, any>)
+      : {};
   const values = [
-    rule.type,
-    rule.component,
-    rule.props?.type,
-    rule.props?.component,
+    (rule as Record<string, any>).type,
+    (rule as Record<string, any>).component,
+    props.type,
+    props.component,
   ]
     .filter(Boolean)
     .map((value) => String(value).toLowerCase());
