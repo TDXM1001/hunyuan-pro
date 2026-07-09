@@ -99,7 +99,7 @@ file:
   storage:
     mode: local
     local:
-      upload-path: ${localPath:/home}/hunyuan/upload/   #文件上传目录
+      upload-path: ${localPath:./runtime}/upload/   # 文件上传目录，dev 默认写入 hunyuan-backend/runtime/upload/
       url-prefix:
     cloud:
       region: oss-cn-hangzhou
