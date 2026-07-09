@@ -7,6 +7,8 @@ import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.util.SmartPageUtil;
+import com.hunyuan.sa.bpm.api.business.BpmBusinessProcessApi;
+import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessResultEvent;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
@@ -36,6 +38,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -71,6 +74,9 @@ public class BpmTaskService {
 
     @Resource
     private BpmInstanceCopyService bpmInstanceCopyService;
+
+    @Resource
+    private BpmBusinessProcessApi bpmBusinessProcessApi;
 
     public ResponseDTO<PageResult<BpmTaskVO>> queryAdminPage(BpmTaskQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
@@ -484,6 +490,7 @@ public class BpmTaskService {
 
     private void finishInstance(Long instanceId, BpmInstanceResultStateEnum resultStateEnum) {
         LocalDateTime now = LocalDateTime.now();
+        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(instanceId);
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceId);
         updateInstanceEntity.setRunState(BpmInstanceRunStateEnum.FINISHED.getValue());
@@ -493,6 +500,27 @@ public class BpmTaskService {
         updateInstanceEntity.setFinishedAt(now);
         updateInstanceEntity.setLastActionAt(now);
         bpmInstanceDao.updateById(updateInstanceEntity);
+        publishBusinessResultEventIfNeeded(instanceEntity, resultStateEnum, now);
+    }
+
+    private void publishBusinessResultEventIfNeeded(
+            BpmInstanceEntity instanceEntity,
+            BpmInstanceResultStateEnum resultStateEnum,
+            LocalDateTime occurredAt
+    ) {
+        if (instanceEntity == null
+                || !StringUtils.hasText(instanceEntity.getBusinessType())
+                || instanceEntity.getBusinessId() == null) {
+            return;
+        }
+        BpmBusinessResultEvent event = new BpmBusinessResultEvent();
+        event.setEventId("RESULT:%s:%s".formatted(instanceEntity.getInstanceId(), resultStateEnum.getValue()));
+        event.setInstanceId(instanceEntity.getInstanceId());
+        event.setBusinessType(instanceEntity.getBusinessType());
+        event.setBusinessId(instanceEntity.getBusinessId());
+        event.setResultState(resultStateEnum.getValue());
+        event.setOccurredAt(occurredAt);
+        bpmBusinessProcessApi.publishResultEvent(event);
     }
 
     private void updateTaskAssigneeAndWriteLog(

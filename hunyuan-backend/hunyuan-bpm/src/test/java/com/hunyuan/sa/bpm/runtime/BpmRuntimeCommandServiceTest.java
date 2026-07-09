@@ -2,6 +2,8 @@ package com.hunyuan.sa.bpm.runtime;
 
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.module.support.serialnumber.service.SerialNumberService;
+import com.hunyuan.sa.bpm.api.business.BpmBusinessProcessApi;
+import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessResultEvent;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
@@ -43,6 +45,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,6 +63,8 @@ class BpmRuntimeCommandServiceTest {
 
     private BpmInstanceCopyService bpmInstanceCopyService;
 
+    private BpmBusinessProcessApi bpmBusinessProcessApi;
+
     @BeforeEach
     void setUp() {
         bpmInstanceService = new BpmInstanceService();
@@ -68,6 +73,7 @@ class BpmRuntimeCommandServiceTest {
         bpmTaskDao = Mockito.mock(BpmTaskDao.class);
         bpmTaskActionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
         bpmInstanceCopyService = Mockito.mock(BpmInstanceCopyService.class);
+        bpmBusinessProcessApi = Mockito.mock(BpmBusinessProcessApi.class);
 
         setField(bpmInstanceService, "bpmDefinitionDao", Mockito.mock(BpmDefinitionDao.class));
         setField(bpmInstanceService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
@@ -89,6 +95,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmTaskService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
         setField(bpmTaskService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
         setField(bpmTaskService, "bpmInstanceCopyService", bpmInstanceCopyService);
+        setField(bpmTaskService, "bpmBusinessProcessApi", bpmBusinessProcessApi);
         when(bpmInstanceCopyService.createManualCopies(any(), any(), any(), any())).thenReturn(ResponseDTO.ok());
     }
 
@@ -284,6 +291,81 @@ class BpmRuntimeCommandServiceTest {
         assertThat(instanceCaptor.getValue().getInstanceId()).isEqualTo(8L);
         assertThat(instanceCaptor.getValue().getRunState()).isEqualTo(BpmInstanceRunStateEnum.FINISHED.getValue());
         assertThat(instanceCaptor.getValue().getResultState()).isEqualTo(BpmInstanceResultStateEnum.REJECTED.getValue());
+    }
+
+    @Test
+    void approveShouldPublishBusinessResultEventWhenLastActiveTaskCompletes() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+        BpmInstanceEntity instanceEntity = buildBusinessInstance();
+
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
+        when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
+        when(taskServiceProjectionService().syncActiveTasksForInstance(8L)).thenReturn(0);
+
+        BpmTaskApproveForm form = new BpmTaskApproveForm();
+        form.setTaskId(1L);
+        form.setCommentText("同意");
+
+        ResponseDTO<String> response = bpmTaskService.approve(form);
+
+        assertThat(response.getOk()).isTrue();
+        ArgumentCaptor<BpmBusinessResultEvent> eventCaptor = ArgumentCaptor.forClass(BpmBusinessResultEvent.class);
+        verify(bpmBusinessProcessApi).publishResultEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getEventId()).isEqualTo("RESULT:8:1");
+        assertThat(eventCaptor.getValue().getInstanceId()).isEqualTo(8L);
+        assertThat(eventCaptor.getValue().getBusinessType()).isEqualTo("sample_expense");
+        assertThat(eventCaptor.getValue().getBusinessId()).isEqualTo(1001L);
+        assertThat(eventCaptor.getValue().getResultState()).isEqualTo(BpmInstanceResultStateEnum.APPROVED.getValue());
+        assertThat(eventCaptor.getValue().getPayloadJson()).isNull();
+        assertThat(eventCaptor.getValue().getOccurredAt()).isNotNull();
+    }
+
+    @Test
+    void rejectShouldPublishBusinessResultEventWhenInstanceFinishes() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+        BpmInstanceEntity instanceEntity = buildBusinessInstance();
+
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
+        when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
+        when(taskServiceProjectionService().syncActiveTasksForInstance(8L)).thenReturn(0);
+
+        BpmTaskRejectForm form = new BpmTaskRejectForm();
+        form.setTaskId(1L);
+        form.setCommentText("不同意");
+
+        ResponseDTO<String> response = bpmTaskService.reject(form);
+
+        assertThat(response.getOk()).isTrue();
+        ArgumentCaptor<BpmBusinessResultEvent> eventCaptor = ArgumentCaptor.forClass(BpmBusinessResultEvent.class);
+        verify(bpmBusinessProcessApi).publishResultEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getEventId()).isEqualTo("RESULT:8:2");
+        assertThat(eventCaptor.getValue().getResultState()).isEqualTo(BpmInstanceResultStateEnum.REJECTED.getValue());
+    }
+
+    @Test
+    void finishInstanceShouldNotPublishBusinessResultEventWhenBusinessKeyIsMissing() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
+        when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
+        when(taskServiceProjectionService().syncActiveTasksForInstance(8L)).thenReturn(0);
+
+        BpmTaskApproveForm form = new BpmTaskApproveForm();
+        form.setTaskId(1L);
+        form.setCommentText("同意");
+
+        ResponseDTO<String> response = bpmTaskService.approve(form);
+
+        assertThat(response.getOk()).isTrue();
+        verify(bpmBusinessProcessApi, never()).publishResultEvent(any());
     }
 
     @Test
@@ -609,6 +691,14 @@ class BpmRuntimeCommandServiceTest {
         taskEntity.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         taskEntity.setAssigneeEmployeeId(10L);
         return taskEntity;
+    }
+
+    private BpmInstanceEntity buildBusinessInstance() {
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setBusinessType("sample_expense");
+        instanceEntity.setBusinessId(1001L);
+        return instanceEntity;
     }
 
     private void setField(Object target, String fieldName, Object value) {
