@@ -23,6 +23,7 @@ import {
   buildReadonlyBpmnXml,
   parseSimpleModelDraft,
 } from './simple-model-bridge';
+import { extractEmployeeSelectFieldOptions } from './employee-select-field-options';
 
 defineOptions({ name: 'BpmProcessDesignerAdapter' });
 
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 const props = withDefaults(
   defineProps<{
     disabled?: boolean;
+    formSchemaJson?: string;
     initialSnapshot?: Partial<BpmProcessDesignerSnapshot>;
     modelKey?: string;
     modelName?: string;
@@ -41,6 +43,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
+    formSchemaJson: '',
     initialSnapshot: () => ({}),
     modelKey: '',
     modelName: '',
@@ -56,6 +59,12 @@ const selectedNodeId = ref('');
 
 const selectedNode = computed(() =>
   nodes.value.find((item) => item.nodeKey === selectedNodeId.value),
+);
+const employeeSelectFieldOptions = computed(() =>
+  extractEmployeeSelectFieldOptions(props.formSchemaJson),
+);
+const employeeSelectFieldSet = computed(
+  () => new Set(employeeSelectFieldOptions.value.map((item) => item.field)),
 );
 
 function buildEmptyNode(index: number): BpmProcessNodeDraft {
@@ -115,11 +124,29 @@ function getSnapshot(): BpmProcessDesignerSnapshot {
 }
 
 async function validate() {
-  const hasNodes = nodes.value.length > 0;
+  if (!nodes.value.length) {
+    return {
+      message: '请至少保留一个审批节点',
+      ok: false,
+    };
+  }
+
+  const invalidEmployeeSelectNode = nodes.value.find(
+    (item) =>
+      item.candidateResolverType === 'EMPLOYEE_SELECT_AT_START' &&
+      (!item.employeeSelectFieldKey ||
+        !employeeSelectFieldSet.value.has(item.employeeSelectFieldKey)),
+  );
+  if (invalidEmployeeSelectNode) {
+    return {
+      message: `审批节点【${invalidEmployeeSelectNode.name}】请选择发起时自选审批人字段`,
+      ok: false,
+    };
+  }
 
   return {
-    message: hasNodes ? undefined : '请至少保留一个审批节点',
-    ok: hasNodes,
+    message: undefined,
+    ok: true,
   };
 }
 
@@ -258,12 +285,19 @@ onBeforeUnmount(() => {
             v-if="selectedNode.candidateResolverType === 'EMPLOYEE_SELECT_AT_START'"
             label="自选字段"
           >
-            <ElInput
+            <ElSelect
               v-model="selectedNode.employeeSelectFieldKey"
-              :disabled="disabled || readonly"
-              placeholder="例如 approverEmployeeId"
+              :disabled="disabled || readonly || !employeeSelectFieldOptions.length"
+              placeholder="请选择表单中的员工字段"
               @change="handleStateChange"
-            />
+            >
+              <ElOption
+                v-for="field in employeeSelectFieldOptions"
+                :key="field.field"
+                :label="field.label"
+                :value="field.field"
+              />
+            </ElSelect>
           </ElFormItem>
           <ElFormItem label="审批模式">
             <ElSelect

@@ -2,6 +2,7 @@ import type { BpmProcessNodeDraft } from './types';
 
 import { describe, expect, it } from 'vitest';
 
+import { extractEmployeeSelectFieldOptions } from './employee-select-field-options';
 import {
   buildReadonlyBpmnXml,
   parseSimpleModelDraft,
@@ -143,6 +144,51 @@ describe('bpm designer adapters', () => {
     expect(stringifySimpleModelDraft(parsedNodes)).toContain(
       '"employeeSelectFieldKey":"approverEmployeeId"',
     );
+  });
+
+  it('从表单 schema 提取员工单选字段候选项', () => {
+    const options = extractEmployeeSelectFieldOptions(
+      JSON.stringify({
+        fields: [
+          {
+            field: 'approverEmployeeId',
+            title: '审批人',
+            type: 'employeeSelect',
+          },
+          {
+            field: 'amount',
+            title: '金额',
+            type: 'input',
+          },
+        ],
+      }),
+    );
+
+    expect(options).toEqual([
+      {
+        field: 'approverEmployeeId',
+        label: '审批人',
+      },
+    ]);
+  });
+
+  it('兼容字段名带员工语义但组件类型尚未标准化的表单字段', () => {
+    const options = extractEmployeeSelectFieldOptions(
+      JSON.stringify([
+        {
+          field: 'backupApproverEmployeeId',
+          title: '备选审批人',
+          type: 'input',
+        },
+      ]),
+    );
+
+    expect(options).toEqual([
+      {
+        field: 'backupApproverEmployeeId',
+        label: '备选审批人',
+      },
+    ]);
   });
 
   it('根据顺序审批节点生成只读 BPMN XML 预览', () => {
