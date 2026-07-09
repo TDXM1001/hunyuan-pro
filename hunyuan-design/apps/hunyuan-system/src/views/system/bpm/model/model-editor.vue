@@ -50,6 +50,7 @@ defineOptions({ name: 'SystemBpmModelEditor' });
 interface DesignerBaseInfo {
   categoryName: string;
   formName: string;
+  formSchemaJson: string;
   hasUnpublishedChanges: boolean;
   instanceNoRuleId?: null | number;
   modelId: number;
@@ -75,6 +76,7 @@ const publishDiff = ref<BpmDefinitionDiff>();
 const baseInfo = reactive<DesignerBaseInfo>({
   categoryName: '',
   formName: '',
+  formSchemaJson: '',
   hasUnpublishedChanges: false,
   instanceNoRuleId: null,
   modelId: 0,
@@ -136,6 +138,7 @@ function resetBaseInfo() {
   Object.assign(baseInfo, {
     categoryName: '',
     formName: '',
+    formSchemaJson: '',
     hasUnpublishedChanges: false,
     instanceNoRuleId: null,
     modelId: 0,
@@ -187,6 +190,7 @@ async function loadDetail() {
     Object.assign(baseInfo, {
       categoryName: detail.categoryName || '',
       formName: detail.formName || '',
+      formSchemaJson: detail.formSchemaJson || '',
       hasUnpublishedChanges: detail.hasUnpublishedChanges ?? false,
       instanceNoRuleId: detail.instanceNoRuleId ?? null,
       modelId: detail.modelId,
@@ -389,6 +393,7 @@ watch(
           <BpmProcessDesignerAdapter
             ref="designerRef"
             :disabled="loading"
+            :form-schema-json="baseInfo.formSchemaJson"
             :initial-snapshot="buildDesignerSnapshot()"
             :model-key="baseInfo.modelKey"
             :model-name="baseInfo.modelName"

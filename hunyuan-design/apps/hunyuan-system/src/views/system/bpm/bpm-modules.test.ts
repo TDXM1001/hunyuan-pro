@@ -132,6 +132,8 @@ describe('bpm module contracts', () => {
     expect(modelEditorSource).toContain('ArtEditPage');
     expect(modelEditorSource).toContain('ArtEditSection');
     expect(modelEditorSource).toContain('BpmProcessDesignerAdapter');
+    expect(modelEditorSource).toContain('formSchemaJson');
+    expect(modelEditorSource).toContain(':form-schema-json="baseInfo.formSchemaJson"');
     expect(modelEditorSource).toContain('validateBpmDefinitionForPublish');
     expect(modelEditorSource).toContain('getBpmDefinitionPublishDiff');
     expect(modelEditorSource).toContain('validationReport');
