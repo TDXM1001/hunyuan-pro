@@ -55,7 +55,7 @@ public class SimpleModelValidator {
                     nodeObject.getString("resolverType")
             );
             if (StringUtils.isNotBlank(resolverType) && !isSupportedResolverType(resolverType)) {
-                return ResponseDTO.userErrorParam("P0 只支持 EMPLOYEE、DEPARTMENT_MANAGER、ROLE 三类候选人解析类型");
+                return ResponseDTO.userErrorParam("当前只支持 EMPLOYEE、DEPARTMENT_MANAGER、ROLE、START_EMPLOYEE、START_DEPARTMENT_MANAGER 五类候选人解析类型");
             }
         }
 

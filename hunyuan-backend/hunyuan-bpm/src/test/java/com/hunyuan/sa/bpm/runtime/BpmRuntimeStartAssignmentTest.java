@@ -157,6 +157,59 @@ class BpmRuntimeStartAssignmentTest {
         assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_manager", "200");
     }
 
+    @Test
+    void startInstanceShouldPassStartEmployeeAssignmentToFlowable() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(1L);
+        definitionEntity.setEngineProcessDefinitionId("leave:1:1000");
+        definitionEntity.setDefinitionKey("leave");
+        definitionEntity.setDefinitionVersion(1);
+        definitionEntity.setCategoryIdSnapshot(7L);
+        definitionEntity.setCategoryNameSnapshot("人事流程");
+        definitionEntity.setInstanceNoRuleIdSnapshot(1);
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+
+        BpmDefinitionNodeEntity nodeEntity = new BpmDefinitionNodeEntity();
+        nodeEntity.setNodeKey("task_self");
+        nodeEntity.setNodeType("userTask");
+        nodeEntity.setNodeNameSnapshot("发起人自审");
+        nodeEntity.setAuthoredRuleSnapshotJson(
+                "{\"nodeKey\":\"task_self\",\"name\":\"发起人自审\",\"type\":\"userTask\",\"candidateResolverType\":\"START_EMPLOYEE\"}"
+        );
+
+        when(definitionDao.selectById(1L)).thenReturn(definitionEntity);
+        when(definitionNodeDao.selectList(any())).thenReturn(List.of(nodeEntity));
+        when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
+        when(serialNumberService().generate(any())).thenReturn("SN-2026-0003");
+        when(processInstanceGateway.start("leave:1:1000", 100L, "{\"amount\":100}", Map.of("assignee_task_self", "100")))
+                .thenReturn("process-1002");
+        when(instanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
+            BpmInstanceEntity entity = invocation.getArgument(0);
+            entity.setInstanceId(10L);
+            return 1;
+        });
+
+        BpmInstanceStartForm form = new BpmInstanceStartForm();
+        form.setDefinitionId(1L);
+        form.setFormDataJson("{\"amount\":100}");
+        form.setTitle("请假申请");
+
+        ResponseDTO<Long> response = service.startInstance(form);
+
+        assertThat(response.getOk()).isTrue();
+
+        ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(processInstanceGateway).start(
+                Mockito.eq("leave:1:1000"),
+                Mockito.eq(100L),
+                Mockito.eq("{\"amount\":100}"),
+                variablesCaptor.capture()
+        );
+        assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_self", "100");
+    }
+
     @SuppressWarnings("unchecked")
     private BpmCurrentActorProvider currentActorProvider() {
         return (BpmCurrentActorProvider) getFieldValue("bpmCurrentActorProvider");
