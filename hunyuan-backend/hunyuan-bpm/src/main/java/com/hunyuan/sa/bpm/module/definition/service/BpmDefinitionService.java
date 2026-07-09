@@ -3,6 +3,7 @@ package com.hunyuan.sa.bpm.module.definition.service;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
@@ -252,14 +253,7 @@ public class BpmDefinitionService {
         );
         bpmDefinitionDao.insert(definitionEntity);
 
-        BpmDefinitionEntity currentDefinition = bpmDefinitionDao.selectCurrentByDefinitionKey(modelEntity.getModelKey());
-        if (currentDefinition != null && currentDefinition.getDefinitionId() != null
-                && !currentDefinition.getDefinitionId().equals(definitionEntity.getDefinitionId())) {
-            BpmDefinitionEntity historicalDefinition = new BpmDefinitionEntity();
-            historicalDefinition.setDefinitionId(currentDefinition.getDefinitionId());
-            historicalDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.HISTORICAL.getValue());
-            bpmDefinitionDao.updateById(historicalDefinition);
-        }
+        historicalizeOtherCurrentDefinitions(modelEntity.getModelKey(), definitionEntity.getDefinitionId());
 
         for (CompiledNodeSnapshot nodeSnapshot : artifact.nodeSnapshots()) {
             BpmDefinitionNodeEntity nodeEntity = new BpmDefinitionNodeEntity();
@@ -325,6 +319,18 @@ public class BpmDefinitionService {
         updateEntity.setStartState(startState);
         bpmDefinitionDao.updateById(updateEntity);
         return ResponseDTO.ok();
+    }
+
+    private void historicalizeOtherCurrentDefinitions(String definitionKey, Long currentDefinitionId) {
+        BpmDefinitionEntity historicalDefinition = new BpmDefinitionEntity();
+        historicalDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.HISTORICAL.getValue());
+        bpmDefinitionDao.update(
+                historicalDefinition,
+                Wrappers.<BpmDefinitionEntity>update()
+                        .eq("definition_key", definitionKey)
+                        .eq("lifecycle_state", BpmDefinitionLifecycleStateEnum.CURRENT.getValue())
+                        .ne("definition_id", currentDefinitionId)
+        );
     }
 
     private BpmDefinitionEntity buildDefinitionEntity(

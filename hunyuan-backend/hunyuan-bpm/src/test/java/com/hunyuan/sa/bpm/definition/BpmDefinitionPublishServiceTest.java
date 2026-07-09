@@ -1,5 +1,6 @@
 package com.hunyuan.sa.bpm.definition;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
@@ -26,6 +27,7 @@ import com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
@@ -33,6 +35,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,14 +69,11 @@ class BpmDefinitionPublishServiceTest {
     }
 
     @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
     void publishShouldCreateNewImmutableDefinitionAndHistoricalizeOldVersion() {
         BpmModelEntity modelEntity = buildModelEntity();
         BpmCategoryEntity categoryEntity = buildCategoryEntity();
         BpmFormEntity formEntity = buildFormEntity();
-        BpmDefinitionEntity oldDefinition = new BpmDefinitionEntity();
-        oldDefinition.setDefinitionId(11L);
-        oldDefinition.setDefinitionVersion(1);
-        oldDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.CURRENT.getValue());
 
         when(bpmModelDao.selectById(1L)).thenReturn(modelEntity);
         when(categoryDao().selectById(7L)).thenReturn(categoryEntity);
@@ -83,7 +83,6 @@ class BpmDefinitionPublishServiceTest {
         when(gateway().deploy(any(), any(), any())).thenReturn("leave:2:1001");
         when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
-        when(bpmDefinitionDao.selectCurrentByDefinitionKey("leave")).thenReturn(oldDefinition);
         when(bpmDefinitionDao.selectMaxVersionByDefinitionKey("leave")).thenReturn(1);
         when(bpmDefinitionDao.insert(any(BpmDefinitionEntity.class))).thenAnswer(invocation -> {
             BpmDefinitionEntity entity = invocation.getArgument(0);
@@ -109,9 +108,15 @@ class BpmDefinitionPublishServiceTest {
         assertThat(insertedDefinition.getPublishedByNameSnapshot()).isEqualTo("张三");
 
         ArgumentCaptor<BpmDefinitionEntity> historicalCaptor = ArgumentCaptor.forClass(BpmDefinitionEntity.class);
-        verify(bpmDefinitionDao).updateById(historicalCaptor.capture());
-        assertThat(historicalCaptor.getValue().getDefinitionId()).isEqualTo(11L);
+        ArgumentCaptor<Wrapper> historicalWrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(bpmDefinitionDao).update(historicalCaptor.capture(), historicalWrapperCaptor.capture());
         assertThat(historicalCaptor.getValue().getLifecycleState()).isEqualTo(BpmDefinitionLifecycleStateEnum.HISTORICAL.getValue());
+        assertThat(historicalWrapperCaptor.getValue().getSqlSegment())
+                .contains("definition_key", "lifecycle_state", "definition_id", "<>");
+
+        InOrder definitionUpdateOrder = inOrder(bpmDefinitionDao);
+        definitionUpdateOrder.verify(bpmDefinitionDao).insert(any(BpmDefinitionEntity.class));
+        definitionUpdateOrder.verify(bpmDefinitionDao).update(any(BpmDefinitionEntity.class), any(Wrapper.class));
 
         ArgumentCaptor<BpmModelEntity> modelUpdateCaptor = ArgumentCaptor.forClass(BpmModelEntity.class);
         verify(bpmModelDao).updateById(modelUpdateCaptor.capture());
