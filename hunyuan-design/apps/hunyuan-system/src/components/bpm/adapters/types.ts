@@ -10,7 +10,12 @@ export interface BpmFormDesignerSnapshot {
 
 export interface BpmProcessNodeDraft {
   approvalMode?: 'single' | 'singleOnly';
-  candidateResolverType?: 'DEPARTMENT_MANAGER' | 'EMPLOYEE' | 'ROLE';
+  candidateResolverType?:
+    | 'DEPARTMENT_MANAGER'
+    | 'EMPLOYEE'
+    | 'ROLE'
+    | 'START_DEPARTMENT_MANAGER'
+    | 'START_EMPLOYEE';
   id: string;
   listeners: BpmListenerBinding[];
   name: string;

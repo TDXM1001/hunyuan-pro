@@ -242,6 +242,11 @@ onBeforeUnmount(() => {
             >
               <ElOption label="指定员工" value="EMPLOYEE" />
               <ElOption label="部门负责人" value="DEPARTMENT_MANAGER" />
+              <ElOption label="发起人本人" value="START_EMPLOYEE" />
+              <ElOption
+                label="发起人部门主管"
+                value="START_DEPARTMENT_MANAGER"
+              />
               <ElOption label="角色" value="ROLE" />
             </ElSelect>
           </ElFormItem>

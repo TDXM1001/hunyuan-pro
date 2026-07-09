@@ -1,3 +1,5 @@
+import type { BpmProcessNodeDraft } from './types';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -61,6 +63,50 @@ describe('bpm designer adapters', () => {
       ]),
     ).toBe(
       '{"nodes":[{"id":"task_finance","nodeKey":"task_finance","name":"财务审批","type":"userTask","approvalMode":"single","candidateResolverType":"ROLE","listeners":[]}]}',
+    );
+  });
+
+  it('保留发起人相关候选策略的 simpleModelJson 合同', () => {
+    const parsedNodes = parseSimpleModelDraft(
+      JSON.stringify({
+        nodes: [
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'START_EMPLOYEE',
+            id: 'task_self',
+            listeners: [],
+            name: '发起人自审',
+            type: 'userTask',
+          },
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'START_DEPARTMENT_MANAGER',
+            id: 'task_start_manager',
+            listeners: [],
+            name: '发起人部门主管审批',
+            type: 'userTask',
+          },
+        ],
+      }),
+    );
+
+    expect(parsedNodes.map((item) => item.candidateResolverType)).toEqual([
+      'START_EMPLOYEE',
+      'START_DEPARTMENT_MANAGER',
+    ]);
+
+    const startDepartmentManagerNode: BpmProcessNodeDraft = {
+      approvalMode: 'single',
+      candidateResolverType: 'START_DEPARTMENT_MANAGER',
+      id: 'task_start_manager',
+      listeners: [],
+      name: '发起人部门主管审批',
+      nodeKey: 'task_start_manager',
+      type: 'userTask',
+    };
+
+    expect(stringifySimpleModelDraft([startDepartmentManagerNode])).toContain(
+      '"candidateResolverType":"START_DEPARTMENT_MANAGER"',
     );
   });
 
