@@ -19,6 +19,7 @@ import {
   ElFormItem,
   ElInput,
   ElMessage,
+  ElMessageBox,
   ElOption,
   ElSelect,
   ElSpace,
@@ -26,6 +27,7 @@ import {
 } from 'element-plus';
 
 import {
+  compensateBpmCallbackRecord,
   queryBpmCallbackRecordPage,
   retryBpmCallbackRecord,
 } from '#/api/system/bpm';
@@ -56,12 +58,13 @@ const columnsFactory = (): ColumnOption<BpmCallbackRecordVO>[] => [
   { prop: 'instanceId', label: '实例ID', width: 110, align: 'center' },
   { prop: 'callbackStatus', label: '回调状态', width: 110, align: 'center', useSlot: true },
   { prop: 'retryCount', label: '重试次数', width: 100, align: 'center' },
+  { prop: 'nextRetryAt', label: '下次重试', minWidth: 180 },
   { prop: 'failureReason', label: '失败原因', minWidth: 220 },
   { prop: 'updateTime', label: '更新时间', minWidth: 180 },
   {
     prop: 'actions',
     label: '操作',
-    width: 100,
+    width: 160,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -85,17 +88,26 @@ function getCallbackStatusLabel(value?: null | number) {
   if (value === 2) {
     return '失败';
   }
+  if (value === 3) {
+    return '需人工补偿';
+  }
+  if (value === 4) {
+    return '已补偿';
+  }
   return '未知';
 }
 
 function getCallbackStatusType(value?: null | number) {
-  if (value === 1) {
+  if (value === 1 || value === 4) {
     return 'success';
   }
   if (value === 2) {
     return 'danger';
   }
-  return 'warning';
+  if (value === 3) {
+    return 'warning';
+  }
+  return 'info';
 }
 
 async function loadData() {
@@ -137,6 +149,20 @@ function handleToggleSearchBar() {
 async function handleRetry(row: BpmCallbackRecordVO) {
   await retryBpmCallbackRecord(row.callbackRecordId);
   ElMessage.success('重试请求已提交');
+  void loadData();
+}
+
+async function handleCompensate(row: BpmCallbackRecordVO) {
+  const { value } = await ElMessageBox.prompt('请输入人工补偿说明', '标记已补偿', {
+    confirmButtonText: '确认',
+    inputErrorMessage: '请输入人工补偿说明',
+    inputPattern: /\S+/,
+    inputPlaceholder: '说明业务侧已如何补偿',
+    type: 'warning',
+  });
+  const reason = String(value || '').trim();
+  await compensateBpmCallbackRecord(row.callbackRecordId, { reason });
+  ElMessage.success('已标记为人工补偿');
   void loadData();
 }
 
@@ -192,6 +218,8 @@ onMounted(() => {
               <ElOption label="待回调" :value="0" />
               <ElOption label="成功" :value="1" />
               <ElOption label="失败" :value="2" />
+              <ElOption label="需人工补偿" :value="3" />
+              <ElOption label="已补偿" :value="4" />
             </ElSelect>
           </ElFormItem>
         </ArtSearchPanel>
@@ -240,6 +268,15 @@ onMounted(() => {
                   @click="handleRetry(row)"
                 >
                   重试
+                </ElButton>
+                <ElButton
+                  v-if="row.callbackStatus === 3"
+                  link
+                  size="small"
+                  type="warning"
+                  @click="handleCompensate(row)"
+                >
+                  标记补偿
                 </ElButton>
               </ElSpace>
             </template>

@@ -67,6 +67,38 @@ function getNotificationStatusLabel(sendStatus?: null | number) {
   return '-';
 }
 
+function getCallbackStatusLabel(value?: null | number) {
+  if (value === 0) {
+    return '待回调';
+  }
+  if (value === 1) {
+    return '成功';
+  }
+  if (value === 2) {
+    return '失败';
+  }
+  if (value === 3) {
+    return '需人工补偿';
+  }
+  if (value === 4) {
+    return '已补偿';
+  }
+  return '未知';
+}
+
+function getCallbackStatusType(value?: null | number) {
+  if (value === 1 || value === 4) {
+    return 'success';
+  }
+  if (value === 2) {
+    return 'danger';
+  }
+  if (value === 3) {
+    return 'warning';
+  }
+  return 'info';
+}
+
 async function open(instanceId: number, source: DetailSource = 'runtime') {
   visible.value = true;
   loading.value = true;
@@ -206,8 +238,21 @@ defineExpose({ open });
           />
           <ElTableColumn label="业务类型" min-width="100" prop="businessType" />
           <ElTableColumn label="业务ID" min-width="90" prop="businessId" />
-          <ElTableColumn label="状态" min-width="80" prop="callbackStatus" />
+          <ElTableColumn label="状态" min-width="110">
+            <template #default="{ row }">
+              <ElTag :type="getCallbackStatusType(row.callbackStatus)" effect="plain" size="small">
+                {{ getCallbackStatusLabel(row.callbackStatus) }}
+              </ElTag>
+            </template>
+          </ElTableColumn>
           <ElTableColumn label="重试" min-width="70" prop="retryCount" />
+          <ElTableColumn label="下次重试" min-width="150" prop="nextRetryAt" />
+          <ElTableColumn
+            label="补偿说明"
+            min-width="160"
+            prop="compensationReason"
+            show-overflow-tooltip
+          />
           <ElTableColumn
             label="失败原因"
             min-width="160"

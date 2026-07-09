@@ -7,6 +7,9 @@ export interface BpmCallbackRecordVO {
   businessType: string;
   callbackRecordId: number;
   callbackStatus: number;
+  compensatedAt?: null | string;
+  compensatedBy?: null | number;
+  compensationReason?: null | string;
   createTime?: null | string;
   eventId: string;
   failureReason?: null | string;
@@ -39,6 +42,10 @@ export interface BpmCallbackRecordPageQueryParams {
   pageSize: number;
 }
 
+export interface BpmCallbackCompensateParams {
+  reason: string;
+}
+
 export interface BpmCommandRecordPageQueryParams {
   businessId?: null | number;
   businessType?: string;
@@ -69,6 +76,18 @@ export async function queryBpmCallbackRecordPage(
 export async function retryBpmCallbackRecord(callbackRecordId: number) {
   return requestClient.post<string>(
     `/bpm/integration/callback/retry/${callbackRecordId}`,
+  );
+}
+
+export async function compensateBpmCallbackRecord(
+  callbackRecordId: number,
+  data: BpmCallbackCompensateParams,
+) {
+  return requestClient.post<string>(
+    `/bpm/integration/callback/compensate/${callbackRecordId}`,
+    {
+      reason: data.reason.trim(),
+    },
   );
 }
 

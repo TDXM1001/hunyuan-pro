@@ -174,8 +174,12 @@ describe('bpm module contracts', () => {
 
     expect(callbackSource).toContain('queryBpmCallbackRecordPage');
     expect(callbackSource).toContain('retryBpmCallbackRecord');
+    expect(callbackSource).toContain('compensateBpmCallbackRecord');
     expect(callbackSource).toContain(':collapsible="false"');
     expect(callbackSource).toContain('callbackStatus === 2');
+    expect(callbackSource).toContain('callbackStatus === 3');
+    expect(callbackSource).toContain('需人工补偿');
+    expect(callbackSource).toContain('nextRetryAt');
     expect(commandSource).toContain('queryBpmCommandRecordPage');
     expect(commandSource).toContain(':collapsible="false"');
   });
@@ -219,6 +223,9 @@ describe('bpm module contracts', () => {
     expect(myInstanceSource).toContain('handleResubmit');
     expect(myInstanceSource).toContain("name: 'SystemBpmRuntimeStartFormRoute'");
     expect(myInstanceSource).toContain('instanceId: String(row.instanceId)');
+    expect(detailSource).toContain('getCallbackStatusLabel');
+    expect(detailSource).toContain('nextRetryAt');
+    expect(detailSource).toContain('需人工补偿');
     expect(detailSource).toContain('INSTANCE_CANCELLED');
     expect(detailSource).toContain('RESUBMITTED');
   });
