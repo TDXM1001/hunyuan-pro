@@ -87,6 +87,8 @@ const apiFiles = [
       '/bpm/sample/expense/detail/',
       'markNextBpmSampleExpenseCallbackFailed',
       '/bpm/sample/expense/markNextCallbackFailed/',
+      'prepareBpmSampleExpenseDefinition',
+      '/bpm/sample/expense/prepareDefinition',
       'BpmSampleExpenseVO',
     ],
     path: 'apps/hunyuan-system/src/api/system/bpm/sample-expense.ts',

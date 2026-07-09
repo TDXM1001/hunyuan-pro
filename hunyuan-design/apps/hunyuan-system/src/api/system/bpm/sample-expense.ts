@@ -21,6 +21,10 @@ export interface BpmSampleExpenseVO {
   updateTime?: null | string;
 }
 
+export async function prepareBpmSampleExpenseDefinition() {
+  return requestClient.post<number>('/bpm/sample/expense/prepareDefinition');
+}
+
 export async function createBpmSampleExpense(
   data: BpmSampleExpenseCreateParams,
 ) {

@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.sampleexpense.domain.form.BpmSampleExpenseCreateForm;
 import com.hunyuan.sa.bpm.module.sampleexpense.domain.vo.BpmSampleExpenseVO;
+import com.hunyuan.sa.bpm.module.sampleexpense.service.BpmSampleExpenseDefinitionSeedService;
 import com.hunyuan.sa.bpm.module.sampleexpense.service.BpmSampleExpenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,16 @@ public class AdminBpmSampleExpenseController {
 
     @Resource
     private BpmSampleExpenseService bpmSampleExpenseService;
+
+    @Resource
+    private BpmSampleExpenseDefinitionSeedService bpmSampleExpenseDefinitionSeedService;
+
+    @Operation(summary = "准备 BPM 样板费用申请流程定义")
+    @PostMapping("/bpm/sample/expense/prepareDefinition")
+    @SaCheckPermission("bpm:integration:update")
+    public ResponseDTO<Long> prepareDefinition() {
+        return bpmSampleExpenseDefinitionSeedService.prepare();
+    }
 
     @Operation(summary = "创建 BPM 样板费用申请")
     @PostMapping("/bpm/sample/expense/create")
