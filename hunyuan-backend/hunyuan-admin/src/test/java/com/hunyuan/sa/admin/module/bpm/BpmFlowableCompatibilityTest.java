@@ -10,6 +10,7 @@ import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.config.BpmFlowableAutoConfiguration;
 import org.flowable.engine.ProcessEngine;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -19,6 +20,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,6 +53,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BpmFlowableCompatibilityTest {
 
     private static final String TEST_SCHEMA_NAME = "hunyuan_bpm_test_" + System.currentTimeMillis();
+
+    private static final String MYSQL_ADMIN_JDBC_URL = "jdbc:mysql://127.0.0.1:3306/mysql"
+            + "?useSSL=false&allowMultiQueries=true&serverTimezone=Asia/Shanghai";
 
     @SpringBootConfiguration
     @EnableAutoConfiguration(excludeName = {
@@ -117,5 +126,15 @@ class BpmFlowableCompatibilityTest {
         assertThat(processEngine).isNotNull();
         assertThat(bpmOrgIdentityGateway).isNotNull();
         assertThat(bpmCurrentActorProvider).isNotNull();
+    }
+
+    @AfterAll
+    static void dropTemporaryTestSchema() throws SQLException {
+        try (
+                Connection connection = DriverManager.getConnection(MYSQL_ADMIN_JDBC_URL, "root", "root");
+                Statement statement = connection.createStatement()
+        ) {
+            statement.execute("DROP DATABASE IF EXISTS `" + TEST_SCHEMA_NAME + "`");
+        }
     }
 }
