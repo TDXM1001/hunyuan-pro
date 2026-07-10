@@ -1,175 +1,56 @@
-﻿## Task 2: Add the Menu API Module
+## Task 2: P3.2 Assignment Safety And Publish Consistency
 
-**Files:**
-- Create: `hunyuan-design/apps/hunyuan-system/src/api/system/menu.ts`
-- Test: `hunyuan-design/apps/hunyuan-system/src/views/system/organization-modules.test.ts`
+**Goal:** Move from “frontend tries to provide valid employee fields” to “backend gives clear failures for invalid assignment input.”
 
-**Interfaces:**
-- Consumes: `requestClient` from `#/api/request`.
-- Produces:
-  - `MenuRecord`
-  - `MenuTreeRecord`
-  - `MenuAddForm`
-  - `MenuUpdateForm`
-  - `RequestUrlRecord`
-  - `queryMenus(): Promise<MenuRecord[]>`
-  - `queryMenuTree(onlyMenu: boolean): Promise<MenuTreeRecord[]>`
-  - `getMenuDetail(menuId: number): Promise<MenuRecord>`
-  - `addMenu(params: MenuAddForm): Promise<string>`
-  - `updateMenu(params: MenuUpdateForm): Promise<string>`
-  - `batchDeleteMenus(menuIdList: number[]): Promise<string>`
-  - `listAuthUrls(): Promise<RequestUrlRecord[]>`
-  - `buildMenuMutationPayload<T extends MenuAddForm | MenuUpdateForm>(params: T): T`
+**Scope:**
 
-- [ ] **Step 1: Create the API file**
+- Validate selected employee existence for `EMPLOYEE_SELECT_AT_START` after parsing a single employee ID.
+- Preserve existing invalid-shape rejections for arrays, comma strings, blank values, and non-numeric values.
+- Ensure start and resubmit both use the same assignment context and validation path.
+- Add a small publish-time consistency layer if current publish detail can access form schema safely.
 
-Create `hunyuan-design/apps/hunyuan-system/src/api/system/menu.ts` with this content:
+**Primary backend files to inspect first:**
 
-```ts
-import { requestClient } from '#/api/request';
+- `hunyuan-backend/hunyuan-bpm/src/main/java/com/hunyuan/sa/bpm/module/runtime/service/BpmTaskAssignmentResolver.java`
+- `hunyuan-backend/hunyuan-bpm/src/main/java/com/hunyuan/sa/bpm/module/runtime/service/BpmTaskAssignmentContext.java`
+- `hunyuan-backend/hunyuan-bpm/src/main/java/com/hunyuan/sa/bpm/module/runtime/service/BpmInstanceService.java`
+- `hunyuan-backend/hunyuan-bpm/src/main/java/com/hunyuan/sa/bpm/engine/compiler/SimpleModelValidator.java`
+- `hunyuan-backend/hunyuan-bpm/src/main/java/com/hunyuan/sa/bpm/module/definition/service/BpmDefinitionService.java`
 
-export interface MenuRecord {
-  apiPerms?: null | string;
-  cacheFlag: boolean;
-  component?: null | string;
-  contextMenuId?: null | number;
-  createTime?: null | string;
-  disabledFlag: boolean;
-  frameFlag: boolean;
-  frameUrl?: null | string;
-  icon?: null | string;
-  menuId: number;
-  menuName: string;
-  menuType: number;
-  parentId: number;
-  path?: null | string;
-  permsType?: null | number;
-  sort?: null | number;
-  updateTime?: null | string;
-  visibleFlag: boolean;
-  webPerms?: null | string;
-}
+**Tests to extend or create:**
 
-export interface MenuTreeRecord extends MenuRecord {
-  children?: MenuTreeRecord[];
-}
+- `BpmTaskAssignmentResolverTest`
+- `BpmRuntimeStartAssignmentTest`
+- Resubmit-focused test if an existing test covers `resubmitMyInstance`
+- `SimpleModelValidatorTest` or a new publish-consistency validator test
 
-export interface RequestUrlRecord {
-  method?: null | string;
-  name?: null | string;
-  url?: null | string;
-}
+**Steps:**
 
-export interface MenuAddForm {
-  apiPerms?: null | string;
-  cacheFlag: boolean;
-  component?: null | string;
-  contextMenuId?: null | number;
-  disabledFlag: boolean;
-  frameFlag: boolean;
-  frameUrl?: null | string;
-  icon?: null | string;
-  menuName: string;
-  menuType: number;
-  parentId: number;
-  path?: null | string;
-  permsType?: null | number;
-  sort?: null | number;
-  visibleFlag: boolean;
-  webPerms?: null | string;
-}
+- [ ] Write failing backend tests for nonexistent selected employee.
+- [ ] Write failing backend tests proving resubmit re-parses the latest `formDataJson`.
+- [ ] Decide whether publish-time field existence can be validated without broad service coupling.
+- [ ] Implement the smallest backend safety change, preferably by reusing `BpmOrgIdentityGateway.requireEmployee`.
+- [ ] Preserve existing user-facing messages for blank, array, comma string, and invalid numeric values.
+- [ ] Run focused backend gates:
 
-export interface MenuUpdateForm extends MenuAddForm {
-  menuId: number;
-}
-
-function cleanText(value?: null | string) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : '';
-}
-
-export function buildMenuMutationPayload<
-  T extends MenuAddForm | MenuUpdateForm,
->(params: T): T {
-  return {
-    ...params,
-    apiPerms: cleanText(params.apiPerms),
-    component: cleanText(params.component),
-    contextMenuId: params.contextMenuId ?? null,
-    frameUrl: cleanText(params.frameUrl),
-    icon: cleanText(params.icon),
-    menuName: params.menuName.trim(),
-    parentId: params.parentId ?? 0,
-    path: cleanText(params.path),
-    permsType: params.permsType ?? null,
-    sort: params.sort ?? 0,
-    webPerms: cleanText(params.webPerms),
-  };
-}
-
-export async function queryMenus() {
-  return requestClient.get<MenuRecord[]>('/menu/query');
-}
-
-export async function queryMenuTree(onlyMenu: boolean) {
-  return requestClient.get<MenuTreeRecord[]>('/menu/tree', {
-    params: { onlyMenu },
-  });
-}
-
-export async function getMenuDetail(menuId: number) {
-  return requestClient.get<MenuRecord>(`/menu/detail/${menuId}`);
-}
-
-export async function addMenu(params: MenuAddForm) {
-  return requestClient.post<string>(
-    '/menu/add',
-    buildMenuMutationPayload(params),
-  );
-}
-
-export async function updateMenu(params: MenuUpdateForm) {
-  return requestClient.post<string>(
-    '/menu/update',
-    buildMenuMutationPayload(params),
-  );
-}
-
-export async function batchDeleteMenus(menuIdList: number[]) {
-  return requestClient.get<string>('/menu/batchDelete', {
-    params: { menuIdList },
-  });
-}
-
-export async function listAuthUrls() {
-  return requestClient.get<RequestUrlRecord[]>('/menu/auth/url');
-}
+```powershell
+mvn -f E:/my-project/hunyuan-pro/hunyuan-backend/pom.xml -pl hunyuan-bpm '-Dtest=BpmTaskAssignmentResolverTest,BpmRuntimeStartAssignmentTest,SimpleModelValidatorTest' test
 ```
 
-- [ ] **Step 2: Run the source contract**
+- [ ] Run frontend P3.1c contract gates if any type or API contract changes:
 
-Run:
-
-```bash
-pnpm --dir hunyuan-design exec vitest run apps/hunyuan-system/src/views/system/organization-modules.test.ts --dom
+```powershell
+pnpm --dir E:/my-project/hunyuan-pro/hunyuan-design exec vitest run apps/hunyuan-system/src/components/bpm/adapters/bpm-designer-adapters.test.ts apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-runtime-form-rules.test.ts apps/hunyuan-system/src/views/system/bpm/bpm-modules.test.ts --dom
 ```
 
-Expected: still FAIL because the Vue page does not exist, while the API endpoint assertions now pass.
+- [ ] Create `docs/superpowers/specs/2026-07-10-bpm-p3-assignment-safety-acceptance.md`.
 
-- [ ] **Step 3: Run typecheck**
+**Done when:**
 
-Run:
+- Invalid or nonexistent selected employees fail before Flowable start.
+- Start and resubmit behavior are both covered.
+- No SQL or dependency change is introduced.
+- Acceptance record explains why any publish-time schema validation was implemented or deferred.
 
-```bash
-pnpm --dir hunyuan-design -F @hunyuan/system run typecheck
-```
-
-Expected: PASS.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add hunyuan-design/apps/hunyuan-system/src/api/system/menu.ts
-git commit -m "feat: add system menu api module"
-```
+---
 

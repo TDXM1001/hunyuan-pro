@@ -1,70 +1,67 @@
-﻿## Task 4: Verify the Permission Loop and Record the Result
+## Task 4: P3.4 Sequential Multi-Approver Approval
 
-**Files:**
-- Modify only if verification reveals a direct issue:
-  - `hunyuan-design/apps/hunyuan-system/src/views/system/menu/index.vue`
-  - `hunyuan-design/apps/hunyuan-system/src/api/system/menu.ts`
-  - `hunyuan-design/apps/hunyuan-system/src/views/system/organization-modules.test.ts`
+**Goal:** Support the lowest-risk multi-approver use case by compiling one authored sequential approval node into multiple ordered single-assignee tasks.
 
-**Interfaces:**
-- Consumes:
-  - existing backend-menu loading in `apps/hunyuan-system/src/router/access.ts`
-  - existing role authorization APIs in `apps/hunyuan-system/src/api/system/organization.ts`
-  - existing `module-bridge`
-- Produces:
-  - verified first-stage menu-management increment
+**Decision checkpoint before implementation:**
 
-- [ ] **Step 1: Run all targeted frontend checks**
+- [ ] Confirm P3.1 live acceptance passed.
+- [ ] Confirm P3.2 safeguards passed.
+- [ ] Confirm P3.3 precheck either passed or was explicitly deferred.
+- [ ] Confirm the product decision is still sequential-only, not parallel countersign or ratio approval.
 
-Run:
+**Scope:**
 
-```bash
-pnpm --dir hunyuan-design exec vitest run apps/hunyuan-system/src/views/system/organization-modules.test.ts --dom
-pnpm --dir hunyuan-design -F @hunyuan/system run typecheck
-```
+- Allow `approvalMode = sequential` for explicit `employeeIds`.
+- Require at least two employee IDs.
+- Reject empty, duplicate, invalid, or nonexistent employee IDs.
+- Compile one authored node into ordered internal user tasks:
+  - `originalNodeKey_1`
+  - `originalNodeKey_2`
+  - `originalNodeKey_3`
+- Preserve enough authored metadata so instance detail can explain these tasks as one sequential approval group.
+- Reuse the existing single-assignee `assignee_<nodeKey>` variable contract.
 
-Expected: both PASS.
+**Do not implement:**
 
-- [ ] **Step 2: Review the permission loop from source**
+- Parallel countersign.
+- Or-sign.
+- Approval ratio.
+- Flowable multi-instance.
+- Dynamic add/remove of future sequential approvers.
+- Role-to-many automatic expansion.
 
-Confirm these exact source facts:
+**Likely backend files:**
 
-```bash
-rg -n "getAllMenusApi|fetchMenuListAsync|module-bridge|getRoleSelectedMenu|updateRoleMenu|SystemMenuManagement" hunyuan-design/apps/hunyuan-system/src
-```
+- `SimpleModelValidator.java`
+- `SimpleModelBpmnCompiler.java`
+- `BpmTaskAssignmentResolver.java`
+- `BpmInstanceTraceService.java`
+- Related tests for compiler, resolver, runtime start, and trace/detail projection
 
-Expected output includes:
+**Likely frontend files:**
 
-- `apps/hunyuan-system/src/router/access.ts` calling `getAllMenusApi()`.
-- `apps/hunyuan-system/src/views/system/module-bridge/index.vue` still present.
-- `apps/hunyuan-system/src/views/system/role/index.vue` using `getRoleSelectedMenu` and `updateRoleMenu`.
-- `apps/hunyuan-system/src/views/system/menu/index.vue` defining `SystemMenuManagement`.
+- `types.ts`
+- `simple-model-bridge.ts`
+- `bpm-process-designer-adapter.vue`
+- `bpm-designer-adapters.test.ts`
+- Instance detail drawer only if group explanation needs UI support
 
-- [ ] **Step 3: Check final working tree**
+**Steps:**
 
-Run:
+- [ ] Write compiler tests proving sequential node expansion order.
+- [ ] Write validation tests for invalid `employeeIds`.
+- [ ] Write runtime start tests proving each expanded node receives an `assignee_<expandedNodeKey>` variable.
+- [ ] Update frontend designer to allow sequential explicit employee list only.
+- [ ] Add trace/detail explanation if needed.
+- [ ] Run focused backend and frontend gates.
+- [ ] Run at least one API or browser live acceptance proving tasks appear one after another.
+- [ ] Create `docs/superpowers/specs/2026-07-10-bpm-p3-sequential-approval-acceptance.md`.
 
-```bash
-git status --short
-```
+**Done when:**
 
-Expected: only intended files modified, plus pre-existing unrelated untracked files if they were already present:
+- Sequential multi-approver approval works as ordered single-assignee tasks.
+- Existing single-approver strategies remain green.
+- No parallel or multi-instance behavior leaks into P3.
 
-- `.playwright-mcp/`
-- `hunyuan-system-home-snapshot.md`
-- `lefthook.yml`
-
-- [ ] **Step 4: Commit any final correction**
-
-If Task 4 required a correction, commit it:
-
-```bash
-git add \
-  hunyuan-design/apps/hunyuan-system/src/api/system/menu.ts \
-  hunyuan-design/apps/hunyuan-system/src/views/system/menu/index.vue \
-  hunyuan-design/apps/hunyuan-system/src/views/system/organization-modules.test.ts
-git commit -m "fix: tighten system menu permission loop"
-```
-
-If no correction was needed, do not create an empty commit.
+---
 
