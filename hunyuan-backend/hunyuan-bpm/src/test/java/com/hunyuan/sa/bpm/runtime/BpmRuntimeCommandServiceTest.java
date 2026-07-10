@@ -17,6 +17,7 @@ import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
@@ -41,6 +42,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,6 +93,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmTaskService, "bpmInstanceDao", bpmInstanceDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
         setField(bpmTaskService, "flowableTaskGateway", Mockito.mock(FlowableTaskGateway.class));
+        setField(bpmTaskService, "flowableProcessInstanceGateway", processInstanceGateway());
         setField(bpmTaskService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmTaskService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
         setField(bpmTaskService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
@@ -151,6 +154,7 @@ class BpmRuntimeCommandServiceTest {
         taskEntity.setDefinitionId(2L);
         taskEntity.setDefinitionNodeId(5L);
         taskEntity.setEngineTaskId("task-1");
+        taskEntity.setEngineProcessInstanceId("process-8");
         taskEntity.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         taskEntity.setAssigneeEmployeeId(10L);
 
@@ -198,6 +202,7 @@ class BpmRuntimeCommandServiceTest {
         taskEntity.setDefinitionId(2L);
         taskEntity.setDefinitionNodeId(5L);
         taskEntity.setEngineTaskId("task-1");
+        taskEntity.setEngineProcessInstanceId("process-8");
         taskEntity.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         taskEntity.setAssigneeEmployeeId(10L);
 
@@ -271,6 +276,7 @@ class BpmRuntimeCommandServiceTest {
         taskEntity.setDefinitionId(2L);
         taskEntity.setDefinitionNodeId(5L);
         taskEntity.setEngineTaskId("task-1");
+        taskEntity.setEngineProcessInstanceId("process-8");
         taskEntity.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         taskEntity.setAssigneeEmployeeId(10L);
 
@@ -286,6 +292,8 @@ class BpmRuntimeCommandServiceTest {
         ResponseDTO<String> response = bpmTaskService.reject(form);
 
         assertThat(response.getOk()).isTrue();
+        verify(processInstanceGateway()).cancel("process-8", "审批驳回");
+        verify(taskGateway(), never()).complete("task-1");
         ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
         verify(bpmInstanceDao).updateById(instanceCaptor.capture());
         assertThat(instanceCaptor.getValue().getInstanceId()).isEqualTo(8L);
@@ -606,6 +614,78 @@ class BpmRuntimeCommandServiceTest {
         ArgumentCaptor<BpmTaskActionLogEntity> logCaptor = ArgumentCaptor.forClass(BpmTaskActionLogEntity.class);
         verify(bpmTaskActionLogDao).insert(logCaptor.capture());
         assertThat(logCaptor.getValue().getActionType()).isEqualTo("RESUBMITTED");
+    }
+
+    @Test
+    void resubmitMyInstanceShouldResolveSelectedEmployeeFromLatestFormData() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(2L);
+        definitionEntity.setDefinitionKey("expense");
+        definitionEntity.setDefinitionName("费用流程");
+        definitionEntity.setDefinitionVersion(2);
+        definitionEntity.setCategoryIdSnapshot(7L);
+        definitionEntity.setCategoryNameSnapshot("费用流程");
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+        definitionEntity.setEngineProcessDefinitionId("expense:2:2000");
+
+        BpmDefinitionNodeEntity nodeEntity = new BpmDefinitionNodeEntity();
+        nodeEntity.setNodeKey("task_selected");
+        nodeEntity.setNodeType("userTask");
+        nodeEntity.setNodeNameSnapshot("发起时选择审批");
+        nodeEntity.setAuthoredRuleSnapshotJson(
+                "{\"nodeKey\":\"task_selected\",\"name\":\"发起时选择审批\",\"type\":\"userTask\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\",\"employeeSelectFieldKey\":\"approverEmployeeId\"}"
+        );
+
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setDefinitionId(2L);
+        instanceEntity.setEngineProcessDefinitionId("expense:1:1000");
+        instanceEntity.setEngineProcessInstanceId("process-1000");
+        instanceEntity.setDefinitionKeySnapshot("expense");
+        instanceEntity.setDefinitionVersionSnapshot(1);
+        instanceEntity.setCategoryIdSnapshot(7L);
+        instanceEntity.setCategoryNameSnapshot("费用流程");
+        instanceEntity.setTitle("费用申请");
+        instanceEntity.setStartEmployeeId(100L);
+        instanceEntity.setInitialFormDataSnapshotJson("{\"amount\":100,\"approverEmployeeId\":301}");
+        instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":100,\"approverEmployeeId\":301}");
+        instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
+
+        BpmTaskAssignmentResolver realResolver = new BpmTaskAssignmentResolver();
+        setField(realResolver, "bpmOrgIdentityGateway", instanceIdentityGateway());
+        setField(bpmInstanceService, "bpmTaskAssignmentResolver", realResolver);
+
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(definitionNodeDao().selectList(any())).thenReturn(List.of(nodeEntity));
+        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
+                new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null)
+        );
+        when(instanceIdentityGateway().requireEmployee(302L)).thenReturn(
+                new BpmEmployeeSnapshot(302L, "审批人B", 8L, "财务部", null, null)
+        );
+        when(processInstanceGateway().start("expense:2:2000", 100L, "{\"amount\":200,\"approverEmployeeId\":302}", Map.of("assignee_task_selected", "302")))
+                .thenReturn("process-2000");
+
+        BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
+        form.setInstanceId(8L);
+        form.setFormDataJson("{\"amount\":200,\"approverEmployeeId\":302}");
+        form.setTitle("费用申请-重提");
+
+        ResponseDTO<Long> response = bpmInstanceService.resubmitMyInstance(form);
+
+        assertThat(response.getOk()).isTrue();
+
+        ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(processInstanceGateway()).start(
+                Mockito.eq("expense:2:2000"),
+                Mockito.eq(100L),
+                Mockito.eq("{\"amount\":200,\"approverEmployeeId\":302}"),
+                variablesCaptor.capture()
+        );
+        assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_selected", "302");
     }
 
     @SuppressWarnings("unchecked")

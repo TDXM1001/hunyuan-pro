@@ -40,6 +40,12 @@ public class AdminBpmOrgIdentityGateway implements BpmOrgIdentityGateway {
         if (employeeEntity == null) {
             throw new IllegalArgumentException("员工不存在，employeeId=" + employeeId);
         }
+        if (Boolean.TRUE.equals(employeeEntity.getDisabledFlag())) {
+            throw new IllegalArgumentException("员工已禁用，employeeId=" + employeeId);
+        }
+        if (Boolean.TRUE.equals(employeeEntity.getDeletedFlag())) {
+            throw new IllegalArgumentException("员工已删除，employeeId=" + employeeId);
+        }
         DepartmentVO department = employeeEntity.getDepartmentId() == null
                 ? null
                 : departmentService.getDepartmentById(employeeEntity.getDepartmentId());

@@ -10,6 +10,7 @@ import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +74,7 @@ public class BpmTaskAssignmentResolver {
             if (managerEmployeeId == null) {
                 throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到发起人部门主管");
             }
+            bpmOrgIdentityGateway.requireEmployee(managerEmployeeId);
             return managerEmployeeId;
         }
 
@@ -92,6 +94,7 @@ public class BpmTaskAssignmentResolver {
             if (employeeId <= 0) {
                 throw new IllegalArgumentException("审批节点【" + nodeName + "】发起时自选审批人无效");
             }
+            bpmOrgIdentityGateway.requireEmployee(employeeId);
             return employeeId;
         }
 
@@ -104,6 +107,7 @@ public class BpmTaskAssignmentResolver {
             if (managerEmployeeId == null) {
                 throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到部门主管");
             }
+            bpmOrgIdentityGateway.requireEmployee(managerEmployeeId);
             return managerEmployeeId;
         }
 
@@ -116,11 +120,18 @@ public class BpmTaskAssignmentResolver {
             if (roleId == null) {
                 throw new IllegalArgumentException("审批节点【" + nodeName + "】未配置角色");
             }
-            return bpmOrgIdentityGateway.listEmployeeIdsByRoleId(roleId)
-                    .stream()
-                    .sorted()
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("审批节点【" + nodeName + "】未找到角色成员"));
+            List<Long> employeeIds = bpmOrgIdentityGateway.listEmployeeIdsByRoleId(roleId);
+            if (employeeIds != null) {
+                for (Long employeeId : employeeIds.stream().filter(item -> item != null).sorted().toList()) {
+                    try {
+                        bpmOrgIdentityGateway.requireEmployee(employeeId);
+                        return employeeId;
+                    } catch (IllegalArgumentException ignored) {
+                        // 角色成员可能已禁用或删除，继续尝试下一个可用员工。
+                    }
+                }
+            }
+            throw new IllegalArgumentException("审批节点【" + nodeName + "】未找到角色成员");
         }
 
         Long employeeId = firstNonNull(
@@ -136,11 +147,20 @@ public class BpmTaskAssignmentResolver {
         if (employeeId == null) {
             throw new IllegalArgumentException("审批节点【" + nodeName + "】未配置指定员工");
         }
+        if (employeeId <= 0) {
+            throw new IllegalArgumentException("审批节点【" + nodeName + "】指定员工无效");
+        }
+        bpmOrgIdentityGateway.requireEmployee(employeeId);
         return employeeId;
     }
 
     private JSONObject parseNodeObject(BpmDefinitionNodeEntity node) {
-        String jsonText = firstNonBlank(node.getAuthoredRuleSnapshotJson(), node.getCompiledNodeSnapshotJson());
+        JSONObject nodeObject = parseJsonObject(node.getAuthoredRuleSnapshotJson());
+        nodeObject.putAll(parseJsonObject(node.getCompiledNodeSnapshotJson()));
+        return nodeObject;
+    }
+
+    private JSONObject parseJsonObject(String jsonText) {
         if (StringUtils.isBlank(jsonText)) {
             return new JSONObject();
         }
@@ -159,7 +179,8 @@ public class BpmTaskAssignmentResolver {
             return null;
         }
         if (rawValue instanceof Number numberValue) {
-            return numberValue.longValue();
+            Long value = parseExactLong(numberValue);
+            return value == null ? -1L : value;
         }
         if (rawValue instanceof JSONArray || rawValue instanceof Iterable<?>) {
             return -1L;
@@ -193,7 +214,7 @@ public class BpmTaskAssignmentResolver {
             return null;
         }
         if (candidateParam instanceof Number numberValue) {
-            return numberValue.longValue();
+            return parseExactLong(numberValue);
         }
         String text = String.valueOf(candidateParam).trim();
         if (text.isEmpty()) {
@@ -240,9 +261,17 @@ public class BpmTaskAssignmentResolver {
             return null;
         }
         if (rawValue instanceof Number numberValue) {
-            return numberValue.longValue();
+            return parseExactLong(numberValue);
         }
         return parseLong(String.valueOf(rawValue));
+    }
+
+    private Long parseExactLong(Number numberValue) {
+        try {
+            return new BigDecimal(String.valueOf(numberValue)).longValueExact();
+        } catch (ArithmeticException | NumberFormatException ex) {
+            return null;
+        }
     }
 
     private Long parseLong(String text) {

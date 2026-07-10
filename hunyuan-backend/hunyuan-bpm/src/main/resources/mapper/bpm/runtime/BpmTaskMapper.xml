@@ -5,6 +5,7 @@
     <select id="queryPage" resultType="com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO">
         select
             task_id as taskId,
+            task_key as taskKey,
             instance_id as instanceId,
             task_name as taskName,
             instance_no as instanceNo,
@@ -34,6 +35,7 @@
     <select id="queryCurrentTasksByInstanceId" resultType="com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO">
         select
             task_id as taskId,
+            task_key as taskKey,
             instance_id as instanceId,
             task_name as taskName,
             instance_no as instanceNo,

@@ -1,8 +1,8 @@
 package com.hunyuan.sa.bpm.module.definition.service;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
@@ -15,8 +15,10 @@ import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
+import com.hunyuan.sa.bpm.engine.compiler.BpmCandidatePrecheckService;
 import com.hunyuan.sa.bpm.engine.compiler.CompiledDefinitionArtifact;
 import com.hunyuan.sa.bpm.engine.compiler.CompiledNodeSnapshot;
+import com.hunyuan.sa.bpm.engine.compiler.BpmSimpleModelPublishValidator;
 import com.hunyuan.sa.bpm.engine.compiler.SimpleModelBpmnCompiler;
 import com.hunyuan.sa.bpm.engine.compiler.SimpleModelValidator;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessDefinitionGateway;
@@ -37,7 +39,6 @@ import com.hunyuan.sa.bpm.module.form.dao.BpmFormDao;
 import com.hunyuan.sa.bpm.module.form.domain.entity.BpmFormEntity;
 import com.hunyuan.sa.bpm.module.model.dao.BpmModelDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +71,12 @@ public class BpmDefinitionService {
     private SimpleModelValidator simpleModelValidator;
 
     @Resource
+    private BpmSimpleModelPublishValidator bpmSimpleModelPublishValidator;
+
+    @Resource
+    private BpmCandidatePrecheckService bpmCandidatePrecheckService;
+
+    @Resource
     private SimpleModelBpmnCompiler simpleModelBpmnCompiler;
 
     @Resource
@@ -100,7 +107,10 @@ public class BpmDefinitionService {
         if (modelEntity == null || Boolean.TRUE.equals(modelEntity.getDeletedFlag())) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
+        return validateForPublish(modelEntity);
+    }
 
+    private ResponseDTO<BpmDefinitionValidationReportVO> validateForPublish(BpmModelEntity modelEntity) {
         BpmDefinitionValidationReportVO report = new BpmDefinitionValidationReportVO();
         report.setPass(Boolean.TRUE);
         report.setBlockingCount(0);
@@ -114,29 +124,92 @@ public class BpmDefinitionService {
             finishReport(report);
             return ResponseDTO.ok(report);
         }
+        if (simpleModelObject == null) {
+            addFinding(report, "BLOCKING", "SIMPLE_MODEL_JSON_INVALID", "设计器草稿 JSON 不合法", null, "simpleModelJson");
+            finishReport(report);
+            return ResponseDTO.ok(report);
+        }
 
-        JSONArray nodes = simpleModelObject == null ? null : simpleModelObject.getJSONArray("nodes");
-        if (nodes != null) {
-            for (int i = 0; i < nodes.size(); i++) {
-                JSONObject nodeObject = nodes.getJSONObject(i);
-                if (nodeObject == null || !"userTask".equals(nodeObject.getString("type"))) {
-                    continue;
-                }
-                String resolverType = firstNonBlank(
-                        nodeObject.getString("candidateResolverType"),
-                        nodeObject.getString("resolverType")
+        ResponseDTO<String> simpleModelValidationResponse = simpleModelValidator.validate(
+                modelEntity.getSimpleModelJson(),
+                modelEntity.getStartRuleJson()
+        );
+        if (!Boolean.TRUE.equals(simpleModelValidationResponse.getOk())) {
+            String validationMessage = simpleModelValidationResponse.getMsg();
+            addFinding(
+                    report,
+                    "BLOCKING",
+                    "SIMPLE_MODEL_VALIDATION_FAILED",
+                    validationMessage,
+                    null,
+                    validationMessage != null && validationMessage.contains("发起规则")
+                            ? "startRuleJson"
+                            : "simpleModelJson"
+            );
+        }
+
+        BpmCategoryEntity categoryEntity = modelEntity.getCategoryId() == null
+                ? null
+                : bpmCategoryDao.selectById(modelEntity.getCategoryId());
+        if (categoryEntity == null || Boolean.TRUE.equals(categoryEntity.getDeletedFlag())) {
+            addFinding(
+                    report,
+                    "BLOCKING",
+                    "CATEGORY_NOT_FOUND",
+                    "流程分类不存在",
+                    null,
+                    "categoryId"
+            );
+        }
+
+        BpmFormEntity formEntity = modelEntity.getFormId() == null
+                ? null
+                : bpmFormDao.selectById(modelEntity.getFormId());
+        String formSchemaJson = null;
+        if (formEntity == null || Boolean.TRUE.equals(formEntity.getDeletedFlag())) {
+            addFinding(
+                    report,
+                    "BLOCKING",
+                    "FORM_NOT_FOUND",
+                    "流程表单不存在",
+                    null,
+                    "formId"
+            );
+        } else {
+            formSchemaJson = formEntity.getSchemaJson();
+            ResponseDTO<String> publishConsistencyResponse = bpmSimpleModelPublishValidator.validate(
+                    modelEntity.getSimpleModelJson(),
+                    formSchemaJson
+            );
+            if (!Boolean.TRUE.equals(publishConsistencyResponse.getOk())) {
+                addFindingIfMessageAbsent(
+                        report,
+                        "BLOCKING",
+                        "FORM_SCHEMA_CONSISTENCY_INVALID",
+                        publishConsistencyResponse.getMsg(),
+                        null,
+                        "formSchemaJson"
                 );
-                if (StringUtils.isBlank(resolverType)) {
-                    addFinding(
-                            report,
-                            "BLOCKING",
-                            "USER_TASK_CANDIDATE_EMPTY",
-                            "审批节点缺少处理人规则",
-                            nodeObject.getString("nodeKey"),
-                            "candidateResolverType"
-                    );
-                }
             }
+        }
+
+        List<BpmDefinitionValidationReportVO.CandidateCheck> candidateChecks = bpmCandidatePrecheckService.precheck(
+                JSON.toJSONString(simpleModelObject),
+                formSchemaJson
+        );
+        report.getCandidateChecks().addAll(candidateChecks);
+        for (BpmDefinitionValidationReportVO.CandidateCheck candidateCheck : candidateChecks) {
+            if (!"BLOCKING".equals(candidateCheck.getStatus())) {
+                continue;
+            }
+            addFindingIfMessageAbsent(
+                    report,
+                    "BLOCKING",
+                    candidateCheck.getCode(),
+                    candidateCheck.getMessage(),
+                    candidateCheck.getNodeKey(),
+                    candidateCheck.getField()
+            );
         }
 
         finishReport(report);
@@ -197,12 +270,17 @@ public class BpmDefinitionService {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
 
-        ResponseDTO<BpmDefinitionValidationReportVO> reportResponse = validateForPublish(publishForm.getModelId());
+        ResponseDTO<BpmDefinitionValidationReportVO> reportResponse = validateForPublish(modelEntity);
         if (!Boolean.TRUE.equals(reportResponse.getOk())) {
             return ResponseDTO.userErrorParam(reportResponse.getMsg());
         }
         if (!Boolean.TRUE.equals(reportResponse.getData().getPass())) {
-            return ResponseDTO.userErrorParam("流程发布校验未通过");
+            String errorMessage = reportResponse.getData().getFindings().stream()
+                    .filter(item -> "BLOCKING".equals(item.getLevel()))
+                    .map(BpmDefinitionValidationReportVO.Finding::getMessage)
+                    .findFirst()
+                    .orElse("流程发布校验未通过");
+            return ResponseDTO.userErrorParam(errorMessage);
         }
 
         ResponseDTO<String> validateResponse = simpleModelValidator.validate(
@@ -221,6 +299,13 @@ public class BpmDefinitionService {
         if (formEntity == null || Boolean.TRUE.equals(formEntity.getDeletedFlag())) {
             return ResponseDTO.userErrorParam("流程表单不存在");
         }
+        ResponseDTO<String> publishConsistencyResponse = bpmSimpleModelPublishValidator.validate(
+                modelEntity.getSimpleModelJson(),
+                formEntity.getSchemaJson()
+        );
+        if (!Boolean.TRUE.equals(publishConsistencyResponse.getOk())) {
+            return ResponseDTO.userErrorParam(publishConsistencyResponse.getMsg());
+        }
 
         CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
                 modelEntity.getModelKey(),
@@ -229,6 +314,15 @@ public class BpmDefinitionService {
                 modelEntity.getStartRuleJson(),
                 modelEntity.getVariableMappingJson()
         );
+        BpmModelEntity claimModelEntity = new BpmModelEntity();
+        claimModelEntity.setHasUnpublishedChanges(Boolean.FALSE);
+        int claimedCount = bpmModelDao.update(
+                claimModelEntity,
+                buildPublishClaimWrapper(modelEntity)
+        );
+        if (claimedCount == 0) {
+            return ResponseDTO.userErrorParam("模型已发生变更，请刷新后重新发布");
+        }
         String engineProcessDefinitionId = flowableProcessDefinitionGateway.deploy(
                 modelEntity.getModelKey(),
                 modelEntity.getModelName(),
@@ -270,10 +364,41 @@ public class BpmDefinitionService {
         BpmModelEntity updateModelEntity = new BpmModelEntity();
         updateModelEntity.setModelId(modelEntity.getModelId());
         updateModelEntity.setPublishedDefinitionId(definitionEntity.getDefinitionId());
-        updateModelEntity.setHasUnpublishedChanges(Boolean.FALSE);
         bpmModelDao.updateById(updateModelEntity);
 
         return ResponseDTO.ok(definitionEntity.getDefinitionId());
+    }
+
+    private UpdateWrapper<BpmModelEntity> buildPublishClaimWrapper(BpmModelEntity modelEntity) {
+        UpdateWrapper<BpmModelEntity> wrapper = Wrappers.<BpmModelEntity>update()
+                .eq("model_id", modelEntity.getModelId())
+                .eq("has_unpublished_changes", Boolean.TRUE)
+                .eq("update_time", modelEntity.getUpdateTime());
+        addNullSafeSnapshotCondition(wrapper, "model_key", modelEntity.getModelKey());
+        addNullSafeSnapshotCondition(wrapper, "model_name", modelEntity.getModelName());
+        addNullSafeSnapshotCondition(wrapper, "category_id", modelEntity.getCategoryId());
+        addNullSafeSnapshotCondition(wrapper, "form_type", modelEntity.getFormType());
+        addNullSafeSnapshotCondition(wrapper, "form_id", modelEntity.getFormId());
+        addNullSafeSnapshotCondition(wrapper, "simple_model_json", modelEntity.getSimpleModelJson());
+        addNullSafeSnapshotCondition(wrapper, "start_rule_json", modelEntity.getStartRuleJson());
+        addNullSafeSnapshotCondition(wrapper, "manager_scope_json", modelEntity.getManagerScopeJson());
+        addNullSafeSnapshotCondition(wrapper, "title_rule_json", modelEntity.getTitleRuleJson());
+        addNullSafeSnapshotCondition(wrapper, "summary_rule_json", modelEntity.getSummaryRuleJson());
+        addNullSafeSnapshotCondition(wrapper, "variable_mapping_json", modelEntity.getVariableMappingJson());
+        addNullSafeSnapshotCondition(wrapper, "instance_no_rule_id", modelEntity.getInstanceNoRuleId());
+        return wrapper;
+    }
+
+    private void addNullSafeSnapshotCondition(
+            UpdateWrapper<BpmModelEntity> wrapper,
+            String column,
+            Object value
+    ) {
+        if (value == null) {
+            wrapper.isNull(column);
+            return;
+        }
+        wrapper.eq(column, value);
     }
 
     private void addFinding(
@@ -293,6 +418,21 @@ public class BpmDefinitionService {
         report.getFindings().add(finding);
     }
 
+    private void addFindingIfMessageAbsent(
+            BpmDefinitionValidationReportVO report,
+            String level,
+            String code,
+            String message,
+            String nodeKey,
+            String field
+    ) {
+        boolean messageExists = report.getFindings().stream()
+                .anyMatch(item -> Objects.equals(item.getMessage(), message));
+        if (!messageExists) {
+            addFinding(report, level, code, message, nodeKey, field);
+        }
+    }
+
     private void finishReport(BpmDefinitionValidationReportVO report) {
         int blockingCount = (int) report.getFindings().stream()
                 .filter(item -> "BLOCKING".equals(item.getLevel()))
@@ -300,13 +440,6 @@ public class BpmDefinitionService {
         report.setBlockingCount(blockingCount);
         report.setWarningCount(report.getFindings().size() - blockingCount);
         report.setPass(blockingCount == 0);
-    }
-
-    private String firstNonBlank(String firstValue, String secondValue) {
-        if (StringUtils.isNotBlank(firstValue)) {
-            return firstValue;
-        }
-        return secondValue;
     }
 
     private ResponseDTO<String> updateStartState(Long definitionId, Integer startState) {

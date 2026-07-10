@@ -14,6 +14,9 @@ public class BpmTaskVO {
     @Schema(description = "任务ID")
     private Long taskId;
 
+    @Schema(description = "任务节点标识")
+    private String taskKey;
+
     @Schema(description = "实例ID")
     private Long instanceId;
 

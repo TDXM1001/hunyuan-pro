@@ -16,7 +16,7 @@ import java.util.List;
 public class SimpleModelBpmnCompiler {
 
     /**
-     * 将当前 P0 设计器草稿编译为顺序审批 BPMN XML 与节点快照。
+     * 将当前设计器草稿编译为顺序审批 BPMN XML 与节点快照。
      */
     public CompiledDefinitionArtifact compile(
             String modelKey,
@@ -46,21 +46,52 @@ public class SimpleModelBpmnCompiler {
                 String nodeType = firstNonBlank(nodeObject.getString("type"), "userTask");
                 String nodeName = firstNonBlank(nodeObject.getString("name"), "审批节点" + (index + 1));
 
-                JSONObject compiledNodeObject = new JSONObject();
-                compiledNodeObject.put("approvalMode", nodeObject.getString("approvalMode"));
-                compiledNodeObject.put("candidateResolverType", firstNonBlank(
-                        nodeObject.getString("candidateResolverType"),
-                        nodeObject.getString("resolverType")
-                ));
-                compiledNodeObject.put("listeners", nodeObject.get("listeners"));
-                compiledNodeObject.put("variableMappingJson", variableMappingJson);
-                compiledNodeObject.put("startRuleJson", startRuleJson);
+                if (isSequentialEmployeeApproval(nodeObject, nodeType)) {
+                    JSONArray employeeIds = nodeObject.getJSONArray("employeeIds");
+                    int sequentialTotal = employeeIds.size();
+                    for (int sequentialIndex = 0; sequentialIndex < sequentialTotal; sequentialIndex++) {
+                        String expandedNodeKey = nodeKey + "_" + (sequentialIndex + 1);
+                        String expandedNodeName = nodeName + "（" + (sequentialIndex + 1) + "/" + sequentialTotal + "）";
+                        JSONObject compiledNodeObject = buildCompiledNodeObject(
+                                nodeObject,
+                                expandedNodeKey,
+                                nodeType,
+                                expandedNodeName,
+                                startRuleJson,
+                                variableMappingJson
+                        );
+                        compiledNodeObject.put("employeeId", employeeIds.getLongValue(sequentialIndex));
+                        compiledNodeObject.put("authoredNodeKey", nodeKey);
+                        compiledNodeObject.put("authoredNodeName", nodeName);
+                        compiledNodeObject.put("sequentialIndex", sequentialIndex + 1);
+                        compiledNodeObject.put("sequentialTotal", sequentialTotal);
 
+                        nodeSnapshots.add(new CompiledNodeSnapshot(
+                                expandedNodeKey,
+                                nodeType,
+                                expandedNodeName,
+                                nodeSnapshots.size() + 1,
+                                JSON.toJSONString(nodeObject),
+                                JSON.toJSONString(compiledNodeObject)
+                        ));
+                        userTaskNodes.add(new UserTaskNode(expandedNodeKey, expandedNodeName));
+                    }
+                    continue;
+                }
+
+                JSONObject compiledNodeObject = buildCompiledNodeObject(
+                        nodeObject,
+                        nodeKey,
+                        nodeType,
+                        nodeName,
+                        startRuleJson,
+                        variableMappingJson
+                );
                 nodeSnapshots.add(new CompiledNodeSnapshot(
                         nodeKey,
                         nodeType,
                         nodeName,
-                        index + 1,
+                        nodeSnapshots.size() + 1,
                         JSON.toJSONString(nodeObject),
                         JSON.toJSONString(compiledNodeObject)
                 ));
@@ -75,6 +106,40 @@ public class SimpleModelBpmnCompiler {
                 buildSequentialBpmnXml(modelKey, modelName, userTaskNodes),
                 nodeSnapshots
         );
+    }
+
+    private JSONObject buildCompiledNodeObject(
+            JSONObject nodeObject,
+            String nodeKey,
+            String nodeType,
+            String nodeName,
+            String startRuleJson,
+            String variableMappingJson
+    ) {
+        JSONObject compiledNodeObject = new JSONObject();
+        compiledNodeObject.put("nodeKey", nodeKey);
+        compiledNodeObject.put("name", nodeName);
+        compiledNodeObject.put("type", nodeType);
+        compiledNodeObject.put("approvalMode", nodeObject.getString("approvalMode"));
+        compiledNodeObject.put("candidateResolverType", firstNonBlank(
+                nodeObject.getString("candidateResolverType"),
+                nodeObject.getString("resolverType")
+        ));
+        compiledNodeObject.put("listeners", nodeObject.get("listeners"));
+        compiledNodeObject.put("variableMappingJson", variableMappingJson);
+        compiledNodeObject.put("startRuleJson", startRuleJson);
+        return compiledNodeObject;
+    }
+
+    private boolean isSequentialEmployeeApproval(JSONObject nodeObject, String nodeType) {
+        return "userTask".equals(nodeType)
+                && "sequential".equalsIgnoreCase(nodeObject.getString("approvalMode"))
+                && "EMPLOYEE".equalsIgnoreCase(firstNonBlank(
+                nodeObject.getString("candidateResolverType"),
+                nodeObject.getString("resolverType")
+        ))
+                && nodeObject.getJSONArray("employeeIds") != null
+                && !nodeObject.getJSONArray("employeeIds").isEmpty();
     }
 
     private String buildSequentialBpmnXml(String modelKey, String modelName, List<UserTaskNode> userTaskNodes) {

@@ -17,6 +17,7 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
+import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
@@ -62,6 +63,9 @@ public class BpmTaskService {
 
     @Resource
     private FlowableTaskGateway flowableTaskGateway;
+
+    @Resource
+    private FlowableProcessInstanceGateway flowableProcessInstanceGateway;
 
     @Resource
     private BpmCurrentActorProvider bpmCurrentActorProvider;
@@ -450,7 +454,11 @@ public class BpmTaskService {
         }
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
-        flowableTaskGateway.complete(taskEntity.getEngineTaskId());
+        if (BpmTaskResultEnum.REJECTED.equals(resultEnum)) {
+            flowableProcessInstanceGateway.cancel(taskEntity.getEngineProcessInstanceId(), "审批驳回");
+        } else {
+            flowableTaskGateway.complete(taskEntity.getEngineTaskId());
+        }
 
         LocalDateTime now = LocalDateTime.now();
         BpmTaskEntity updateTaskEntity = new BpmTaskEntity();

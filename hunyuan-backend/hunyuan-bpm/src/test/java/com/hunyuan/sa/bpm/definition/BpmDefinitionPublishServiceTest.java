@@ -1,14 +1,17 @@
 package com.hunyuan.sa.bpm.definition;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
+import com.hunyuan.sa.bpm.engine.compiler.BpmCandidatePrecheckService;
 import com.hunyuan.sa.bpm.engine.compiler.CompiledDefinitionArtifact;
 import com.hunyuan.sa.bpm.engine.compiler.CompiledNodeSnapshot;
+import com.hunyuan.sa.bpm.engine.compiler.BpmSimpleModelPublishValidator;
 import com.hunyuan.sa.bpm.engine.compiler.SimpleModelBpmnCompiler;
 import com.hunyuan.sa.bpm.engine.compiler.SimpleModelValidator;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessDefinitionGateway;
@@ -31,11 +34,14 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -62,10 +68,16 @@ class BpmDefinitionPublishServiceTest {
         setField(bpmDefinitionService, "bpmDefinitionDao", bpmDefinitionDao);
         setField(bpmDefinitionService, "bpmDefinitionNodeDao", bpmDefinitionNodeDao);
         setField(bpmDefinitionService, "simpleModelValidator", Mockito.mock(SimpleModelValidator.class));
+        setField(bpmDefinitionService, "bpmSimpleModelPublishValidator", new BpmSimpleModelPublishValidator());
+        BpmOrgIdentityGateway identityGateway = Mockito.mock(BpmOrgIdentityGateway.class);
+        BpmCandidatePrecheckService candidatePrecheckService = new BpmCandidatePrecheckService();
+        setField(candidatePrecheckService, "bpmOrgIdentityGateway", identityGateway);
+        setField(bpmDefinitionService, "bpmCandidatePrecheckService", candidatePrecheckService);
         setField(bpmDefinitionService, "simpleModelBpmnCompiler", Mockito.mock(SimpleModelBpmnCompiler.class));
         setField(bpmDefinitionService, "flowableProcessDefinitionGateway", Mockito.mock(FlowableProcessDefinitionGateway.class));
         setField(bpmDefinitionService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
-        setField(bpmDefinitionService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
+        setField(bpmDefinitionService, "bpmOrgIdentityGateway", identityGateway);
+        when(bpmModelDao.update(any(BpmModelEntity.class), any(Wrapper.class))).thenReturn(1);
     }
 
     @Test
@@ -114,6 +126,53 @@ class BpmDefinitionPublishServiceTest {
         assertThat(historicalWrapperCaptor.getValue().getSqlSegment())
                 .contains("definition_key", "lifecycle_state", "definition_id", "<>");
 
+        InOrder publishOrder = inOrder(compiler(), bpmModelDao, gateway());
+        publishOrder.verify(compiler()).compile(any(), any(), any(), any(), any());
+        publishOrder.verify(bpmModelDao).update(any(BpmModelEntity.class), any(Wrapper.class));
+        publishOrder.verify(gateway()).deploy(any(), any(), any());
+        verify(bpmModelDao, times(1)).selectById(1L);
+
+        ArgumentCaptor<BpmModelEntity> claimCaptor = ArgumentCaptor.forClass(BpmModelEntity.class);
+        ArgumentCaptor<Wrapper> claimWrapperCaptor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(bpmModelDao).update(claimCaptor.capture(), claimWrapperCaptor.capture());
+        assertThat(claimCaptor.getValue().getHasUnpublishedChanges()).isFalse();
+        assertThat(claimWrapperCaptor.getValue().getSqlSegment())
+                .contains(
+                        "model_id",
+                        "has_unpublished_changes",
+                        "update_time",
+                        "model_key",
+                        "model_name",
+                        "category_id",
+                        "form_type",
+                        "form_id",
+                        "simple_model_json",
+                        "start_rule_json",
+                        "manager_scope_json",
+                        "title_rule_json",
+                        "summary_rule_json",
+                        "variable_mapping_json",
+                        "instance_no_rule_id"
+                );
+        assertThat(((AbstractWrapper<?, ?, ?>) claimWrapperCaptor.getValue()).getParamNameValuePairs().values())
+                .contains(
+                        modelEntity.getModelId(),
+                        Boolean.TRUE,
+                        modelEntity.getUpdateTime(),
+                        modelEntity.getModelKey(),
+                        modelEntity.getModelName(),
+                        modelEntity.getCategoryId(),
+                        modelEntity.getFormType(),
+                        modelEntity.getFormId(),
+                        modelEntity.getSimpleModelJson(),
+                        modelEntity.getStartRuleJson(),
+                        modelEntity.getManagerScopeJson(),
+                        modelEntity.getTitleRuleJson(),
+                        modelEntity.getSummaryRuleJson(),
+                        modelEntity.getVariableMappingJson(),
+                        modelEntity.getInstanceNoRuleId()
+                );
+
         InOrder definitionUpdateOrder = inOrder(bpmDefinitionDao);
         definitionUpdateOrder.verify(bpmDefinitionDao).insert(any(BpmDefinitionEntity.class));
         definitionUpdateOrder.verify(bpmDefinitionDao).update(any(BpmDefinitionEntity.class), any(Wrapper.class));
@@ -122,7 +181,7 @@ class BpmDefinitionPublishServiceTest {
         verify(bpmModelDao).updateById(modelUpdateCaptor.capture());
         assertThat(modelUpdateCaptor.getValue().getModelId()).isEqualTo(1L);
         assertThat(modelUpdateCaptor.getValue().getPublishedDefinitionId()).isEqualTo(12L);
-        assertThat(modelUpdateCaptor.getValue().getHasUnpublishedChanges()).isFalse();
+        assertThat(modelUpdateCaptor.getValue().getHasUnpublishedChanges()).isNull();
     }
 
     @Test
@@ -163,6 +222,64 @@ class BpmDefinitionPublishServiceTest {
         assertThat(nodeCaptor.getValue().getCompiledNodeSnapshotJson()).contains("\"listeners\"");
     }
 
+    @Test
+    void publishShouldRejectEmployeeSelectFieldMismatchBeforeCompileAndDeploy() {
+        BpmModelEntity modelEntity = buildModelEntity();
+        modelEntity.setSimpleModelJson("{\"nodes\":[{\"nodeKey\":\"task_selected\",\"type\":\"userTask\",\"name\":\"发起时选择审批\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\",\"employeeSelectFieldKey\":\"approverEmployeeId\"}]}");
+        BpmCategoryEntity categoryEntity = buildCategoryEntity();
+        BpmFormEntity formEntity = buildFormEntity();
+        formEntity.setSchemaJson("{\"fields\":[{\"field\":\"approverEmployeeId\",\"type\":\"input\"}]}");
+
+        when(bpmModelDao.selectById(1L)).thenReturn(modelEntity);
+        when(categoryDao().selectById(7L)).thenReturn(categoryEntity);
+        when(formDao().selectById(9L)).thenReturn(formEntity);
+        when(validator().validate(any(), any())).thenReturn(ResponseDTO.ok());
+
+        BpmDefinitionPublishForm publishForm = new BpmDefinitionPublishForm();
+        publishForm.setModelId(1L);
+
+        ResponseDTO<Long> response = bpmDefinitionService.publish(publishForm);
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("发起时选择审批").contains("员工单选");
+        verify(compiler(), never()).compile(any(), any(), any(), any(), any());
+        verify(gateway(), never()).deploy(any(), any(), any());
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void publishShouldNotDeployWhenSnapshotClaimFails() {
+        BpmModelEntity modelEntity = buildModelEntity();
+        BpmCategoryEntity categoryEntity = buildCategoryEntity();
+        BpmFormEntity formEntity = buildFormEntity();
+
+        when(bpmModelDao.selectById(1L)).thenReturn(modelEntity);
+        when(categoryDao().selectById(7L)).thenReturn(categoryEntity);
+        when(formDao().selectById(9L)).thenReturn(formEntity);
+        when(validator().validate(any(), any())).thenReturn(ResponseDTO.ok());
+        when(compiler().compile(any(), any(), any(), any(), any())).thenReturn(buildArtifact());
+        when(bpmModelDao.update(any(BpmModelEntity.class), any(Wrapper.class))).thenReturn(0);
+        when(gateway().deploy(any(), any(), any())).thenReturn("leave:1:1000");
+        when(bpmDefinitionDao.selectMaxVersionByDefinitionKey("leave")).thenReturn(null);
+        when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
+        when(bpmDefinitionDao.insert(any(BpmDefinitionEntity.class))).thenAnswer(invocation -> {
+            BpmDefinitionEntity entity = invocation.getArgument(0);
+            entity.setDefinitionId(22L);
+            return 1;
+        });
+
+        BpmDefinitionPublishForm publishForm = new BpmDefinitionPublishForm();
+        publishForm.setModelId(1L);
+
+        ResponseDTO<Long> response = bpmDefinitionService.publish(publishForm);
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("模型已发生变更，请刷新后重新发布");
+        verify(gateway(), never()).deploy(any(), any(), any());
+        verify(bpmDefinitionDao, never()).insert(any(BpmDefinitionEntity.class));
+    }
+
     private BpmModelEntity buildModelEntity() {
         BpmModelEntity entity = new BpmModelEntity();
         entity.setModelId(1L);
@@ -179,6 +296,7 @@ class BpmDefinitionPublishServiceTest {
         entity.setSummaryRuleJson("{\"fields\":[\"days\"]}");
         entity.setInstanceNoRuleId(3);
         entity.setHasUnpublishedChanges(Boolean.TRUE);
+        entity.setUpdateTime(LocalDateTime.of(2026, 7, 10, 10, 30));
         return entity;
     }
 
