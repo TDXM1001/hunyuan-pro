@@ -13,6 +13,8 @@ const modelListPagePath =
   'apps/hunyuan-system/src/views/system/bpm/model/model-list.vue';
 const modelEditorPath =
   'apps/hunyuan-system/src/views/system/bpm/model/model-editor.vue';
+const processDesignerAdapterPath =
+  'apps/hunyuan-system/src/components/bpm/adapters/bpm-process-designer-adapter.vue';
 const definitionPagePath =
   'apps/hunyuan-system/src/views/system/bpm/definition/definition-list.vue';
 const instancePagePath =
@@ -137,8 +139,68 @@ describe('bpm module contracts', () => {
     expect(modelEditorSource).toContain('validateBpmDefinitionForPublish');
     expect(modelEditorSource).toContain('getBpmDefinitionPublishDiff');
     expect(modelEditorSource).toContain('validationReport');
+    expect(modelEditorSource).toContain('candidateChecks');
+    expect(modelEditorSource).toContain('refreshCandidatePrecheck');
+    expect(modelEditorSource).toContain('候选策略预检');
+    expect(modelEditorSource).toContain('ElTable');
+    expect(modelEditorSource).toContain('getCandidateCheckStatusType');
     expect(modelEditorSource).toContain('publishDiff');
     expect(modelEditorSource).not.toContain('simpleModel JSON');
+
+    const handlePublishSource = modelEditorSource.slice(
+      modelEditorSource.indexOf('async function handlePublish()'),
+      modelEditorSource.indexOf('function handleBack()'),
+    );
+    const handleSaveSource = modelEditorSource.slice(
+      modelEditorSource.indexOf('async function handleSave()'),
+      modelEditorSource.indexOf('async function refreshCandidatePrecheck()'),
+    );
+    expect(modelEditorSource).toContain('const savedDraftJson = ref');
+    expect(modelEditorSource).toContain('function buildDraftJson(');
+    expect(modelEditorSource).toContain('function buildCurrentDraftJson()');
+    expect(modelEditorSource).toContain(
+      'managerScopeJson: formData.managerScopeJson',
+    );
+    expect(modelEditorSource).toContain(
+      'simpleModelJson: formData.simpleModelJson',
+    );
+    expect(modelEditorSource).toContain(
+      'startRuleJson: formData.startRuleJson',
+    );
+    expect(modelEditorSource).toContain(
+      'summaryRuleJson: formData.summaryRuleJson',
+    );
+    expect(modelEditorSource).toContain(
+      'titleRuleJson: formData.titleRuleJson',
+    );
+    expect(modelEditorSource).toContain(
+      'variableMappingJson: formData.variableMappingJson',
+    );
+    expect(handlePublishSource).toContain('if (hasUnsavedDraftChanges()) {');
+    expect(handlePublishSource).toContain('请先保存当前设计后再发布');
+    expect(handleSaveSource).toContain('const savePayload');
+    expect(handleSaveSource).toContain('await saveBpmDesignerDraft(savePayload)');
+    expect(handleSaveSource).toContain(
+      'savedDraftJson.value = buildDraftJson(savePayload)',
+    );
+    expect(handleSaveSource).toContain('submittedSimpleModelJson');
+    expect(handleSaveSource).toContain('currentSimpleModelJson');
+    expect(handlePublishSource).toContain('const publishBaselineJson');
+    expect(handlePublishSource).toContain(
+      'isPublishBaselineCurrent(publishBaselineJson)',
+    );
+    expect(handlePublishSource).toContain('设计已发生变更，请重新发布');
+    expect(modelEditorSource).toContain(':disabled="editorBusy"');
+  });
+
+  it('keeps sequential approval on an explicit remote employee multi-select', () => {
+    const processDesignerSource = readSource(processDesignerAdapterPath);
+
+    expect(processDesignerSource).toContain('queryEmployeePage');
+    expect(processDesignerSource).toContain("value=\"sequential\"");
+    expect(processDesignerSource).toContain('selectedNode.employeeIds');
+    expect(processDesignerSource).toContain('multiple');
+    expect(processDesignerSource).toContain(':remote-method="loadEmployeeOptions"');
   });
 
   it('keeps the definition list wired to P1.1 governance actions', () => {

@@ -1,21 +1,50 @@
 import type { BpmProcessNodeDraft } from './types';
 
+function normalizeEmployeeIds(rawValue: unknown): number[] {
+  if (!Array.isArray(rawValue)) {
+    return [];
+  }
+
+  return rawValue
+    .map((item) => Number(item))
+    .filter((item) => Number.isSafeInteger(item) && item > 0);
+}
+
+function normalizePositiveId(rawValue: unknown): number | undefined {
+  const normalizedValue = Number(rawValue);
+  return Number.isSafeInteger(normalizedValue) && normalizedValue > 0
+    ? normalizedValue
+    : undefined;
+}
+
 function normalizeNode(rawNode: Record<string, any>): BpmProcessNodeDraft {
   const nodeKey = String(rawNode.nodeKey || rawNode.id || '').trim();
   const nodeId = String(rawNode.id || rawNode.nodeKey || '').trim() || nodeKey;
+  const employeeIds = normalizeEmployeeIds(rawNode.employeeIds);
+  const employeeSelectFieldKey =
+    typeof rawNode.employeeSelectFieldKey === 'string'
+      ? rawNode.employeeSelectFieldKey.trim()
+      : '';
 
   return {
     approvalMode: rawNode.approvalMode || 'single',
     candidateResolverType:
       rawNode.candidateResolverType || rawNode.resolverType || 'EMPLOYEE',
-    employeeSelectFieldKey:
-      typeof rawNode.employeeSelectFieldKey === 'string'
-        ? rawNode.employeeSelectFieldKey.trim()
-        : undefined,
+    ...(normalizePositiveId(rawNode.departmentId)
+      ? { departmentId: normalizePositiveId(rawNode.departmentId) }
+      : {}),
+    ...(normalizePositiveId(rawNode.employeeId)
+      ? { employeeId: normalizePositiveId(rawNode.employeeId) }
+      : {}),
+    ...(employeeIds.length ? { employeeIds } : {}),
+    ...(employeeSelectFieldKey ? { employeeSelectFieldKey } : {}),
     id: nodeId,
     listeners: Array.isArray(rawNode.listeners) ? rawNode.listeners : [],
     name: String(rawNode.name || '审批节点').trim(),
     nodeKey: nodeKey || nodeId,
+    ...(normalizePositiveId(rawNode.roleId)
+      ? { roleId: normalizePositiveId(rawNode.roleId) }
+      : {}),
     type: 'userTask',
   };
 }
@@ -46,9 +75,15 @@ export function stringifySimpleModelDraft(nodes: BpmProcessNodeDraft[]): string 
       type: 'userTask',
       approvalMode: node.approvalMode || 'single',
       candidateResolverType: node.candidateResolverType || 'EMPLOYEE',
+      ...(node.departmentId ? { departmentId: node.departmentId } : {}),
+      ...(node.employeeId ? { employeeId: node.employeeId } : {}),
+      ...(node.approvalMode === 'sequential' && node.employeeIds?.length
+        ? { employeeIds: node.employeeIds }
+        : {}),
       ...(node.employeeSelectFieldKey
         ? { employeeSelectFieldKey: node.employeeSelectFieldKey }
         : {}),
+      ...(node.roleId ? { roleId: node.roleId } : {}),
       listeners: node.listeners || [],
     })),
   });
@@ -61,17 +96,30 @@ export function buildReadonlyBpmnXml(
 ) {
   const normalizedKey = modelKey || 'process_model';
   const normalizedName = modelName || '流程模型';
-  const taskXml = nodes
+  const previewNodes = nodes.flatMap((node) => {
+    if (node.approvalMode !== 'sequential' || !node.employeeIds?.length) {
+      return [{ nodeKey: node.nodeKey, nodeName: node.name }];
+    }
+
+    return node.employeeIds.map((_, index) => ({
+      nodeKey: `${node.nodeKey}_${index + 1}`,
+      nodeName: `${node.name}（${index + 1}/${node.employeeIds!.length}）`,
+    }));
+  });
+  const taskXml = previewNodes
     .map((node, index) => {
-      const sourceRef = index === 0 ? 'startEvent' : nodes[index - 1]!.nodeKey;
+      const sourceRef =
+        index === 0 ? 'startEvent' : previewNodes[index - 1]!.nodeKey;
 
       return [
-        `<userTask id="${node.nodeKey}" name="${node.name}" flowable:assignee="\${assignee_${node.nodeKey}}"/>`,
+        `<userTask id="${node.nodeKey}" name="${node.nodeName}" flowable:assignee="\${assignee_${node.nodeKey}}"/>`,
         `<sequenceFlow id="flow_${index}" sourceRef="${sourceRef}" targetRef="${node.nodeKey}"/>`,
       ].join('');
     })
     .join('');
-  const endSource = nodes.length ? nodes[nodes.length - 1]!.nodeKey : 'startEvent';
+  const endSource = previewNodes.length
+    ? previewNodes[previewNodes.length - 1]!.nodeKey
+    : 'startEvent';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="http://hunyuan.sa/bpm">

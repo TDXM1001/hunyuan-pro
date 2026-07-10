@@ -84,4 +84,45 @@ describe('bpm runtime form rules', () => {
       ]),
     ).toBe(false);
   });
+
+  it('递归识别并归一化嵌套员工选择字段', () => {
+    const remoteMethod = vi.fn();
+    const rules = [
+      {
+        field: 'approvalGroup',
+        title: '审批信息',
+        type: 'group',
+        children: [
+          {
+            field: 'approverEmployeeId',
+            title: '审批人',
+            type: 'employeeSelect',
+          },
+        ],
+      } as any,
+    ];
+
+    expect(hasEmployeeSelectRule(rules)).toBe(true);
+
+    const normalizedRules = normalizeRuntimeFormRules(
+      rules,
+      [{ label: '张三', value: 100 }],
+      remoteMethod,
+    ) as any[];
+
+    expect(normalizedRules[0].children[0]).toEqual({
+      field: 'approverEmployeeId',
+      title: '审批人',
+      type: 'select',
+      options: [{ label: '张三', value: 100 }],
+      props: {
+        clearable: true,
+        filterable: true,
+        multiple: false,
+        remote: true,
+        remoteMethod,
+        reserveKeyword: true,
+      },
+    });
+  });
 });

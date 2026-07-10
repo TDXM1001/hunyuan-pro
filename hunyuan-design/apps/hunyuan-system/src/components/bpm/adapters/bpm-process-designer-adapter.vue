@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { EmployeeRecord } from '#/api/system/organization';
+
 import type {
   BpmProcessDesignerExpose,
   BpmProcessDesignerSnapshot,
@@ -18,6 +20,8 @@ import {
   ElSpace,
   ElTag,
 } from 'element-plus';
+
+import { queryEmployeePage } from '#/api/system/organization';
 
 import {
   buildReadonlyBpmnXml,
@@ -53,6 +57,8 @@ const props = withDefaults(
 
 const canvasRef = ref<HTMLDivElement>();
 const dirty = ref(false);
+const employeeLoading = ref(false);
+const employeeOptions = ref<EmployeeRecord[]>([]);
 const modeler = ref<any>();
 const nodes = ref<BpmProcessNodeDraft[]>([]);
 const selectedNodeId = ref('');
@@ -108,6 +114,9 @@ async function renderCanvas() {
 async function load(snapshot: Partial<BpmProcessDesignerSnapshot>) {
   nodes.value = snapshot.nodes?.length ? snapshot.nodes : [];
   selectedNodeId.value = nodes.value[0]?.nodeKey || '';
+  if (nodes.value.some((item) => item.approvalMode === 'sequential')) {
+    await loadEmployeeOptions();
+  }
   await renderCanvas();
   dirty.value = false;
 }
@@ -144,6 +153,39 @@ async function validate() {
     };
   }
 
+  const invalidSequentialResolverNode = nodes.value.find(
+    (item) =>
+      item.approvalMode === 'sequential' &&
+      item.candidateResolverType !== 'EMPLOYEE',
+  );
+  if (invalidSequentialResolverNode) {
+    return {
+      message: `审批节点【${invalidSequentialResolverNode.name}】顺序审批仅支持指定员工`,
+      ok: false,
+    };
+  }
+
+  const invalidSequentialEmployeesNode = nodes.value.find((item) => {
+    if (item.approvalMode !== 'sequential') {
+      return false;
+    }
+    const employeeIds = item.employeeIds ?? [];
+    return (
+      employeeIds.length < 2 ||
+      employeeIds.some(
+        (employeeId) =>
+          !Number.isSafeInteger(employeeId) || employeeId <= 0,
+      ) ||
+      new Set(employeeIds).size !== employeeIds.length
+    );
+  });
+  if (invalidSequentialEmployeesNode) {
+    return {
+      message: `审批节点【${invalidSequentialEmployeesNode.name}】请至少选择 2 名不同的顺序审批员工`,
+      ok: false,
+    };
+  }
+
   return {
     message: undefined,
     ok: true,
@@ -162,6 +204,66 @@ async function handleStateChange() {
   dirty.value = true;
   emit('change', getSnapshot());
   await renderCanvas();
+}
+
+async function loadEmployeeOptions(keyword = '') {
+  employeeLoading.value = true;
+  try {
+    const result = await queryEmployeePage({
+      disabledFlag: false,
+      keyword,
+      pageNum: 1,
+      pageSize: 20,
+    });
+    const selectedEmployeeIds = new Set(
+      nodes.value.flatMap((item) => item.employeeIds ?? []),
+    );
+    const selectedOptions = employeeOptions.value.filter((item) =>
+      selectedEmployeeIds.has(item.employeeId),
+    );
+    const mergedOptions = [...selectedOptions, ...(result?.list ?? [])];
+    employeeOptions.value = Array.from(
+      new Map(
+        mergedOptions.map((item) => [item.employeeId, item]),
+      ).values(),
+    );
+  } finally {
+    employeeLoading.value = false;
+  }
+}
+
+async function handleCandidateResolverChange() {
+  if (!selectedNode.value) {
+    return;
+  }
+  if (
+    selectedNode.value.approvalMode === 'sequential' &&
+    selectedNode.value.candidateResolverType !== 'EMPLOYEE'
+  ) {
+    selectedNode.value.approvalMode = 'single';
+    selectedNode.value.employeeIds = undefined;
+  }
+  if (
+    selectedNode.value.candidateResolverType !== 'EMPLOYEE_SELECT_AT_START'
+  ) {
+    selectedNode.value.employeeSelectFieldKey = undefined;
+  }
+  await handleStateChange();
+}
+
+async function handleApprovalModeChange() {
+  if (!selectedNode.value) {
+    return;
+  }
+  if (selectedNode.value.approvalMode === 'sequential') {
+    selectedNode.value.candidateResolverType = 'EMPLOYEE';
+    selectedNode.value.employeeSelectFieldKey = undefined;
+    selectedNode.value.employeeIds ??= [];
+    await loadEmployeeOptions();
+  } else {
+    selectedNode.value.employeeIds = undefined;
+  }
+  await handleStateChange();
 }
 
 async function addNode() {
@@ -264,8 +366,10 @@ onBeforeUnmount(() => {
           <ElFormItem label="候选人解析类型">
             <ElSelect
               v-model="selectedNode.candidateResolverType"
-              :disabled="disabled || readonly"
-              @change="handleStateChange"
+              :disabled="
+                disabled || readonly || selectedNode.approvalMode === 'sequential'
+              "
+              @change="handleCandidateResolverChange"
             >
               <ElOption label="指定员工" value="EMPLOYEE" />
               <ElOption label="部门负责人" value="DEPARTMENT_MANAGER" />
@@ -303,10 +407,36 @@ onBeforeUnmount(() => {
             <ElSelect
               v-model="selectedNode.approvalMode"
               :disabled="disabled || readonly"
-              @change="handleStateChange"
+              @change="handleApprovalModeChange"
             >
               <ElOption label="单人审批" value="single" />
               <ElOption label="单人审批（严格）" value="singleOnly" />
+              <ElOption label="顺序多人审批" value="sequential" />
+            </ElSelect>
+          </ElFormItem>
+          <ElFormItem
+            v-if="selectedNode.approvalMode === 'sequential'"
+            label="顺序审批员工"
+          >
+            <ElSelect
+              v-model="selectedNode.employeeIds"
+              clearable
+              collapse-tags
+              :disabled="disabled || readonly"
+              filterable
+              :loading="employeeLoading"
+              multiple
+              placeholder="请按审批顺序选择员工"
+              remote
+              :remote-method="loadEmployeeOptions"
+              @change="handleStateChange"
+            >
+              <ElOption
+                v-for="employee in employeeOptions"
+                :key="employee.employeeId"
+                :label="`${employee.actualName}（${employee.departmentName || '未分配部门'}）`"
+                :value="employee.employeeId"
+              />
             </ElSelect>
           </ElFormItem>
           <ElFormItem label="监听器 JSON">

@@ -34,6 +34,13 @@ const apiFiles = [
     needles: [
       '/bpm/definition/query',
       '/bpm/definition/detail/',
+      'BpmDefinitionCandidateCheck',
+      'candidateChecks: BpmDefinitionCandidateCheck[]',
+      'candidateResolverLabel',
+      'nodeKey?: null | string;',
+      'requiredConfig',
+      'requiresRuntimeFormData',
+      'status:',
       'validateBpmDefinitionForPublish',
       '/bpm/definition/validateForPublish/',
       'getBpmDefinitionPublishDiff',

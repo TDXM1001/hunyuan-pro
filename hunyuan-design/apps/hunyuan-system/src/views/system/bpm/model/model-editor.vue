@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ArtActionItem } from '@vben/art-hooks/common';
 import type {
+  BpmDefinitionCandidateCheck,
   BpmDefinitionDiff,
   BpmDefinitionValidationReport,
   BpmDesignerSaveForm,
@@ -26,6 +27,8 @@ import {
   ElInputNumber,
   ElMessage,
   ElMessageBox,
+  ElTable,
+  ElTableColumn,
   ElTag,
 } from 'element-plus';
 
@@ -70,8 +73,17 @@ const validating = ref(false);
 const simulating = ref(false);
 const publishing = ref(false);
 const loaded = ref(false);
+const savedDraftJson = ref('');
 const validationReport = ref<BpmDefinitionValidationReport>();
 const publishDiff = ref<BpmDefinitionDiff>();
+const candidateChecks = computed<BpmDefinitionCandidateCheck[]>(
+  () => validationReport.value?.candidateChecks || [],
+);
+const blockingCount = computed(() => validationReport.value?.blockingCount || 0);
+const warningCount = computed(() => validationReport.value?.warningCount || 0);
+const editorBusy = computed(
+  () => loading.value || saving.value || publishing.value,
+);
 
 const baseInfo = reactive<DesignerBaseInfo>({
   categoryName: '',
@@ -100,6 +112,7 @@ const modelId = computed(() => {
 
 const pageActions = computed<ArtActionItem[]>(() => [
   {
+    disabled: editorBusy.value,
     key: 'reload',
     label: '重新加载',
     onClick: () => {
@@ -107,6 +120,7 @@ const pageActions = computed<ArtActionItem[]>(() => [
     },
   },
   {
+    disabled: editorBusy.value,
     key: 'save',
     label: '保存草稿',
     loading: saving.value,
@@ -114,18 +128,21 @@ const pageActions = computed<ArtActionItem[]>(() => [
     type: 'primary',
   },
   {
+    disabled: editorBusy.value,
     key: 'validate',
     label: '校验',
     loading: validating.value,
     onClick: handleValidate,
   },
   {
+    disabled: editorBusy.value,
     key: 'simulate',
     label: '模拟',
     loading: simulating.value,
     onClick: handleSimulate,
   },
   {
+    disabled: editorBusy.value,
     key: 'publish',
     label: '发布',
     loading: publishing.value,
@@ -150,6 +167,38 @@ function resetBaseInfo() {
 
 function resetFormData() {
   Object.assign(formData, buildEmptyBpmDesignerDraft());
+}
+
+function buildDraftJson(draft: BpmDesignerSaveForm) {
+  return JSON.stringify({
+    managerScopeJson: draft.managerScopeJson,
+    simpleModelJson: draft.simpleModelJson,
+    startRuleJson: draft.startRuleJson,
+    summaryRuleJson: draft.summaryRuleJson,
+    titleRuleJson: draft.titleRuleJson,
+    variableMappingJson: draft.variableMappingJson,
+  });
+}
+
+function buildCurrentDraftJson() {
+  return buildDraftJson({
+    managerScopeJson: formData.managerScopeJson,
+    modelId: formData.modelId,
+    simpleModelJson: formData.simpleModelJson,
+    startRuleJson: formData.startRuleJson,
+    summaryRuleJson: formData.summaryRuleJson,
+    titleRuleJson: formData.titleRuleJson,
+    variableMappingJson: formData.variableMappingJson,
+  });
+}
+
+function hasUnsavedDraftChanges() {
+  return designerRef.value?.isDirty() || savedDraftJson.value !== buildCurrentDraftJson();
+}
+
+function isPublishBaselineCurrent(publishBaselineJson: string) {
+  return !designerRef.value?.isDirty()
+    && buildCurrentDraftJson() === publishBaselineJson;
 }
 
 function buildDesignerSnapshot(): BpmProcessDesignerSnapshot {
@@ -179,6 +228,9 @@ async function loadDetail() {
   if (!modelId.value) {
     resetBaseInfo();
     resetFormData();
+    validationReport.value = undefined;
+    publishDiff.value = undefined;
+    savedDraftJson.value = buildCurrentDraftJson();
     loaded.value = false;
     await syncDesignerSnapshot();
     return;
@@ -208,8 +260,10 @@ async function loadDetail() {
       titleRuleJson: detail.titleRuleJson || '',
       variableMappingJson: detail.variableMappingJson || '',
     });
+    savedDraftJson.value = buildCurrentDraftJson();
     loaded.value = true;
     await syncDesignerSnapshot();
+    await refreshCandidatePrecheck();
   } finally {
     loading.value = false;
   }
@@ -236,16 +290,34 @@ async function handleSave() {
   if (snapshot) {
     formData.simpleModelJson = stringifySimpleModelDraft(snapshot.nodes);
   }
+  const savePayload: BpmDesignerSaveForm = { ...formData };
+  const submittedSimpleModelJson = savePayload.simpleModelJson;
 
   saving.value = true;
   try {
-    await saveBpmDesignerDraft(formData);
+    await saveBpmDesignerDraft(savePayload);
     baseInfo.hasUnpublishedChanges = true;
-    designerRef.value?.resetDirty();
+    savedDraftJson.value = buildDraftJson(savePayload);
+    const currentSnapshot = designerRef.value?.getSnapshot();
+    const currentSimpleModelJson = currentSnapshot
+      ? stringifySimpleModelDraft(currentSnapshot.nodes)
+      : formData.simpleModelJson;
+    if (currentSimpleModelJson === submittedSimpleModelJson) {
+      designerRef.value?.resetDirty();
+    }
+    await refreshCandidatePrecheck();
     ElMessage.success('流程设计草稿保存成功');
   } finally {
     saving.value = false;
   }
+}
+
+async function refreshCandidatePrecheck() {
+  if (!formData.modelId) {
+    validationReport.value = undefined;
+    return;
+  }
+  validationReport.value = await validateBpmDefinitionForPublish(formData.modelId);
 }
 
 async function handleValidate() {
@@ -257,6 +329,12 @@ async function handleValidate() {
   validating.value = true;
   try {
     const message = await validateBpmDesignerDraft(formData.modelId);
+    await refreshCandidatePrecheck();
+    const firstBlockingFinding = validationReport.value?.findings[0];
+    if (firstBlockingFinding) {
+      ElMessage.warning(firstBlockingFinding.message || '流程发布校验未通过');
+      return;
+    }
     ElMessage.success(message || '设计器校验通过');
   } finally {
     validating.value = false;
@@ -283,12 +361,18 @@ async function handlePublish() {
     ElMessage.warning('请先选择有效模型');
     return;
   }
+  if (hasUnsavedDraftChanges()) {
+    ElMessage.warning('请先保存当前设计后再发布');
+    return;
+  }
+  const publishBaselineJson = buildCurrentDraftJson();
 
   publishing.value = true;
   try {
-    validationReport.value = await validateBpmDefinitionForPublish(formData.modelId);
-    if (!validationReport.value.pass) {
-      const firstFinding = validationReport.value.findings[0];
+    await refreshCandidatePrecheck();
+    const report = validationReport.value;
+    if (!report?.pass) {
+      const firstFinding = report?.findings[0];
       ElMessage.warning(firstFinding?.message || '流程发布校验未通过');
       return;
     }
@@ -311,6 +395,10 @@ async function handlePublish() {
     if (!confirmed) {
       return;
     }
+    if (!isPublishBaselineCurrent(publishBaselineJson)) {
+      ElMessage.warning('设计已发生变更，请重新发布');
+      return;
+    }
 
     await publishBpmDefinition({ modelId: formData.modelId });
     baseInfo.hasUnpublishedChanges = false;
@@ -323,6 +411,26 @@ async function handlePublish() {
 
 function handleBack() {
   void router.push('/system/bpm/model');
+}
+
+function getCandidateCheckStatusType(status: BpmDefinitionCandidateCheck['status']) {
+  if (status === 'READY') {
+    return 'success';
+  }
+  if (status === 'RUNTIME_REQUIRED') {
+    return 'warning';
+  }
+  return 'danger';
+}
+
+function getCandidateCheckStatusLabel(status: BpmDefinitionCandidateCheck['status']) {
+  if (status === 'READY') {
+    return '可解析';
+  }
+  if (status === 'RUNTIME_REQUIRED') {
+    return '运行时提供';
+  }
+  return '阻断';
 }
 
 watch(
@@ -363,7 +471,7 @@ watch(
       <ElForm
         ref="formRef"
         class="model-editor-form"
-        :disabled="loading"
+        :disabled="editorBusy"
         :model="formData"
         :rules="rules"
         label-position="top"
@@ -392,7 +500,7 @@ watch(
         <ArtEditSection title="流程设计工作区" :index="2">
           <BpmProcessDesignerAdapter
             ref="designerRef"
-            :disabled="loading"
+            :disabled="editorBusy"
             :form-schema-json="baseInfo.formSchemaJson"
             :initial-snapshot="buildDesignerSnapshot()"
             :model-key="baseInfo.modelKey"
@@ -418,6 +526,92 @@ watch(
             <ElInput v-model="formData.variableMappingJson" :rows="6" type="textarea" />
           </ElFormItem>
         </ArtEditSection>
+
+        <ArtEditSection title="候选策略预检" :index="4">
+          <ElFormItem class="art-edit-section__full" label="发布前摘要">
+            <div class="candidate-checks-wrap">
+              <div class="candidate-checks-toolbar">
+                <div class="candidate-checks-summary">
+                  <ElTag
+                    :type="blockingCount > 0 ? 'danger' : 'success'"
+                    effect="light"
+                  >
+                    {{ blockingCount > 0 ? `阻断 ${blockingCount}` : '无阻断' }}
+                  </ElTag>
+                  <ElTag
+                    :type="warningCount > 0 ? 'warning' : 'info'"
+                    effect="light"
+                  >
+                    {{ warningCount > 0 ? `提示 ${warningCount}` : '无额外提示' }}
+                  </ElTag>
+                </div>
+                <ElButton link type="primary" @click="refreshCandidatePrecheck">
+                  刷新预检
+                </ElButton>
+              </div>
+
+              <ElTable
+                :data="candidateChecks"
+                border
+                class="candidate-checks-table"
+                empty-text="保存草稿后可查看候选策略预检结果"
+                size="small"
+              >
+                <ElTableColumn label="节点" min-width="180">
+                  <template #default="{ row }">
+                    <div class="candidate-check-node">
+                      <div class="candidate-check-node__name">{{ row.nodeName || row.nodeKey }}</div>
+                      <div class="candidate-check-node__key">{{ row.nodeKey }}</div>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="策略" min-width="160">
+                  <template #default="{ row }">
+                    <div class="candidate-check-strategy">
+                      <div>{{ row.candidateResolverLabel || row.candidateResolverType }}</div>
+                      <div class="candidate-check-node__key">{{ row.candidateResolverType }}</div>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="依赖配置" min-width="220" prop="requiredConfig" />
+                <ElTableColumn label="当前可解析" min-width="100">
+                  <template #default="{ row }">
+                    <ElTag :type="row.canResolveNow ? 'success' : 'info'" effect="light" size="small">
+                      {{ row.canResolveNow ? '是' : '否' }}
+                    </ElTag>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="表单驱动" min-width="100">
+                  <template #default="{ row }">
+                    <ElTag
+                      :type="row.requiresRuntimeFormData ? 'warning' : 'info'"
+                      effect="light"
+                      size="small"
+                    >
+                      {{ row.requiresRuntimeFormData ? '依赖表单' : '无需表单' }}
+                    </ElTag>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="结果" min-width="280">
+                  <template #default="{ row }">
+                    <div class="candidate-check-result">
+                      <ElTag
+                        :type="getCandidateCheckStatusType(row.status)"
+                        effect="light"
+                        size="small"
+                      >
+                        {{ getCandidateCheckStatusLabel(row.status) }}
+                      </ElTag>
+                      <div class="candidate-check-result__message">
+                        {{ row.message || '-' }}
+                      </div>
+                    </div>
+                  </template>
+                </ElTableColumn>
+              </ElTable>
+            </div>
+          </ElFormItem>
+        </ArtEditSection>
       </ElForm>
     </ArtEditPage>
   </Page>
@@ -433,5 +627,46 @@ watch(
 .model-editor-form :deep(.el-textarea),
 .model-editor-form :deep(.el-select) {
   width: 100%;
+}
+
+.candidate-checks-wrap {
+  width: 100%;
+}
+
+.candidate-checks-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.candidate-checks-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.candidate-checks-table {
+  width: 100%;
+}
+
+.candidate-check-node,
+.candidate-check-strategy,
+.candidate-check-result {
+  display: grid;
+  gap: 4px;
+}
+
+.candidate-check-node__name {
+  line-height: 1.4;
+}
+
+.candidate-check-node__key,
+.candidate-check-result__message {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 </style>

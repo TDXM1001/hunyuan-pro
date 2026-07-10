@@ -146,6 +146,86 @@ describe('bpm designer adapters', () => {
     );
   });
 
+  it('保留顺序多人审批的员工列表合同', () => {
+    const parsedNodes = parseSimpleModelDraft(
+      JSON.stringify({
+        nodes: [
+          {
+            approvalMode: 'sequential',
+            candidateResolverType: 'EMPLOYEE',
+            employeeIds: [301, 302],
+            id: 'task_finance',
+            listeners: [],
+            name: '财务复核',
+            type: 'userTask',
+          },
+        ],
+      }),
+    );
+
+    expect(parsedNodes).toEqual([
+      {
+        approvalMode: 'sequential',
+        candidateResolverType: 'EMPLOYEE',
+        employeeIds: [301, 302],
+        id: 'task_finance',
+        listeners: [],
+        name: '财务复核',
+        nodeKey: 'task_finance',
+        type: 'userTask',
+      },
+    ]);
+
+    expect(stringifySimpleModelDraft(parsedNodes)).toContain(
+      '"employeeIds":[301,302]',
+    );
+  });
+
+  it('保留指定员工、角色和指定部门主管的候选参数', () => {
+    const parsedNodes = parseSimpleModelDraft(
+      JSON.stringify({
+        nodes: [
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'EMPLOYEE',
+            employeeId: 301,
+            id: 'task_employee',
+            listeners: [],
+            name: '指定员工审批',
+            type: 'userTask',
+          },
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'ROLE',
+            id: 'task_role',
+            listeners: [],
+            name: '角色审批',
+            roleId: 9,
+            type: 'userTask',
+          },
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'DEPARTMENT_MANAGER',
+            departmentId: 8,
+            id: 'task_department',
+            listeners: [],
+            name: '指定部门主管审批',
+            type: 'userTask',
+          },
+        ],
+      }),
+    );
+
+    expect(parsedNodes[0]?.employeeId).toBe(301);
+    expect(parsedNodes[1]?.roleId).toBe(9);
+    expect(parsedNodes[2]?.departmentId).toBe(8);
+
+    const serializedDraft = stringifySimpleModelDraft(parsedNodes);
+    expect(serializedDraft).toContain('"employeeId":301');
+    expect(serializedDraft).toContain('"roleId":9');
+    expect(serializedDraft).toContain('"departmentId":8');
+  });
+
   it('从表单 schema 提取员工单选字段候选项', () => {
     const options = extractEmployeeSelectFieldOptions(
       JSON.stringify({
@@ -172,7 +252,7 @@ describe('bpm designer adapters', () => {
     ]);
   });
 
-  it('兼容字段名带员工语义但组件类型尚未标准化的表单字段', () => {
+  it('不根据字段名猜测普通 input 是员工字段', () => {
     const options = extractEmployeeSelectFieldOptions(
       JSON.stringify([
         {
@@ -183,12 +263,7 @@ describe('bpm designer adapters', () => {
       ]),
     );
 
-    expect(options).toEqual([
-      {
-        field: 'backupApproverEmployeeId',
-        label: '备选审批人',
-      },
-    ]);
+    expect(options).toEqual([]);
   });
 
   it('根据顺序审批节点生成只读 BPMN XML 预览', () => {
@@ -207,5 +282,25 @@ describe('bpm designer adapters', () => {
     expect(xml).toContain('<process id="leave_apply"');
     expect(xml).toContain('<userTask id="task_manager"');
     expect(xml).toContain('flowable:assignee="${assignee_task_manager}"');
+  });
+
+  it('根据顺序多人审批节点展开只读 BPMN XML 预览', () => {
+    const xml = buildReadonlyBpmnXml('expense_apply', '费用流程', [
+      {
+        approvalMode: 'sequential',
+        candidateResolverType: 'EMPLOYEE',
+        employeeIds: [301, 302],
+        id: 'task_finance',
+        listeners: [],
+        name: '财务复核',
+        nodeKey: 'task_finance',
+        type: 'userTask',
+      },
+    ]);
+
+    expect(xml).toContain('<userTask id="task_finance_1"');
+    expect(xml).toContain('<userTask id="task_finance_2"');
+    expect(xml).toContain('财务复核（1/2）');
+    expect(xml).toContain('flowable:assignee="${assignee_task_finance_2}"');
   });
 });

@@ -39,8 +39,23 @@ export interface BpmDefinitionValidationFinding {
   nodeKey?: string;
 }
 
+export interface BpmDefinitionCandidateCheck {
+  canResolveNow: boolean;
+  candidateResolverLabel: string;
+  candidateResolverType: string;
+  code?: null | string;
+  field?: null | string;
+  message: string;
+  nodeKey?: null | string;
+  nodeName: string;
+  requiredConfig?: null | string;
+  requiresRuntimeFormData: boolean;
+  status: 'BLOCKING' | 'READY' | 'RUNTIME_REQUIRED';
+}
+
 export interface BpmDefinitionValidationReport {
   blockingCount: number;
+  candidateChecks: BpmDefinitionCandidateCheck[];
   findings: BpmDefinitionValidationFinding[];
   pass: boolean;
   warningCount: number;

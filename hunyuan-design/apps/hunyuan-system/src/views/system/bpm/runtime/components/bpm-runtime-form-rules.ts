@@ -7,7 +7,15 @@ export interface BpmRuntimeEmployeeOption {
 
 type RuntimeRule = FormRule & Record<string, any>;
 
-function isEmployeeSelectRule(rule: RuntimeRule) {
+function getNestedRules(
+  rule: RuntimeRule,
+  fieldName: 'children' | 'fields',
+): FormRule[] {
+  const value = rule[fieldName];
+  return Array.isArray(value) ? (value as FormRule[]) : [];
+}
+
+function isEmployeeSelectRule(rule: RuntimeRule): boolean {
   const props =
     rule.props && typeof rule.props === 'object'
       ? (rule.props as Record<string, any>)
@@ -26,8 +34,15 @@ function isEmployeeSelectRule(rule: RuntimeRule) {
   );
 }
 
-export function hasEmployeeSelectRule(rules: FormRule[]) {
-  return rules.some((rule) => isEmployeeSelectRule(rule as RuntimeRule));
+export function hasEmployeeSelectRule(rules: FormRule[]): boolean {
+  return rules.some((rule) => {
+    const runtimeRule = rule as RuntimeRule;
+    return (
+      isEmployeeSelectRule(runtimeRule) ||
+      hasEmployeeSelectRule(getNestedRules(runtimeRule, 'children')) ||
+      hasEmployeeSelectRule(getNestedRules(runtimeRule, 'fields'))
+    );
+  });
 }
 
 export function normalizeRuntimeFormRules(
@@ -37,23 +52,38 @@ export function normalizeRuntimeFormRules(
 ): FormRule[] {
   return rules.map((rule) => {
     const runtimeRule = rule as RuntimeRule;
-    if (!isEmployeeSelectRule(runtimeRule)) {
-      return rule;
+    const normalizedRule = isEmployeeSelectRule(runtimeRule)
+      ? ({
+          ...runtimeRule,
+          options: employeeOptions,
+          props: {
+            ...(runtimeRule.props ?? {}),
+            clearable: true,
+            filterable: true,
+            multiple: false,
+            remote: true,
+            remoteMethod,
+            reserveKeyword: true,
+          },
+          type: 'select',
+        } as RuntimeRule)
+      : { ...runtimeRule };
+
+    if (Array.isArray(runtimeRule.children)) {
+      normalizedRule.children = normalizeRuntimeFormRules(
+        getNestedRules(runtimeRule, 'children'),
+        employeeOptions,
+        remoteMethod,
+      );
+    }
+    if (Array.isArray(runtimeRule.fields)) {
+      normalizedRule.fields = normalizeRuntimeFormRules(
+        getNestedRules(runtimeRule, 'fields'),
+        employeeOptions,
+        remoteMethod,
+      );
     }
 
-    return {
-      ...runtimeRule,
-      options: employeeOptions,
-      props: {
-        ...(runtimeRule.props ?? {}),
-        clearable: true,
-        filterable: true,
-        multiple: false,
-        remote: true,
-        remoteMethod,
-        reserveKeyword: true,
-      },
-      type: 'select',
-    } as FormRule;
+    return normalizedRule as FormRule;
   });
 }

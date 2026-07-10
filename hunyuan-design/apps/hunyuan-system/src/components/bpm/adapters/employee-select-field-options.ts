@@ -49,11 +49,6 @@ function hasEmployeeSelectType(node: SchemaNode) {
   );
 }
 
-function hasEmployeeFieldName(field: string) {
-  const normalized = field.toLowerCase();
-  return normalized.includes('employeeid') || normalized.includes('approver');
-}
-
 export function extractEmployeeSelectFieldOptions(
   schemaJson?: string,
 ): BpmEmployeeSelectFieldOption[] {
@@ -66,7 +61,7 @@ export function extractEmployeeSelectFieldOptions(
       if (!field || seen.has(field)) {
         return undefined;
       }
-      if (!hasEmployeeSelectType(node) && !hasEmployeeFieldName(field)) {
+      if (!hasEmployeeSelectType(node)) {
         return undefined;
       }
 

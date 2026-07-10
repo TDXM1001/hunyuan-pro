@@ -9,7 +9,7 @@ export interface BpmFormDesignerSnapshot {
 }
 
 export interface BpmProcessNodeDraft {
-  approvalMode?: 'single' | 'singleOnly';
+  approvalMode?: 'sequential' | 'single' | 'singleOnly';
   candidateResolverType?:
     | 'DEPARTMENT_MANAGER'
     | 'EMPLOYEE'
@@ -17,11 +17,15 @@ export interface BpmProcessNodeDraft {
     | 'ROLE'
     | 'START_DEPARTMENT_MANAGER'
     | 'START_EMPLOYEE';
+  departmentId?: number;
+  employeeId?: number;
+  employeeIds?: number[];
   employeeSelectFieldKey?: string;
   id: string;
   listeners: BpmListenerBinding[];
   name: string;
   nodeKey: string;
+  roleId?: number;
   type: 'userTask';
 }
 
