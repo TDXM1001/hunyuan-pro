@@ -86,9 +86,10 @@ public class SimpleModelBpmnCompiler {
                 compiledNodeObject.put("employeeId", employeeIds.getLongValue(memberIndex));
                 compiledNodeObject.put("authoredNodeKey", nodeKey);
                 compiledNodeObject.put("authoredNodeName", nodeName);
+                // 多人审批的运行时投影使用 authored 节点作为稳定审批组身份。
+                compiledNodeObject.put("approvalGroupKey", nodeKey);
+                compiledNodeObject.put("approvalGroupName", nodeName);
                 if (isParallelAll(nodeObject)) {
-                    compiledNodeObject.put("approvalGroupKey", nodeKey);
-                    compiledNodeObject.put("approvalGroupName", nodeName);
                     compiledNodeObject.put("parallelIndex", memberIndex + 1);
                     compiledNodeObject.put("parallelTotal", employeeIds.size());
                 } else {

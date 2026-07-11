@@ -30,6 +30,8 @@ class SimpleModelBpmnCompilerTest {
         assertThat(artifact.nodeSnapshots().get(1).compiledNodeSnapshotJson())
                 .contains("\"employeeId\":302")
                 .contains("\"authoredNodeKey\":\"task_finance\"")
+                .contains("\"approvalGroupKey\":\"task_finance\"")
+                .contains("\"approvalGroupName\":\"财务复核\"")
                 .contains("\"sequentialIndex\":2")
                 .contains("\"sequentialTotal\":3");
         assertThat(artifact.nodeSnapshots().get(1).authoredRuleSnapshotJson())
