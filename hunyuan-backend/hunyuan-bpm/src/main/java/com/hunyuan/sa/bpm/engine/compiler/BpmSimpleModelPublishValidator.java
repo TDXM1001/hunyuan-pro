@@ -39,11 +39,7 @@ public class BpmSimpleModelPublishValidator {
             return ResponseDTO.ok();
         }
 
-        for (int i = 0; i < nodes.size(); i++) {
-            JSONObject nodeObject = nodes.getJSONObject(i);
-            if (nodeObject == null || !USER_TASK_TYPE.equals(nodeObject.getString("type"))) {
-                continue;
-            }
+        for (JSONObject nodeObject : collectHumanTaskNodes(nodes)) {
             ResponseDTO<String> fieldPermissionResponse = validateFieldPermissions(nodeObject, formFields);
             if (!Boolean.TRUE.equals(fieldPermissionResponse.getOk())) {
                 return fieldPermissionResponse;
@@ -76,6 +72,38 @@ public class BpmSimpleModelPublishValidator {
         }
 
         return ResponseDTO.ok();
+    }
+
+    private java.util.List<JSONObject> collectHumanTaskNodes(JSONArray nodes) {
+        java.util.List<JSONObject> result = new java.util.ArrayList<>();
+        collectHumanTaskNodes(nodes, result);
+        return result;
+    }
+
+    private void collectHumanTaskNodes(JSONArray nodes, java.util.List<JSONObject> result) {
+        if (nodes == null) {
+            return;
+        }
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof JSONObject node)) {
+                continue;
+            }
+            String type = node.getString("type");
+            if (USER_TASK_TYPE.equals(type)
+                    || "USER_TASK".equals(type)
+                    || "HANDLE_TASK".equals(type)) {
+                result.add(node);
+            }
+            JSONArray branches = node.getJSONArray("branches");
+            if (branches == null) {
+                continue;
+            }
+            for (Object rawBranch : branches) {
+                if (rawBranch instanceof JSONObject branch) {
+                    collectHumanTaskNodes(branch.getJSONArray("nodes"), result);
+                }
+            }
+        }
     }
 
     private ResponseDTO<String> validateFieldPermissions(

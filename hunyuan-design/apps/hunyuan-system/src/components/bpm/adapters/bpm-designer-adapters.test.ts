@@ -4,12 +4,69 @@ import { describe, expect, it } from 'vitest';
 
 import { extractEmployeeSelectFieldOptions } from './employee-select-field-options';
 import {
+  parseProcessModelAsset,
+  stringifyProcessModelAsset,
+} from './process-model-asset';
+import {
   buildReadonlyBpmnXml,
   parseSimpleModelDraft,
   stringifySimpleModelDraft,
 } from './simple-model-bridge';
 
 describe('bpm designer adapters', () => {
+  it('完整往返嵌套 v2 分支并保留创作身份', () => {
+    const source = JSON.stringify({
+      schemaVersion: 2,
+      nodes: [
+        {
+          nodeKey: 'amount_route',
+          name: '金额路由',
+          type: 'EXCLUSIVE_BRANCH',
+          branches: [
+            {
+              branchKey: 'large',
+              name: '大额',
+              condition: { fieldKey: 'amount', operator: 'GT', value: 5000 },
+              nodes: [
+                {
+                  nodeKey: 'risk_handle',
+                  name: '风险办理',
+                  type: 'HANDLE_TASK',
+                  candidateResolverType: 'ROLE',
+                  roleId: 7,
+                },
+              ],
+            },
+            { branchKey: 'default', name: '默认', isDefault: true, nodes: [] },
+          ],
+        },
+      ],
+    });
+
+    const asset = parseProcessModelAsset(source);
+
+    expect(parseProcessModelAsset(stringifyProcessModelAsset(asset))).toEqual(asset);
+  });
+
+  it.each([3, 99])('覆盖草稿前拒绝不支持的 schemaVersion %s', (version) => {
+    expect(() =>
+      parseProcessModelAsset(JSON.stringify({ schemaVersion: version, nodes: [] })),
+    ).toThrow('不支持的流程模型版本');
+  });
+
+  it('拒绝递归结构中的重复节点 key', () => {
+    expect(() =>
+      parseProcessModelAsset(
+        JSON.stringify({
+          schemaVersion: 2,
+          nodes: [
+            { nodeKey: 'same', name: '节点一', type: 'USER_TASK' },
+            { nodeKey: 'same', name: '节点二', type: 'COPY_TASK' },
+          ],
+        }),
+      ),
+    ).toThrow('节点 key 重复');
+  });
   it('把后端 simpleModelJson 解析为受约束的节点草稿数组', () => {
     expect(
       parseSimpleModelDraft(
@@ -50,8 +107,7 @@ describe('bpm designer adapters', () => {
   });
 
   it('把节点草稿重新序列化为当前后端可接受的 simpleModelJson', () => {
-    expect(
-      stringifySimpleModelDraft([
+    const serialized = stringifySimpleModelDraft([
         {
           approvalMode: 'single',
           candidateResolverType: 'ROLE',
@@ -61,10 +117,17 @@ describe('bpm designer adapters', () => {
           nodeKey: 'task_finance',
           type: 'userTask',
         },
-      ]),
-    ).toBe(
-      '{"nodes":[{"id":"task_finance","nodeKey":"task_finance","name":"财务审批","type":"userTask","approvalMode":"single","candidateResolverType":"ROLE","listeners":[]}]}',
-    );
+      ]);
+    expect(JSON.parse(serialized)).toMatchObject({
+      schemaVersion: 2,
+      nodes: [
+        {
+          candidateResolverType: 'ROLE',
+          nodeKey: 'task_finance',
+          type: 'USER_TASK',
+        },
+      ],
+    });
   });
 
   it('保留发起人相关候选策略的 simpleModelJson 合同', () => {

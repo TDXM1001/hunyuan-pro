@@ -9,7 +9,11 @@ import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.config.BpmFlowableAutoConfiguration;
+import com.hunyuan.sa.bpm.engine.compiler.CompiledDefinitionArtifact;
+import com.hunyuan.sa.bpm.engine.compiler.SimpleModelBpmnCompiler;
 import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.RepositoryService;
+import org.flowable.engine.RuntimeService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +29,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -81,6 +86,7 @@ class BpmFlowableCompatibilityTest {
     })
     @Import({
             BpmFlowableAutoConfiguration.class,
+            SimpleModelBpmnCompiler.class,
             AdminBpmOrgIdentityGateway.class,
             AdminBpmCurrentActorProvider.class
     })
@@ -121,11 +127,82 @@ class BpmFlowableCompatibilityTest {
     @Autowired
     private BpmCurrentActorProvider bpmCurrentActorProvider;
 
+    @Autowired
+    private SimpleModelBpmnCompiler simpleModelBpmnCompiler;
+
+    @Autowired
+    private RepositoryService repositoryService;
+
+    @Autowired
+    private RuntimeService runtimeService;
+
     @Test
     void loadsFlowableAsHiddenKernelInsideBpmModule() {
         assertThat(processEngine).isNotNull();
         assertThat(bpmOrgIdentityGateway).isNotNull();
         assertThat(bpmCurrentActorProvider).isNotNull();
+    }
+
+    @Test
+    void deploysControlledV2BranchModel() {
+        CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
+                "compat_v2",
+                "v2 网关兼容",
+                """
+                        {"schemaVersion":2,"nodes":[
+                          {"nodeKey":"route","name":"排他路由","type":"EXCLUSIVE_BRANCH","branches":[
+                            {"branchKey":"a","name":"A","condition":{"sourceType":"FORM_FIELD","fieldKey":"amount","valueType":"NUMBER","operator":"GT","compareValue":0},"nodes":[{"nodeKey":"task_a","name":"A审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1}]},
+                            {"branchKey":"default","name":"默认","isDefault":true,"nodes":[]}
+                          ]},
+                          {"nodeKey":"inclusive","name":"包容路由","type":"INCLUSIVE_BRANCH","branches":[
+                            {"branchKey":"b","name":"B","condition":{"sourceType":"FORM_FIELD","fieldKey":"amount","valueType":"NUMBER","operator":"GTE","compareValue":100},"nodes":[{"nodeKey":"task_b","name":"B审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1}]},
+                            {"branchKey":"default","name":"默认","isDefault":true,"nodes":[]}
+                          ]}
+                        ]}
+                        """,
+                "{\"type\":\"ALL\"}",
+                "{}"
+        );
+
+        var deployment = repositoryService.createDeployment()
+                .name("v2 网关兼容")
+                .addBytes("compat-v2.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+
+        assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void evaluatesMissingRouteVariableAsFalseInsideFlowableKernel() {
+        String bpmnXml = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                             targetNamespace="http://hunyuan.sa/bpm">
+                  <process id="compat_safe_route" name="缺失路由变量兼容" isExecutable="true">
+                    <startEvent id="start"/>
+                    <exclusiveGateway id="route" default="flow_default"/>
+                    <endEvent id="matched_end"/>
+                    <endEvent id="default_end"/>
+                    <sequenceFlow id="flow_start" sourceRef="start" targetRef="route"/>
+                    <sequenceFlow id="flow_matched" sourceRef="route" targetRef="matched_end">
+                      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${execution.getVariable('route_missing') == true}]]></conditionExpression>
+                    </sequenceFlow>
+                    <sequenceFlow id="flow_default" sourceRef="route" targetRef="default_end"/>
+                  </process>
+                </definitions>
+                """;
+        repositoryService.createDeployment()
+                .name("缺失路由变量兼容")
+                .addBytes("compat-safe-route.bpmn20.xml", bpmnXml.getBytes(StandardCharsets.UTF_8))
+                .deploy();
+
+        var processInstance = runtimeService.startProcessInstanceByKey("compat_safe_route");
+
+        assertThat(runtimeService.createProcessInstanceQuery()
+                .processInstanceId(processInstance.getId())
+                .count()).isZero();
     }
 
     @AfterAll

@@ -28,7 +28,23 @@ public class FlowableProcessInstanceGateway {
             String formDataJson,
             Map<String, Object> runtimeAssignmentVariables
     ) {
+        return start(engineProcessDefinitionId, null, employeeId, formDataJson, runtimeAssignmentVariables);
+    }
+
+    /**
+     * 启动需要执行 Hunyuan delegate 的流程，并显式传入平台实例 ID。
+     */
+    public String start(
+            String engineProcessDefinitionId,
+            Long hunyuanInstanceId,
+            Long employeeId,
+            String formDataJson,
+            Map<String, Object> runtimeAssignmentVariables
+    ) {
         Map<String, Object> variables = new HashMap<>();
+        if (hunyuanInstanceId != null) {
+            variables.put("hunyuanInstanceId", hunyuanInstanceId);
+        }
         variables.put("startEmployeeId", employeeId);
         variables.put("formDataJson", formDataJson);
 

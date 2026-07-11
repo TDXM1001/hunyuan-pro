@@ -19,7 +19,6 @@ import {
   ElInput,
   ElOption,
   ElSelect,
-  ElSpace,
   ElSwitch,
   ElTable,
   ElTableColumn,
@@ -33,6 +32,8 @@ import {
   parseSimpleModelDraft,
 } from './simple-model-bridge';
 import { extractEmployeeSelectFieldOptions } from './employee-select-field-options';
+import BpmBranchEditor from './bpm-branch-editor.vue';
+import BpmProcessTreeEditor from './bpm-process-tree-editor.vue';
 
 defineOptions({ name: 'BpmProcessDesignerAdapter' });
 
@@ -68,9 +69,20 @@ const viewer = ref<any>();
 const nodes = ref<BpmProcessNodeDraft[]>([]);
 const selectedNodeId = ref('');
 
-const selectedNode = computed(() =>
-  nodes.value.find((item) => item.nodeKey === selectedNodeId.value),
-);
+function findNode(items: BpmProcessNodeDraft[], nodeKey: string): BpmProcessNodeDraft | undefined {
+  for (const item of items) {
+    if (item.nodeKey === nodeKey) return item;
+    if (item.type === 'branch') {
+      for (const branch of item.branches) {
+        const nested = findNode(branch.nodes, nodeKey);
+        if (nested) return nested;
+      }
+    }
+  }
+  return undefined;
+}
+
+const selectedNode = computed(() => findNode(nodes.value, selectedNodeId.value));
 const employeeSelectFieldOptions = computed(() =>
   extractEmployeeSelectFieldOptions(props.formSchemaJson),
 );
@@ -154,20 +166,6 @@ function setFieldRequired(fieldKey: string, required: boolean) {
   void handleStateChange();
 }
 
-function buildEmptyNode(index: number): BpmProcessNodeDraft {
-  const nodeKey = `task_${index}`;
-
-  return {
-    approvalMode: 'single',
-    candidateResolverType: 'EMPLOYEE',
-    id: nodeKey,
-    listeners: [],
-    name: `审批节点${index}`,
-    nodeKey,
-    type: 'userTask',
-  };
-}
-
 function ensureViewer() {
   if (viewer.value || !canvasRef.value) {
     return;
@@ -227,7 +225,42 @@ async function validate() {
     };
   }
 
-  const invalidEmployeeSelectNode = nodes.value.find(
+  const allNodes: BpmProcessNodeDraft[] = [];
+  const branchKeys: string[] = [];
+  let invalidDepth = false;
+  const visit = (items: BpmProcessNodeDraft[], depth: number) => {
+    if (depth > 3) invalidDepth = true;
+    items.forEach((item) => {
+      allNodes.push(item);
+      if (item.type === 'branch') {
+        item.branches.forEach((branch) => {
+          branchKeys.push(branch.branchKey);
+          visit(branch.nodes, depth + 1);
+        });
+      }
+    });
+  };
+  visit(nodes.value, 0);
+  if (invalidDepth) return { message: '流程分支嵌套深度不能超过 3', ok: false };
+  const nodeKeys = allNodes.map((item) => item.nodeKey);
+  if (new Set(nodeKeys).size !== nodeKeys.length) {
+    return { message: '流程节点 key 必须全局唯一', ok: false };
+  }
+  if (new Set(branchKeys).size !== branchKeys.length) {
+    return { message: '流程分支 key 必须全局唯一', ok: false };
+  }
+  const invalidBranch = allNodes.find(
+    (item) =>
+      item.type === 'branch' &&
+      (item.branches.length < 2 ||
+        (item.branchType !== 'PARALLEL' &&
+          item.branches.filter((branch) => branch.isDefault).length !== 1)),
+  );
+  if (invalidBranch) {
+    return { message: `分支节点【${invalidBranch.name}】需要至少两个分支且必须有一个默认分支`, ok: false };
+  }
+
+  const invalidEmployeeSelectNode = allNodes.find(
     (item) =>
       item.candidateResolverType === 'EMPLOYEE_SELECT_AT_START' &&
       (!item.employeeSelectFieldKey ||
@@ -240,7 +273,7 @@ async function validate() {
     };
   }
 
-  const invalidMultipleResolverNode = nodes.value.find(
+  const invalidMultipleResolverNode = allNodes.find(
     (item) =>
       (item.approvalMode === 'sequential' ||
         item.approvalMode === 'parallelAll') &&
@@ -257,7 +290,7 @@ async function validate() {
     };
   }
 
-  const invalidMultipleEmployeesNode = nodes.value.find((item) => {
+  const invalidMultipleEmployeesNode = allNodes.find((item) => {
     if (
       item.approvalMode !== 'sequential' &&
       item.approvalMode !== 'parallelAll'
@@ -285,7 +318,7 @@ async function validate() {
   }
 
   const knownFields = new Set(formFieldOptions.value.map((item) => item.field));
-  const invalidPermissionNode = nodes.value.find((node) =>
+  const invalidPermissionNode = allNodes.find((node) =>
     (node.fieldPermissions ?? []).some(
       (permission) =>
         !knownFields.has(permission.fieldKey) ||
@@ -381,17 +414,18 @@ async function handleApprovalModeChange() {
   await handleStateChange();
 }
 
-async function addNode() {
-  const nextIndex = nodes.value.length + 1;
-  const newNode = buildEmptyNode(nextIndex);
-
-  nodes.value = [...nodes.value, newNode];
-  selectedNodeId.value = newNode.nodeKey;
-  await handleStateChange();
-}
-
 async function removeNode(nodeKey: string) {
-  nodes.value = nodes.value.filter((item) => item.nodeKey !== nodeKey);
+  const removeFrom = (items: BpmProcessNodeDraft[]): BpmProcessNodeDraft[] =>
+    items
+      .filter((item) => item.nodeKey !== nodeKey)
+      .map((item) => {
+        if (item.type !== 'branch') return item;
+        item.branches.forEach((branch) => {
+          branch.nodes = removeFrom(branch.nodes);
+        });
+        return item;
+      });
+  nodes.value = removeFrom(nodes.value);
   selectedNodeId.value = nodes.value[0]?.nodeKey || '';
   await handleStateChange();
 }
@@ -434,22 +468,19 @@ onBeforeUnmount(() => {
 <template>
   <div class="bpm-process-designer-adapter">
     <div class="bpm-process-designer-adapter__toolbar">
-      <ElSpace>
-        <ElButton
-          :disabled="disabled || readonly"
-          type="primary"
-          @click="addNode"
-        >
-          新增审批节点
-        </ElButton>
-        <ElTag effect="plain" type="info">
-          当前节点数：{{ nodes.length }}
-        </ElTag>
-      </ElSpace>
+      <ElTag effect="plain" type="info">受控流程树 · 最大嵌套深度 3</ElTag>
     </div>
 
     <div class="bpm-process-designer-adapter__body">
-      <div ref="canvasRef" class="bpm-process-designer-adapter__canvas"></div>
+      <div class="bpm-process-designer-adapter__visual">
+        <BpmProcessTreeEditor
+          v-model="nodes"
+          v-model:selected-key="selectedNodeId"
+          :disabled="disabled || readonly"
+          @change="handleStateChange"
+        />
+        <div ref="canvasRef" class="bpm-process-designer-adapter__canvas"></div>
+      </div>
 
       <ElCard class="bpm-process-designer-adapter__panel" shadow="never">
         <template #header>
@@ -478,7 +509,14 @@ onBeforeUnmount(() => {
               @change="handleStateChange"
             />
           </ElFormItem>
-          <ElFormItem label="候选人解析类型">
+          <BpmBranchEditor
+            v-if="selectedNode.type === 'branch'"
+            :disabled="disabled || readonly"
+            :field-options="formFieldOptions"
+            :node="selectedNode"
+            @change="handleStateChange"
+          />
+          <ElFormItem v-if="selectedNode.type !== 'branch'" label="候选人解析类型">
             <ElSelect
               v-model="selectedNode.candidateResolverType"
               :disabled="
@@ -505,6 +543,7 @@ onBeforeUnmount(() => {
           </ElFormItem>
           <ElFormItem
             v-if="
+              selectedNode.type !== 'branch' &&
               selectedNode.candidateResolverType === 'EMPLOYEE_SELECT_AT_START'
             "
             label="自选字段"
@@ -525,7 +564,7 @@ onBeforeUnmount(() => {
               />
             </ElSelect>
           </ElFormItem>
-          <ElFormItem label="审批模式">
+          <ElFormItem v-if="selectedNode.type === 'userTask'" label="审批模式">
             <ElSelect
               v-model="selectedNode.approvalMode"
               :disabled="disabled || readonly"
@@ -537,7 +576,7 @@ onBeforeUnmount(() => {
               <ElOption label="并行全员会签" value="parallelAll" />
             </ElSelect>
           </ElFormItem>
-          <ElFormItem label="字段权限">
+          <ElFormItem v-if="selectedNode.type === 'userTask'" label="字段权限">
             <ElTable
               v-if="formFieldOptions.length"
               :data="formFieldOptions"
@@ -586,8 +625,9 @@ onBeforeUnmount(() => {
           </ElFormItem>
           <ElFormItem
             v-if="
-              selectedNode.approvalMode === 'sequential' ||
-              selectedNode.approvalMode === 'parallelAll'
+              selectedNode.type === 'userTask' &&
+              (selectedNode.approvalMode === 'sequential' ||
+              selectedNode.approvalMode === 'parallelAll')
             "
             :label="
               selectedNode.approvalMode === 'parallelAll'
@@ -620,7 +660,7 @@ onBeforeUnmount(() => {
               />
             </ElSelect>
           </ElFormItem>
-          <ElFormItem label="监听器 JSON">
+          <ElFormItem v-if="selectedNode.type !== 'branch' && selectedNode.type !== 'copyTask'" label="监听器 JSON">
             <ElInput
               :disabled="disabled || readonly"
               :model-value="
@@ -687,6 +727,14 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   min-height: 0;
   overflow: hidden;
+}
+
+.bpm-process-designer-adapter__visual {
+  display: grid;
+  gap: 12px;
+  grid-template-rows: minmax(160px, auto) minmax(280px, 1fr);
+  min-height: 0;
+  overflow: auto;
 }
 
 .bpm-process-designer-adapter__panel {

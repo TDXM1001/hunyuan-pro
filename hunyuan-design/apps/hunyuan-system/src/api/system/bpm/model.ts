@@ -82,6 +82,13 @@ export interface BpmDefinitionPublishForm {
   modelId: number;
 }
 
+export interface BpmRouteExpressionDescriptor {
+  expressionKey: string;
+  name: string;
+  parameterSchemaJson: string;
+  version: number;
+}
+
 export function buildEmptyBpmDesignerDraft(): BpmDesignerSaveForm {
   return {
     managerScopeJson: '',
@@ -136,6 +143,12 @@ export async function queryBpmModelPage(params: BpmModelPageQueryParams) {
 
 export async function getBpmModelDetail(modelId: number) {
   return requestClient.get<BpmModelRecord>(`/bpm/model/detail/${modelId}`);
+}
+
+export async function queryBpmRouteExpressionCatalog() {
+  return requestClient.get<BpmRouteExpressionDescriptor[]>(
+    '/bpm/model/route-expression/catalog',
+  );
 }
 
 export async function addBpmModel(params: BpmModelAddForm) {

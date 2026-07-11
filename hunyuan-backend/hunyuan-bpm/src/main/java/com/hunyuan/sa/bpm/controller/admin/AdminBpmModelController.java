@@ -12,7 +12,11 @@ import com.hunyuan.sa.bpm.module.model.domain.form.BpmModelQueryForm;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmModelUpdateForm;
 import com.hunyuan.sa.bpm.module.model.domain.vo.BpmModelVO;
 import com.hunyuan.sa.bpm.module.model.service.BpmModelService;
+import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionDescriptor;
+import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 流程模型管理接口。
@@ -23,6 +27,9 @@ public class AdminBpmModelController {
 
     @Resource
     private BpmModelService bpmModelService;
+
+    @Resource
+    private BpmRouteExpressionRegistry bpmRouteExpressionRegistry;
 
     @Operation(summary = "分页查询流程模型")
     @PostMapping("/bpm/model/query")
@@ -50,5 +57,12 @@ public class AdminBpmModelController {
     @SaCheckPermission("bpm:model:detail")
     public ResponseDTO<BpmModelVO> detail(@PathVariable Long modelId) {
         return bpmModelService.getModelDetail(modelId);
+    }
+
+    @Operation(summary = "查询登记路由表达式目录")
+    @GetMapping("/bpm/model/route-expression/catalog")
+    @SaCheckPermission("bpm:model:detail")
+    public ResponseDTO<List<BpmRouteExpressionDescriptor>> routeExpressionCatalog() {
+        return ResponseDTO.ok(bpmRouteExpressionRegistry.listDescriptors());
     }
 }

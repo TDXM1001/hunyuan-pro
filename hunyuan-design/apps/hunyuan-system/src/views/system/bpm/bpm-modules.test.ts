@@ -15,6 +15,12 @@ const modelEditorPath =
   'apps/hunyuan-system/src/views/system/bpm/model/model-editor.vue';
 const processDesignerAdapterPath =
   'apps/hunyuan-system/src/components/bpm/adapters/bpm-process-designer-adapter.vue';
+const processTreeEditorPath =
+  'apps/hunyuan-system/src/components/bpm/adapters/bpm-process-tree-editor.vue';
+const branchEditorPath =
+  'apps/hunyuan-system/src/components/bpm/adapters/bpm-branch-editor.vue';
+const routeConditionEditorPath =
+  'apps/hunyuan-system/src/components/bpm/adapters/bpm-route-condition-editor.vue';
 const definitionPagePath =
   'apps/hunyuan-system/src/views/system/bpm/definition/definition-list.vue';
 const instancePagePath =
@@ -65,6 +71,24 @@ function readSource(path: string) {
 }
 
 describe('bpm module contracts', () => {
+  it('provides recursive process tree and typed branch editors', () => {
+    [processTreeEditorPath, branchEditorPath, routeConditionEditorPath].forEach(
+      (path) => expect(existsSync(resolve(process.cwd(), path))).toBe(true),
+    );
+    const adapterSource = readSource(processDesignerAdapterPath);
+    const treeSource = readSource(processTreeEditorPath);
+    const branchSource = readSource(branchEditorPath);
+
+    expect(adapterSource).toContain('BpmProcessTreeEditor');
+    expect(adapterSource).toContain('BpmBranchEditor');
+    expect(treeSource).toContain('depth >= 3');
+    expect(treeSource).toContain('EXCLUSIVE');
+    expect(treeSource).toContain('INCLUSIVE');
+    expect(treeSource).toContain('PARALLEL');
+    expect(treeSource).not.toContain('v-model:selected-key="selectedKey"');
+    expect(treeSource).toContain('@update:selected-key="emit(\'update:selectedKey\', $event)"');
+    expect(branchSource).toContain('BpmRouteConditionEditor');
+  });
   it('provides real bpm management pages instead of bridge placeholders', () => {
     [
       categoryPagePath,
@@ -306,6 +330,26 @@ describe('bpm module contracts', () => {
     expect(runtimeApiSource).toContain('currentTasks?: BpmTaskRecord[]');
   });
 
+  it('does not render the raw form snapshot in employee instance details', () => {
+    const detailSource = readSource(runtimeDetailDrawerPath);
+
+    expect(detailSource).toContain("detailSource.value = source");
+    expect(detailSource).toContain('v-if="detailSource === \'admin\'"');
+    expect(detailSource).toContain('size="min(640px, 100vw)"');
+  });
+
+  it('renders task commands from backend availableActions without guessing node type', () => {
+    const runtimeApiSource = readSource(runtimeApiPath);
+    const myTodoSource = readSource(runtimeMyTodoPath);
+
+    expect(runtimeApiSource).toContain("taskKind?: 'APPROVAL' | 'HANDLE'");
+    expect(runtimeApiSource).toContain('availableActions?: BpmTaskAction[]');
+    expect(runtimeApiSource).toContain('/app/bpm/task/complete');
+    expect(myTodoSource).toContain("hasTaskAction(row, 'COMPLETE')");
+    expect(myTodoSource).toContain("hasTaskAction(row, 'APPROVE')");
+    expect(myTodoSource).toContain("hasTaskAction(row, 'ADD_SIGN')");
+  });
+
   it('keeps my-instance resubmit entry routed through the unified start form', () => {
     const startableSource = readSource(runtimeStartablePath);
     const myInstanceSource = readSource(runtimeMyInstancePath);
@@ -516,7 +560,9 @@ describe('bpm module contracts', () => {
     expect(todoSource).toContain('addSignBpmTask');
     expect(todoSource).toContain('reduceSignBpmTask');
     expect(todoSource).toContain('recallBpmTask');
-    expect(todoSource).toContain(
+    expect(todoSource).toContain("hasTaskAction(row, 'ADD_SIGN')");
+    expect(todoSource).toContain("hasTaskAction(row, 'REDUCE_SIGN')");
+    expect(todoSource).not.toContain(
       "row.approvalGroup?.approvalMode !== 'parallelAll'",
     );
     expect(todoSource).not.toContain('v-if="!row.approvalGroup"');

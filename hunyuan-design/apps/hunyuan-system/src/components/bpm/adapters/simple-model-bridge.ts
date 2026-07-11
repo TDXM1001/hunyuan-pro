@@ -1,5 +1,10 @@
 import type { BpmProcessNodeDraft } from './types';
 
+import {
+  parseProcessModelAsset,
+  stringifyProcessModelAsset,
+} from './process-model-asset';
+
 interface PreviewElement {
   height: number;
   id: string;
@@ -16,119 +21,16 @@ interface PreviewFlow {
   targetRef: string;
 }
 
-function normalizeEmployeeIds(rawValue: unknown): number[] {
-  if (!Array.isArray(rawValue)) {
-    return [];
-  }
-
-  return rawValue
-    .map((item) => Number(item))
-    .filter((item) => Number.isSafeInteger(item) && item > 0);
-}
-
-function normalizePositiveId(rawValue: unknown): number | undefined {
-  const normalizedValue = Number(rawValue);
-  return Number.isSafeInteger(normalizedValue) && normalizedValue > 0
-    ? normalizedValue
-    : undefined;
-}
-
-function normalizeFieldPermissions(rawValue: unknown) {
-  if (!Array.isArray(rawValue)) {
-    return [];
-  }
-  return rawValue
-    .filter(
-      (item) =>
-        item &&
-        typeof item.fieldKey === 'string' &&
-        ['EDITABLE', 'HIDDEN', 'READONLY'].includes(item.permission),
-    )
-    .map((item) => ({
-      fieldKey: String(item.fieldKey).trim(),
-      permission: item.permission as 'EDITABLE' | 'HIDDEN' | 'READONLY',
-      required: item.permission === 'EDITABLE' && item.required === true,
-    }))
-    .filter((item) => item.fieldKey);
-}
-
-function normalizeNode(rawNode: Record<string, any>): BpmProcessNodeDraft {
-  const nodeKey = String(rawNode.nodeKey || rawNode.id || '').trim();
-  const nodeId = String(rawNode.id || rawNode.nodeKey || '').trim() || nodeKey;
-  const employeeIds = normalizeEmployeeIds(rawNode.employeeIds);
-  const employeeSelectFieldKey =
-    typeof rawNode.employeeSelectFieldKey === 'string'
-      ? rawNode.employeeSelectFieldKey.trim()
-      : '';
-  const fieldPermissions = normalizeFieldPermissions(rawNode.fieldPermissions);
-
-  return {
-    approvalMode: rawNode.approvalMode || 'single',
-    candidateResolverType:
-      rawNode.candidateResolverType || rawNode.resolverType || 'EMPLOYEE',
-    ...(normalizePositiveId(rawNode.departmentId)
-      ? { departmentId: normalizePositiveId(rawNode.departmentId) }
-      : {}),
-    ...(normalizePositiveId(rawNode.employeeId)
-      ? { employeeId: normalizePositiveId(rawNode.employeeId) }
-      : {}),
-    ...(employeeIds.length ? { employeeIds } : {}),
-    ...(employeeSelectFieldKey ? { employeeSelectFieldKey } : {}),
-    ...(fieldPermissions.length ? { fieldPermissions } : {}),
-    id: nodeId,
-    listeners: Array.isArray(rawNode.listeners) ? rawNode.listeners : [],
-    name: String(rawNode.name || '审批节点').trim(),
-    nodeKey: nodeKey || nodeId,
-    ...(normalizePositiveId(rawNode.roleId)
-      ? { roleId: normalizePositiveId(rawNode.roleId) }
-      : {}),
-    type: 'userTask',
-  };
-}
-
 export function parseSimpleModelDraft(jsonText: string): BpmProcessNodeDraft[] {
   if (!jsonText.trim()) {
     return [];
   }
 
-  const parsed = JSON.parse(jsonText);
-  const nodes = Array.isArray(parsed?.nodes)
-    ? (parsed.nodes as Record<string, any>[])
-    : [];
-
-  return nodes
-    .filter(
-      (item: Record<string, any>) => item && (item.type || 'userTask') === 'userTask',
-    )
-    .map((item: Record<string, any>) => normalizeNode(item));
+  return parseProcessModelAsset(jsonText).nodes;
 }
 
 export function stringifySimpleModelDraft(nodes: BpmProcessNodeDraft[]): string {
-  return JSON.stringify({
-    nodes: nodes.map((node) => ({
-      id: node.id,
-      nodeKey: node.nodeKey,
-      name: node.name,
-      type: 'userTask',
-      approvalMode: node.approvalMode || 'single',
-      candidateResolverType: node.candidateResolverType || 'EMPLOYEE',
-      ...(node.departmentId ? { departmentId: node.departmentId } : {}),
-      ...(node.employeeId ? { employeeId: node.employeeId } : {}),
-      ...((node.approvalMode === 'sequential' ||
-        node.approvalMode === 'parallelAll') &&
-      node.employeeIds?.length
-        ? { employeeIds: node.employeeIds }
-        : {}),
-      ...(node.employeeSelectFieldKey
-        ? { employeeSelectFieldKey: node.employeeSelectFieldKey }
-        : {}),
-      ...(node.fieldPermissions?.length
-        ? { fieldPermissions: node.fieldPermissions }
-        : {}),
-      ...(node.roleId ? { roleId: node.roleId } : {}),
-      listeners: node.listeners || [],
-    })),
-  });
+  return stringifyProcessModelAsset({ nodes, schemaVersion: 2 });
 }
 
 function escapeXmlAttribute(value: unknown): string {

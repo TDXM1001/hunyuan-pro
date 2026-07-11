@@ -1,11 +1,16 @@
 package com.hunyuan.sa.bpm.module.sampleexpense.service;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
+import com.hunyuan.sa.bpm.engine.ast.HumanTaskNode;
+import com.hunyuan.sa.bpm.engine.ast.ProcessAst;
+import com.hunyuan.sa.bpm.engine.ast.ProcessNode;
+import com.hunyuan.sa.bpm.engine.ast.ProcessNodeType;
+import com.hunyuan.sa.bpm.engine.compiler.ProcessAstParser;
+import com.hunyuan.sa.bpm.engine.compiler.ProcessAstWalker;
 import com.hunyuan.sa.bpm.module.category.dao.BpmCategoryDao;
 import com.hunyuan.sa.bpm.module.category.domain.entity.BpmCategoryEntity;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
@@ -39,10 +44,39 @@ public class BpmSampleExpenseDefinitionSeedService {
 
     private static final String NOTIFICATION_CHANNEL_MESSAGE = "MESSAGE";
 
-    private static final String SIMPLE_MODEL_JSON = "{\"nodes\":["
-            + "{\"nodeKey\":\"sample_finance_review\",\"type\":\"userTask\",\"name\":\"财务核定\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1,\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"EDITABLE\",\"required\":true}],\"listeners\":[{\"channel\":\"MESSAGE\"}]},"
-            + "{\"nodeKey\":\"sample_archive_review\",\"type\":\"userTask\",\"name\":\"归档确认\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1,\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"READONLY\",\"required\":false}],\"listeners\":[]}"
-            + "]}";
+    private static final String SIMPLE_MODEL_JSON = """
+            {"schemaVersion":2,"settings":{"maxBranchDepth":3},"nodes":[
+              {"nodeKey":"sample_amount_route","type":"EXCLUSIVE_BRANCH","name":"申请金额路由","branches":[
+                {"branchKey":"small_amount","name":"小额费用","condition":{"sourceType":"FORM_FIELD","fieldKey":"requestedAmount","valueType":"NUMBER","operator":"LTE","compareValue":5000},"nodes":[
+                  {"nodeKey":"sample_finance_review","type":"USER_TASK","name":"小额财务核定","approvalMode":"single","candidateResolverType":"EMPLOYEE","employeeId":1,"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"EDITABLE","required":true}],"listeners":[{"channel":"MESSAGE"}]}
+                ]},
+                {"branchKey":"large_amount","name":"大额费用","condition":{"sourceType":"FORM_FIELD","fieldKey":"requestedAmount","valueType":"NUMBER","operator":"GT","compareValue":5000},"nodes":[
+                  {"nodeKey":"sample_large_parallel","type":"PARALLEL_BRANCH","name":"大额费用独立复核","branches":[
+                    {"branchKey":"large_finance","name":"财务复核","nodes":[
+                      {"nodeKey":"sample_large_finance_review","type":"USER_TASK","name":"大额财务核定","approvalMode":"single","candidateResolverType":"EMPLOYEE","employeeId":1,"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}],"listeners":[{"channel":"MESSAGE"}]}
+                    ]},
+                    {"branchKey":"large_risk","name":"风险复核","nodes":[
+                      {"nodeKey":"sample_risk_review","type":"USER_TASK","name":"风险复核","approvalMode":"single","candidateResolverType":"EMPLOYEE","employeeId":1,"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}],"listeners":[]}
+                    ]}
+                  ]}
+                ]},
+                {"branchKey":"manual_check","name":"人工核验","isDefault":true,"nodes":[
+                  {"nodeKey":"sample_manual_handle","type":"HANDLE_TASK","name":"人工核验办理","candidateResolverType":"EMPLOYEE","employeeId":1,"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}],"listeners":[]}
+                ]}
+              ]},
+              {"nodeKey":"sample_post_route","type":"INCLUSIVE_BRANCH","name":"汇合后通知","branches":[
+                {"branchKey":"finance_copy","name":"高额财务抄送","condition":{"sourceType":"FORM_FIELD","fieldKey":"requestedAmount","valueType":"NUMBER","operator":"GTE","compareValue":10000},"nodes":[
+                  {"nodeKey":"sample_finance_copy","type":"COPY_TASK","name":"财务抄送","candidateResolverType":"EMPLOYEE","employeeIds":[1]}
+                ]},
+                {"branchKey":"archive_confirm","name":"归档确认","condition":{"sourceType":"FORM_FIELD","fieldKey":"requestedAmount","valueType":"NUMBER","operator":"GTE","compareValue":0},"nodes":[
+                  {"nodeKey":"sample_archive_review","type":"HANDLE_TASK","name":"归档确认","candidateResolverType":"EMPLOYEE","employeeId":1,"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}],"listeners":[]}
+                ]},
+                {"branchKey":"missing_amount_archive","name":"缺值归档确认","isDefault":true,"nodes":[
+                  {"nodeKey":"sample_missing_amount_archive","type":"HANDLE_TASK","name":"缺值归档确认","candidateResolverType":"EMPLOYEE","employeeId":1,"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}],"listeners":[]}
+                ]}
+              ]}
+            ]}
+            """;
 
     private static final String START_RULE_JSON = "{\"allowAll\":true}";
 
@@ -92,7 +126,7 @@ public class BpmSampleExpenseDefinitionSeedService {
     }
 
     /**
-     * 旧样板定义可能已经可发起，但缺少待办通知监听器；此时需要发布一次新版补齐 P2.2 可靠性记录触发点。
+     * 旧样板定义可能已经可发起，但缺少 v2 嵌套路由或数据治理配置；此时需要发布一次新版。
      */
     private boolean hasApprovalDataGovernance(BpmDefinitionEntity definition) {
         if (definition == null || !StringUtils.hasText(definition.getSimpleModelSnapshotJson())) {
@@ -102,24 +136,26 @@ public class BpmSampleExpenseDefinitionSeedService {
                 || !definition.getFormSchemaSnapshotJson().contains("\"field\":\"approvedAmount\"")) {
             return false;
         }
+        if (!StringUtils.hasText(definition.getCompiledBpmnXml())
+                || !definition.getCompiledBpmnXml().contains("execution.getVariable('route_")) {
+            return false;
+        }
         try {
-            JSONObject simpleModelObject = JSON.parseObject(definition.getSimpleModelSnapshotJson());
-            JSONArray nodes = simpleModelObject == null ? null : simpleModelObject.getJSONArray("nodes");
-            if (nodes == null) {
+            ProcessAst processAst = new ProcessAstParser().parse(definition.getSimpleModelSnapshotJson());
+            if (processAst.schemaVersion() < 2) {
                 return false;
             }
             boolean financeReady = false;
             boolean archiveReady = false;
-            for (int index = 0; index < nodes.size(); index++) {
-                JSONObject nodeObject = nodes.getJSONObject(index);
-                if (nodeObject == null) {
+            for (ProcessNode processNode : new ProcessAstWalker().walk(processAst)) {
+                if (!(processNode instanceof HumanTaskNode humanTaskNode)) {
                     continue;
                 }
-                String nodeKey = nodeObject.getString("nodeKey");
-                JSONArray permissions = nodeObject.getJSONArray("fieldPermissions");
-                if (APPROVE_NODE_KEY.equals(nodeKey)) {
+                JSONArray permissions = configurationArray(humanTaskNode, "fieldPermissions");
+                if (APPROVE_NODE_KEY.equals(humanTaskNode.nodeKey())
+                        && humanTaskNode.type() == ProcessNodeType.USER_TASK) {
                     boolean editable = hasPermission(permissions, "approvedAmount", "EDITABLE", true);
-                    JSONArray listeners = nodeObject.getJSONArray("listeners");
+                    JSONArray listeners = configurationArray(humanTaskNode, "listeners");
                     boolean messageListener = false;
                     if (listeners != null) {
                         for (int listenerIndex = 0; listenerIndex < listeners.size(); listenerIndex++) {
@@ -132,7 +168,8 @@ public class BpmSampleExpenseDefinitionSeedService {
                         }
                     }
                     financeReady = editable && messageListener;
-                } else if (ARCHIVE_NODE_KEY.equals(nodeKey)) {
+                } else if (ARCHIVE_NODE_KEY.equals(humanTaskNode.nodeKey())
+                        && humanTaskNode.type() == ProcessNodeType.HANDLE_TASK) {
                     archiveReady = hasPermission(permissions, "approvedAmount", "READONLY", false);
                 }
             }
@@ -140,6 +177,11 @@ public class BpmSampleExpenseDefinitionSeedService {
         } catch (RuntimeException ex) {
             return false;
         }
+    }
+
+    private JSONArray configurationArray(HumanTaskNode node, String key) {
+        Object value = node.configuration().get(key);
+        return value instanceof JSONArray array ? array : null;
     }
 
     private boolean hasPermission(JSONArray permissions, String fieldKey, String mode, boolean required) {
@@ -234,7 +276,7 @@ public class BpmSampleExpenseDefinitionSeedService {
     }
 
     /**
-     * 构造最小单节点审批草稿，后续统一交给发布服务生成定义和 Flowable 部署。
+     * 构造 M1 多路径样板草稿，后续统一交给发布服务生成定义和 Flowable 部署。
      */
     private BpmModelEntity buildModelDraft(Long categoryId, Long formId) {
         BpmModelEntity entity = new BpmModelEntity();

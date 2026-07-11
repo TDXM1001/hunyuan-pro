@@ -7,7 +7,8 @@ public enum BpmCopyTypeEnum {
 
     MANUAL_APPROVE_COPY("审批通过手工抄送"),
     MANUAL_REJECT_COPY("审批拒绝手工抄送"),
-    MANUAL_RETURN_COPY("退回发起人手工抄送");
+    MANUAL_RETURN_COPY("退回发起人手工抄送"),
+    DESIGN_NODE_COPY("设计时抄送节点");
 
     private final String desc;
 

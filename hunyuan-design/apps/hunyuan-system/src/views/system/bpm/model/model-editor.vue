@@ -23,6 +23,7 @@ import {
   ArrowUpToLine,
   Check,
   CircleCheckBig,
+  Download,
   RotateCw,
 } from '@vben/icons';
 
@@ -54,6 +55,10 @@ import {
 } from '#/api/system/bpm';
 import BpmProcessDesignerAdapter from '#/components/bpm/adapters/bpm-process-designer-adapter.vue';
 import {
+  parseProcessModelAsset,
+  stringifyProcessModelAsset,
+} from '#/components/bpm/adapters/process-model-asset';
+import {
   parseSimpleModelDraft,
   stringifySimpleModelDraft,
 } from '#/components/bpm/adapters/simple-model-bridge';
@@ -83,6 +88,7 @@ const validating = ref(false);
 const simulating = ref(false);
 const publishing = ref(false);
 const loaded = ref(false);
+const importInputRef = ref<HTMLInputElement>();
 const activeWorkspace = ref<'design' | 'precheck' | 'rules'>('design');
 const savedDraftJson = ref('');
 const validationReport = ref<BpmDefinitionValidationReport>();
@@ -138,6 +144,20 @@ const modelPageDescription = computed(() => {
 const pageActions = computed<ArtActionItem[]>(() => [
   {
     disabled: editorBusy.value,
+    icon: ArrowUpToLine,
+    key: 'import',
+    label: '导入模型',
+    onClick: () => importInputRef.value?.click(),
+  },
+  {
+    disabled: editorBusy.value,
+    icon: Download,
+    key: 'export',
+    label: '导出模型',
+    onClick: handleExportModel,
+  },
+  {
+    disabled: editorBusy.value,
     icon: RotateCw,
     key: 'reload',
     label: '重新加载',
@@ -179,6 +199,56 @@ const pageActions = computed<ArtActionItem[]>(() => [
     type: 'success',
   },
 ]);
+
+function handleExportModel() {
+  const snapshot = designerRef.value?.getSnapshot() || buildDesignerSnapshot();
+  const jsonText = stringifyProcessModelAsset({
+    nodes: snapshot.nodes,
+    schemaVersion: 2,
+  });
+  const blobUrl = URL.createObjectURL(
+    new Blob([jsonText], { type: 'application/json;charset=utf-8' }),
+  );
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = `${baseInfo.modelKey || 'process-model'}-v2.hunyuan-process.json`;
+  link.click();
+  URL.revokeObjectURL(blobUrl);
+}
+
+async function handleImportFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) {
+    return;
+  }
+  try {
+    const asset = parseProcessModelAsset(await file.text());
+    const confirmed = await ElMessageBox.confirm(
+      `文件包含 ${asset.nodes.length} 个顶层节点。确认替换当前未保存流程草稿？`,
+      '导入流程模型',
+      {
+        cancelButtonText: '取消',
+        confirmButtonText: '导入',
+        type: 'warning',
+      },
+    )
+      .then(() => true)
+      .catch(() => false);
+    if (!confirmed) {
+      return;
+    }
+    formData.simpleModelJson = stringifyProcessModelAsset(asset);
+    await designerRef.value?.load({ bpmnXml: '', nodes: asset.nodes });
+    activeWorkspace.value = 'design';
+    validationReport.value = undefined;
+    publishDiff.value = undefined;
+    ElMessage.success('流程模型已导入，请校验并保存草稿');
+  } catch (error: any) {
+    ElMessage.error(error?.message || '流程模型导入失败');
+  }
+}
 
 function resetBaseInfo() {
   Object.assign(baseInfo, {
@@ -520,6 +590,13 @@ watch(
       </template>
 
       <template #actions>
+        <input
+          ref="importInputRef"
+          accept=".json,.hunyuan-process.json,application/json"
+          class="hidden"
+          type="file"
+          @change="handleImportFile"
+        />
         <ArtPageActions :actions="pageActions" />
       </template>
 

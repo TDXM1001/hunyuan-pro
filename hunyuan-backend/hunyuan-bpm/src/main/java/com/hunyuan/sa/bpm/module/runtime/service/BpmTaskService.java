@@ -18,8 +18,11 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
+import com.hunyuan.sa.bpm.common.enumeration.BpmTaskAction;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
+import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
@@ -29,6 +32,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskAddSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskCompleteForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskDelegateForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRecallForm;
@@ -94,10 +98,17 @@ public class BpmTaskService {
     @Resource
     private BpmFormDataMutationService bpmFormDataMutationService;
 
+    @Resource
+    private BpmDefinitionNodeDao bpmDefinitionNodeDao;
+
+    @Resource
+    private BpmTaskActionPolicy bpmTaskActionPolicy;
+
     public ResponseDTO<PageResult<BpmTaskVO>> queryAdminPage(BpmTaskQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<BpmTaskVO> list = bpmTaskDao.queryPage(page, queryForm);
         attachApprovalGroupSummaries(list);
+        attachTaskActions(list);
         return ResponseDTO.ok(SmartPageUtil.convert2PageResult(page, list));
     }
 
@@ -148,6 +159,11 @@ public class BpmTaskService {
         detailVO.setRuntimeAssignmentSnapshotJson(taskEntity.getRuntimeAssignmentSnapshotJson());
         detailVO.setTaskState(taskEntity.getTaskState());
         detailVO.setTaskResult(taskEntity.getTaskResult());
+        if (bpmTaskActionPolicy != null) {
+            BpmTaskActionPolicy.TaskActions actions = bpmTaskActionPolicy.describe(taskEntity);
+            detailVO.setTaskKind(actions.taskKind());
+            detailVO.setAvailableActions(actions.availableActions().stream().map(Enum::name).toList());
+        }
         detailVO.setAssignedAt(taskEntity.getAssignedAt());
         detailVO.setDueAt(taskEntity.getDueAt());
         detailVO.setCompletedAt(taskEntity.getCompletedAt());
@@ -187,8 +203,38 @@ public class BpmTaskService {
                 .forEach(task -> task.setApprovalGroup(summaryMap.get(task.getApprovalGroupId())));
     }
 
+    private void attachTaskActions(List<BpmTaskVO> tasks) {
+        if (tasks == null || tasks.isEmpty() || bpmTaskActionPolicy == null) {
+            return;
+        }
+        Map<Long, BpmTaskEntity> entities = bpmTaskDao.selectBatchIds(
+                        tasks.stream().map(BpmTaskVO::getTaskId).filter(Objects::nonNull).toList()
+                ).stream()
+                .collect(java.util.stream.Collectors.toMap(BpmTaskEntity::getTaskId, item -> item));
+        for (BpmTaskVO task : tasks) {
+            BpmTaskEntity entity = entities.get(task.getTaskId());
+            if (entity == null) {
+                continue;
+            }
+            BpmTaskActionPolicy.TaskActions actions = bpmTaskActionPolicy.describe(entity);
+            task.setTaskKind(actions.taskKind());
+            task.setAvailableActions(actions.availableActions().stream().map(Enum::name).toList());
+        }
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> approve(BpmTaskApproveForm approveForm) {
+        ResponseDTO<String> policyResponse = requireAllowed(approveForm.getTaskId(), BpmTaskAction.APPROVE);
+        if (policyResponse != null) {
+            return policyResponse;
+        }
+        ResponseDTO<String> taskKindResponse = rejectApprovalActionForHandleTask(
+                approveForm.getTaskId(),
+                "审批通过"
+        );
+        if (taskKindResponse != null) {
+            return taskKindResponse;
+        }
         return completeTask(
                 approveForm.getTaskId(),
                 approveForm.getCommentText(),
@@ -203,6 +249,17 @@ public class BpmTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> reject(BpmTaskRejectForm rejectForm) {
+        ResponseDTO<String> policyResponse = requireAllowed(rejectForm.getTaskId(), BpmTaskAction.REJECT);
+        if (policyResponse != null) {
+            return policyResponse;
+        }
+        ResponseDTO<String> taskKindResponse = rejectApprovalActionForHandleTask(
+                rejectForm.getTaskId(),
+                "审批拒绝"
+        );
+        if (taskKindResponse != null) {
+            return taskKindResponse;
+        }
         return completeTask(
                 rejectForm.getTaskId(),
                 rejectForm.getCommentText(),
@@ -220,6 +277,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(returnForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.RETURN);
+        if (policyResponse != null) {
+            return policyResponse;
         }
         if (taskEntity.getApprovalGroupId() != null) {
             return handleApprovalGroupAction(
@@ -294,6 +355,10 @@ public class BpmTaskService {
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
+        ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.TRANSFER);
+        if (policyResponse != null) {
+            return policyResponse;
+        }
 
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
@@ -348,6 +413,10 @@ public class BpmTaskService {
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
+        ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.ADD_SIGN);
+        if (policyResponse != null) {
+            return policyResponse;
+        }
         if (bpmApprovalGroupService.isParallelAllGroup(taskEntity.getApprovalGroupId())) {
             return ResponseDTO.userErrorParam("并行全员会签成员不支持加签或减签");
         }
@@ -382,6 +451,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(reduceSignForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.REDUCE_SIGN);
+        if (policyResponse != null) {
+            return policyResponse;
         }
         if (bpmApprovalGroupService.isParallelAllGroup(taskEntity.getApprovalGroupId())) {
             return ResponseDTO.userErrorParam("并行全员会签成员不支持加签或减签");
@@ -482,6 +555,12 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(delegateForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (requireCurrentAssignee) {
+            ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.DELEGATE);
+            if (policyResponse != null) {
+                return policyResponse;
+            }
         }
         if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())) {
             return ResponseDTO.userErrorParam("当前流程任务状态不支持委派");
@@ -639,6 +718,70 @@ public class BpmTaskService {
             return copyResponse;
         }
         return ResponseDTO.ok();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> completeHandleTask(BpmTaskCompleteForm completeForm) {
+        BpmTaskEntity task = bpmTaskDao.selectById(completeForm.getTaskId());
+        if (task == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> policyResponse = requireAllowed(task, BpmTaskAction.COMPLETE);
+        if (policyResponse != null) {
+            return policyResponse;
+        }
+        if (!isHandleTask(task)) {
+            return ResponseDTO.userErrorParam("只有办理任务可以使用办理完成动作");
+        }
+        return completeTask(
+                completeForm.getTaskId(),
+                completeForm.getCommentText(),
+                BpmTaskResultEnum.HANDLED,
+                "HANDLE_COMPLETED",
+                List.of(),
+                BpmCopyTypeEnum.DESIGN_NODE_COPY,
+                null,
+                null
+        );
+    }
+
+    private ResponseDTO<String> rejectApprovalActionForHandleTask(Long taskId, String actionLabel) {
+        BpmTaskEntity task = bpmTaskDao.selectById(taskId);
+        if (task == null) {
+            return null;
+        }
+        if (isHandleTask(task)) {
+            return ResponseDTO.userErrorParam("办理任务不支持" + actionLabel + "，请使用办理完成动作");
+        }
+        return null;
+    }
+
+    private ResponseDTO<String> requireAllowed(Long taskId, BpmTaskAction action) {
+        BpmTaskEntity task = bpmTaskDao.selectById(taskId);
+        if (task == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        return requireAllowed(task, action);
+    }
+
+    private ResponseDTO<String> requireAllowed(BpmTaskEntity task, BpmTaskAction action) {
+        if (bpmTaskActionPolicy == null) {
+            return null;
+        }
+        try {
+            bpmTaskActionPolicy.requireAllowed(task, action);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            return ResponseDTO.userErrorParam(ex.getMessage());
+        }
+    }
+
+    private boolean isHandleTask(BpmTaskEntity task) {
+        if (task.getDefinitionNodeId() == null) {
+            return false;
+        }
+        BpmDefinitionNodeEntity node = bpmDefinitionNodeDao.selectById(task.getDefinitionNodeId());
+        return node != null && "HANDLE_TASK".equals(node.getNodeType());
     }
 
     private ResponseDTO<String> handleApprovalGroupAction(

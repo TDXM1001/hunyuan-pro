@@ -16,15 +16,17 @@ export interface BpmFormDesignerSnapshot {
   schemaJson: string;
 }
 
-export interface BpmProcessNodeDraft {
+export type BpmCandidateResolverType =
+  | 'DEPARTMENT_MANAGER'
+  | 'EMPLOYEE'
+  | 'EMPLOYEE_SELECT_AT_START'
+  | 'ROLE'
+  | 'START_DEPARTMENT_MANAGER'
+  | 'START_EMPLOYEE';
+
+export interface BpmProcessNodeBaseDraft {
   approvalMode?: 'parallelAll' | 'sequential' | 'single' | 'singleOnly';
-  candidateResolverType?:
-    | 'DEPARTMENT_MANAGER'
-    | 'EMPLOYEE'
-    | 'EMPLOYEE_SELECT_AT_START'
-    | 'ROLE'
-    | 'START_DEPARTMENT_MANAGER'
-    | 'START_EMPLOYEE';
+  candidateResolverType?: BpmCandidateResolverType;
   departmentId?: number;
   employeeId?: number;
   employeeIds?: number[];
@@ -35,7 +37,42 @@ export interface BpmProcessNodeDraft {
   name: string;
   nodeKey: string;
   roleId?: number;
-  type: 'userTask';
+}
+
+export interface BpmHumanTaskNodeDraft extends BpmProcessNodeBaseDraft {
+  type: 'handleTask' | 'userTask';
+}
+
+export interface BpmCopyTaskNodeDraft extends BpmProcessNodeBaseDraft {
+  type: 'copyTask';
+}
+
+export interface BpmRouteConditionDraft {
+  [key: string]: unknown;
+}
+
+export interface BpmProcessBranchDraft {
+  branchKey: string;
+  condition?: BpmRouteConditionDraft;
+  isDefault?: boolean;
+  name: string;
+  nodes: BpmProcessNodeDraft[];
+}
+
+export interface BpmBranchNodeDraft extends BpmProcessNodeBaseDraft {
+  branches: BpmProcessBranchDraft[];
+  branchType: 'EXCLUSIVE' | 'INCLUSIVE' | 'PARALLEL';
+  type: 'branch';
+}
+
+export type BpmProcessNodeDraft =
+  | BpmBranchNodeDraft
+  | BpmCopyTaskNodeDraft
+  | BpmHumanTaskNodeDraft;
+
+export interface BpmProcessModelAsset {
+  nodes: BpmProcessNodeDraft[];
+  schemaVersion: 2;
 }
 
 export interface BpmProcessDesignerSnapshot {

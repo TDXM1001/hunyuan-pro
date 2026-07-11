@@ -15,6 +15,8 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceTraceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationRecordService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeGraphService;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeGraphVO;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmFormDataChangeEntity;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +41,8 @@ class BpmInstanceTraceServiceTest {
 
     private BpmFormDataChangeDao formDataChangeDao;
 
+    private BpmRuntimeGraphService runtimeGraphService;
+
     @BeforeEach
     void setUp() {
         traceService = new BpmInstanceTraceService();
@@ -46,10 +50,12 @@ class BpmInstanceTraceServiceTest {
         integrationRecordService = Mockito.mock(BpmBusinessIntegrationRecordService.class);
         notificationRecordService = Mockito.mock(BpmNotificationRecordService.class);
         formDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
+        runtimeGraphService = Mockito.mock(BpmRuntimeGraphService.class);
         setField(traceService, "bpmInstanceService", bpmInstanceService);
         setField(traceService, "integrationRecordService", integrationRecordService);
         setField(traceService, "notificationRecordService", notificationRecordService);
         setField(traceService, "bpmFormDataChangeDao", formDataChangeDao);
+        setField(traceService, "bpmRuntimeGraphService", runtimeGraphService);
     }
 
     @Test
@@ -103,6 +109,10 @@ class BpmInstanceTraceServiceTest {
         formChange.setBeforeValuesJson("{\"approvedAmount\":100}");
         formChange.setAfterValuesJson("{\"approvedAmount\":98}");
         when(formDataChangeDao.queryByInstanceId(88L)).thenReturn(List.of(formChange));
+        BpmRuntimeGraphVO graph = new BpmRuntimeGraphVO();
+        graph.setNodes(List.of());
+        graph.setRouteDecisions(List.of());
+        when(runtimeGraphService.build(88L, false)).thenReturn(graph);
 
         ResponseDTO<BpmInstanceTraceVO> response = traceService.getTrace(88L);
 
@@ -126,6 +136,7 @@ class BpmInstanceTraceServiceTest {
             assertThat(change.getAfterVersion()).isEqualTo(2L);
             assertThat(change.getChangedFieldsJson()).contains("approvedAmount");
         });
+        assertThat(response.getData().getProcessGraph()).isSameAs(graph);
     }
 
     @Test

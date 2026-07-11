@@ -10,6 +10,19 @@ class BpmSimpleModelPublishValidatorTest {
     private final BpmSimpleModelPublishValidator validator = new BpmSimpleModelPublishValidator();
 
     @Test
+    void validateShouldCheckFieldPermissionsInsideV2Branch() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"schemaVersion\":2,\"nodes\":[{\"nodeKey\":\"route\",\"type\":\"EXCLUSIVE_BRANCH\",\"branches\":["
+                        + "{\"branchKey\":\"a\",\"nodes\":[{\"nodeKey\":\"review\",\"name\":\"嵌套审批\",\"type\":\"USER_TASK\",\"fieldPermissions\":[{\"fieldKey\":\"missingField\",\"permission\":\"READONLY\"}]}]},"
+                        + "{\"branchKey\":\"default\",\"isDefault\":true,\"nodes\":[]}]}]}",
+                "{\"fields\":[{\"field\":\"amount\",\"type\":\"number\"}]}"
+        );
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("missingField").contains("不存在");
+    }
+
+    @Test
     void validateShouldRejectEmployeeSelectAtStartWhenFormFieldMissing() {
         ResponseDTO<String> response = validator.validate(
                 "{\"nodes\":[{\"nodeKey\":\"task_selected\",\"name\":\"发起时选择审批\",\"type\":\"userTask\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\",\"employeeSelectFieldKey\":\"approverEmployeeId\"}]}",

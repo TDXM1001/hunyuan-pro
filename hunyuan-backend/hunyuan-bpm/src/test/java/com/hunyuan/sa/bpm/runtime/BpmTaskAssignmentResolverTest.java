@@ -63,6 +63,20 @@ class BpmTaskAssignmentResolverTest {
     }
 
     @Test
+    void resolveShouldCreateAssigneeVariableForHandleTask() {
+        BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null);
+        BpmDefinitionNodeEntity node = buildNode(
+                "archive_handle",
+                "{\"nodeKey\":\"archive_handle\",\"name\":\"归档办理\",\"type\":\"HANDLE_TASK\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":301}"
+        );
+        node.setNodeType("HANDLE_TASK");
+
+        Map<String, Object> variables = resolver.resolve(List.of(node), startEmployee);
+
+        assertThat(variables).containsEntry("assignee_archive_handle", "301");
+    }
+
+    @Test
     void resolveShouldPickStableRoleMemberWhenNodeUsesRoleStrategy() {
         BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null);
         when(identityGateway.listEmployeeIdsByRoleId(9L)).thenReturn(List.of(42L, 15L, 18L));

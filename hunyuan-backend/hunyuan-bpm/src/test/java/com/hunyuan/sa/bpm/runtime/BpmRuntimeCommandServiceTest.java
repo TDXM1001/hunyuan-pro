@@ -102,6 +102,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmFormDataChangeDao", bpmFormDataChangeDao);
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
+        setField(bpmTaskService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
         setField(bpmTaskService, "bpmInstanceDao", bpmInstanceDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
         setField(bpmTaskService, "flowableTaskGateway", Mockito.mock(FlowableTaskGateway.class));
@@ -620,7 +621,7 @@ class BpmRuntimeCommandServiceTest {
         );
         when(definitionNodeDao().selectList(any())).thenReturn(java.util.List.of());
         when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
-        when(processInstanceGateway().start("leave:2:2000", 100L, "{\"amount\":200}", Map.of()))
+        when(processInstanceGateway().start("leave:2:2000", 8L, 100L, "{\"amount\":200}", Map.of()))
                 .thenReturn("process-2000");
 
         BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
@@ -634,21 +635,24 @@ class BpmRuntimeCommandServiceTest {
 
         assertThat(response.getOk()).isTrue();
         assertThat(response.getData()).isEqualTo(8L);
-        verify(processInstanceGateway()).start("leave:2:2000", 100L, "{\"amount\":200}", Map.of());
+        verify(processInstanceGateway()).start("leave:2:2000", 8L, 100L, "{\"amount\":200}", Map.of());
         verify(taskProjectionService()).syncActiveTasksForInstance(8L);
 
         ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
-        verify(bpmInstanceDao).updateById(instanceCaptor.capture());
-        assertThat(instanceCaptor.getValue().getInstanceId()).isEqualTo(8L);
-        assertThat(instanceCaptor.getValue().getEngineProcessDefinitionId()).isEqualTo("leave:2:2000");
-        assertThat(instanceCaptor.getValue().getEngineProcessInstanceId()).isEqualTo("process-2000");
-        assertThat(instanceCaptor.getValue().getDefinitionVersionSnapshot()).isEqualTo(2);
-        assertThat(instanceCaptor.getValue().getCurrentFormDataSnapshotJson()).isEqualTo("{\"amount\":200}");
-        assertThat(instanceCaptor.getValue().getFormDataVersion()).isEqualTo(4L);
-        assertThat(instanceCaptor.getValue().getInitialFormDataSnapshotJson()).isNull();
-        assertThat(instanceCaptor.getValue().getRunState()).isEqualTo(BpmInstanceRunStateEnum.RUNNING.getValue());
-        assertThat(instanceCaptor.getValue().getSummary()).isEqualTo("修改后重提");
-        assertThat(instanceCaptor.getValue().getTitle()).isEqualTo("请假申请-重提");
+        verify(bpmInstanceDao, Mockito.times(2)).updateById(instanceCaptor.capture());
+        BpmInstanceEntity stateUpdate = instanceCaptor.getAllValues().get(0);
+        BpmInstanceEntity engineUpdate = instanceCaptor.getAllValues().get(1);
+        assertThat(stateUpdate.getInstanceId()).isEqualTo(8L);
+        assertThat(stateUpdate.getEngineProcessDefinitionId()).isEqualTo("leave:2:2000");
+        assertThat(stateUpdate.getDefinitionVersionSnapshot()).isEqualTo(2);
+        assertThat(stateUpdate.getCurrentFormDataSnapshotJson()).isEqualTo("{\"amount\":200}");
+        assertThat(stateUpdate.getFormDataVersion()).isEqualTo(4L);
+        assertThat(stateUpdate.getInitialFormDataSnapshotJson()).isNull();
+        assertThat(stateUpdate.getRunState()).isEqualTo(BpmInstanceRunStateEnum.RUNNING.getValue());
+        assertThat(stateUpdate.getSummary()).isEqualTo("修改后重提");
+        assertThat(engineUpdate.getInstanceId()).isEqualTo(8L);
+        assertThat(engineUpdate.getEngineProcessInstanceId()).isEqualTo("process-2000");
+        assertThat(stateUpdate.getTitle()).isEqualTo("请假申请-重提");
 
         ArgumentCaptor<BpmTaskActionLogEntity> logCaptor = ArgumentCaptor.forClass(BpmTaskActionLogEntity.class);
         verify(bpmTaskActionLogDao).insert(logCaptor.capture());
@@ -712,7 +716,7 @@ class BpmRuntimeCommandServiceTest {
         when(instanceIdentityGateway().requireEmployee(302L)).thenReturn(
                 new BpmEmployeeSnapshot(302L, "审批人B", 8L, "财务部", null, null)
         );
-        when(processInstanceGateway().start("expense:2:2000", 100L, "{\"amount\":200,\"approverEmployeeId\":302}", Map.of("assignee_task_selected", "302")))
+        when(processInstanceGateway().start("expense:2:2000", 8L, 100L, "{\"amount\":200,\"approverEmployeeId\":302}", Map.of("assignee_task_selected", "302")))
                 .thenReturn("process-2000");
 
         BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
@@ -728,6 +732,7 @@ class BpmRuntimeCommandServiceTest {
         ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(processInstanceGateway()).start(
                 Mockito.eq("expense:2:2000"),
+                Mockito.eq(8L),
                 Mockito.eq(100L),
                 Mockito.eq("{\"amount\":200,\"approverEmployeeId\":302}"),
                 variablesCaptor.capture()

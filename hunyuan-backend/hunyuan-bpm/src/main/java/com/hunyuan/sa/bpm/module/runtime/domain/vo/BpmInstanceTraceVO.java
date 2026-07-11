@@ -27,4 +27,8 @@ public class BpmInstanceTraceVO {
     private List<BpmApprovalGroupDetailVO> approvalGroups;
 
     private List<BpmFormDataChangeVO> formDataChanges;
+
+    private BpmRuntimeGraphVO processGraph;
+
+    private List<BpmRuntimeGraphVO.RouteDecision> routeDecisions;
 }

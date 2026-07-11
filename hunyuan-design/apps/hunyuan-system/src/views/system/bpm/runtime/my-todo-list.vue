@@ -37,6 +37,7 @@ import {
 import {
   addSignBpmTask,
   approveBpmTask,
+  completeBpmTask,
   delegateBpmTask,
   getBpmTaskDetail,
   queryMyBpmTodoPage,
@@ -53,7 +54,7 @@ import BpmTaskFormWorkbench from './components/bpm-task-form-workbench.vue';
 
 defineOptions({ name: 'SystemBpmRuntimeMyTodoList' });
 
-type TodoActionType = 'approve' | 'reject' | 'return';
+type TodoActionType = 'approve' | 'complete' | 'reject' | 'return';
 type AdvancedActionType =
   | 'addSign'
   | 'delegate'
@@ -276,6 +277,9 @@ function getActionDialogTitle() {
   if (actionForm.type === 'reject') {
     return '审批拒绝';
   }
+  if (actionForm.type === 'complete') {
+    return '办理完成';
+  }
   return '退回发起人';
 }
 
@@ -285,6 +289,9 @@ function getActionPlaceholder() {
   }
   if (actionForm.type === 'reject') {
     return '不同意';
+  }
+  if (actionForm.type === 'complete') {
+    return '办理完成';
   }
   return '请补充材料';
 }
@@ -336,6 +343,20 @@ function handleReturn(row: BpmTaskRecord) {
   void openActionDialog('return', row);
 }
 
+function handleComplete(row: BpmTaskRecord) {
+  void openActionDialog('complete', row);
+}
+
+function hasTaskAction(row: BpmTaskRecord, action: NonNullable<BpmTaskRecord['availableActions']>[number]) {
+  return row.availableActions?.includes(action) === true;
+}
+
+function hasAdvancedActions(row: BpmTaskRecord) {
+  return ['ADD_SIGN', 'DELEGATE', 'REDUCE_SIGN', 'TRANSFER'].some((action) =>
+    row.availableActions?.includes(action as NonNullable<BpmTaskRecord['availableActions']>[number]),
+  );
+}
+
 async function submitActionDialog() {
   if (!currentActionRow.value) {
     return;
@@ -355,6 +376,12 @@ async function submitActionDialog() {
         formDataVersion: formMutation?.formDataVersion,
       });
       ElMessage.success('审批已通过');
+    } else if (actionForm.type === 'complete') {
+      await completeBpmTask({
+        commentText: actionForm.commentText,
+        taskId: currentActionRow.value.taskId,
+      });
+      ElMessage.success('办理已完成');
     } else if (actionForm.type === 'reject') {
       await rejectBpmTask(payload);
       ElMessage.success('审批已拒绝');
@@ -543,37 +570,64 @@ onMounted(() => {
                 <ElButton link size="small" type="primary" @click="openDetailDialog(row)">
                   详情
                 </ElButton>
-                <ElButton link size="small" type="primary" @click="handleApprove(row)">
+                <ElButton
+                  v-if="hasTaskAction(row, 'APPROVE')"
+                  link
+                  size="small"
+                  type="primary"
+                  @click="handleApprove(row)"
+                >
                   通过
                 </ElButton>
-                <ElButton link size="small" type="danger" @click="handleReject(row)">
+                <ElButton
+                  v-if="hasTaskAction(row, 'COMPLETE')"
+                  link
+                  size="small"
+                  type="success"
+                  @click="handleComplete(row)"
+                >
+                  完成
+                </ElButton>
+                <ElButton
+                  v-if="hasTaskAction(row, 'REJECT')"
+                  link
+                  size="small"
+                  type="danger"
+                  @click="handleReject(row)"
+                >
                   拒绝
                 </ElButton>
-                <ElButton link size="small" type="warning" @click="handleReturn(row)">
+                <ElButton
+                  v-if="hasTaskAction(row, 'RETURN')"
+                  link
+                  size="small"
+                  type="warning"
+                  @click="handleReturn(row)"
+                >
                   退回
                 </ElButton>
                 <ElDropdown
+                  v-if="hasAdvancedActions(row)"
                   trigger="click"
                   @command="(command) => handleAdvancedCommand(command, row)"
                 >
                   <ElButton link size="small">高级</ElButton>
                   <template #dropdown>
                     <ElDropdownMenu>
-                      <ElDropdownItem command="transfer">转办</ElDropdownItem>
-                      <ElDropdownItem command="delegate">委派</ElDropdownItem>
+                      <ElDropdownItem v-if="hasTaskAction(row, 'TRANSFER')" command="transfer">转办</ElDropdownItem>
+                      <ElDropdownItem v-if="hasTaskAction(row, 'DELEGATE')" command="delegate">委派</ElDropdownItem>
                        <ElDropdownItem
-                         v-if="row.approvalGroup?.approvalMode !== 'parallelAll'"
+                         v-if="hasTaskAction(row, 'ADD_SIGN')"
                          command="addSign"
                        >
                          加签
                        </ElDropdownItem>
                        <ElDropdownItem
-                         v-if="row.approvalGroup?.approvalMode !== 'parallelAll'"
+                         v-if="hasTaskAction(row, 'REDUCE_SIGN')"
                          command="reduceSign"
                        >
                          减签
                        </ElDropdownItem>
-                      <ElDropdownItem command="recall">撤回</ElDropdownItem>
                     </ElDropdownMenu>
                   </template>
                 </ElDropdown>

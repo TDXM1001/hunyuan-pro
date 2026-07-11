@@ -1,5 +1,6 @@
 package com.hunyuan.sa.bpm.module.runtime.domain.vo;
 
+import com.hunyuan.sa.bpm.common.enumeration.BpmTaskKind;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -47,6 +48,12 @@ public class BpmTaskDetailVO {
 
     @Schema(description = "任务结果")
     private Integer taskResult;
+
+    @Schema(description = "任务业务类型")
+    private BpmTaskKind taskKind;
+
+    @Schema(description = "当前可用动作")
+    private List<String> availableActions;
 
     @Schema(description = "到达时间")
     private LocalDateTime assignedAt;

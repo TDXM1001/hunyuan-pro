@@ -31,13 +31,27 @@ public class BpmInstanceTraceService {
     @Resource
     private BpmFormDataChangeDao bpmFormDataChangeDao;
 
+    @Resource
+    private BpmRuntimeGraphService bpmRuntimeGraphService;
+
     public ResponseDTO<BpmInstanceTraceVO> getTrace(Long instanceId) {
+        return getTrace(instanceId, false);
+    }
+
+    public ResponseDTO<BpmInstanceTraceVO> getEmployeeTrace(Long instanceId) {
+        return getTrace(instanceId, true);
+    }
+
+    private ResponseDTO<BpmInstanceTraceVO> getTrace(Long instanceId, boolean employeeSafe) {
         ResponseDTO<BpmInstanceDetailVO> detailResponse = bpmInstanceService.getDetail(instanceId);
         if (!Boolean.TRUE.equals(detailResponse.getOk()) || detailResponse.getData() == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
 
         BpmInstanceDetailVO detail = detailResponse.getData();
+        if (employeeSafe) {
+            detail.setCurrentFormDataSnapshotJson(null);
+        }
         BpmInstanceTraceVO trace = new BpmInstanceTraceVO();
         trace.setInstance(detail);
         trace.setCurrentTasks(detail.getCurrentTasks() == null ? List.of() : detail.getCurrentTasks());
@@ -46,11 +60,19 @@ public class BpmInstanceTraceService {
         trace.setCommandRecords(integrationRecordService.queryCommandRecordsByInstanceId(instanceId));
         trace.setNotificationRecords(notificationRecordService.queryByInstanceId(instanceId));
         trace.setApprovalGroups(detail.getApprovalGroups() == null ? List.of() : detail.getApprovalGroups());
-        trace.setFormDataChanges(
-                bpmFormDataChangeDao.queryByInstanceId(instanceId).stream()
-                        .map(this::toFormDataChangeVO)
-                        .toList()
-        );
+        List<BpmFormDataChangeVO> formDataChanges = bpmFormDataChangeDao.queryByInstanceId(instanceId).stream()
+                .map(this::toFormDataChangeVO)
+                .toList();
+        if (employeeSafe) {
+            formDataChanges.forEach(change -> {
+                change.setBeforeValuesJson("{}");
+                change.setAfterValuesJson("{}");
+            });
+        }
+        trace.setFormDataChanges(formDataChanges);
+        var processGraph = bpmRuntimeGraphService.build(instanceId, employeeSafe);
+        trace.setProcessGraph(processGraph);
+        trace.setRouteDecisions(processGraph.getRouteDecisions());
         return ResponseDTO.ok(trace);
     }
 

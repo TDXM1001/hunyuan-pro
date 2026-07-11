@@ -15,6 +15,23 @@ import static org.mockito.Mockito.when;
 
 class BpmCandidatePrecheckServiceTest {
 
+    @Test
+    void precheckShouldIncludeUserTaskInsideV2Branch() {
+        when(identityGateway.requireEmployee(301L))
+                .thenReturn(new BpmEmployeeSnapshot(301L, "嵌套审批人", 8L, "财务部", null, null));
+
+        List<BpmDefinitionValidationReportVO.CandidateCheck> checks = service.precheck(
+                "{\"schemaVersion\":2,\"nodes\":[{\"nodeKey\":\"route\",\"type\":\"EXCLUSIVE_BRANCH\",\"branches\":["
+                        + "{\"branchKey\":\"a\",\"nodes\":[{\"nodeKey\":\"nested_review\",\"name\":\"嵌套审批\",\"type\":\"USER_TASK\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":301}]},"
+                        + "{\"branchKey\":\"default\",\"isDefault\":true,\"nodes\":[]}]}]}",
+                "{\"fields\":[]}"
+        );
+
+        assertThat(checks).singleElement()
+                .extracting(BpmDefinitionValidationReportVO.CandidateCheck::getNodeKey)
+                .isEqualTo("nested_review");
+    }
+
     private BpmCandidatePrecheckService service;
 
     private BpmOrgIdentityGateway identityGateway;

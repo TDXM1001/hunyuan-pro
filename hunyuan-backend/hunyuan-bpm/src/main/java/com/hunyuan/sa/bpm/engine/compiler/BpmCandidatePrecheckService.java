@@ -60,14 +60,43 @@ public class BpmCandidatePrecheckService {
             return checks;
         }
 
-        for (int i = 0; i < nodes.size(); i++) {
-            JSONObject nodeObject = nodes.getJSONObject(i);
-            if (nodeObject == null || !USER_TASK_TYPE.equals(nodeObject.getString("type"))) {
-                continue;
-            }
+        for (JSONObject nodeObject : collectCandidateNodes(nodes)) {
             checks.add(buildCandidateCheck(nodeObject, formSchemaAnalysis, safeContext, formDataAnalysis));
         }
         return checks;
+    }
+
+    private List<JSONObject> collectCandidateNodes(JSONArray nodes) {
+        List<JSONObject> result = new ArrayList<>();
+        collectCandidateNodes(nodes, result);
+        return result;
+    }
+
+    private void collectCandidateNodes(JSONArray nodes, List<JSONObject> result) {
+        if (nodes == null) {
+            return;
+        }
+        for (Object rawNode : nodes) {
+            if (!(rawNode instanceof JSONObject node)) {
+                continue;
+            }
+            String type = node.getString("type");
+            if (USER_TASK_TYPE.equals(type)
+                    || "USER_TASK".equals(type)
+                    || "HANDLE_TASK".equals(type)
+                    || "COPY_TASK".equals(type)) {
+                result.add(node);
+            }
+            JSONArray branches = node.getJSONArray("branches");
+            if (branches == null) {
+                continue;
+            }
+            for (Object rawBranch : branches) {
+                if (rawBranch instanceof JSONObject branch) {
+                    collectCandidateNodes(branch.getJSONArray("nodes"), result);
+                }
+            }
+        }
     }
 
     private BpmDefinitionValidationReportVO.CandidateCheck buildCandidateCheck(

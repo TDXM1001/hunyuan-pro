@@ -31,6 +31,8 @@ public class BpmInstanceCopyEntity {
 
     private String sourceNodeName;
 
+    private String sourceEventKey;
+
     private Long targetEmployeeId;
 
     private String targetNameSnapshot;

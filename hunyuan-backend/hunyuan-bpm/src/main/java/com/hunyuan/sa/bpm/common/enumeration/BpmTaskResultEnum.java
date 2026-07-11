@@ -12,7 +12,8 @@ public enum BpmTaskResultEnum implements BaseEnum {
     RETURNED(3, "退回发起人"),
     INSTANCE_CANCELLED(4, "实例已取消"),
     ADD_SIGN_REDUCED(5, "加签已减签"),
-    RECALLED(6, "发起人撤回");
+    RECALLED(6, "发起人撤回"),
+    HANDLED(7, "办理完成");
 
     private final Integer value;
 

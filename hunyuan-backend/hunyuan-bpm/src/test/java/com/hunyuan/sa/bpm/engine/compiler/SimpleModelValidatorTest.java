@@ -10,6 +10,21 @@ class SimpleModelValidatorTest {
     private final SimpleModelValidator validator = new SimpleModelValidator();
 
     @Test
+    void validateShouldRejectDuplicateNodeKeyInsideV2Branch() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"schemaVersion\":2,\"nodes\":["
+                        + "{\"nodeKey\":\"review\",\"name\":\"顶层审批\",\"type\":\"USER_TASK\"},"
+                        + "{\"nodeKey\":\"route\",\"name\":\"路由\",\"type\":\"EXCLUSIVE_BRANCH\",\"branches\":["
+                        + "{\"branchKey\":\"a\",\"name\":\"A\",\"condition\":{\"sourceType\":\"FORM_FIELD\",\"fieldKey\":\"amount\",\"valueType\":\"NUMBER\",\"operator\":\"GT\",\"compareValue\":0},\"nodes\":[{\"nodeKey\":\"review\",\"name\":\"嵌套审批\",\"type\":\"USER_TASK\"}]},"
+                        + "{\"branchKey\":\"default\",\"name\":\"默认\",\"isDefault\":true,\"nodes\":[]}]}]}",
+                "{\"type\":\"ALL\"}"
+        );
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("review").contains("重复");
+    }
+
+    @Test
     void validateShouldAcceptStartEmployeeCandidateStrategies() {
         ResponseDTO<String> response = validator.validate(
                 "{\"nodes\":["

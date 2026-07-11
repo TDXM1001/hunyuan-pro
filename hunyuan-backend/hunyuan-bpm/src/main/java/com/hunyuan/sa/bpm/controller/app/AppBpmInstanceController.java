@@ -10,10 +10,12 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceCopyVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceTraceVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeStartDraftVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceTraceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +42,9 @@ public class AppBpmInstanceController {
 
     @Resource
     private BpmInstanceCopyService bpmInstanceCopyService;
+
+    @Resource
+    private BpmInstanceTraceService bpmInstanceTraceService;
 
     @Operation(summary = "查询我发起的流程实例")
     @PostMapping("/app/bpm/my-instance")
@@ -69,6 +74,12 @@ public class AppBpmInstanceController {
     @GetMapping("/app/bpm/instance/detail/{instanceId}")
     public ResponseDTO<BpmInstanceDetailVO> detail(@PathVariable Long instanceId) {
         return bpmInstanceService.getDetail(instanceId);
+    }
+
+    @Operation(summary = "查询员工安全流程追踪")
+    @GetMapping("/app/bpm/instance/trace/{instanceId}")
+    public ResponseDTO<BpmInstanceTraceVO> trace(@PathVariable Long instanceId) {
+        return bpmInstanceTraceService.getEmployeeTrace(instanceId);
     }
 
     @Operation(summary = "查询我的抄送")

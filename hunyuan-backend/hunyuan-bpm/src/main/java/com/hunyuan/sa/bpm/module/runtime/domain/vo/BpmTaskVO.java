@@ -1,10 +1,12 @@
 package com.hunyuan.sa.bpm.module.runtime.domain.vo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.hunyuan.sa.bpm.common.enumeration.BpmTaskKind;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 流程任务列表返回结果。
@@ -42,6 +44,12 @@ public class BpmTaskVO {
 
     @Schema(description = "任务结果")
     private Integer taskResult;
+
+    @Schema(description = "任务业务类型")
+    private BpmTaskKind taskKind;
+
+    @Schema(description = "当前可用动作")
+    private List<String> availableActions;
 
     @Schema(description = "当前处理人")
     private String assigneeNameSnapshot;

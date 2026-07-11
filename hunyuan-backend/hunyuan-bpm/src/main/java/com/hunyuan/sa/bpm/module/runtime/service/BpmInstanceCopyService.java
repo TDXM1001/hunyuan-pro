@@ -12,6 +12,8 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmCopyTypeEnum;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceCopyDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceCopyEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCopyQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceCopyVO;
 import jakarta.annotation.Resource;
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import org.springframework.dao.DuplicateKeyException;
 
 /**
  * 流程抄送服务。
@@ -75,6 +78,43 @@ public class BpmInstanceCopyService {
             entity.setReasonSnapshot(reasonSnapshot);
             entity.setSentAt(now);
             bpmInstanceCopyDao.insert(entity);
+        }
+        return ResponseDTO.ok();
+    }
+
+    public ResponseDTO<String> createDesignCopies(
+            BpmInstanceEntity instance,
+            BpmDefinitionNodeEntity node,
+            String engineProcessInstanceId,
+            Collection<Long> targetEmployeeIds
+    ) {
+        if (targetEmployeeIds == null || targetEmployeeIds.isEmpty()) {
+            return ResponseDTO.userErrorParam("设计时抄送节点未解析到接收人");
+        }
+        LinkedHashSet<Long> targetIds = new LinkedHashSet<>(targetEmployeeIds);
+        LocalDateTime now = LocalDateTime.now();
+        String sourceEventKey = "COPY:" + engineProcessInstanceId + ":" + node.getNodeKey();
+        for (Long targetId : targetIds) {
+            BpmEmployeeSnapshot snapshot = bpmOrgIdentityGateway.requireEmployee(targetId);
+            BpmInstanceCopyEntity entity = new BpmInstanceCopyEntity();
+            entity.setInstanceId(instance.getInstanceId());
+            entity.setDefinitionId(instance.getDefinitionId());
+            entity.setDefinitionNodeId(node.getDefinitionNodeId());
+            entity.setEngineProcessInstanceId(engineProcessInstanceId);
+            entity.setSourceNodeKey(node.getNodeKey());
+            entity.setSourceNodeName(node.getNodeNameSnapshot());
+            entity.setSourceEventKey(sourceEventKey);
+            entity.setTargetEmployeeId(snapshot.employeeId());
+            entity.setTargetNameSnapshot(snapshot.actualName());
+            entity.setCopyType(BpmCopyTypeEnum.DESIGN_NODE_COPY.name());
+            entity.setReadState(BpmCopyReadStateEnum.UNREAD.getValue());
+            entity.setReasonSnapshot("流程进入设计时抄送节点");
+            entity.setSentAt(now);
+            try {
+                bpmInstanceCopyDao.insert(entity);
+            } catch (DuplicateKeyException ignored) {
+                // Flowable 重试同一 service task 时复用唯一事实，不重复抄送。
+            }
         }
         return ResponseDTO.ok();
     }

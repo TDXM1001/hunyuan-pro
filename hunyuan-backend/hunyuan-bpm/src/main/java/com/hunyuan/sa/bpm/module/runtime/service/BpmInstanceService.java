@@ -395,18 +395,10 @@ public class BpmInstanceService {
             return ResponseDTO.userErrorParam(ex.getMessage());
         }
 
-        String engineProcessInstanceId = flowableProcessInstanceGateway.start(
-                definitionEntity.getEngineProcessDefinitionId(),
-                employeeId,
-                resubmitForm.getFormDataJson(),
-                runtimeAssignmentVariables
-        );
-
         LocalDateTime now = LocalDateTime.now();
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
         updateInstanceEntity.setEngineProcessDefinitionId(definitionEntity.getEngineProcessDefinitionId());
-        updateInstanceEntity.setEngineProcessInstanceId(engineProcessInstanceId);
         updateInstanceEntity.setDefinitionKeySnapshot(definitionEntity.getDefinitionKey());
         updateInstanceEntity.setDefinitionVersionSnapshot(definitionEntity.getDefinitionVersion());
         updateInstanceEntity.setCategoryIdSnapshot(definitionEntity.getCategoryIdSnapshot());
@@ -435,6 +427,18 @@ public class BpmInstanceService {
             change.setAfterValuesJson(JSON.toJSONString(afterValues));
             bpmFormDataChangeDao.insert(change);
         }
+
+        String engineProcessInstanceId = flowableProcessInstanceGateway.start(
+                definitionEntity.getEngineProcessDefinitionId(),
+                instanceEntity.getInstanceId(),
+                employeeId,
+                resubmitForm.getFormDataJson(),
+                runtimeAssignmentVariables
+        );
+        BpmInstanceEntity engineUpdate = new BpmInstanceEntity();
+        engineUpdate.setInstanceId(instanceEntity.getInstanceId());
+        engineUpdate.setEngineProcessInstanceId(engineProcessInstanceId);
+        bpmInstanceDao.updateById(engineUpdate);
 
         bpmTaskActionLogDao.insert(buildResubmitActionLog(instanceEntity, employeeSnapshot, now));
         bpmTaskProjectionService.syncActiveTasksForInstance(instanceEntity.getInstanceId());
@@ -511,19 +515,11 @@ public class BpmInstanceService {
             return ResponseDTO.userErrorParam(ex.getMessage());
         }
 
-        String engineProcessInstanceId = flowableProcessInstanceGateway.start(
-                definitionEntity.getEngineProcessDefinitionId(),
-                employeeId,
-                startForm.getFormDataJson(),
-                runtimeAssignmentVariables
-        );
-
         LocalDateTime now = LocalDateTime.now();
         BpmInstanceEntity entity = new BpmInstanceEntity();
         entity.setInstanceNo(instanceNo);
         entity.setDefinitionId(definitionEntity.getDefinitionId());
         entity.setEngineProcessDefinitionId(definitionEntity.getEngineProcessDefinitionId());
-        entity.setEngineProcessInstanceId(engineProcessInstanceId);
         entity.setDefinitionKeySnapshot(definitionEntity.getDefinitionKey());
         entity.setDefinitionVersionSnapshot(definitionEntity.getDefinitionVersion());
         entity.setCategoryIdSnapshot(definitionEntity.getCategoryIdSnapshot());
@@ -548,6 +544,17 @@ public class BpmInstanceService {
         if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
             insertInitialFormDataChange(entity, employeeSnapshot);
         }
+        String engineProcessInstanceId = flowableProcessInstanceGateway.start(
+                definitionEntity.getEngineProcessDefinitionId(),
+                entity.getInstanceId(),
+                employeeId,
+                startForm.getFormDataJson(),
+                runtimeAssignmentVariables
+        );
+        BpmInstanceEntity engineUpdate = new BpmInstanceEntity();
+        engineUpdate.setInstanceId(entity.getInstanceId());
+        engineUpdate.setEngineProcessInstanceId(engineProcessInstanceId);
+        bpmInstanceDao.updateById(engineUpdate);
         bpmTaskProjectionService.syncActiveTasksForInstance(entity.getInstanceId());
         return ResponseDTO.ok(entity.getInstanceId());
     }

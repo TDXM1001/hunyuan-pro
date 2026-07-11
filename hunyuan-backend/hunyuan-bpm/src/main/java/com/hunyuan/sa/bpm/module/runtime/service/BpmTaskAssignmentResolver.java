@@ -39,7 +39,9 @@ public class BpmTaskAssignmentResolver {
                 ? new BpmTaskAssignmentContext(null, "{}")
                 : context;
         definitionNodes.stream()
-                .filter(node -> "userTask".equals(node.getNodeType()))
+                .filter(node -> "userTask".equals(node.getNodeType())
+                        || "USER_TASK".equals(node.getNodeType())
+                        || "HANDLE_TASK".equals(node.getNodeType()))
                 .sorted(Comparator.comparing(BpmDefinitionNodeEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
                 .forEach(node -> {
                     Long assigneeEmployeeId = resolveNodeAssignee(node, safeContext);

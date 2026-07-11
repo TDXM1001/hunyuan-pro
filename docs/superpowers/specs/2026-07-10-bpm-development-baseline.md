@@ -18,17 +18,19 @@
 
 ## 一句话结论
 
-Hunyuan BPM 是一个以 Flowable `7.2.0` 为内部执行引擎的 **Hunyuan 原生企业审批引擎**。它已经覆盖线性审批、受限的 `parallelAll` 并行全员会签、逐节点审批字段权限、审批数据版本治理、字段变更追踪和最终回调冻结，以及流程定义治理、发起、待办审批、追踪、抄送、通知和回调等基础闭环；但它不是通用 BPMN 编排平台，也不支持通用网关 DSL、或签、比例审批、子流程、定时器或 Flowable multi-instance。
+Hunyuan BPM 是一个以 Flowable `7.2.0` 为内部执行引擎的 **Hunyuan 原生企业审批引擎**。它已经覆盖线性审批、受限的 `parallelAll`、逐节点数据治理，以及 M1 受控 AST、排他/独立并行/包容分支、办理、设计时抄送、路由账本和 authored 运行图；但它不是通用 BPMN 编排平台，也不支持或签、比例审批、子流程、定时器或 Flowable multi-instance。
 
-当前设计器仍只建模 `userTask`。编译器按 authored 节点顺序生成受限片段：
+当前设计器使用 v2 递归流程树，编译器按 authored AST 组合受限片段：
 
 ```text
 单人：userTask
 顺序多人：userTask_1 -> userTask_2 -> ...
 parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
+排他/包容：route delegate -> gateway split -> authored branches -> gateway join
+独立并行：parallelGateway split -> authored branches -> parallelGateway join
 ```
 
-只有 `parallelAll` 内部允许固定分叉和汇聚；条件路由、任意并行分支等需求仍然不是只改一个页面或一条接口的工作。
+M1 只支持受控固定分叉和汇聚，不开放任意 BPMN、脚本 EL 或动态拓扑。
 
 ## 已完成能力
 
@@ -43,7 +45,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 
 ### 2. 设计器与候选人规则
 
-- 当前节点类型只有 `userTask`。
+- 当前节点类型为 `USER_TASK/HANDLE_TASK/COPY_TASK/EXCLUSIVE_BRANCH/PARALLEL_BRANCH/INCLUSIVE_BRANCH`，分支最大深度为 3。
 - 已支持六类候选人策略：
   - `EMPLOYEE`：指定员工。
   - `DEPARTMENT_MANAGER`：部门主管。
@@ -115,11 +117,13 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 
 ## 当前优先级
 
-顺序多人审批组、`parallelAll`、员工高级动作和审批数据治理已经闭环。下一切片必须重新从当前仓库事实和真实业务需求排序，不自动延伸为通用网关平台，也不把字段权限继续当作未完成的平台边界。
+顺序多人审批组、`parallelAll`、员工高级动作和审批数据治理已经闭环。企业级后续方向已由以下文档固定，不再在每个小切片结束后重新排序：
 
-仍可独立评估的工作：
+- 总体蓝图：`docs/superpowers/specs/2026-07-11-bpm-enterprise-blueprint.md`
+- 差距基线：`docs/superpowers/specs/2026-07-11-bpm-enterprise-gap-baseline.md`
+- 模块设计：`docs/superpowers/specs/2026-07-11-bpm-module-01-modeling-compiler-design.md` 至 `2026-07-11-bpm-module-07-business-integration-platform-design.md`
 
-- 根据真实业务流程补充更丰富的表单与业务单据集成；继续保持业务单据在 Hunyuan 业务模块中拥有生命周期，BPM 只管理审批过程。
+M1“流程建模与编译平台”已通过实现、自动化门禁、数据库迁移、API 多路径实流和 Chrome 验收并关闭。验收记录见 `docs/superpowers/specs/2026-07-11-bpm-m1-modeling-compiler-acceptance.md`；下一主交付块切换为 M4“时间、SLA 与事件驱动”。
 
 ## 平台能力边界
 
@@ -128,13 +132,13 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - 或签。
 - 比例审批。
 - Flowable multi-instance。
-- 通用并行网关、条件网关、包容网关和任意分支路由。
+- 任意 BPMN 网关、动态拓扑和超出 M1 受控 AST 的分支路由。
 - 定时器、触发器和超时流转。
 - 子流程。
 - 运行中动态增加、删除或替换会签成员。
 - 表达式或脚本候选人。
 - 岗位、用户组、动态部门成员等候选人来源。
-- 图形化运行态高亮和复杂节点进度展示。
+- 超出 M1 authored 运行图的动态图形高亮和复杂节点进度展示。
 
 判断原则：如果需求改变了“下一步由谁处理”“是否同时生成多个任务”“何时结束一个节点”或“可以走向哪个节点”，它至少涉及模型 DSL、编译器和运行时三个边界，不能只在前端补操作按钮。
 

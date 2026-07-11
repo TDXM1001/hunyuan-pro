@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskAddSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskCompleteForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskDelegateForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRecallForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
@@ -41,6 +42,12 @@ public class AppBpmTaskController {
     @PostMapping("/app/bpm/task/approve")
     public ResponseDTO<String> approve(@RequestBody @Valid BpmTaskApproveForm approveForm) {
         return bpmTaskService.approve(approveForm);
+    }
+
+    @Operation(summary = "完成办理任务")
+    @PostMapping("/app/bpm/task/complete")
+    public ResponseDTO<String> complete(@RequestBody @Valid BpmTaskCompleteForm completeForm) {
+        return bpmTaskService.completeHandleTask(completeForm);
     }
 
     @Operation(summary = "拒绝任务")

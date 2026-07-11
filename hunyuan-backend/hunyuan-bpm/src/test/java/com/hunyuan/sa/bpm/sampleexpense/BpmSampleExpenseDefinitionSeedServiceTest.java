@@ -1,5 +1,7 @@
 package com.hunyuan.sa.bpm.sampleexpense;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
@@ -64,7 +66,19 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         currentDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.CURRENT.getValue());
         currentDefinition.setStartState(BpmDefinitionStartStateEnum.STARTABLE.getValue());
         currentDefinition.setFormSchemaSnapshotJson("{\"fields\":[{\"field\":\"approvedAmount\"}]}");
-        currentDefinition.setSimpleModelSnapshotJson("{\"nodes\":[{\"nodeKey\":\"sample_finance_review\",\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"EDITABLE\",\"required\":true}],\"listeners\":[{\"channel\":\"MESSAGE\"}]},{\"nodeKey\":\"sample_archive_review\",\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"READONLY\"}]}]}");
+        currentDefinition.setCompiledBpmnXml("${execution.getVariable('route_sample_post_route_archive_confirm') == true}");
+        currentDefinition.setSimpleModelSnapshotJson("""
+                {"schemaVersion":2,"nodes":[
+                  {"nodeKey":"sample_amount_route","type":"EXCLUSIVE_BRANCH","branches":[
+                    {"branchKey":"small","nodes":[{"nodeKey":"sample_finance_review","type":"USER_TASK","fieldPermissions":[{"fieldKey":"approvedAmount","permission":"EDITABLE","required":true}],"listeners":[{"channel":"MESSAGE"}]}]},
+                    {"branchKey":"default","isDefault":true,"nodes":[]}
+                  ]},
+                  {"nodeKey":"sample_post_route","type":"INCLUSIVE_BRANCH","branches":[
+                    {"branchKey":"archive","nodes":[{"nodeKey":"sample_archive_review","type":"HANDLE_TASK","fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}]}]},
+                    {"branchKey":"default","isDefault":true,"nodes":[]}
+                  ]}
+                ]}
+                """);
         when(definitionDao.selectCurrentByDefinitionKey("sample_expense_apply")).thenReturn(currentDefinition);
 
         ResponseDTO<Long> response = service.prepare();
@@ -75,6 +89,46 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         verify(formDao, never()).insert(any(BpmFormEntity.class));
         verify(modelDao, never()).insert(any(BpmModelEntity.class));
         verify(definitionService, never()).publish(any(BpmDefinitionPublishForm.class));
+    }
+
+    @Test
+    void prepareShouldPublishNewVersionWhenCurrentDefinitionUsesUnsafeRouteExpression() {
+        BpmDefinitionEntity currentDefinition = new BpmDefinitionEntity();
+        currentDefinition.setDefinitionId(77L);
+        currentDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.CURRENT.getValue());
+        currentDefinition.setStartState(BpmDefinitionStartStateEnum.STARTABLE.getValue());
+        currentDefinition.setFormSchemaSnapshotJson("{\"fields\":[{\"field\":\"approvedAmount\"}]}");
+        currentDefinition.setCompiledBpmnXml("${route_sample_post_route_archive_confirm == true}");
+        currentDefinition.setSimpleModelSnapshotJson("""
+                {"schemaVersion":2,"nodes":[
+                  {"nodeKey":"sample_amount_route","type":"EXCLUSIVE_BRANCH","branches":[
+                    {"branchKey":"small","nodes":[{"nodeKey":"sample_finance_review","type":"USER_TASK","fieldPermissions":[{"fieldKey":"approvedAmount","permission":"EDITABLE","required":true}],"listeners":[{"channel":"MESSAGE"}]}]},
+                    {"branchKey":"default","isDefault":true,"nodes":[]}
+                  ]},
+                  {"nodeKey":"sample_post_route","type":"INCLUSIVE_BRANCH","branches":[
+                    {"branchKey":"archive","nodes":[{"nodeKey":"sample_archive_review","type":"HANDLE_TASK","fieldPermissions":[{"fieldKey":"approvedAmount","permission":"READONLY","required":false}]}]},
+                    {"branchKey":"default","isDefault":true,"nodes":[]}
+                  ]}
+                ]}
+                """);
+        BpmCategoryEntity category = new BpmCategoryEntity();
+        category.setCategoryId(10L);
+        BpmFormEntity form = new BpmFormEntity();
+        form.setFormId(20L);
+        BpmModelEntity model = new BpmModelEntity();
+        model.setModelId(30L);
+
+        when(definitionDao.selectCurrentByDefinitionKey("sample_expense_apply")).thenReturn(currentDefinition);
+        when(categoryDao.selectOne(any(BpmCategoryEntity.class))).thenReturn(category);
+        when(formDao.selectOne(any(BpmFormEntity.class))).thenReturn(form);
+        when(modelDao.selectOne(any(BpmModelEntity.class))).thenReturn(model);
+        when(definitionService.publish(any(BpmDefinitionPublishForm.class))).thenReturn(ResponseDTO.ok(88L));
+
+        ResponseDTO<Long> response = service.prepare();
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData()).isEqualTo(88L);
+        verify(definitionService).publish(any(BpmDefinitionPublishForm.class));
     }
 
     @Test
@@ -121,10 +175,24 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
 
         ArgumentCaptor<BpmModelEntity> modelCaptor = ArgumentCaptor.forClass(BpmModelEntity.class);
         verify(modelDao).insert(modelCaptor.capture());
+        JSONObject simpleModel = JSON.parseObject(modelCaptor.getValue().getSimpleModelJson());
         assertThat(modelCaptor.getValue().getModelKey()).isEqualTo("sample_expense_apply");
         assertThat(modelCaptor.getValue().getModelName()).isEqualTo("样板费用申请");
         assertThat(modelCaptor.getValue().getCategoryId()).isEqualTo(10L);
         assertThat(modelCaptor.getValue().getFormId()).isEqualTo(20L);
+        assertThat(simpleModel.getInteger("schemaVersion")).isEqualTo(2);
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_amount_route\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_large_parallel\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_post_route\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"type\":\"EXCLUSIVE_BRANCH\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"type\":\"PARALLEL_BRANCH\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"type\":\"INCLUSIVE_BRANCH\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"type\":\"HANDLE_TASK\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"type\":\"COPY_TASK\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"operator\":\"LTE\",\"compareValue\":5000");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"operator\":\"GT\",\"compareValue\":5000");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"operator\":\"GTE\",\"compareValue\":10000");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"isDefault\":true");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_finance_review\"");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_archive_review\"");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"fieldKey\":\"approvedAmount\"");

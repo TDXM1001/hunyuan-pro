@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.common.enumeration.BpmCandidateResolverTypeEnum;
+import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;
+import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +35,15 @@ public class SimpleModelValidator {
             "flow_end"
     );
 
+    private final ProcessAstParser processAstParser = new ProcessAstParser();
+
+    private final ProcessAstValidator processAstValidator = new ProcessAstValidator();
+
+    private final BpmRouteExpressionRegistry emptyExpressionRegistry = new BpmRouteExpressionRegistry(java.util.List.of());
+
+    @Resource
+    private BpmRouteExpressionRegistry bpmRouteExpressionRegistry;
+
     /**
      * 校验设计器草稿是否满足当前审批约束。
      */
@@ -44,6 +55,22 @@ public class SimpleModelValidator {
         JSONObject startRuleObject = parseJson(startRuleJson, "发起规则 JSON 不合法");
         if (startRuleObject == null) {
             return ResponseDTO.userErrorParam("发起规则 JSON 不合法");
+        }
+
+        if (simpleModelObject.getInteger("schemaVersion") != null) {
+            try {
+                java.util.List<ProcessValidationFinding> findings = processAstValidator.validate(
+                        processAstParser.parse(simpleModelJson),
+                        null,
+                        bpmRouteExpressionRegistry == null ? emptyExpressionRegistry : bpmRouteExpressionRegistry
+                );
+                if (!findings.isEmpty()) {
+                    return ResponseDTO.userErrorParam(findings.get(0).message());
+                }
+                return ResponseDTO.ok();
+            } catch (ProcessModelParseException ex) {
+                return ResponseDTO.userErrorParam(ex.getMessage());
+            }
         }
 
         JSONArray nodes = simpleModelObject.getJSONArray("nodes");

@@ -130,6 +130,39 @@ export interface BpmInstanceTraceRecord {
   formDataChanges: BpmFormDataChangeRecord[];
   instance: BpmInstanceDetailRecord;
   notificationRecords: BpmNotificationRecordVO[];
+  processGraph?: BpmRuntimeGraphRecord;
+  routeDecisions?: BpmRouteDecisionRecord[];
+}
+
+export interface BpmRuntimeGraphNodeRecord {
+  branchPath: string[];
+  definitionNodeId: number;
+  nodeKey: string;
+  nodeName: string;
+  nodeType: string;
+  sortOrder?: null | number;
+  state: 'ACTIVE' | 'CANCELLED' | 'COMPLETED' | 'NOT_ENTERED' | 'SKIPPED';
+}
+
+export interface BpmRouteDecisionRecord {
+  defaultBranchUsed?: boolean;
+  definitionId: number;
+  definitionNodeId: number;
+  evaluatedAt?: null | string;
+  evaluationStatus?: null | string;
+  inputFormDataVersion?: null | number;
+  instanceId: number;
+  matchedBranchKeys: string[];
+  reasonSnapshotJson?: null | string;
+  routeDecisionId: number;
+  routeNodeKey: string;
+}
+
+export interface BpmRuntimeGraphRecord {
+  definitionId: number;
+  instanceId: number;
+  nodes: BpmRuntimeGraphNodeRecord[];
+  routeDecisions: BpmRouteDecisionRecord[];
 }
 
 export interface BpmFormDataChangeRecord {
@@ -167,6 +200,7 @@ export interface BpmInstanceCopyRecord {
 }
 
 export interface BpmTaskRecord {
+  availableActions?: BpmTaskAction[];
   approvalGroup?: BpmApprovalGroupSummaryRecord | null;
   assignedAt?: null | string;
   assigneeDepartmentNameSnapshot?: null | string;
@@ -177,6 +211,7 @@ export interface BpmTaskRecord {
   instanceTitle: string;
   startEmployeeNameSnapshot?: null | string;
   taskId: number;
+  taskKind?: 'APPROVAL' | 'HANDLE';
   taskKey?: null | string;
   taskName: string;
   dueAt?: null | string;
@@ -184,6 +219,16 @@ export interface BpmTaskRecord {
   taskResult?: null | number;
   taskState?: null | number;
 }
+
+export type BpmTaskAction =
+  | 'ADD_SIGN'
+  | 'APPROVE'
+  | 'COMPLETE'
+  | 'DELEGATE'
+  | 'REDUCE_SIGN'
+  | 'REJECT'
+  | 'RETURN'
+  | 'TRANSFER';
 
 export interface BpmTaskDetailRecord extends BpmTaskRecord {
   actionLogs: BpmTaskActionLogRecord[];
@@ -270,6 +315,11 @@ export interface BpmTaskApproveForm {
 export interface BpmTaskRejectForm {
   commentText?: null | string;
   copyEmployeeIds?: number[];
+  taskId: number;
+}
+
+export interface BpmTaskCompleteForm {
+  commentText?: null | string;
   taskId: number;
 }
 
@@ -391,6 +441,12 @@ export async function getBpmInstanceDetail(instanceId: number) {
   );
 }
 
+export async function getBpmInstanceTrace(instanceId: number) {
+  return requestClient.get<BpmInstanceTraceRecord>(
+    `/app/bpm/instance/trace/${instanceId}`,
+  );
+}
+
 export async function cancelMyBpmInstance(params: BpmInstanceCancelForm) {
   return requestClient.post<string>('/app/bpm/instance/cancel', {
     cancelReason: params.cancelReason?.trim() || '',
@@ -453,6 +509,13 @@ export async function approveBpmTask(params: BpmTaskApproveForm) {
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     formDataPatchJson: params.formDataPatchJson?.trim() || undefined,
     formDataVersion: params.formDataVersion ?? undefined,
+    taskId: params.taskId,
+  });
+}
+
+export async function completeBpmTask(params: BpmTaskCompleteForm) {
+  return requestClient.post<string>('/app/bpm/task/complete', {
+    commentText: params.commentText?.trim() || '',
     taskId: params.taskId,
   });
 }

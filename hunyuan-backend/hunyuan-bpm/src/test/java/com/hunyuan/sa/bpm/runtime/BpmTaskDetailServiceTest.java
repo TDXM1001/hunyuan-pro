@@ -2,6 +2,10 @@ package com.hunyuan.sa.bpm.runtime;
 
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
+import com.hunyuan.sa.bpm.common.enumeration.BpmTaskKind;
+import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
+import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
@@ -10,6 +14,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskActionPolicy;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -30,6 +35,8 @@ class BpmTaskDetailServiceTest {
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmTaskActionLogDao", actionLogDao);
         setField(service, "bpmApprovalGroupService", approvalGroupService);
+        BpmDefinitionNodeDao nodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
+        setField(service, "bpmTaskActionPolicy", new BpmTaskActionPolicy(nodeDao));
 
         BpmTaskEntity task = new BpmTaskEntity();
         task.setTaskId(18L);
@@ -40,6 +47,11 @@ class BpmTaskDetailServiceTest {
         task.setAssigneeNameSnapshot("李四");
         task.setRuntimeAssignmentSnapshotJson("{\"assigneeEmployeeId\":9}");
         task.setApprovalGroupId(21L);
+        task.setDefinitionNodeId(31L);
+        task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setNodeType("HANDLE_TASK");
+        when(nodeDao.selectById(31L)).thenReturn(node);
 
         BpmTaskActionLogVO log = new BpmTaskActionLogVO();
         log.setTaskId(18L);
@@ -61,6 +73,8 @@ class BpmTaskDetailServiceTest {
         assertThat(response.getData().getActionLogs()).hasSize(1);
         assertThat(response.getData().getActionLogs().get(0).getActionType()).isEqualTo("TRANSFERRED");
         assertThat(response.getData().getApprovalGroup().getApprovalGroupName()).isEqualTo("部门会签");
+        assertThat(response.getData().getTaskKind()).isEqualTo(BpmTaskKind.HANDLE);
+        assertThat(response.getData().getAvailableActions()).containsExactly("COMPLETE", "RETURN", "TRANSFER", "DELEGATE");
     }
 
     @Test

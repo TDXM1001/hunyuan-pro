@@ -23,6 +23,7 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeFormDataValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
@@ -138,7 +139,7 @@ class BpmRuntimeStartAssignmentTest {
         when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
         when(identityGateway().resolveDepartmentManagerEmployeeId(7L)).thenReturn(200L);
         when(serialNumberService().generate(any())).thenReturn("SN-2026-0002");
-        when(processInstanceGateway.start("leave:1:1000", 100L, "{\"amount\":100}", Map.of("assignee_task_manager", "200")))
+        when(processInstanceGateway.start("leave:1:1000", 9L, 100L, "{\"amount\":100}", Map.of("assignee_task_manager", "200")))
                 .thenReturn("process-1001");
         when(instanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
             BpmInstanceEntity entity = invocation.getArgument(0);
@@ -158,11 +159,21 @@ class BpmRuntimeStartAssignmentTest {
         ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(processInstanceGateway).start(
                 Mockito.eq("leave:1:1000"),
+                Mockito.eq(9L),
                 Mockito.eq(100L),
                 Mockito.eq("{\"amount\":100}"),
                 variablesCaptor.capture()
         );
         assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_manager", "200");
+        InOrder order = Mockito.inOrder(instanceDao, processInstanceGateway);
+        order.verify(instanceDao).insert(any(BpmInstanceEntity.class));
+        order.verify(processInstanceGateway).start(
+                Mockito.eq("leave:1:1000"),
+                Mockito.eq(9L),
+                Mockito.eq(100L),
+                Mockito.eq("{\"amount\":100}"),
+                any()
+        );
     }
 
     @Test
@@ -194,7 +205,7 @@ class BpmRuntimeStartAssignmentTest {
         when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
         when(serialNumberService().generate(any())).thenReturn("SN-2026-0003");
-        when(processInstanceGateway.start("leave:1:1000", 100L, "{\"amount\":100}", Map.of("assignee_task_self", "100")))
+        when(processInstanceGateway.start("leave:1:1000", 10L, 100L, "{\"amount\":100}", Map.of("assignee_task_self", "100")))
                 .thenReturn("process-1002");
         when(instanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
             BpmInstanceEntity entity = invocation.getArgument(0);
@@ -223,6 +234,7 @@ class BpmRuntimeStartAssignmentTest {
         ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(processInstanceGateway).start(
                 Mockito.eq("leave:1:1000"),
+                Mockito.eq(10L),
                 Mockito.eq(100L),
                 Mockito.eq("{\"amount\":100}"),
                 variablesCaptor.capture()
@@ -257,7 +269,7 @@ class BpmRuntimeStartAssignmentTest {
         when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
         when(identityGateway().requireEmployee(301L)).thenReturn(new BpmEmployeeSnapshot(301L, "审批人A", 8L, "财务部", null, null));
         when(serialNumberService().generate(any())).thenReturn("SN-2026-0004");
-        when(processInstanceGateway.start("expense:1:1000", 100L, "{\"amount\":100,\"approverEmployeeId\":301}", Map.of("assignee_task_selected", "301")))
+        when(processInstanceGateway.start("expense:1:1000", 11L, 100L, "{\"amount\":100,\"approverEmployeeId\":301}", Map.of("assignee_task_selected", "301")))
                 .thenReturn("process-1003");
         when(instanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
             BpmInstanceEntity entity = invocation.getArgument(0);
@@ -277,6 +289,7 @@ class BpmRuntimeStartAssignmentTest {
         ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(processInstanceGateway).start(
                 Mockito.eq("expense:1:1000"),
+                Mockito.eq(11L),
                 Mockito.eq(100L),
                 Mockito.eq("{\"amount\":100,\"approverEmployeeId\":301}"),
                 variablesCaptor.capture()
@@ -369,6 +382,7 @@ class BpmRuntimeStartAssignmentTest {
         when(serialNumberService().generate(any())).thenReturn("SN-2026-0006");
         when(processInstanceGateway.start(
                 "expense:1:1000",
+                12L,
                 100L,
                 "{\"amount\":100}",
                 Map.of("assignee_task_finance_1", "301", "assignee_task_finance_2", "302")
@@ -391,6 +405,7 @@ class BpmRuntimeStartAssignmentTest {
         ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(processInstanceGateway).start(
                 Mockito.eq("expense:1:1000"),
+                Mockito.eq(12L),
                 Mockito.eq(100L),
                 Mockito.eq("{\"amount\":100}"),
                 variablesCaptor.capture()

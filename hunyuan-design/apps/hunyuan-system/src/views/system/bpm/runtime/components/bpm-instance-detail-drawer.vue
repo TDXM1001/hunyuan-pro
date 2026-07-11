@@ -10,6 +10,7 @@ import {
   getBpmAdminInstanceDetail,
   getBpmAdminInstanceTrace,
   getBpmInstanceDetail,
+  getBpmInstanceTrace,
 } from '#/api/system/bpm/runtime';
 
 import {
@@ -27,11 +28,16 @@ import {
 } from 'element-plus';
 
 import BpmApprovalGroupPanel from './bpm-approval-group-panel.vue';
+import BpmRouteDecisionList from './bpm-route-decision-list.vue';
+import BpmRuntimeProcessGraph from './bpm-runtime-process-graph.vue';
 
 defineOptions({ name: 'SystemBpmInstanceDetailDrawer' });
 
+type DetailSource = 'admin' | 'runtime';
+
 const visible = ref(false);
 const loading = ref(false);
+const detailSource = ref<DetailSource>('runtime');
 const detail = ref<BpmInstanceDetailRecord>();
 const trace = ref<BpmInstanceTraceRecord>();
 const loadErrorMessage = ref('');
@@ -43,10 +49,11 @@ const notificationRecords = computed(() => trace.value?.notificationRecords ?? [
 const formDataChanges = computed(() => trace.value?.formDataChanges ?? []);
 const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
 const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
+const processGraph = computed(() => trace.value?.processGraph);
+const routeDecisions = computed(() => trace.value?.routeDecisions ?? []);
 const approvalGroups = computed(
   () => trace.value?.approvalGroups ?? detail.value?.approvalGroups ?? [],
 );
-type DetailSource = 'admin' | 'runtime';
 
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
@@ -117,6 +124,7 @@ function getCallbackStatusType(value?: null | number) {
 async function open(instanceId: number, source: DetailSource = 'runtime') {
   visible.value = true;
   loading.value = true;
+  detailSource.value = source;
   detail.value = undefined;
   trace.value = undefined;
   loadErrorMessage.value = '';
@@ -129,7 +137,12 @@ async function open(instanceId: number, source: DetailSource = 'runtime') {
       detail.value = detailRecord;
       trace.value = traceRecord;
     } else {
-      detail.value = await getBpmInstanceDetail(instanceId);
+      const [detailRecord, traceRecord] = await Promise.all([
+        getBpmInstanceDetail(instanceId),
+        getBpmInstanceTrace(instanceId),
+      ]);
+      detail.value = detailRecord;
+      trace.value = traceRecord;
     }
   } catch (error: any) {
     loadErrorMessage.value = '流程详情加载失败，请稍后重试。';
@@ -143,7 +156,7 @@ defineExpose({ open });
 </script>
 
 <template>
-  <ElDrawer v-model="visible" title="流程详情" size="640px">
+  <ElDrawer v-model="visible" title="流程详情" size="min(640px, 100vw)">
     <ElSkeleton v-if="loading" animated />
     <div v-else-if="loadErrorMessage" class="bpm-instance-detail__error">
       <ElEmpty :description="loadErrorMessage" />
@@ -168,7 +181,7 @@ defineExpose({ open });
         <ElDescriptionsItem label="当前节点">
           <code>{{ detail.currentNodeSummaryJson || '-' }}</code>
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="表单快照">
+        <ElDescriptionsItem v-if="detailSource === 'admin'" label="表单快照">
           <code>{{ detail.currentFormDataSnapshotJson || '-' }}</code>
         </ElDescriptionsItem>
       </ElDescriptions>
@@ -219,6 +232,14 @@ defineExpose({ open });
       <ElEmpty v-else description="暂无动作轨迹" />
 
       <template v-if="trace">
+        <template v-if="processGraph?.nodes?.length">
+          <div class="bpm-instance-detail__section-title">流程路径</div>
+          <BpmRuntimeProcessGraph :graph="processGraph" />
+        </template>
+        <template v-if="routeDecisions.length">
+          <div class="bpm-instance-detail__section-title">路由记录</div>
+          <BpmRouteDecisionList :decisions="routeDecisions" />
+        </template>
         <div class="bpm-instance-detail__section-title">表单数据变更</div>
         <ElTable
           v-if="formDataChanges.length > 0"

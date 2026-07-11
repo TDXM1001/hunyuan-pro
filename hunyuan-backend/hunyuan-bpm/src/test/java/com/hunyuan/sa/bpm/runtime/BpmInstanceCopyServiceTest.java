@@ -10,6 +10,8 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmCopyTypeEnum;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceCopyDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceCopyEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceCopyQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,6 +95,33 @@ class BpmInstanceCopyServiceTest {
 
         assertThat(response.getOk()).isTrue();
         verify(copyDao, never()).insert(any(BpmInstanceCopyEntity.class));
+    }
+
+    @Test
+    void createDesignCopiesShouldWriteStableSourceEventKey() {
+        when(orgIdentityGateway.requireEmployee(22L))
+                .thenReturn(new BpmEmployeeSnapshot(22L, "李四", 9L, "财务部", null, null));
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(8L);
+        instance.setDefinitionId(2L);
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(5L);
+        node.setNodeKey("notify_finance");
+        node.setNodeNameSnapshot("抄送财务");
+
+        ResponseDTO<String> response = service.createDesignCopies(
+                instance,
+                node,
+                "process-8",
+                List.of(22L)
+        );
+
+        assertThat(response.getOk()).isTrue();
+        ArgumentCaptor<BpmInstanceCopyEntity> captor = ArgumentCaptor.forClass(BpmInstanceCopyEntity.class);
+        verify(copyDao).insert(captor.capture());
+        assertThat(captor.getValue().getSourceEventKey())
+                .isEqualTo("COPY:process-8:notify_finance");
+        assertThat(captor.getValue().getCopyType()).isEqualTo("DESIGN_NODE_COPY");
     }
 
     @Test
