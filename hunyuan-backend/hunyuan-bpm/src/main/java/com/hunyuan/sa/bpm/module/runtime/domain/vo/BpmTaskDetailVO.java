@@ -62,4 +62,7 @@ public class BpmTaskDetailVO {
 
     @Schema(description = "审批组详情")
     private BpmApprovalGroupDetailVO approvalGroup;
+
+    @Schema(description = "当前员工可访问的任务表单上下文")
+    private BpmTaskFormContextVO formContext;
 }

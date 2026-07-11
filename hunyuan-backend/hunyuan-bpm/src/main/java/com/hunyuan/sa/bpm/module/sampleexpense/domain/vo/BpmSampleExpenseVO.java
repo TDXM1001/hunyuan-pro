@@ -17,6 +17,8 @@ public class BpmSampleExpenseVO {
 
     private BigDecimal amount;
 
+    private BigDecimal approvedAmount;
+
     private Long applicantEmployeeId;
 
     private Integer approvalStatus;
@@ -24,6 +26,8 @@ public class BpmSampleExpenseVO {
     private Long instanceId;
 
     private String callbackEventId;
+
+    private Long finalFormDataVersion;
 
     private Boolean callbackFailFlag;
 

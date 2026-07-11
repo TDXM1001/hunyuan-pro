@@ -2,6 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao">
 
+    <select id="selectByIdForUpdate"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity">
+        select *
+        from t_bpm_instance
+        where instance_id = #{instanceId}
+        for update
+    </select>
+
     <select id="queryPage" resultType="com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO">
         select
             instance_id as instanceId,

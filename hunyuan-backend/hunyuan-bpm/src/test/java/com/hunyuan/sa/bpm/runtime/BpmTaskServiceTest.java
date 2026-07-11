@@ -2,13 +2,21 @@ package com.hunyuan.sa.bpm.runtime;
 
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskAddSignForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskApproveForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReduceSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupSummaryVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskFormContextVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskFormContextService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -25,14 +33,24 @@ class BpmTaskServiceTest {
     private BpmTaskService service;
     private BpmTaskDao taskDao;
     private BpmApprovalGroupService approvalGroupService;
+    private BpmInstanceDao instanceDao;
+    private BpmTaskFormContextService taskFormContextService;
+    private BpmCurrentActorProvider currentActorProvider;
 
     @BeforeEach
     void setUp() {
         service = new BpmTaskService();
         taskDao = Mockito.mock(BpmTaskDao.class);
         approvalGroupService = Mockito.mock(BpmApprovalGroupService.class);
+        instanceDao = Mockito.mock(BpmInstanceDao.class);
+        taskFormContextService = Mockito.mock(BpmTaskFormContextService.class);
+        currentActorProvider = Mockito.mock(BpmCurrentActorProvider.class);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmApprovalGroupService", approvalGroupService);
+        setField(service, "bpmInstanceDao", instanceDao);
+        setField(service, "bpmTaskFormContextService", taskFormContextService);
+        setField(service, "bpmCurrentActorProvider", currentActorProvider);
+        setField(service, "bpmTaskActionLogDao", Mockito.mock(BpmTaskActionLogDao.class));
     }
 
     @Test
@@ -79,6 +97,37 @@ class BpmTaskServiceTest {
 
         assertThat(response.getOk()).isFalse();
         assertThat(response.getMsg()).isEqualTo("并行全员会签成员不支持加签或减签");
+    }
+
+    @Test
+    void getMyDetailShouldAttachEmployeeSafeFormContext() {
+        BpmTaskEntity task = new BpmTaskEntity();
+        task.setTaskId(11L);
+        task.setInstanceId(31L);
+        task.setAssigneeEmployeeId(9L);
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(31L);
+        BpmTaskFormContextVO context = new BpmTaskFormContextVO();
+        context.setDataVersion(3L);
+        when(taskDao.selectById(11L)).thenReturn(task);
+        when(currentActorProvider.requireCurrentEmployeeId()).thenReturn(9L);
+        when(instanceDao.selectById(31L)).thenReturn(instance);
+        when(taskFormContextService.buildForEmployeeTask(task, instance)).thenReturn(context);
+
+        ResponseDTO<BpmTaskDetailVO> response = service.getMyDetail(11L);
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData().getFormContext()).isSameAs(context);
+    }
+
+    @Test
+    void approveFormShouldCarryOptimisticVersionAndPatch() {
+        BpmTaskApproveForm form = new BpmTaskApproveForm();
+        form.setFormDataVersion(3L);
+        form.setFormDataPatchJson("{\"approvedAmount\":98}");
+
+        assertThat(form.getFormDataVersion()).isEqualTo(3L);
+        assertThat(form.getFormDataPatchJson()).contains("approvedAmount");
     }
 
     private BpmTaskEntity buildGroupMember() {

@@ -218,6 +218,51 @@ describe('bpm designer adapters', () => {
     );
   });
 
+  it('往返保留节点字段权限合同', () => {
+    const parsedNodes = parseSimpleModelDraft(
+      JSON.stringify({
+        nodes: [
+          {
+            approvalMode: 'single',
+            candidateResolverType: 'EMPLOYEE',
+            fieldPermissions: [
+              {
+                fieldKey: 'approvedAmount',
+                permission: 'EDITABLE',
+                required: true,
+              },
+              {
+                fieldKey: 'internalCode',
+                permission: 'HIDDEN',
+                required: false,
+              },
+            ],
+            id: 'finance_review',
+            listeners: [],
+            name: '财务复核',
+            type: 'userTask',
+          },
+        ],
+      }),
+    );
+
+    expect(parsedNodes[0]?.fieldPermissions).toEqual([
+      {
+        fieldKey: 'approvedAmount',
+        permission: 'EDITABLE',
+        required: true,
+      },
+      {
+        fieldKey: 'internalCode',
+        permission: 'HIDDEN',
+        required: false,
+      },
+    ]);
+    expect(stringifySimpleModelDraft(parsedNodes)).toContain(
+      '"fieldPermissions":[{"fieldKey":"approvedAmount","permission":"EDITABLE","required":true}',
+    );
+  });
+
   it('保留指定员工、角色和指定部门主管的候选参数', () => {
     const parsedNodes = parseSimpleModelDraft(
       JSON.stringify({

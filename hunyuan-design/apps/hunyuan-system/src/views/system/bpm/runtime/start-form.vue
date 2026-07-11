@@ -40,6 +40,7 @@ interface RuntimeStartFormState {
   definitionName: string;
   formNameSnapshot: string;
   formSchemaSnapshotJson: string;
+  formDataVersion: number;
   sourceInstanceId?: null | number;
   summary: string;
   title: string;
@@ -64,6 +65,7 @@ const formState = reactive<RuntimeStartFormState>({
   definitionName: '',
   formNameSnapshot: '',
   formSchemaSnapshotJson: '[]',
+  formDataVersion: 0,
   sourceInstanceId: null,
   summary: '',
   title: '',
@@ -133,6 +135,7 @@ function resetFormState() {
     definitionName: '',
     formNameSnapshot: '',
     formSchemaSnapshotJson: '[]',
+    formDataVersion: 0,
     sourceInstanceId: null,
     summary: '',
     title: '',
@@ -148,6 +151,7 @@ function applyDraft(draft: BpmRuntimeStartDraftRecord) {
     definitionName: draft.definitionName,
     formNameSnapshot: draft.formNameSnapshot || '',
     formSchemaSnapshotJson: draft.formSchemaSnapshotJson || '[]',
+    formDataVersion: draft.formDataVersion ?? 0,
     sourceInstanceId: draft.sourceInstanceId ?? null,
     summary: draft.summary || '',
     title: draft.title || draft.definitionName,
@@ -229,6 +233,7 @@ async function handleSubmit() {
     if (isResubmitMode.value) {
       const params: BpmInstanceResubmitForm = {
         formDataJson,
+        formDataVersion: formState.formDataVersion,
         instanceId: submitInstanceId,
         summary: formState.summary,
         title: formState.title,

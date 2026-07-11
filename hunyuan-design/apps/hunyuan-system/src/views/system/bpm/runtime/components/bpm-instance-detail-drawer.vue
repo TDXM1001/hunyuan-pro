@@ -40,6 +40,7 @@ const actionLogs = computed(() => detail.value?.actionLogs ?? []);
 const callbackRecords = computed(() => trace.value?.callbackRecords ?? []);
 const commandRecords = computed(() => trace.value?.commandRecords ?? []);
 const notificationRecords = computed(() => trace.value?.notificationRecords ?? []);
+const formDataChanges = computed(() => trace.value?.formDataChanges ?? []);
 const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
 const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
 const approvalGroups = computed(
@@ -218,6 +219,27 @@ defineExpose({ open });
       <ElEmpty v-else description="暂无动作轨迹" />
 
       <template v-if="trace">
+        <div class="bpm-instance-detail__section-title">表单数据变更</div>
+        <ElTable
+          v-if="formDataChanges.length > 0"
+          :data="formDataChanges"
+          border
+          size="small"
+        >
+          <ElTableColumn label="版本" width="92">
+            <template #default="{ row }">
+              {{ row.beforeVersion }} -> {{ row.afterVersion }}
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="来源" prop="changeSource" min-width="150" />
+          <ElTableColumn label="操作人" prop="actorNameSnapshot" min-width="110" />
+          <ElTableColumn label="节点" prop="nodeKeySnapshot" min-width="120" />
+          <ElTableColumn label="变更字段" prop="changedFieldsJson" min-width="180" />
+          <ElTableColumn label="修改前" prop="beforeValuesJson" min-width="180" />
+          <ElTableColumn label="修改后" prop="afterValuesJson" min-width="180" />
+        </ElTable>
+        <ElEmpty v-else description="暂无表单数据变更" />
+
         <div class="bpm-instance-detail__section-title">可靠性追踪</div>
         <div class="bpm-instance-detail__trace-summary">
           <div class="bpm-instance-detail__trace-item">

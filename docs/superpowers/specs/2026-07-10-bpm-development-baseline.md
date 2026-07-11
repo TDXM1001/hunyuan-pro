@@ -18,7 +18,7 @@
 
 ## 一句话结论
 
-Hunyuan BPM 是一个以 Flowable `7.2.0` 为内部执行引擎的 **Hunyuan 原生企业审批引擎**。它已经覆盖线性审批和受限的 `parallelAll` 并行全员会签，以及流程定义治理、发起、待办审批、追踪、抄送、通知和回调等基础闭环；但它不是通用 BPMN 编排平台，也不支持通用网关 DSL、或签、比例审批、子流程、定时器或 Flowable multi-instance。
+Hunyuan BPM 是一个以 Flowable `7.2.0` 为内部执行引擎的 **Hunyuan 原生企业审批引擎**。它已经覆盖线性审批、受限的 `parallelAll` 并行全员会签、逐节点审批字段权限、审批数据版本治理、字段变更追踪和最终回调冻结，以及流程定义治理、发起、待办审批、追踪、抄送、通知和回调等基础闭环；但它不是通用 BPMN 编排平台，也不支持通用网关 DSL、或签、比例审批、子流程、定时器或 Flowable multi-instance。
 
 当前设计器仍只建模 `userTask`。编译器按 authored 节点顺序生成受限片段：
 
@@ -101,9 +101,21 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 
 顺序审批成员可转办、委派、加签、减签和实例级撤回；`parallelAll` 成员可转办、委派和实例级撤回，但加签、减签被后端硬拒绝且前端不展示。普通任务继续按原有规则使用加签、减签。
 
+### 6. 审批数据治理
+
+- 节点支持字段权限 `READONLY`、`EDITABLE`、`HIDDEN`，发布时冻结到定义节点编译快照；未显式配置的字段按只读处理。
+- 员工任务详情返回统一 `formContext`，其中 `formSchemaJson`、`formDataJson` 和 `fieldPermissions` 都经过服务端权限过滤；`HIDDEN` 字段不会下发到员工端。
+- 审批通过支持携带 `formDataVersion` 与 `formDataPatchJson`，后端只允许当前任务授权为 `EDITABLE` 的字段被修改。
+- 表单数据使用乐观版本控制；过期版本在审批和重提时都会返回 `FORM_DATA_VERSION_CONFLICT`。
+- 字段变更账本记录实例发起、审批修改和退回重提等来源，并在 trace 中返回 `formDataChanges`。
+- 退回发起人后的重提沿用同一 Hunyuan 实例版本链，不把旧版本数据静默覆盖为新实例事实。
+- 最终回调使用冻结的 `finalFormDataJson` 与 `finalFormDataVersion`；样板费用单已回写最终核定金额和最终表单版本。
+- `parallelAll` 并行全员会签节点不允许配置 `EDITABLE` 字段，避免多个成员并发修改同一审批数据。
+- 2026-07-11 的验收记录见 `docs/superpowers/specs/2026-07-11-bpm-approval-data-governance-acceptance.md`。
+
 ## 当前优先级
 
-顺序多人审批组、`parallelAll` 和员工高级动作已经闭环。下一切片必须重新从当前仓库事实和真实业务需求排序，不自动延伸为通用网关平台。
+顺序多人审批组、`parallelAll`、员工高级动作和审批数据治理已经闭环。下一切片必须重新从当前仓库事实和真实业务需求排序，不自动延伸为通用网关平台，也不把字段权限继续当作未完成的平台边界。
 
 仍可独立评估的工作：
 
@@ -122,7 +134,6 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - 运行中动态增加、删除或替换会签成员。
 - 表达式或脚本候选人。
 - 岗位、用户组、动态部门成员等候选人来源。
-- 逐节点表单字段权限。
 - 图形化运行态高亮和复杂节点进度展示。
 
 判断原则：如果需求改变了“下一步由谁处理”“是否同时生成多个任务”“何时结束一个节点”或“可以走向哪个节点”，它至少涉及模型 DSL、编译器和运行时三个边界，不能只在前端补操作按钮。
@@ -164,6 +175,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 | 顺序审批验收 | `docs/superpowers/specs/2026-07-10-bpm-p3-sequential-approval-acceptance.md` |
 | 并行全员会签验收 | `docs/superpowers/specs/2026-07-10-bpm-collaborative-approval-acceptance.md` |
 | 顺序审批组闭环验收 | `docs/superpowers/specs/2026-07-11-bpm-sequential-approval-group-acceptance.md` |
+| 审批数据治理验收 | `docs/superpowers/specs/2026-07-11-bpm-approval-data-governance-acceptance.md` |
 
 ## 验证基线
 
@@ -182,6 +194,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - 2026-07-10 的 P3 总验收记录了 `hunyuan-bpm` 全量 `171` 个测试、前端四文件 `51` 个契约测试、`@hunyuan/system` 类型检查，以及发起时自选审批人和顺序多人审批的活体验收。
 - 2026-07-10 的并行全员会签验收记录了后端 `74` 个聚焦测试、Flowable 兼容测试、前端四文件 `57` 个契约测试、类型检查，以及 L1-L8 API/浏览器运行态证据。
 - 2026-07-11 的顺序审批组闭环验收记录了后端 `75` 个聚焦测试、`hunyuan-bpm` 全量 `207` 个测试、Flowable 兼容测试、前端四文件 `57` 个契约测试、`@hunyuan/system` 类型检查，以及 S1-S11 的 API/Chrome/数据库三层运行态证据。
+- 2026-07-11 的审批数据治理验收记录了节点字段权限冻结、隐藏字段过滤、可编辑补丁、版本冲突、退回重提版本连续性、字段变更账本、最终回调冻结和 `parallelAll + EDITABLE` 发布拒绝的 API/Chrome/数据库三层运行态证据。
 - 这些结果是可追溯的历史证据，不代表后续任意工作树或任意提交仍然通过。每个新切片必须运行自己的相关门禁。
 
 ## 理解检查

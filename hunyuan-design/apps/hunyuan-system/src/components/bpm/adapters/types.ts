@@ -3,6 +3,14 @@ export interface BpmListenerBinding {
   listenerCode: string;
 }
 
+export type BpmFieldPermissionMode = 'EDITABLE' | 'HIDDEN' | 'READONLY';
+
+export interface BpmNodeFieldPermission {
+  fieldKey: string;
+  permission: BpmFieldPermissionMode;
+  required: boolean;
+}
+
 export interface BpmFormDesignerSnapshot {
   layoutJson: string;
   schemaJson: string;
@@ -21,6 +29,7 @@ export interface BpmProcessNodeDraft {
   employeeId?: number;
   employeeIds?: number[];
   employeeSelectFieldKey?: string;
+  fieldPermissions?: BpmNodeFieldPermission[];
   id: string;
   listeners: BpmListenerBinding[];
   name: string;

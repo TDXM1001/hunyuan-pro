@@ -19,9 +19,11 @@ import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmFormDataChangeEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceResubmitForm;
@@ -37,12 +39,14 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeFormDataValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -69,6 +73,8 @@ class BpmRuntimeCommandServiceTest {
 
     private BpmBusinessProcessApi bpmBusinessProcessApi;
 
+    private BpmFormDataChangeDao bpmFormDataChangeDao;
+
     @BeforeEach
     void setUp() {
         bpmInstanceService = new BpmInstanceService();
@@ -78,6 +84,7 @@ class BpmRuntimeCommandServiceTest {
         bpmTaskActionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
         bpmInstanceCopyService = Mockito.mock(BpmInstanceCopyService.class);
         bpmBusinessProcessApi = Mockito.mock(BpmBusinessProcessApi.class);
+        bpmFormDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
 
         setField(bpmInstanceService, "bpmDefinitionDao", Mockito.mock(BpmDefinitionDao.class));
         setField(bpmInstanceService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
@@ -91,6 +98,8 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmTaskAssignmentResolver", Mockito.mock(BpmTaskAssignmentResolver.class));
         setField(bpmInstanceService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
         setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
+        setField(bpmInstanceService, "bpmRuntimeFormDataValidator", new BpmRuntimeFormDataValidator());
+        setField(bpmInstanceService, "bpmFormDataChangeDao", bpmFormDataChangeDao);
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmInstanceDao", bpmInstanceDao);
@@ -347,6 +356,9 @@ class BpmRuntimeCommandServiceTest {
         assertThat(eventCaptor.getValue().getBusinessId()).isEqualTo(1001L);
         assertThat(eventCaptor.getValue().getResultState()).isEqualTo(BpmInstanceResultStateEnum.APPROVED.getValue());
         assertThat(eventCaptor.getValue().getPayloadJson()).isNull();
+        assertThat(eventCaptor.getValue().getFinalFormDataVersion()).isEqualTo(4L);
+        assertThat(eventCaptor.getValue().getFinalFormDataJson()).contains("\"approvedAmount\":98");
+        assertThat(eventCaptor.getValue().getFormDataLastModifiedAt()).isNotNull();
         assertThat(eventCaptor.getValue().getOccurredAt()).isNotNull();
     }
 
@@ -544,8 +556,10 @@ class BpmRuntimeCommandServiceTest {
         instanceEntity.setTitle("请假申请");
         instanceEntity.setSummary("原始摘要");
         instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":200}");
+        instanceEntity.setFormDataVersion(3L);
 
         when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instanceEntity);
         when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
 
@@ -558,6 +572,7 @@ class BpmRuntimeCommandServiceTest {
         assertThat(response.getData().getFormNameSnapshot()).isEqualTo("请假表单");
         assertThat(response.getData().getFormSchemaSnapshotJson()).isEqualTo("{\"type\":\"object\"}");
         assertThat(response.getData().getFormDataJson()).isEqualTo("{\"amount\":200}");
+        assertThat(response.getData().getFormDataVersion()).isEqualTo(3L);
         assertThat(response.getData().getSourceInstanceId()).isEqualTo(8L);
         assertThat(response.getData().getSummary()).isEqualTo("原始摘要");
         assertThat(response.getData().getTitle()).isEqualTo("请假申请");
@@ -593,9 +608,11 @@ class BpmRuntimeCommandServiceTest {
         instanceEntity.setStartDepartmentNameSnapshot("人事部");
         instanceEntity.setInitialFormDataSnapshotJson("{\"amount\":100}");
         instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":100}");
+        instanceEntity.setFormDataVersion(3L);
         instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
 
         when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instanceEntity);
         when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
@@ -608,6 +625,7 @@ class BpmRuntimeCommandServiceTest {
 
         BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
         form.setInstanceId(8L);
+        form.setFormDataVersion(3L);
         form.setFormDataJson("{\"amount\":200}");
         form.setSummary("修改后重提");
         form.setTitle("请假申请-重提");
@@ -626,6 +644,7 @@ class BpmRuntimeCommandServiceTest {
         assertThat(instanceCaptor.getValue().getEngineProcessInstanceId()).isEqualTo("process-2000");
         assertThat(instanceCaptor.getValue().getDefinitionVersionSnapshot()).isEqualTo(2);
         assertThat(instanceCaptor.getValue().getCurrentFormDataSnapshotJson()).isEqualTo("{\"amount\":200}");
+        assertThat(instanceCaptor.getValue().getFormDataVersion()).isEqualTo(4L);
         assertThat(instanceCaptor.getValue().getInitialFormDataSnapshotJson()).isNull();
         assertThat(instanceCaptor.getValue().getRunState()).isEqualTo(BpmInstanceRunStateEnum.RUNNING.getValue());
         assertThat(instanceCaptor.getValue().getSummary()).isEqualTo("修改后重提");
@@ -634,6 +653,11 @@ class BpmRuntimeCommandServiceTest {
         ArgumentCaptor<BpmTaskActionLogEntity> logCaptor = ArgumentCaptor.forClass(BpmTaskActionLogEntity.class);
         verify(bpmTaskActionLogDao).insert(logCaptor.capture());
         assertThat(logCaptor.getValue().getActionType()).isEqualTo("RESUBMITTED");
+        ArgumentCaptor<BpmFormDataChangeEntity> changeCaptor = ArgumentCaptor.forClass(BpmFormDataChangeEntity.class);
+        verify(bpmFormDataChangeDao).insert(changeCaptor.capture());
+        assertThat(changeCaptor.getValue().getChangeSource()).isEqualTo("INSTANCE_RESUBMITTED");
+        assertThat(changeCaptor.getValue().getBeforeVersion()).isEqualTo(3L);
+        assertThat(changeCaptor.getValue().getAfterVersion()).isEqualTo(4L);
     }
 
     @Test
@@ -670,6 +694,7 @@ class BpmRuntimeCommandServiceTest {
         instanceEntity.setStartEmployeeId(100L);
         instanceEntity.setInitialFormDataSnapshotJson("{\"amount\":100,\"approverEmployeeId\":301}");
         instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":100,\"approverEmployeeId\":301}");
+        instanceEntity.setFormDataVersion(1L);
         instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
 
         BpmTaskAssignmentResolver realResolver = new BpmTaskAssignmentResolver();
@@ -677,6 +702,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmTaskAssignmentResolver", realResolver);
 
         when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instanceEntity);
         when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
         when(definitionNodeDao().selectList(any())).thenReturn(List.of(nodeEntity));
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
@@ -691,6 +717,7 @@ class BpmRuntimeCommandServiceTest {
 
         BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
         form.setInstanceId(8L);
+        form.setFormDataVersion(1L);
         form.setFormDataJson("{\"amount\":200,\"approverEmployeeId\":302}");
         form.setTitle("费用申请-重提");
 
@@ -798,6 +825,9 @@ class BpmRuntimeCommandServiceTest {
         instanceEntity.setInstanceId(8L);
         instanceEntity.setBusinessType("sample_expense");
         instanceEntity.setBusinessId(1001L);
+        instanceEntity.setCurrentFormDataSnapshotJson("{\"requestedAmount\":100,\"approvedAmount\":98}");
+        instanceEntity.setFormDataVersion(4L);
+        instanceEntity.setUpdateTime(LocalDateTime.of(2026, 7, 11, 15, 0));
         return instanceEntity;
     }
 

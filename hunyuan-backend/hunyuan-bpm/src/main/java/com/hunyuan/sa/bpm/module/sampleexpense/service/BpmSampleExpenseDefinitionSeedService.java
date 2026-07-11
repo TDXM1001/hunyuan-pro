@@ -33,15 +33,20 @@ public class BpmSampleExpenseDefinitionSeedService {
 
     private static final String FORM_KEY = "sample_expense_form";
 
-    private static final String APPROVE_NODE_KEY = "sample_approve";
+    private static final String APPROVE_NODE_KEY = "sample_finance_review";
+
+    private static final String ARCHIVE_NODE_KEY = "sample_archive_review";
 
     private static final String NOTIFICATION_CHANNEL_MESSAGE = "MESSAGE";
 
-    private static final String SIMPLE_MODEL_JSON = "{\"nodes\":[{\"nodeKey\":\"sample_approve\",\"type\":\"userTask\",\"name\":\"样板审批\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1,\"listeners\":[{\"channel\":\"MESSAGE\"}]}]}";
+    private static final String SIMPLE_MODEL_JSON = "{\"nodes\":["
+            + "{\"nodeKey\":\"sample_finance_review\",\"type\":\"userTask\",\"name\":\"财务核定\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1,\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"EDITABLE\",\"required\":true}],\"listeners\":[{\"channel\":\"MESSAGE\"}]},"
+            + "{\"nodeKey\":\"sample_archive_review\",\"type\":\"userTask\",\"name\":\"归档确认\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":1,\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"READONLY\",\"required\":false}],\"listeners\":[]}"
+            + "]}";
 
     private static final String START_RULE_JSON = "{\"allowAll\":true}";
 
-    private static final String FORM_SCHEMA_JSON = "{\"fields\":[{\"field\":\"expenseId\",\"label\":\"样板费用申请ID\",\"type\":\"number\"},{\"field\":\"amount\",\"label\":\"申请金额\",\"type\":\"number\"}]}";
+    private static final String FORM_SCHEMA_JSON = "{\"fields\":[{\"field\":\"expenseId\",\"label\":\"样板费用申请ID\",\"type\":\"number\"},{\"field\":\"requestedAmount\",\"label\":\"申请金额\",\"type\":\"number\"},{\"field\":\"approvedAmount\",\"label\":\"核定金额\",\"type\":\"number\"}]}";
 
     private static final String FORM_LAYOUT_JSON = "{\"grid\":12}";
 
@@ -63,7 +68,7 @@ public class BpmSampleExpenseDefinitionSeedService {
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> prepare() {
         BpmDefinitionEntity currentDefinition = bpmDefinitionDao.selectCurrentByDefinitionKey(DEFINITION_KEY);
-        if (isCurrentStartable(currentDefinition) && hasSampleTaskNotificationListener(currentDefinition)) {
+        if (isCurrentStartable(currentDefinition) && hasApprovalDataGovernance(currentDefinition)) {
             return ResponseDTO.ok(currentDefinition.getDefinitionId());
         }
 
@@ -89,8 +94,12 @@ public class BpmSampleExpenseDefinitionSeedService {
     /**
      * 旧样板定义可能已经可发起，但缺少待办通知监听器；此时需要发布一次新版补齐 P2.2 可靠性记录触发点。
      */
-    private boolean hasSampleTaskNotificationListener(BpmDefinitionEntity definition) {
+    private boolean hasApprovalDataGovernance(BpmDefinitionEntity definition) {
         if (definition == null || !StringUtils.hasText(definition.getSimpleModelSnapshotJson())) {
+            return false;
+        }
+        if (!StringUtils.hasText(definition.getFormSchemaSnapshotJson())
+                || !definition.getFormSchemaSnapshotJson().contains("\"field\":\"approvedAmount\"")) {
             return false;
         }
         try {
@@ -99,28 +108,54 @@ public class BpmSampleExpenseDefinitionSeedService {
             if (nodes == null) {
                 return false;
             }
+            boolean financeReady = false;
+            boolean archiveReady = false;
             for (int index = 0; index < nodes.size(); index++) {
                 JSONObject nodeObject = nodes.getJSONObject(index);
-                if (nodeObject == null || !APPROVE_NODE_KEY.equals(nodeObject.getString("nodeKey"))) {
+                if (nodeObject == null) {
                     continue;
                 }
-                JSONArray listeners = nodeObject.getJSONArray("listeners");
-                if (listeners == null) {
-                    return false;
-                }
-                for (int listenerIndex = 0; listenerIndex < listeners.size(); listenerIndex++) {
-                    JSONObject listenerObject = listeners.getJSONObject(listenerIndex);
-                    if (listenerObject != null
-                            && NOTIFICATION_CHANNEL_MESSAGE.equals(listenerObject.getString("channel"))) {
-                        return true;
+                String nodeKey = nodeObject.getString("nodeKey");
+                JSONArray permissions = nodeObject.getJSONArray("fieldPermissions");
+                if (APPROVE_NODE_KEY.equals(nodeKey)) {
+                    boolean editable = hasPermission(permissions, "approvedAmount", "EDITABLE", true);
+                    JSONArray listeners = nodeObject.getJSONArray("listeners");
+                    boolean messageListener = false;
+                    if (listeners != null) {
+                        for (int listenerIndex = 0; listenerIndex < listeners.size(); listenerIndex++) {
+                            JSONObject listenerObject = listeners.getJSONObject(listenerIndex);
+                            if (listenerObject != null
+                                    && NOTIFICATION_CHANNEL_MESSAGE.equals(listenerObject.getString("channel"))) {
+                                messageListener = true;
+                                break;
+                            }
+                        }
                     }
+                    financeReady = editable && messageListener;
+                } else if (ARCHIVE_NODE_KEY.equals(nodeKey)) {
+                    archiveReady = hasPermission(permissions, "approvedAmount", "READONLY", false);
                 }
-                return false;
             }
-            return false;
+            return financeReady && archiveReady;
         } catch (RuntimeException ex) {
             return false;
         }
+    }
+
+    private boolean hasPermission(JSONArray permissions, String fieldKey, String mode, boolean required) {
+        if (permissions == null) {
+            return false;
+        }
+        for (int index = 0; index < permissions.size(); index++) {
+            JSONObject permission = permissions.getJSONObject(index);
+            if (permission != null
+                    && fieldKey.equals(permission.getString("fieldKey"))
+                    && mode.equals(permission.getString("permission"))
+                    && required == permission.getBooleanValue("required")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private BpmCategoryEntity ensureCategory() {
@@ -150,6 +185,15 @@ public class BpmSampleExpenseDefinitionSeedService {
         query.setDeletedFlag(Boolean.FALSE);
         BpmFormEntity existing = bpmFormDao.selectOne(query);
         if (existing != null) {
+            BpmFormEntity update = new BpmFormEntity();
+            update.setFormId(existing.getFormId());
+            update.setFormName("样板费用申请表单");
+            update.setSchemaJson(FORM_SCHEMA_JSON);
+            update.setLayoutJson(FORM_LAYOUT_JSON);
+            update.setDisabledFlag(Boolean.FALSE);
+            update.setDeletedFlag(Boolean.FALSE);
+            bpmFormDao.updateById(update);
+            existing.setSchemaJson(FORM_SCHEMA_JSON);
             return existing;
         }
 
@@ -204,8 +248,8 @@ public class BpmSampleExpenseDefinitionSeedService {
         entity.setSimpleModelJson(SIMPLE_MODEL_JSON);
         entity.setStartRuleJson(START_RULE_JSON);
         entity.setTitleRuleJson("{\"template\":\"样板费用申请\"}");
-        entity.setSummaryRuleJson("{\"fields\":[\"amount\"]}");
-        entity.setVariableMappingJson("{\"expenseId\":\"form.expenseId\",\"amount\":\"form.amount\"}");
+        entity.setSummaryRuleJson("{\"fields\":[\"requestedAmount\",\"approvedAmount\"]}");
+        entity.setVariableMappingJson("{\"expenseId\":\"form.expenseId\",\"requestedAmount\":\"form.requestedAmount\",\"approvedAmount\":\"form.approvedAmount\"}");
         entity.setHasUnpublishedChanges(Boolean.TRUE);
         return entity;
     }

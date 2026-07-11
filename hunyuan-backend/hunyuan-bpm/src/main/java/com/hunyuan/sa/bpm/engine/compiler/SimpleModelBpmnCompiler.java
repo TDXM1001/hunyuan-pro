@@ -170,6 +170,7 @@ public class SimpleModelBpmnCompiler {
         compiledNodeObject.put("name", nodeName);
         compiledNodeObject.put("type", nodeType);
         compiledNodeObject.put("approvalMode", nodeObject.getString("approvalMode"));
+        compiledNodeObject.put("fieldPermissions", nodeObject.get("fieldPermissions"));
         compiledNodeObject.put("candidateResolverType", firstNonBlank(
                 nodeObject.getString("candidateResolverType"),
                 nodeObject.getString("resolverType")

@@ -30,6 +30,9 @@ public class BpmRuntimeStartDraftVO {
     @Schema(description = "表单数据 JSON")
     private String formDataJson;
 
+    @Schema(description = "当前表单数据版本；首次发起草稿为空")
+    private Long formDataVersion;
+
     @Schema(description = "来源实例ID；首次发起时为空")
     private Long sourceInstanceId;
 }

@@ -8,7 +8,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 发布期校验 simple model 中的发起自选审批人与表单字段是否一致。
@@ -42,6 +44,10 @@ public class BpmSimpleModelPublishValidator {
             if (nodeObject == null || !USER_TASK_TYPE.equals(nodeObject.getString("type"))) {
                 continue;
             }
+            ResponseDTO<String> fieldPermissionResponse = validateFieldPermissions(nodeObject, formFields);
+            if (!Boolean.TRUE.equals(fieldPermissionResponse.getOk())) {
+                return fieldPermissionResponse;
+            }
             String resolverType = firstNonBlank(
                     nodeObject.getString("candidateResolverType"),
                     nodeObject.getString("resolverType")
@@ -69,6 +75,59 @@ public class BpmSimpleModelPublishValidator {
             }
         }
 
+        return ResponseDTO.ok();
+    }
+
+    private ResponseDTO<String> validateFieldPermissions(
+            JSONObject nodeObject,
+            Map<String, JSONObject> formFields
+    ) {
+        JSONArray permissions = nodeObject.getJSONArray("fieldPermissions");
+        if (permissions == null || permissions.isEmpty()) {
+            return ResponseDTO.ok();
+        }
+
+        String nodeName = firstNonBlank(
+                nodeObject.getString("name"),
+                nodeObject.getString("nodeKey"),
+                nodeObject.getString("id")
+        );
+        boolean parallelAll = "parallelAll".equalsIgnoreCase(nodeObject.getString("approvalMode"));
+        Set<String> configuredFields = new HashSet<>();
+        for (int index = 0; index < permissions.size(); index++) {
+            JSONObject permissionObject = permissions.getJSONObject(index);
+            if (permissionObject == null) {
+                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】字段权限配置不合法");
+            }
+            String fieldKey = permissionObject.getString("fieldKey");
+            if (StringUtils.isBlank(fieldKey)) {
+                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】字段权限缺少 fieldKey");
+            }
+            if (!configuredFields.add(fieldKey)) {
+                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】字段【" + fieldKey + "】权限配置重复");
+            }
+            if (!formFields.containsKey(fieldKey)) {
+                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】字段权限引用的字段【" + fieldKey + "】不存在");
+            }
+
+            String permission = permissionObject.getString("permission");
+            if (!Set.of("READONLY", "EDITABLE", "HIDDEN").contains(permission)) {
+                return ResponseDTO.userErrorParam(
+                        "审批节点【" + nodeName + "】字段【" + fieldKey
+                                + "】权限只允许 READONLY、EDITABLE 或 HIDDEN"
+                );
+            }
+            if (permissionObject.getBooleanValue("required") && !"EDITABLE".equals(permission)) {
+                return ResponseDTO.userErrorParam(
+                        "审批节点【" + nodeName + "】字段【" + fieldKey + "】设为节点必填时必须可编辑"
+                );
+            }
+            if (parallelAll && "EDITABLE".equals(permission)) {
+                return ResponseDTO.userErrorParam(
+                        "审批节点【" + nodeName + "】并行全员会签字段【" + fieldKey + "】不允许配置为可编辑"
+                );
+            }
+        }
         return ResponseDTO.ok();
     }
 

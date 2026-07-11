@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Api, FormRule, Options } from '@form-create/element-ui';
 import type { Component } from 'vue';
+import type { BpmRuntimeFieldPermission } from './bpm-runtime-form-rules';
 
 import formCreate from '@form-create/element-ui';
 import { computed, markRaw, ref, watch } from 'vue';
@@ -20,11 +21,13 @@ const props = withDefaults(
   defineProps<{
     disabled?: boolean;
     modelValue?: Record<string, any>;
+    fieldPermissions?: BpmRuntimeFieldPermission[];
     schemaJson?: string;
   }>(),
   {
     disabled: false,
     modelValue: () => ({}),
+    fieldPermissions: () => [],
     schemaJson: '[]',
   },
 );
@@ -55,6 +58,7 @@ const formRules = computed<FormRule[]>(() =>
     rawFormRules.value,
     employeeOptions.value,
     loadEmployeeOptions,
+    props.fieldPermissions,
   ),
 );
 

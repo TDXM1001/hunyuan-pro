@@ -22,5 +22,11 @@ public class BpmBusinessResultEvent {
 
     private String payloadJson;
 
+    private Long finalFormDataVersion;
+
+    private String finalFormDataJson;
+
+    private LocalDateTime formDataLastModifiedAt;
+
     private LocalDateTime occurredAt;
 }

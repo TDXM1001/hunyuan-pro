@@ -88,6 +88,12 @@ public class BpmTaskService {
     @Resource
     private BpmApprovalGroupService bpmApprovalGroupService;
 
+    @Resource
+    private BpmTaskFormContextService bpmTaskFormContextService;
+
+    @Resource
+    private BpmFormDataMutationService bpmFormDataMutationService;
+
     public ResponseDTO<PageResult<BpmTaskVO>> queryAdminPage(BpmTaskQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<BpmTaskVO> list = bpmTaskDao.queryPage(page, queryForm);
@@ -151,6 +157,14 @@ public class BpmTaskService {
                     bpmApprovalGroupService.getDetailById(taskEntity.getApprovalGroupId())
             );
         }
+        BpmInstanceEntity instanceEntity = bpmInstanceDao == null
+                ? null
+                : bpmInstanceDao.selectById(taskEntity.getInstanceId());
+        if (instanceEntity != null && bpmTaskFormContextService != null) {
+            detailVO.setFormContext(
+                    bpmTaskFormContextService.buildForEmployeeTask(taskEntity, instanceEntity)
+            );
+        }
         return detailVO;
     }
 
@@ -181,7 +195,9 @@ public class BpmTaskService {
                 BpmTaskResultEnum.APPROVED,
                 "APPROVED",
                 approveForm.getCopyEmployeeIds(),
-                BpmCopyTypeEnum.MANUAL_APPROVE_COPY
+                BpmCopyTypeEnum.MANUAL_APPROVE_COPY,
+                approveForm.getFormDataVersion(),
+                approveForm.getFormDataPatchJson()
         );
     }
 
@@ -193,7 +209,9 @@ public class BpmTaskService {
                 BpmTaskResultEnum.REJECTED,
                 "REJECTED",
                 rejectForm.getCopyEmployeeIds(),
-                BpmCopyTypeEnum.MANUAL_REJECT_COPY
+                BpmCopyTypeEnum.MANUAL_REJECT_COPY,
+                null,
+                null
         );
     }
 
@@ -209,7 +227,9 @@ public class BpmTaskService {
                     BpmApprovalMemberAction.RETURN,
                     returnForm.getCommentText(),
                     returnForm.getCopyEmployeeIds(),
-                    BpmCopyTypeEnum.MANUAL_RETURN_COPY
+                    BpmCopyTypeEnum.MANUAL_RETURN_COPY,
+                    null,
+                    null
             );
         }
         BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(taskEntity.getInstanceId());
@@ -525,7 +545,9 @@ public class BpmTaskService {
             BpmTaskResultEnum resultEnum,
             String actionType,
             Collection<Long> copyEmployeeIds,
-            BpmCopyTypeEnum copyTypeEnum
+            BpmCopyTypeEnum copyTypeEnum,
+            Long formDataVersion,
+            String formDataPatchJson
     ) {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(taskId);
         if (taskEntity == null) {
@@ -540,11 +562,35 @@ public class BpmTaskService {
                     memberAction,
                     commentText,
                     copyEmployeeIds,
-                    copyTypeEnum
+                    copyTypeEnum,
+                    formDataVersion,
+                    formDataPatchJson
             );
         }
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())
+                || !Objects.equals(taskEntity.getAssigneeEmployeeId(), employeeId)) {
+            return ResponseDTO.userErrorParam("只能处理自己的待办任务");
+        }
+        if (hasFormMutation(formDataVersion, formDataPatchJson)) {
+            taskEntity = bpmTaskDao.selectByIdForUpdate(taskId);
+            BpmInstanceEntity instanceEntity = bpmInstanceDao.selectByIdForUpdate(taskEntity.getInstanceId());
+            if (instanceEntity == null) {
+                return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+            }
+            ResponseDTO<BpmFormDataMutationService.MutationResult> mutationResponse =
+                    bpmFormDataMutationService.applyTaskApprovePatch(
+                            taskEntity,
+                            instanceEntity,
+                            employeeSnapshot,
+                            formDataVersion,
+                            formDataPatchJson
+                    );
+            if (!Boolean.TRUE.equals(mutationResponse.getOk())) {
+                return ResponseDTO.userErrorParam(mutationResponse.getMsg());
+            }
+        }
         if (BpmTaskResultEnum.REJECTED.equals(resultEnum)) {
             flowableProcessInstanceGateway.cancel(taskEntity.getEngineProcessInstanceId(), "审批驳回");
         } else {
@@ -600,7 +646,9 @@ public class BpmTaskService {
             BpmApprovalMemberAction action,
             String commentText,
             Collection<Long> copyEmployeeIds,
-            BpmCopyTypeEnum copyTypeEnum
+            BpmCopyTypeEnum copyTypeEnum,
+            Long formDataVersion,
+            String formDataPatchJson
     ) {
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
@@ -610,7 +658,15 @@ public class BpmTaskService {
                     taskEntity.getTaskId(),
                     action,
                     actorSnapshot,
-                    commentText
+                    commentText,
+                    hasFormMutation(formDataVersion, formDataPatchJson)
+                            ? () -> applyLockedGroupFormMutation(
+                            taskEntity,
+                            actorSnapshot,
+                            formDataVersion,
+                            formDataPatchJson
+                    )
+                            : null
             );
         } catch (IllegalArgumentException ex) {
             return ResponseDTO.userErrorParam(ex.getMessage());
@@ -652,6 +708,33 @@ public class BpmTaskService {
                 copyTypeEnum
         );
         return copyResponse.getOk() ? ResponseDTO.ok() : copyResponse;
+    }
+
+    private ResponseDTO<String> applyLockedGroupFormMutation(
+            BpmTaskEntity taskEntity,
+            BpmEmployeeSnapshot actorSnapshot,
+            Long formDataVersion,
+            String formDataPatchJson
+    ) {
+        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectByIdForUpdate(taskEntity.getInstanceId());
+        if (instanceEntity == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<BpmFormDataMutationService.MutationResult> response =
+                bpmFormDataMutationService.applyTaskApprovePatch(
+                        taskEntity,
+                        instanceEntity,
+                        actorSnapshot,
+                        formDataVersion,
+                        formDataPatchJson
+                );
+        return Boolean.TRUE.equals(response.getOk())
+                ? ResponseDTO.ok()
+                : ResponseDTO.userErrorParam(response.getMsg());
+    }
+
+    private boolean hasFormMutation(Long formDataVersion, String formDataPatchJson) {
+        return formDataVersion != null || StringUtils.hasText(formDataPatchJson);
     }
 
     private void closeOtherPendingTasks(
@@ -711,6 +794,15 @@ public class BpmTaskService {
         event.setBusinessType(instanceEntity.getBusinessType());
         event.setBusinessId(instanceEntity.getBusinessId());
         event.setResultState(resultStateEnum.getValue());
+        event.setFinalFormDataVersion(
+                instanceEntity.getFormDataVersion() == null ? 1L : instanceEntity.getFormDataVersion()
+        );
+        event.setFinalFormDataJson(
+                StringUtils.hasText(instanceEntity.getCurrentFormDataSnapshotJson())
+                        ? instanceEntity.getCurrentFormDataSnapshotJson()
+                        : "{}"
+        );
+        event.setFormDataLastModifiedAt(instanceEntity.getUpdateTime());
         event.setOccurredAt(occurredAt);
         bpmBusinessProcessApi.publishResultEvent(event);
     }

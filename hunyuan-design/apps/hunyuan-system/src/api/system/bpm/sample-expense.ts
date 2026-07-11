@@ -7,6 +7,7 @@ export interface BpmSampleExpenseCreateParams {
 }
 
 export interface BpmSampleExpenseVO {
+  approvedAmount?: null | number;
   amount: number;
   applicantEmployeeId: number;
   approvalStatus: number;
@@ -15,6 +16,7 @@ export interface BpmSampleExpenseVO {
   callbackFailFlag: boolean;
   createTime?: null | string;
   expenseId: number;
+  finalFormDataVersion?: null | number;
   instanceId?: null | number;
   rejectedAt?: null | string;
   title: string;

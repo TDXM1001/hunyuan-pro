@@ -63,7 +63,8 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         currentDefinition.setDefinitionId(77L);
         currentDefinition.setLifecycleState(BpmDefinitionLifecycleStateEnum.CURRENT.getValue());
         currentDefinition.setStartState(BpmDefinitionStartStateEnum.STARTABLE.getValue());
-        currentDefinition.setSimpleModelSnapshotJson("{\"nodes\":[{\"nodeKey\":\"sample_approve\",\"listeners\":[{\"channel\":\"MESSAGE\"}]}]}");
+        currentDefinition.setFormSchemaSnapshotJson("{\"fields\":[{\"field\":\"approvedAmount\"}]}");
+        currentDefinition.setSimpleModelSnapshotJson("{\"nodes\":[{\"nodeKey\":\"sample_finance_review\",\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"EDITABLE\",\"required\":true}],\"listeners\":[{\"channel\":\"MESSAGE\"}]},{\"nodeKey\":\"sample_archive_review\",\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"READONLY\"}]}]}");
         when(definitionDao.selectCurrentByDefinitionKey("sample_expense_apply")).thenReturn(currentDefinition);
 
         ResponseDTO<Long> response = service.prepare();
@@ -115,7 +116,8 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         verify(formDao).insert(formCaptor.capture());
         assertThat(formCaptor.getValue().getFormKey()).isEqualTo("sample_expense_form");
         assertThat(formCaptor.getValue().getSchemaJson()).contains("\"expenseId\"");
-        assertThat(formCaptor.getValue().getSchemaJson()).contains("\"amount\"");
+        assertThat(formCaptor.getValue().getSchemaJson()).contains("\"requestedAmount\"");
+        assertThat(formCaptor.getValue().getSchemaJson()).contains("\"approvedAmount\"");
 
         ArgumentCaptor<BpmModelEntity> modelCaptor = ArgumentCaptor.forClass(BpmModelEntity.class);
         verify(modelDao).insert(modelCaptor.capture());
@@ -123,7 +125,11 @@ class BpmSampleExpenseDefinitionSeedServiceTest {
         assertThat(modelCaptor.getValue().getModelName()).isEqualTo("样板费用申请");
         assertThat(modelCaptor.getValue().getCategoryId()).isEqualTo(10L);
         assertThat(modelCaptor.getValue().getFormId()).isEqualTo(20L);
-        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_approve\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_finance_review\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"nodeKey\":\"sample_archive_review\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"fieldKey\":\"approvedAmount\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"permission\":\"EDITABLE\"");
+        assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"permission\":\"READONLY\"");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"candidateResolverType\":\"EMPLOYEE\"");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"employeeId\":1");
         assertThat(modelCaptor.getValue().getSimpleModelJson()).contains("\"listeners\":[{\"channel\":\"MESSAGE\"}]");

@@ -1,6 +1,7 @@
 package com.hunyuan.sa.bpm.module.sampleexpense.service;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.api.business.BpmBusinessProcessApi;
@@ -77,7 +78,8 @@ public class BpmSampleExpenseService {
         command.setSummary("金额：" + entity.getAmount() + "，申请人：" + entity.getApplicantEmployeeId());
         Map<String, Object> formData = new LinkedHashMap<>();
         formData.put("expenseId", entity.getExpenseId());
-        formData.put("amount", entity.getAmount());
+        formData.put("requestedAmount", entity.getAmount());
+        formData.put("approvedAmount", entity.getAmount());
         command.setFormDataJson(JSON.toJSONString(formData));
         Long instanceId = bpmBusinessProcessApi.start(command);
 
@@ -141,21 +143,53 @@ public class BpmSampleExpenseService {
             return BpmBusinessCallbackResult.failed("样板费用申请模拟回调失败", "{\"failOnce\":true}");
         }
         if (Integer.valueOf(1).equals(event.getResultState())) {
-            updateResult(entity.getExpenseId(), STATUS_APPROVED, context.eventId(), true);
+            JSONObject finalData;
+            try {
+                finalData = JSON.parseObject(event.getFinalFormDataJson());
+            } catch (RuntimeException ex) {
+                return BpmBusinessCallbackResult.failed("样板费用申请最终表单数据解析失败", ex.getClass().getSimpleName());
+            }
+            if (finalData == null || finalData.getBigDecimal("approvedAmount") == null) {
+                return BpmBusinessCallbackResult.failed("样板费用申请最终表单缺少 approvedAmount", event.getFinalFormDataJson());
+            }
+            updateResult(
+                    entity.getExpenseId(),
+                    STATUS_APPROVED,
+                    context.eventId(),
+                    true,
+                    finalData.getBigDecimal("approvedAmount"),
+                    event.getFinalFormDataVersion()
+            );
             return BpmBusinessCallbackResult.success("{\"approvalStatus\":2}");
         }
         if (Integer.valueOf(2).equals(event.getResultState())) {
-            updateResult(entity.getExpenseId(), STATUS_REJECTED, context.eventId(), false);
+            updateResult(
+                    entity.getExpenseId(),
+                    STATUS_REJECTED,
+                    context.eventId(),
+                    false,
+                    null,
+                    event.getFinalFormDataVersion()
+            );
             return BpmBusinessCallbackResult.success("{\"approvalStatus\":3}");
         }
         return BpmBusinessCallbackResult.failed("未知审批结果: " + event.getResultState(), context.requestPayloadJson());
     }
 
-    private void updateResult(Long expenseId, int approvalStatus, String eventId, boolean approved) {
+    private void updateResult(
+            Long expenseId,
+            int approvalStatus,
+            String eventId,
+            boolean approved,
+            java.math.BigDecimal approvedAmount,
+            Long finalFormDataVersion
+    ) {
         BpmSampleExpenseEntity update = new BpmSampleExpenseEntity();
         update.setExpenseId(expenseId);
         update.setApprovalStatus(approvalStatus);
         update.setCallbackEventId(eventId);
+        update.setApprovedAmount(approvedAmount);
+        update.setFinalFormDataVersion(finalFormDataVersion);
         if (approved) {
             update.setApprovedAt(LocalDateTime.now());
         } else {
@@ -178,10 +212,12 @@ public class BpmSampleExpenseService {
         vo.setExpenseId(entity.getExpenseId());
         vo.setTitle(entity.getTitle());
         vo.setAmount(entity.getAmount());
+        vo.setApprovedAmount(entity.getApprovedAmount());
         vo.setApplicantEmployeeId(entity.getApplicantEmployeeId());
         vo.setApprovalStatus(entity.getApprovalStatus());
         vo.setInstanceId(entity.getInstanceId());
         vo.setCallbackEventId(entity.getCallbackEventId());
+        vo.setFinalFormDataVersion(entity.getFinalFormDataVersion());
         vo.setCallbackFailFlag(entity.getCallbackFailFlag());
         vo.setApprovedAt(entity.getApprovedAt());
         vo.setRejectedAt(entity.getRejectedAt());

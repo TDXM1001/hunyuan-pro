@@ -77,6 +77,8 @@ class BpmSampleExpenseServiceTest {
         assertThat(commandCaptor.getValue().getDefinitionKey()).isEqualTo("sample_expense_apply");
         assertThat(commandCaptor.getValue().getStartEmployeeId()).isEqualTo(10L);
         assertThat(commandCaptor.getValue().getFormDataJson()).contains("\"expenseId\":1001");
+        assertThat(commandCaptor.getValue().getFormDataJson()).contains("\"requestedAmount\":1280.50");
+        assertThat(commandCaptor.getValue().getFormDataJson()).contains("\"approvedAmount\":1280.50");
         ArgumentCaptor<BpmSampleExpenseEntity> updateCaptor = ArgumentCaptor.forClass(BpmSampleExpenseEntity.class);
         verify(dao).updateById(updateCaptor.capture());
         assertThat(updateCaptor.getValue().getInstanceId()).isEqualTo(88L);
@@ -109,6 +111,8 @@ class BpmSampleExpenseServiceTest {
         verify(dao).updateById(updateCaptor.capture());
         assertThat(updateCaptor.getValue().getApprovalStatus()).isEqualTo(2);
         assertThat(updateCaptor.getValue().getCallbackEventId()).isEqualTo("event-1");
+        assertThat(updateCaptor.getValue().getApprovedAmount()).isEqualByComparingTo("980.50");
+        assertThat(updateCaptor.getValue().getFinalFormDataVersion()).isEqualTo(4L);
         assertThat(updateCaptor.getValue().getApprovedAt()).isNotNull();
     }
 
@@ -212,7 +216,7 @@ class BpmSampleExpenseServiceTest {
                 88L,
                 "sample_expense",
                 1001L,
-                "{\"eventId\":\"" + eventId + "\",\"instanceId\":88,\"businessType\":\"sample_expense\",\"businessId\":1001,\"resultState\":" + resultState + "}"
+                "{\"eventId\":\"" + eventId + "\",\"instanceId\":88,\"businessType\":\"sample_expense\",\"businessId\":1001,\"resultState\":" + resultState + ",\"finalFormDataVersion\":4,\"finalFormDataJson\":\"{\\\"requestedAmount\\\":1000,\\\"approvedAmount\\\":980.50}\"}"
         );
     }
 

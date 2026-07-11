@@ -20,4 +20,9 @@ public interface BpmInstanceDao extends BaseMapper<BpmInstanceEntity> {
      * 分页查询流程实例。
      */
     List<BpmInstanceVO> queryPage(Page page, @Param("queryForm") BpmInstanceQueryForm queryForm);
+
+    /**
+     * 按主键锁定流程实例。
+     */
+    BpmInstanceEntity selectByIdForUpdate(@Param("instanceId") Long instanceId);
 }

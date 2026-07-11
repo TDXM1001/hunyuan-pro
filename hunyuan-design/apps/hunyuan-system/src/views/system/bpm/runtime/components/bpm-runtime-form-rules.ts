@@ -5,6 +5,12 @@ export interface BpmRuntimeEmployeeOption {
   value: number;
 }
 
+export interface BpmRuntimeFieldPermission {
+  fieldKey: string;
+  permission: 'EDITABLE' | 'HIDDEN' | 'READONLY';
+  required: boolean;
+}
+
 type RuntimeRule = FormRule & Record<string, any>;
 
 function getNestedRules(
@@ -49,9 +55,18 @@ export function normalizeRuntimeFormRules(
   rules: FormRule[],
   employeeOptions: BpmRuntimeEmployeeOption[],
   remoteMethod: (keyword: string) => Promise<void> | void,
+  fieldPermissions: BpmRuntimeFieldPermission[] = [],
 ): FormRule[] {
-  return rules.map((rule) => {
+  const permissionMap = new Map(
+    fieldPermissions.map((permission) => [permission.fieldKey, permission]),
+  );
+  return rules.flatMap((rule) => {
     const runtimeRule = rule as RuntimeRule;
+    const fieldKey = String(runtimeRule.field || '');
+    const fieldPermission = permissionMap.get(fieldKey);
+    if (fieldPermission?.permission === 'HIDDEN') {
+      return [];
+    }
     const normalizedRule = isEmployeeSelectRule(runtimeRule)
       ? ({
           ...runtimeRule,
@@ -69,11 +84,30 @@ export function normalizeRuntimeFormRules(
         } as RuntimeRule)
       : { ...runtimeRule };
 
+    if (fieldPermission?.permission === 'READONLY') {
+      normalizedRule.props = {
+        ...(normalizedRule.props ?? {}),
+        disabled: true,
+      };
+    }
+    if (
+      fieldPermission?.permission === 'EDITABLE' &&
+      fieldPermission.required
+    ) {
+      normalizedRule.validate = [
+        ...(Array.isArray(normalizedRule.validate)
+          ? normalizedRule.validate
+          : []),
+        { message: `${normalizedRule.title || fieldKey}不能为空`, required: true },
+      ];
+    }
+
     if (Array.isArray(runtimeRule.children)) {
       normalizedRule.children = normalizeRuntimeFormRules(
         getNestedRules(runtimeRule, 'children'),
         employeeOptions,
         remoteMethod,
+        fieldPermissions,
       );
     }
     if (Array.isArray(runtimeRule.fields)) {
@@ -81,9 +115,10 @@ export function normalizeRuntimeFormRules(
         getNestedRules(runtimeRule, 'fields'),
         employeeOptions,
         remoteMethod,
+        fieldPermissions,
       );
     }
 
-    return normalizedRule as FormRule;
+    return [normalizedRule as FormRule];
   });
 }

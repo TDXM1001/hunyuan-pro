@@ -21,4 +21,10 @@ public class BpmTaskApproveForm {
 
     @Schema(description = "手工抄送员工ID列表")
     private List<Long> copyEmployeeIds;
+
+    @Schema(description = "客户端加载的表单数据版本")
+    private Long formDataVersion;
+
+    @Schema(description = "当前节点可编辑字段修改 JSON")
+    private String formDataPatchJson;
 }

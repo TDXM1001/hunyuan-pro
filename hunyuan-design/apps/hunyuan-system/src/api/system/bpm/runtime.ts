@@ -39,6 +39,21 @@ export type BpmApprovalGroupState =
 
 export type BpmApprovalMode = 'parallelAll' | 'sequential';
 
+export type BpmFieldPermissionMode = 'EDITABLE' | 'HIDDEN' | 'READONLY';
+
+export interface BpmFieldPermission {
+  fieldKey: string;
+  permission: BpmFieldPermissionMode;
+  required: boolean;
+}
+
+export interface BpmTaskFormContext {
+  dataVersion: number;
+  formDataJson: string;
+  formSchemaJson: string;
+  permissions: BpmFieldPermission[];
+}
+
 export interface BpmApprovalGroupSummaryRecord {
   approvalGroupId: number;
   approvalGroupKey: string;
@@ -112,8 +127,26 @@ export interface BpmInstanceTraceRecord {
   callbackRecords: BpmCallbackRecordVO[];
   commandRecords: BpmCommandRecordVO[];
   currentTasks: BpmTaskRecord[];
+  formDataChanges: BpmFormDataChangeRecord[];
   instance: BpmInstanceDetailRecord;
   notificationRecords: BpmNotificationRecordVO[];
+}
+
+export interface BpmFormDataChangeRecord {
+  actorEmployeeId?: null | number;
+  actorNameSnapshot?: null | string;
+  afterValuesJson: string;
+  afterVersion: number;
+  beforeValuesJson: string;
+  beforeVersion: number;
+  changeId: number;
+  changeSource: 'INSTANCE_RESUBMITTED' | 'INSTANCE_STARTED' | 'TASK_APPROVED';
+  changedFieldsJson: string;
+  createTime?: null | string;
+  definitionNodeId?: null | number;
+  instanceId: number;
+  nodeKeySnapshot?: null | string;
+  taskId?: null | number;
 }
 
 export interface BpmInstanceCopyRecord {
@@ -155,6 +188,7 @@ export interface BpmTaskRecord {
 export interface BpmTaskDetailRecord extends BpmTaskRecord {
   actionLogs: BpmTaskActionLogRecord[];
   approvalGroup?: BpmApprovalGroupDetailRecord | null;
+  formContext?: BpmTaskFormContext | null;
 }
 
 export interface BpmStartableDefinitionRecord {
@@ -170,6 +204,7 @@ export interface BpmRuntimeStartDraftRecord {
   definitionId: number;
   definitionName: string;
   formDataJson: string;
+  formDataVersion?: null | number;
   formNameSnapshot?: null | string;
   formSchemaSnapshotJson: string;
   sourceInstanceId?: null | number;
@@ -218,6 +253,7 @@ export interface BpmInstanceCancelForm {
 
 export interface BpmInstanceResubmitForm {
   formDataJson: string;
+  formDataVersion: number;
   instanceId: number;
   summary?: null | string;
   title?: null | string;
@@ -226,6 +262,8 @@ export interface BpmInstanceResubmitForm {
 export interface BpmTaskApproveForm {
   commentText?: null | string;
   copyEmployeeIds?: number[];
+  formDataPatchJson?: null | string;
+  formDataVersion?: null | number;
   taskId: number;
 }
 
@@ -363,6 +401,7 @@ export async function cancelMyBpmInstance(params: BpmInstanceCancelForm) {
 export async function resubmitMyBpmInstance(params: BpmInstanceResubmitForm) {
   return requestClient.post<number>('/app/bpm/instance/resubmit', {
     formDataJson: params.formDataJson.trim(),
+    formDataVersion: params.formDataVersion,
     instanceId: params.instanceId,
     summary: params.summary?.trim() || '',
     title: params.title?.trim() || '',
@@ -412,6 +451,8 @@ export async function approveBpmTask(params: BpmTaskApproveForm) {
   return requestClient.post<string>('/app/bpm/task/approve', {
     commentText: params.commentText?.trim() || '',
     copyEmployeeIds: params.copyEmployeeIds ?? [],
+    formDataPatchJson: params.formDataPatchJson?.trim() || undefined,
+    formDataVersion: params.formDataVersion ?? undefined,
     taskId: params.taskId,
   });
 }

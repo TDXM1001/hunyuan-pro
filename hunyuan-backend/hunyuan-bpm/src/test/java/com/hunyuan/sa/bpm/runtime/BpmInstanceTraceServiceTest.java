@@ -15,6 +15,8 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceTraceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationRecordService;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmFormDataChangeEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -35,15 +37,19 @@ class BpmInstanceTraceServiceTest {
 
     private BpmNotificationRecordService notificationRecordService;
 
+    private BpmFormDataChangeDao formDataChangeDao;
+
     @BeforeEach
     void setUp() {
         traceService = new BpmInstanceTraceService();
         bpmInstanceService = Mockito.mock(BpmInstanceService.class);
         integrationRecordService = Mockito.mock(BpmBusinessIntegrationRecordService.class);
         notificationRecordService = Mockito.mock(BpmNotificationRecordService.class);
+        formDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
         setField(traceService, "bpmInstanceService", bpmInstanceService);
         setField(traceService, "integrationRecordService", integrationRecordService);
         setField(traceService, "notificationRecordService", notificationRecordService);
+        setField(traceService, "bpmFormDataChangeDao", formDataChangeDao);
     }
 
     @Test
@@ -86,6 +92,17 @@ class BpmInstanceTraceServiceTest {
         when(integrationRecordService.queryCallbackRecordsByInstanceId(88L)).thenReturn(List.of(callbackRecord));
         when(integrationRecordService.queryCommandRecordsByInstanceId(88L)).thenReturn(List.of(commandRecord));
         when(notificationRecordService.queryByInstanceId(88L)).thenReturn(List.of(notificationRecord));
+        BpmFormDataChangeEntity formChange = new BpmFormDataChangeEntity();
+        formChange.setChangeId(71L);
+        formChange.setInstanceId(88L);
+        formChange.setChangeSource("TASK_APPROVED");
+        formChange.setActorNameSnapshot("财务张三");
+        formChange.setBeforeVersion(1L);
+        formChange.setAfterVersion(2L);
+        formChange.setChangedFieldsJson("[\"approvedAmount\"]");
+        formChange.setBeforeValuesJson("{\"approvedAmount\":100}");
+        formChange.setAfterValuesJson("{\"approvedAmount\":98}");
+        when(formDataChangeDao.queryByInstanceId(88L)).thenReturn(List.of(formChange));
 
         ResponseDTO<BpmInstanceTraceVO> response = traceService.getTrace(88L);
 
@@ -103,6 +120,11 @@ class BpmInstanceTraceServiceTest {
             assertThat(group.getTotalMemberCount()).isEqualTo(3);
             assertThat(group.getMembers()).extracting(BpmApprovalGroupMemberVO::getMemberIndex)
                     .containsExactly(1, 2);
+        });
+        assertThat(response.getData().getFormDataChanges()).singleElement().satisfies(change -> {
+            assertThat(change.getChangeSource()).isEqualTo("TASK_APPROVED");
+            assertThat(change.getAfterVersion()).isEqualTo(2L);
+            assertThat(change.getChangedFieldsJson()).contains("approvedAmount");
         });
     }
 

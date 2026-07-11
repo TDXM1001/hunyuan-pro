@@ -79,4 +79,23 @@ class SimpleModelBpmnCompilerTest {
                 .contains("\"parallelTotal\":3")
                 .contains("\"employeeId\":102");
     }
+
+    @Test
+    void compileShouldPreserveFieldPermissionsForEverySequentialMember() {
+        CompiledDefinitionArtifact artifact = compiler.compile(
+                "expense_apply",
+                "费用审批",
+                "{\"nodes\":[{\"nodeKey\":\"finance\",\"name\":\"财务复核\",\"type\":\"userTask\",\"approvalMode\":\"sequential\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":[301,302],\"fieldPermissions\":[{\"fieldKey\":\"approvedAmount\",\"permission\":\"EDITABLE\",\"required\":true}]}]}",
+                "{\"type\":\"ALL\"}",
+                "{}"
+        );
+
+        assertThat(artifact.nodeSnapshots()).hasSize(2);
+        assertThat(artifact.nodeSnapshots())
+                .allSatisfy(snapshot -> assertThat(snapshot.compiledNodeSnapshotJson())
+                        .contains("\"fieldPermissions\"")
+                        .contains("\"fieldKey\":\"approvedAmount\"")
+                        .contains("\"permission\":\"EDITABLE\"")
+                        .contains("\"required\":true"));
+    }
 }

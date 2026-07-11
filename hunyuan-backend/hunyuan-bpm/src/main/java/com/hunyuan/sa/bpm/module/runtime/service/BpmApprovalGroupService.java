@@ -41,6 +41,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
+import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import java.util.logging.Logger;
 
 /**
@@ -149,6 +151,17 @@ public class BpmApprovalGroupService {
             BpmEmployeeSnapshot actor,
             String commentText
     ) {
+        return handleMemberAction(taskId, action, actor, commentText, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public BpmApprovalGroupActionResult handleMemberAction(
+            Long taskId,
+            BpmApprovalMemberAction action,
+            BpmEmployeeSnapshot actor,
+            String commentText,
+            Supplier<ResponseDTO<String>> beforeAction
+    ) {
         BpmTaskEntity taskLookup = bpmTaskDao.selectById(taskId);
         if (taskLookup == null || taskLookup.getApprovalGroupId() == null) {
             return BpmApprovalGroupActionResult.forOrdinaryTask();
@@ -173,6 +186,12 @@ public class BpmApprovalGroupService {
         }
         List<BpmTaskEntity> pendingTasks =
                 bpmTaskDao.selectPendingByApprovalGroupIdForUpdate(group.getApprovalGroupId());
+        if (beforeAction != null) {
+            ResponseDTO<String> beforeActionResponse = beforeAction.get();
+            if (!Boolean.TRUE.equals(beforeActionResponse.getOk())) {
+                throw new IllegalArgumentException(beforeActionResponse.getMsg());
+            }
+        }
         LocalDateTime now = LocalDateTime.now();
         if ("parallelAll".equals(group.getApprovalMode())) {
             return handleParallelMemberAction(

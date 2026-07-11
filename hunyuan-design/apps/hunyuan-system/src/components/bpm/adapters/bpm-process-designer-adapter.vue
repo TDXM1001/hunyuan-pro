@@ -20,6 +20,9 @@ import {
   ElOption,
   ElSelect,
   ElSpace,
+  ElSwitch,
+  ElTable,
+  ElTableColumn,
   ElTag,
 } from 'element-plus';
 
@@ -74,6 +77,82 @@ const employeeSelectFieldOptions = computed(() =>
 const employeeSelectFieldSet = computed(
   () => new Set(employeeSelectFieldOptions.value.map((item) => item.field)),
 );
+const formFieldOptions = computed(() => extractFormFieldOptions(props.formSchemaJson));
+
+function extractFormFieldOptions(schemaJson: string) {
+  const result: { field: string; label: string; type: string }[] = [];
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== 'object') {
+      return;
+    }
+    const item = value as Record<string, any>;
+    if (typeof item.field === 'string' && item.field.trim()) {
+      result.push({
+        field: item.field.trim(),
+        label: String(item.title || item.label || item.field),
+        type: String(item.type || item.component || '-'),
+      });
+    }
+    visit(item.fields);
+    visit(item.children);
+  };
+  try {
+    visit(JSON.parse(schemaJson || '[]'));
+  } catch {
+    return [];
+  }
+  return result;
+}
+
+function getFieldPermission(fieldKey: string) {
+  return selectedNode.value?.fieldPermissions?.find(
+    (item) => item.fieldKey === fieldKey,
+  );
+}
+
+function getFieldPermissionMode(fieldKey: string) {
+  return getFieldPermission(fieldKey)?.permission || 'READONLY';
+}
+
+function setFieldPermissionMode(
+  fieldKey: string,
+  permission: 'EDITABLE' | 'HIDDEN' | 'READONLY',
+) {
+  if (!selectedNode.value) {
+    return;
+  }
+  const current = getFieldPermission(fieldKey);
+  const next = {
+    fieldKey,
+    permission,
+    required: permission === 'EDITABLE' && Boolean(current?.required),
+  };
+  selectedNode.value.fieldPermissions = [
+    ...(selectedNode.value.fieldPermissions ?? []).filter(
+      (item) => item.fieldKey !== fieldKey,
+    ),
+    next,
+  ];
+  void handleStateChange();
+}
+
+function setFieldRequired(fieldKey: string, required: boolean) {
+  if (!selectedNode.value) {
+    return;
+  }
+  const permission = getFieldPermissionMode(fieldKey);
+  selectedNode.value.fieldPermissions = [
+    ...(selectedNode.value.fieldPermissions ?? []).filter(
+      (item) => item.fieldKey !== fieldKey,
+    ),
+    { fieldKey, permission, required: permission === 'EDITABLE' && required },
+  ];
+  void handleStateChange();
+}
 
 function buildEmptyNode(index: number): BpmProcessNodeDraft {
   const nodeKey = `task_${index}`;
@@ -201,6 +280,23 @@ async function validate() {
         : '顺序审批';
     return {
       message: `审批节点【${invalidMultipleEmployeesNode.name}】请至少选择 2 名不同的${modeLabel}员工`,
+      ok: false,
+    };
+  }
+
+  const knownFields = new Set(formFieldOptions.value.map((item) => item.field));
+  const invalidPermissionNode = nodes.value.find((node) =>
+    (node.fieldPermissions ?? []).some(
+      (permission) =>
+        !knownFields.has(permission.fieldKey) ||
+        (permission.required && permission.permission !== 'EDITABLE') ||
+        (node.approvalMode === 'parallelAll' &&
+          permission.permission === 'EDITABLE'),
+    ),
+  );
+  if (invalidPermissionNode) {
+    return {
+      message: `审批节点【${invalidPermissionNode.name}】字段权限配置不合法，请检查表单字段和审批模式`,
       ok: false,
     };
   }
@@ -440,6 +536,53 @@ onBeforeUnmount(() => {
               <ElOption label="顺序多人审批" value="sequential" />
               <ElOption label="并行全员会签" value="parallelAll" />
             </ElSelect>
+          </ElFormItem>
+          <ElFormItem label="字段权限">
+            <ElTable
+              v-if="formFieldOptions.length"
+              :data="formFieldOptions"
+              size="small"
+              style="width: 100%"
+            >
+              <ElTableColumn label="字段" min-width="118">
+                <template #default="{ row }">
+                  <div>{{ row.label }}</div>
+                  <small>{{ row.field }}</small>
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="权限" width="116">
+                <template #default="{ row }">
+                  <ElSelect
+                    :disabled="disabled || readonly"
+                    :model-value="getFieldPermissionMode(row.field)"
+                    size="small"
+                    @change="(value) => setFieldPermissionMode(row.field, value)"
+                  >
+                    <ElOption label="只读" value="READONLY" />
+                    <ElOption
+                      :disabled="selectedNode.approvalMode === 'parallelAll'"
+                      label="可编辑"
+                      value="EDITABLE"
+                    />
+                    <ElOption label="隐藏" value="HIDDEN" />
+                  </ElSelect>
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="必填" width="62" align="center">
+                <template #default="{ row }">
+                  <ElSwitch
+                    :disabled="
+                      disabled ||
+                      readonly ||
+                      getFieldPermissionMode(row.field) !== 'EDITABLE'
+                    "
+                    :model-value="Boolean(getFieldPermission(row.field)?.required)"
+                    @change="(value) => setFieldRequired(row.field, Boolean(value))"
+                  />
+                </template>
+              </ElTableColumn>
+            </ElTable>
+            <span v-else>当前模型未绑定可配置字段的表单</span>
           </ElFormItem>
           <ElFormItem
             v-if="

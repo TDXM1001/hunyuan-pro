@@ -11,12 +11,15 @@ import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmFormDataChangeEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceStartForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmStartableDefinitionVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskAssignmentResolver;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeFormDataValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -44,6 +47,8 @@ class BpmRuntimeStartAssignmentTest {
 
     private FlowableProcessInstanceGateway processInstanceGateway;
 
+    private BpmFormDataChangeDao formDataChangeDao;
+
     @BeforeEach
     void setUp() {
         service = new BpmInstanceService();
@@ -51,6 +56,7 @@ class BpmRuntimeStartAssignmentTest {
         definitionNodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
         instanceDao = Mockito.mock(BpmInstanceDao.class);
         processInstanceGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
+        formDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
 
         setField(service, "bpmDefinitionDao", definitionDao);
         setField(service, "bpmDefinitionNodeDao", definitionNodeDao);
@@ -63,6 +69,8 @@ class BpmRuntimeStartAssignmentTest {
         setField(assignmentResolver, "bpmOrgIdentityGateway", identityGateway());
         setField(service, "bpmTaskAssignmentResolver", assignmentResolver);
         setField(service, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
+        setField(service, "bpmRuntimeFormDataValidator", new BpmRuntimeFormDataValidator());
+        setField(service, "bpmFormDataChangeDao", formDataChangeDao);
     }
 
     @Test
@@ -169,6 +177,9 @@ class BpmRuntimeStartAssignmentTest {
         definitionEntity.setInstanceNoRuleIdSnapshot(1);
         definitionEntity.setLifecycleState(1);
         definitionEntity.setStartState(1);
+        definitionEntity.setFormSchemaSnapshotJson(
+                "{\"fields\":[{\"field\":\"amount\",\"type\":\"number\"}]}"
+        );
 
         BpmDefinitionNodeEntity nodeEntity = new BpmDefinitionNodeEntity();
         nodeEntity.setNodeKey("task_self");
@@ -199,6 +210,15 @@ class BpmRuntimeStartAssignmentTest {
         ResponseDTO<Long> response = service.startInstance(form);
 
         assertThat(response.getOk()).isTrue();
+
+        ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
+        verify(instanceDao).insert(instanceCaptor.capture());
+        assertThat(instanceCaptor.getValue().getFormDataVersion()).isEqualTo(1L);
+        ArgumentCaptor<BpmFormDataChangeEntity> changeCaptor = ArgumentCaptor.forClass(BpmFormDataChangeEntity.class);
+        verify(formDataChangeDao).insert(changeCaptor.capture());
+        assertThat(changeCaptor.getValue().getChangeSource()).isEqualTo("INSTANCE_STARTED");
+        assertThat(changeCaptor.getValue().getBeforeVersion()).isZero();
+        assertThat(changeCaptor.getValue().getAfterVersion()).isEqualTo(1L);
 
         ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
         verify(processInstanceGateway).start(

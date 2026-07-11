@@ -45,12 +45,16 @@ const runtimeDetailDrawerPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-instance-detail-drawer.vue';
 const approvalGroupPanelPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-approval-group-panel.vue';
+const taskFormWorkbenchPath =
+  'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-task-form-workbench.vue';
 const bpmAdminMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.34.0.sql';
 const bpmRuntimeMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.35.0.sql';
 const bpmRuntimeCopyMenuSqlPath =
   '数据库SQL脚本/mysql/sql-update-log/v3.37.0.sql';
 const bpmIntegrationMenuSqlPath =
   '数据库SQL脚本/mysql/sql-update-log/v3.39.0.sql';
+const bpmApprovalDataSqlPath =
+  '数据库SQL脚本/mysql/sql-update-log/v3.45.0.sql';
 const apiPath = 'apps/hunyuan-system/src/api/system/bpm/index.ts';
 const bpmRoutePath = 'apps/hunyuan-system/src/router/routes/static/bpm.ts';
 const runtimeApiPath = 'apps/hunyuan-system/src/api/system/bpm/runtime.ts';
@@ -523,6 +527,52 @@ describe('bpm module contracts', () => {
     expect(todoSource).toContain('PARALLEL_MEMBER_RETURNED');
     expect(todoSource).toContain('APPROVAL_GROUP_ALL_APPROVED');
     expect(todoSource).toContain('APPROVAL_GROUP_CANCELLED');
+  });
+
+  it('keeps approval data governance on a versioned change ledger', () => {
+    const sqlSource = readFileSync(
+      resolve(process.cwd(), '..', bpmApprovalDataSqlPath),
+      'utf8',
+    );
+
+    expect(sqlSource).toContain('form_data_version');
+    expect(sqlSource).toContain('t_bpm_form_data_change');
+    expect(sqlSource).toContain('approved_amount');
+    expect(sqlSource).toContain('final_form_data_version');
+  });
+
+  it('keeps task approval data on explicit optimistic contracts', () => {
+    const runtimeApiSource = readSource(runtimeApiPath);
+
+    expect(runtimeApiSource).toContain("'EDITABLE' | 'HIDDEN' | 'READONLY'");
+    expect(runtimeApiSource).toContain('formContext?: BpmTaskFormContext | null');
+    expect(runtimeApiSource).toContain('formDataVersion?: null | number');
+    expect(runtimeApiSource).toContain('formDataPatchJson?: null | string');
+    expect(runtimeApiSource).toContain(
+      'formDataVersion: params.formDataVersion ?? undefined',
+    );
+    expect(runtimeApiSource).toContain(
+      "formDataPatchJson: params.formDataPatchJson?.trim() || undefined",
+    );
+    expect(runtimeApiSource).toContain('formDataChanges: BpmFormDataChangeRecord[]');
+    expect(runtimeApiSource).toContain('formDataVersion: params.formDataVersion');
+  });
+
+  it('keeps node field permissions and approval edits on complete work surfaces', () => {
+    const designerSource = readSource(processDesignerAdapterPath);
+    const todoSource = readSource(runtimeMyTodoPath);
+    const workbenchSource = readSource(taskFormWorkbenchPath);
+
+    expect(designerSource).toContain('字段权限');
+    expect(designerSource).toContain('fieldPermissions');
+    expect(designerSource).toContain("permission === 'EDITABLE'");
+    expect(designerSource).toContain("approvalMode === 'parallelAll'");
+    expect(todoSource).toContain('BpmTaskFormWorkbench');
+    expect(todoSource).toContain('submitPatch');
+    expect(todoSource).toContain('formDataPatchJson');
+    expect(todoSource).toContain('formDataVersion');
+    expect(workbenchSource).toContain('BpmRuntimeFormRenderer');
+    expect(workbenchSource).toContain('permissions');
   });
 
   it('keeps the runtime copy page wired to my-copy api and unified instance detail drawer', () => {

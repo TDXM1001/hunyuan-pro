@@ -33,6 +33,25 @@ function normalizePositiveId(rawValue: unknown): number | undefined {
     : undefined;
 }
 
+function normalizeFieldPermissions(rawValue: unknown) {
+  if (!Array.isArray(rawValue)) {
+    return [];
+  }
+  return rawValue
+    .filter(
+      (item) =>
+        item &&
+        typeof item.fieldKey === 'string' &&
+        ['EDITABLE', 'HIDDEN', 'READONLY'].includes(item.permission),
+    )
+    .map((item) => ({
+      fieldKey: String(item.fieldKey).trim(),
+      permission: item.permission as 'EDITABLE' | 'HIDDEN' | 'READONLY',
+      required: item.permission === 'EDITABLE' && item.required === true,
+    }))
+    .filter((item) => item.fieldKey);
+}
+
 function normalizeNode(rawNode: Record<string, any>): BpmProcessNodeDraft {
   const nodeKey = String(rawNode.nodeKey || rawNode.id || '').trim();
   const nodeId = String(rawNode.id || rawNode.nodeKey || '').trim() || nodeKey;
@@ -41,6 +60,7 @@ function normalizeNode(rawNode: Record<string, any>): BpmProcessNodeDraft {
     typeof rawNode.employeeSelectFieldKey === 'string'
       ? rawNode.employeeSelectFieldKey.trim()
       : '';
+  const fieldPermissions = normalizeFieldPermissions(rawNode.fieldPermissions);
 
   return {
     approvalMode: rawNode.approvalMode || 'single',
@@ -54,6 +74,7 @@ function normalizeNode(rawNode: Record<string, any>): BpmProcessNodeDraft {
       : {}),
     ...(employeeIds.length ? { employeeIds } : {}),
     ...(employeeSelectFieldKey ? { employeeSelectFieldKey } : {}),
+    ...(fieldPermissions.length ? { fieldPermissions } : {}),
     id: nodeId,
     listeners: Array.isArray(rawNode.listeners) ? rawNode.listeners : [],
     name: String(rawNode.name || '审批节点').trim(),
@@ -100,6 +121,9 @@ export function stringifySimpleModelDraft(nodes: BpmProcessNodeDraft[]): string 
         : {}),
       ...(node.employeeSelectFieldKey
         ? { employeeSelectFieldKey: node.employeeSelectFieldKey }
+        : {}),
+      ...(node.fieldPermissions?.length
+        ? { fieldPermissions: node.fieldPermissions }
         : {}),
       ...(node.roleId ? { roleId: node.roleId } : {}),
       listeners: node.listeners || [],

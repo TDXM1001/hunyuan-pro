@@ -57,6 +57,8 @@ public class BpmInstanceEntity {
 
     private String currentFormDataSnapshotJson;
 
+    private Long formDataVersion;
+
     private Integer runState;
 
     private Integer resultState;

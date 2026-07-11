@@ -23,15 +23,18 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
+import com.hunyuan.sa.bpm.common.enumeration.BpmFormDataChangeSourceEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmFormDataChangeEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminInstanceCancelForm;
@@ -97,6 +100,12 @@ public class BpmInstanceService {
     @Resource
     private BpmApprovalGroupService bpmApprovalGroupService;
 
+    @Resource
+    private BpmRuntimeFormDataValidator bpmRuntimeFormDataValidator;
+
+    @Resource
+    private BpmFormDataChangeDao bpmFormDataChangeDao;
+
     public ResponseDTO<PageResult<BpmInstanceVO>> queryAdminPage(BpmInstanceQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<BpmInstanceVO> list = bpmInstanceDao.queryPage(page, queryForm);
@@ -127,6 +136,7 @@ public class BpmInstanceService {
                 definitionEntity.getDefinitionName(),
                 null,
                 "{}",
+                null,
                 null
         ));
     }
@@ -202,7 +212,8 @@ public class BpmInstanceService {
                 instanceEntity.getTitle(),
                 instanceEntity.getSummary(),
                 StringUtils.defaultIfBlank(instanceEntity.getCurrentFormDataSnapshotJson(), "{}"),
-                instanceEntity.getInstanceId()
+                instanceEntity.getInstanceId(),
+                instanceEntity.getFormDataVersion() == null ? 1L : instanceEntity.getFormDataVersion()
         ));
     }
 
@@ -314,7 +325,7 @@ public class BpmInstanceService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> resubmitMyInstance(BpmInstanceResubmitForm resubmitForm) {
-        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(resubmitForm.getInstanceId());
+        BpmInstanceEntity instanceEntity = bpmInstanceDao.selectByIdForUpdate(resubmitForm.getInstanceId());
         if (instanceEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
@@ -326,12 +337,46 @@ public class BpmInstanceService {
         if (!BpmInstanceRunStateEnum.WAIT_RESUBMIT.equalsValue(instanceEntity.getRunState())) {
             return ResponseDTO.userErrorParam("当前流程实例状态不支持重新提交");
         }
+        long currentVersion = instanceEntity.getFormDataVersion() == null ? 1L : instanceEntity.getFormDataVersion();
+        if (!Objects.equals(currentVersion, resubmitForm.getFormDataVersion())) {
+            return ResponseDTO.userErrorParam("FORM_DATA_VERSION_CONFLICT：审批数据已变化，请刷新后重新确认");
+        }
 
         BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(instanceEntity.getDefinitionId());
         ResponseDTO<Long> validationResponse = validateCurrentStartableDefinition(definitionEntity);
         if (validationResponse != null) {
             return validationResponse;
         }
+
+        if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
+            ResponseDTO<String> formDataResponse = bpmRuntimeFormDataValidator.validateFullData(
+                    definitionEntity.getFormSchemaSnapshotJson(),
+                    resubmitForm.getFormDataJson()
+            );
+            if (!Boolean.TRUE.equals(formDataResponse.getOk())) {
+                return ResponseDTO.userErrorParam(formDataResponse.getMsg());
+            }
+        }
+
+        JSONObject beforeData = JSON.parseObject(
+                StringUtils.defaultIfBlank(instanceEntity.getCurrentFormDataSnapshotJson(), "{}")
+        );
+        JSONObject afterData = JSON.parseObject(resubmitForm.getFormDataJson());
+        JSONArray changedFields = new JSONArray();
+        JSONObject beforeValues = new JSONObject(true);
+        JSONObject afterValues = new JSONObject(true);
+        java.util.LinkedHashSet<String> comparedFields = new java.util.LinkedHashSet<>();
+        comparedFields.addAll(beforeData.keySet());
+        comparedFields.addAll(afterData.keySet());
+        for (String fieldKey : comparedFields) {
+            if (Objects.equals(beforeData.get(fieldKey), afterData.get(fieldKey))) {
+                continue;
+            }
+            changedFields.add(fieldKey);
+            beforeValues.put(fieldKey, beforeData.get(fieldKey));
+            afterValues.put(fieldKey, afterData.get(fieldKey));
+        }
+        long afterVersion = changedFields.isEmpty() ? currentVersion : currentVersion + 1;
 
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
         List<BpmDefinitionNodeEntity> definitionNodes = bpmDefinitionNodeDao.selectList(
@@ -369,12 +414,27 @@ public class BpmInstanceService {
         updateInstanceEntity.setTitle(StringUtils.isBlank(resubmitForm.getTitle()) ? definitionEntity.getDefinitionName() : resubmitForm.getTitle());
         updateInstanceEntity.setSummary(resubmitForm.getSummary());
         updateInstanceEntity.setCurrentFormDataSnapshotJson(resubmitForm.getFormDataJson());
+        updateInstanceEntity.setFormDataVersion(afterVersion);
         updateInstanceEntity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
         updateInstanceEntity.setResultState(null);
         updateInstanceEntity.setActiveTaskCount(0);
         updateInstanceEntity.setCurrentNodeSummaryJson(null);
         updateInstanceEntity.setLastActionAt(now);
         bpmInstanceDao.updateById(updateInstanceEntity);
+
+        if (!changedFields.isEmpty()) {
+            BpmFormDataChangeEntity change = new BpmFormDataChangeEntity();
+            change.setInstanceId(instanceEntity.getInstanceId());
+            change.setChangeSource(BpmFormDataChangeSourceEnum.INSTANCE_RESUBMITTED.name());
+            change.setActorEmployeeId(employeeSnapshot.employeeId());
+            change.setActorNameSnapshot(employeeSnapshot.actualName());
+            change.setBeforeVersion(currentVersion);
+            change.setAfterVersion(afterVersion);
+            change.setChangedFieldsJson(JSON.toJSONString(changedFields));
+            change.setBeforeValuesJson(JSON.toJSONString(beforeValues));
+            change.setAfterValuesJson(JSON.toJSONString(afterValues));
+            bpmFormDataChangeDao.insert(change);
+        }
 
         bpmTaskActionLogDao.insert(buildResubmitActionLog(instanceEntity, employeeSnapshot, now));
         bpmTaskProjectionService.syncActiveTasksForInstance(instanceEntity.getInstanceId());
@@ -413,6 +473,16 @@ public class BpmInstanceService {
         ResponseDTO<Long> validationResponse = validateCurrentStartableDefinition(definitionEntity, employeeId);
         if (validationResponse != null) {
             return validationResponse;
+        }
+
+        if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
+            ResponseDTO<String> formDataResponse = bpmRuntimeFormDataValidator.validateFullData(
+                    definitionEntity.getFormSchemaSnapshotJson(),
+                    startForm.getFormDataJson()
+            );
+            if (!Boolean.TRUE.equals(formDataResponse.getOk())) {
+                return ResponseDTO.userErrorParam(formDataResponse.getMsg());
+            }
         }
 
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
@@ -469,13 +539,39 @@ public class BpmInstanceService {
         entity.setBusinessKey(startForm.getBusinessKey());
         entity.setInitialFormDataSnapshotJson(startForm.getFormDataJson());
         entity.setCurrentFormDataSnapshotJson(startForm.getFormDataJson());
+        entity.setFormDataVersion(1L);
         entity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
         entity.setActiveTaskCount(0);
         entity.setStartedAt(now);
         entity.setLastActionAt(now);
         bpmInstanceDao.insert(entity);
+        if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
+            insertInitialFormDataChange(entity, employeeSnapshot);
+        }
         bpmTaskProjectionService.syncActiveTasksForInstance(entity.getInstanceId());
         return ResponseDTO.ok(entity.getInstanceId());
+    }
+
+    private void insertInitialFormDataChange(
+            BpmInstanceEntity instance,
+            BpmEmployeeSnapshot actor
+    ) {
+        JSONObject initialData = JSON.parseObject(
+                StringUtils.defaultIfBlank(instance.getInitialFormDataSnapshotJson(), "{}")
+        );
+        JSONArray changedFields = new JSONArray();
+        initialData.keySet().forEach(changedFields::add);
+        BpmFormDataChangeEntity change = new BpmFormDataChangeEntity();
+        change.setInstanceId(instance.getInstanceId());
+        change.setChangeSource(BpmFormDataChangeSourceEnum.INSTANCE_STARTED.name());
+        change.setActorEmployeeId(actor.employeeId());
+        change.setActorNameSnapshot(actor.actualName());
+        change.setBeforeVersion(0L);
+        change.setAfterVersion(1L);
+        change.setChangedFieldsJson(JSON.toJSONString(changedFields));
+        change.setBeforeValuesJson("{}");
+        change.setAfterValuesJson(JSON.toJSONString(initialData));
+        bpmFormDataChangeDao.insert(change);
     }
 
     private BpmRuntimeStartDraftVO buildStartDraft(
@@ -483,7 +579,8 @@ public class BpmInstanceService {
             String title,
             String summary,
             String formDataJson,
-            Long sourceInstanceId
+            Long sourceInstanceId,
+            Long formDataVersion
     ) {
         BpmRuntimeStartDraftVO draftVO = new BpmRuntimeStartDraftVO();
         draftVO.setDefinitionId(definitionEntity.getDefinitionId());
@@ -493,6 +590,7 @@ public class BpmInstanceService {
         draftVO.setTitle(StringUtils.isBlank(title) ? definitionEntity.getDefinitionName() : title);
         draftVO.setSummary(summary);
         draftVO.setFormDataJson(StringUtils.defaultIfBlank(formDataJson, "{}"));
+        draftVO.setFormDataVersion(formDataVersion);
         draftVO.setSourceInstanceId(sourceInstanceId);
         return draftVO;
     }

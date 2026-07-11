@@ -49,6 +49,7 @@ import {
 import { queryEmployeePage } from '#/api/system/organization';
 
 import BpmApprovalGroupPanel from './components/bpm-approval-group-panel.vue';
+import BpmTaskFormWorkbench from './components/bpm-task-form-workbench.vue';
 
 defineOptions({ name: 'SystemBpmRuntimeMyTodoList' });
 
@@ -69,6 +70,13 @@ const detailData = ref<BpmTaskDetailRecord>();
 const detailLoadErrorMessage = ref('');
 const actionDialogVisible = ref(false);
 const actionSubmitting = ref(false);
+const actionTaskDetail = ref<BpmTaskDetailRecord>();
+const taskFormWorkbenchRef = ref<{
+  submitPatch: () => Promise<{
+    formDataPatchJson?: string;
+    formDataVersion?: number;
+  }>;
+}>();
 const employeeLoading = ref(false);
 const employeeOptions = ref<EmployeeRecord[]>([]);
 const currentActionRow = ref<BpmTaskRecord>();
@@ -303,6 +311,15 @@ async function openActionDialog(type: TodoActionType, row: BpmTaskRecord) {
     copyEmployeeIds: [],
     type,
   });
+  actionTaskDetail.value = undefined;
+  if (type === 'approve') {
+    try {
+      actionTaskDetail.value = await getBpmTaskDetail(row.taskId);
+    } catch (error: any) {
+      ElMessage.error(error?.message || '审批表单加载失败');
+      return;
+    }
+  }
   actionDialogVisible.value = true;
   await loadEmployeeOptions();
 }
@@ -331,7 +348,12 @@ async function submitActionDialog() {
       taskId: currentActionRow.value.taskId,
     };
     if (actionForm.type === 'approve') {
-      await approveBpmTask(payload);
+      const formMutation = await taskFormWorkbenchRef.value?.submitPatch();
+      await approveBpmTask({
+        ...payload,
+        formDataPatchJson: formMutation?.formDataPatchJson,
+        formDataVersion: formMutation?.formDataVersion,
+      });
       ElMessage.success('审批已通过');
     } else if (actionForm.type === 'reject') {
       await rejectBpmTask(payload);
@@ -342,6 +364,15 @@ async function submitActionDialog() {
     }
     actionDialogVisible.value = false;
     await loadData();
+  } catch (error: any) {
+    if (String(error?.message || '').includes('FORM_DATA_VERSION_CONFLICT')) {
+      actionTaskDetail.value = await getBpmTaskDetail(
+        currentActionRow.value.taskId,
+      );
+      ElMessage.warning('审批数据已更新，请核对最新内容后重新提交');
+      return;
+    }
+    throw error;
   } finally {
     actionSubmitting.value = false;
   }
@@ -633,8 +664,17 @@ onMounted(() => {
       </div>
     </ElDialog>
 
-    <ElDialog v-model="actionDialogVisible" :title="getActionDialogTitle()" width="560px">
+    <ElDialog
+      v-model="actionDialogVisible"
+      :title="getActionDialogTitle()"
+      :width="actionForm.type === 'approve' ? '860px' : '560px'"
+    >
       <div class="runtime-task-page__action-form">
+        <BpmTaskFormWorkbench
+          v-if="actionForm.type === 'approve'"
+          ref="taskFormWorkbenchRef"
+          :form-context="actionTaskDetail?.formContext"
+        />
         <ElFormItem label="处理意见">
           <ElInput
             v-model="actionForm.commentText"
