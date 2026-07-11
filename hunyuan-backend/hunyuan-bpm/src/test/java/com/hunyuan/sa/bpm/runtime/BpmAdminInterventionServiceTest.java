@@ -19,6 +19,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminInstanceCancelForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,6 +62,7 @@ class BpmAdminInterventionServiceTest {
         setField(bpmInstanceService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmInstanceService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
         setField(bpmInstanceService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
+        setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);

@@ -193,7 +193,7 @@ class BpmDefinitionGovernanceServiceTest {
         assertThat(response.getOk()).isTrue();
         assertThat(response.getData().getPass()).isFalse();
         assertThat(response.getData().getFindings())
-                .anyMatch(item -> item.getMessage().contains("当前只支持单人审批或顺序审批"));
+                .anyMatch(item -> item.getMessage().contains("当前只支持单人审批、顺序审批或并行全员会签"));
     }
 
     @Test
