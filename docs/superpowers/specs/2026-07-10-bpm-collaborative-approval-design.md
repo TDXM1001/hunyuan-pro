@@ -1,9 +1,10 @@
 # BPM 并行全员会签设计
 
-- 状态：设计已确认，等待书面规格审阅
+- 状态：已实施并通过验收
 - 日期：2026-07-10
 - 适用仓库：`E:\my-project\hunyuan-pro`
 - 参考边界：Yudao 前端与 RuoYi 后端只用于理解交互和机制；所有实现、契约、SQL、测试和验收留在 Hunyuan
+- 验收记录：`docs/superpowers/specs/2026-07-10-bpm-collaborative-approval-acceptance.md`
 
 ## 结论
 
