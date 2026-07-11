@@ -7,7 +7,9 @@ import type {
   BpmProcessNodeDraft,
 } from './types';
 
-import BpmnModeler from 'bpmn-js/lib/Modeler';
+import 'bpmn-js/dist/assets/diagram-js.css';
+
+import BpmnNavigatedViewer from 'bpmn-js/lib/NavigatedViewer';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import {
@@ -59,7 +61,7 @@ const canvasRef = ref<HTMLDivElement>();
 const dirty = ref(false);
 const employeeLoading = ref(false);
 const employeeOptions = ref<EmployeeRecord[]>([]);
-const modeler = ref<any>();
+const viewer = ref<any>();
 const nodes = ref<BpmProcessNodeDraft[]>([]);
 const selectedNodeId = ref('');
 
@@ -87,18 +89,18 @@ function buildEmptyNode(index: number): BpmProcessNodeDraft {
   };
 }
 
-async function ensureModeler() {
-  if (modeler.value || !canvasRef.value) {
+function ensureViewer() {
+  if (viewer.value || !canvasRef.value) {
     return;
   }
 
-  modeler.value = new BpmnModeler({
+  viewer.value = new BpmnNavigatedViewer({
     container: canvasRef.value,
   });
 }
 
 async function renderCanvas() {
-  await ensureModeler();
+  ensureViewer();
 
   const xml = buildReadonlyBpmnXml(
     props.modelKey || 'process_model',
@@ -107,8 +109,8 @@ async function renderCanvas() {
   );
 
   await nextTick();
-  await modeler.value?.importXML?.(xml);
-  await modeler.value?.get?.('canvas')?.zoom?.('fit-viewport');
+  await viewer.value?.importXML?.(xml);
+  await viewer.value?.get?.('canvas')?.zoom?.('fit-viewport');
 }
 
 async function load(snapshot: Partial<BpmProcessDesignerSnapshot>) {
@@ -187,8 +189,7 @@ async function validate() {
     return (
       employeeIds.length < 2 ||
       employeeIds.some(
-        (employeeId) =>
-          !Number.isSafeInteger(employeeId) || employeeId <= 0,
+        (employeeId) => !Number.isSafeInteger(employeeId) || employeeId <= 0,
       ) ||
       new Set(employeeIds).size !== employeeIds.length
     );
@@ -241,9 +242,7 @@ async function loadEmployeeOptions(keyword = '') {
     );
     const mergedOptions = [...selectedOptions, ...(result?.list ?? [])];
     employeeOptions.value = Array.from(
-      new Map(
-        mergedOptions.map((item) => [item.employeeId, item]),
-      ).values(),
+      new Map(mergedOptions.map((item) => [item.employeeId, item])).values(),
     );
   } finally {
     employeeLoading.value = false;
@@ -262,9 +261,7 @@ async function handleCandidateResolverChange() {
     selectedNode.value.approvalMode = 'single';
     selectedNode.value.employeeIds = undefined;
   }
-  if (
-    selectedNode.value.candidateResolverType !== 'EMPLOYEE_SELECT_AT_START'
-  ) {
+  if (selectedNode.value.candidateResolverType !== 'EMPLOYEE_SELECT_AT_START') {
     selectedNode.value.employeeSelectFieldKey = undefined;
   }
   await handleStateChange();
@@ -321,7 +318,7 @@ defineExpose<BpmProcessDesignerExpose>({
 });
 
 onMounted(async () => {
-  await ensureModeler();
+  ensureViewer();
   await load({
     nodes: props.initialSnapshot?.nodes || [],
   });
@@ -333,8 +330,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  modeler.value?.destroy?.();
-  modeler.value = undefined;
+  viewer.value?.destroy?.();
+  viewer.value = undefined;
 });
 </script>
 
@@ -411,12 +408,16 @@ onBeforeUnmount(() => {
             </ElSelect>
           </ElFormItem>
           <ElFormItem
-            v-if="selectedNode.candidateResolverType === 'EMPLOYEE_SELECT_AT_START'"
+            v-if="
+              selectedNode.candidateResolverType === 'EMPLOYEE_SELECT_AT_START'
+            "
             label="自选字段"
           >
             <ElSelect
               v-model="selectedNode.employeeSelectFieldKey"
-              :disabled="disabled || readonly || !employeeSelectFieldOptions.length"
+              :disabled="
+                disabled || readonly || !employeeSelectFieldOptions.length
+              "
               placeholder="请选择表单中的员工字段"
               @change="handleStateChange"
             >
@@ -479,7 +480,9 @@ onBeforeUnmount(() => {
           <ElFormItem label="监听器 JSON">
             <ElInput
               :disabled="disabled || readonly"
-              :model-value="JSON.stringify(selectedNode.listeners || [], null, 2)"
+              :model-value="
+                JSON.stringify(selectedNode.listeners || [], null, 2)
+              "
               :rows="6"
               type="textarea"
               @change="handleListenersChange"
@@ -507,38 +510,55 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 560px;
+  height: 100%;
+  min-height: 0;
 }
 
 .bpm-process-designer-adapter__toolbar {
   align-items: center;
   display: flex;
+  flex: 0 0 auto;
   justify-content: space-between;
 }
 
 .bpm-process-designer-adapter__body {
   display: grid;
+  flex: 1;
   gap: 12px;
   grid-template-columns: minmax(0, 1fr) 320px;
-  min-height: 520px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .bpm-process-designer-adapter__canvas {
+  background-color: var(--el-bg-color);
+  background-image:
+    linear-gradient(var(--el-border-color-extra-light) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      var(--el-border-color-extra-light) 1px,
+      transparent 1px
+    );
+  background-size: 20px 20px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
-  min-height: 520px;
+  min-height: 0;
   overflow: hidden;
 }
 
 .bpm-process-designer-adapter__panel {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .bpm-process-designer-adapter__panel :deep(.el-card__body) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: calc(100% - 57px);
+  overflow-y: auto;
 }
 
 .bpm-process-designer-adapter__panel-header {
@@ -563,6 +583,15 @@ onBeforeUnmount(() => {
 @media (width <= 1200px) {
   .bpm-process-designer-adapter__body {
     grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .bpm-process-designer-adapter__canvas {
+    min-height: 420px;
+  }
+
+  .bpm-process-designer-adapter__panel {
+    min-height: 420px;
   }
 }
 </style>

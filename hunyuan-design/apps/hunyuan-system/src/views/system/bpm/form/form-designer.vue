@@ -9,19 +9,11 @@ import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ArtPageActions } from '@vben/art-hooks/common';
-import { ArtEditPage, ArtEditSection } from '@vben/art-hooks/edit';
+import { ArtEditPage } from '@vben/art-hooks/edit';
 import { Page } from '@vben/common-ui';
+import { ArrowLeft, Check, Eye, RotateCw } from '@vben/icons';
 
-import {
-  ElButton,
-  ElDialog,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElMessage,
-  ElSwitch,
-  ElTag,
-} from 'element-plus';
+import { ElButton, ElDialog, ElInput, ElMessage, ElTag } from 'element-plus';
 
 import {
   buildBpmFormDesignerPayload,
@@ -69,9 +61,13 @@ const formId = computed(() => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 });
+const formPageDescription = computed(() =>
+  formData.formKey ? `流程表单设计 · 编码 ${formData.formKey}` : '流程表单设计',
+);
 
 const pageActions = computed<ArtActionItem[]>(() => [
   {
+    icon: RotateCw,
     key: 'reload',
     label: '重新加载',
     loading: loading.value,
@@ -80,11 +76,13 @@ const pageActions = computed<ArtActionItem[]>(() => [
     },
   },
   {
+    icon: Eye,
     key: 'preview',
     label: '预览快照',
     onClick: handlePreview,
   },
   {
+    icon: Check,
     key: 'save',
     label: '保存设计',
     loading: saving.value,
@@ -187,7 +185,8 @@ async function handleSave() {
 }
 
 function handlePreview() {
-  previewSnapshot.value = designerRef.value?.getSnapshot() || getDesignerSnapshot();
+  previewSnapshot.value =
+    designerRef.value?.getSnapshot() || getDesignerSnapshot();
   previewVisible.value = true;
 }
 
@@ -208,16 +207,25 @@ watch(
 
 <template>
   <Page auto-content-height content-class="!p-3 h-full min-h-0 overflow-hidden">
-    <ArtEditPage title="表单设计器">
+    <ArtEditPage
+      class="form-designer-page"
+      :description="formPageDescription"
+      :title="formData.formName || '表单设计器'"
+    >
       <template #back>
-        <ElButton link type="primary" @click="handleBack">返回表单列表</ElButton>
+        <ElButton :icon="ArrowLeft" link type="primary" @click="handleBack">
+          返回表单列表
+        </ElButton>
       </template>
 
       <template #extra>
-        <ElTag effect="light" round type="info">
+        <ElTag effect="plain" type="info">
           {{ formId ? `表单 ID：${formId}` : '未绑定表单' }}
         </ElTag>
-        <ElTag :type="formData.disabledFlag ? 'danger' : 'success'" effect="light" round>
+        <ElTag
+          :type="formData.disabledFlag ? 'danger' : 'success'"
+          effect="plain"
+        >
           {{ formData.disabledFlag ? '已禁用' : '已启用' }}
         </ElTag>
       </template>
@@ -226,38 +234,14 @@ watch(
         <ArtPageActions :actions="pageActions" />
       </template>
 
-      <ElForm
-        :model="formData"
-        class="form-designer-page__form"
-        :disabled="loading"
-        label-position="top"
-      >
-        <ArtEditSection title="表单信息" :index="1">
-          <ElFormItem label="表单编码">
-            <ElInput :model-value="formData.formKey" disabled />
-          </ElFormItem>
-          <ElFormItem label="表单名称">
-            <ElInput :model-value="formData.formName" disabled />
-          </ElFormItem>
-          <ElFormItem label="禁用状态">
-            <ElSwitch :model-value="formData.disabledFlag" disabled />
-          </ElFormItem>
-          <ElFormItem class="art-edit-section__full" label="备注">
-            <ElInput :model-value="formData.remark" disabled type="textarea" />
-          </ElFormItem>
-        </ArtEditSection>
-
-        <ArtEditSection title="设计工作区" :index="2">
-          <div class="form-designer-page__workbench">
-            <BpmFormDesignerAdapter
-              ref="designerRef"
-              :disabled="loading"
-              :initial-snapshot="getDesignerSnapshot()"
-              @ready="handleDesignerReady"
-            />
-          </div>
-        </ArtEditSection>
-      </ElForm>
+      <div class="form-designer-page__workspace">
+        <BpmFormDesignerAdapter
+          ref="designerRef"
+          :disabled="loading"
+          :initial-snapshot="getDesignerSnapshot()"
+          @ready="handleDesignerReady"
+        />
+      </div>
     </ArtEditPage>
 
     <ElDialog v-model="previewVisible" title="表单设计快照预览" width="880px">
@@ -287,14 +271,16 @@ watch(
 </template>
 
 <style scoped>
-.form-designer-page__form {
-  display: grid;
-  gap: 12px;
+.form-designer-page :deep(.art-edit-page__body) {
+  overflow: hidden;
 }
 
-.form-designer-page__workbench {
-  min-height: 560px;
+.form-designer-page__workspace {
+  min-height: max(520px, calc(100dvh - 210px));
   overflow: hidden;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
 }
 
 .form-designer-page__preview {

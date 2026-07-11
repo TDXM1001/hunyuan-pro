@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import type {
-  BpmFormDesignerExpose,
-  BpmFormDesignerSnapshot,
-} from './types';
+import type { BpmFormDesignerExpose, BpmFormDesignerSnapshot } from './types';
 
 import FcDesigner from '@form-create/designer';
 import { computed, nextTick, onMounted, ref } from 'vue';
@@ -134,11 +131,22 @@ onMounted(async () => {
 <style scoped>
 .bpm-form-designer-adapter {
   height: 100%;
-  min-height: 520px;
+  min-height: 0;
   overflow: hidden;
 }
 
 .bpm-form-designer-adapter__designer {
   height: 100%;
+  min-height: 0;
+}
+
+.bpm-form-designer-adapter :deep(._fc-designer) {
+  min-height: 0;
+}
+
+.bpm-form-designer-adapter :deep(._fc-l),
+.bpm-form-designer-adapter :deep(._fc-m),
+.bpm-form-designer-adapter :deep(._fc-r) {
+  border-top: 0;
 }
 </style>

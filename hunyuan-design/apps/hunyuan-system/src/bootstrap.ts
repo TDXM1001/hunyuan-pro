@@ -10,7 +10,34 @@ import '@vben/styles';
 import '@vben/styles/ele';
 
 import { useTitle } from '@vueuse/core';
-import { ElLoading } from 'element-plus';
+import {
+  ElAlert,
+  ElAside,
+  ElBadge,
+  ElCard,
+  ElCollapse,
+  ElCollapseItem,
+  ElContainer,
+  ElDivider,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
+  ElFooter,
+  ElHeader,
+  ElLoading,
+  ElMain,
+  ElMenu,
+  ElMenuItem,
+  ElPopconfirm,
+  ElTabPane,
+  ElTable,
+  ElTableColumn,
+  ElTabs,
+  ElTag,
+  ElText,
+  ElTransfer,
+  ElTreeSelect,
+} from 'element-plus';
 
 import { $t, setupI18n } from '#/locales';
 
@@ -18,6 +45,34 @@ import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { router } from './router';
+
+const FORM_CREATE_DESIGNER_COMPONENTS = [
+  ElAlert,
+  ElAside,
+  ElBadge,
+  ElCard,
+  ElCollapse,
+  ElCollapseItem,
+  ElContainer,
+  ElDivider,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
+  ElFooter,
+  ElHeader,
+  ElMain,
+  ElMenu,
+  ElMenuItem,
+  ElPopconfirm,
+  ElTabPane,
+  ElTable,
+  ElTableColumn,
+  ElTabs,
+  ElTag,
+  ElText,
+  ElTransfer,
+  ElTreeSelect,
+];
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器
@@ -36,6 +91,9 @@ async function bootstrap(namespace: string) {
   // });
   const app = createApp(App);
   installFormCreateAutoImport(formCreate as any);
+  FORM_CREATE_DESIGNER_COMPONENTS.forEach((component) => {
+    app.component(component.name!, component);
+  });
   app.use(formCreate as any);
 
   // 注册Element Plus提供的v-loading指令

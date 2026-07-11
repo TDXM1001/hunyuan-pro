@@ -112,13 +112,17 @@ describe('bpm module contracts', () => {
     });
   });
 
-  it('keeps the form designer on the shared edit-page baseline', () => {
+  it('keeps the form designer on a full-height dedicated workspace', () => {
     const formDesignerSource = readSource(formDesignerPagePath);
 
     expect(formDesignerSource).toContain('ArtEditPage');
-    expect(formDesignerSource).toContain('ArtEditSection');
     expect(formDesignerSource).toContain('SystemBpmFormDesigner');
     expect(formDesignerSource).toContain('BpmFormDesignerAdapter');
+    expect(formDesignerSource).toContain('form-designer-page__workspace');
+    expect(formDesignerSource).toContain(
+      'min-height: max(520px, calc(100dvh - 210px));',
+    );
+    expect(formDesignerSource).not.toContain('<ArtEditSection');
   });
 
   it('keeps the form list focused on metadata plus a designer entry', () => {
@@ -128,14 +132,23 @@ describe('bpm module contracts', () => {
     expect(formListSource).toContain('/system/bpm/form/designer');
   });
 
-  it('keeps the model editor on the shared edit baseline and process designer adapter', () => {
+  it('keeps the model editor on a focused tabbed designer workspace', () => {
     const modelEditorSource = readSource(modelEditorPath);
 
     expect(modelEditorSource).toContain('ArtEditPage');
     expect(modelEditorSource).toContain('ArtEditSection');
     expect(modelEditorSource).toContain('BpmProcessDesignerAdapter');
+    expect(modelEditorSource).toContain('ElTabs');
+    expect(modelEditorSource).toContain('ElTabPane');
+    expect(modelEditorSource).toContain('v-model="activeWorkspace"');
+    expect(modelEditorSource).toContain('name="design"');
+    expect(modelEditorSource).toContain('name="rules"');
+    expect(modelEditorSource).toContain('name="precheck"');
+    expect(modelEditorSource).toContain('model-editor-page__workspace');
     expect(modelEditorSource).toContain('formSchemaJson');
-    expect(modelEditorSource).toContain(':form-schema-json="baseInfo.formSchemaJson"');
+    expect(modelEditorSource).toContain(
+      ':form-schema-json="baseInfo.formSchemaJson"',
+    );
     expect(modelEditorSource).toContain('validateBpmDefinitionForPublish');
     expect(modelEditorSource).toContain('getBpmDefinitionPublishDiff');
     expect(modelEditorSource).toContain('validationReport');
@@ -179,7 +192,9 @@ describe('bpm module contracts', () => {
     expect(handlePublishSource).toContain('if (hasUnsavedDraftChanges()) {');
     expect(handlePublishSource).toContain('请先保存当前设计后再发布');
     expect(handleSaveSource).toContain('const savePayload');
-    expect(handleSaveSource).toContain('await saveBpmDesignerDraft(savePayload)');
+    expect(handleSaveSource).toContain(
+      'await saveBpmDesignerDraft(savePayload)',
+    );
     expect(handleSaveSource).toContain(
       'savedDraftJson.value = buildDraftJson(savePayload)',
     );
@@ -196,11 +211,18 @@ describe('bpm module contracts', () => {
   it('keeps sequential approval on an explicit remote employee multi-select', () => {
     const processDesignerSource = readSource(processDesignerAdapterPath);
 
+    expect(processDesignerSource).toContain(
+      'bpmn-js/dist/assets/diagram-js.css',
+    );
+    expect(processDesignerSource).toContain('bpmn-js/lib/NavigatedViewer');
+    expect(processDesignerSource).not.toContain('bpmn-js/lib/Modeler');
     expect(processDesignerSource).toContain('queryEmployeePage');
-    expect(processDesignerSource).toContain("value=\"sequential\"");
+    expect(processDesignerSource).toContain('value="sequential"');
     expect(processDesignerSource).toContain('selectedNode.employeeIds');
     expect(processDesignerSource).toContain('multiple');
-    expect(processDesignerSource).toContain(':remote-method="loadEmployeeOptions"');
+    expect(processDesignerSource).toContain(
+      ':remote-method="loadEmployeeOptions"',
+    );
   });
 
   it('keeps the definition list wired to P1.1 governance actions', () => {
@@ -285,7 +307,9 @@ describe('bpm module contracts', () => {
 
     expect(startableSource).toContain('SystemBpmRuntimeStartFormRoute');
     expect(myInstanceSource).toContain('handleResubmit');
-    expect(myInstanceSource).toContain("name: 'SystemBpmRuntimeStartFormRoute'");
+    expect(myInstanceSource).toContain(
+      "name: 'SystemBpmRuntimeStartFormRoute'",
+    );
     expect(myInstanceSource).toContain('instanceId: String(row.instanceId)');
     expect(detailSource).toContain('getCallbackStatusLabel');
     expect(detailSource).toContain('nextRetryAt');
@@ -314,9 +338,15 @@ describe('bpm module contracts', () => {
   it('keeps the runtime form renderer compatible with draft schemas wrapped in a fields object', () => {
     const rendererSource = readSource(runtimeFormRendererPath);
 
-    expect(rendererSource).toContain('const parsed = safeParseJson<unknown>(props.schemaJson, []);');
-    expect(rendererSource).toContain("if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { fields?: unknown }).fields)) {");
-    expect(rendererSource).toContain('return (parsed as { fields: FormRule[] }).fields;');
+    expect(rendererSource).toContain(
+      'const parsed = safeParseJson<unknown>(props.schemaJson, []);',
+    );
+    expect(rendererSource).toContain(
+      "if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { fields?: unknown }).fields)) {",
+    );
+    expect(rendererSource).toContain(
+      'return (parsed as { fields: FormRule[] }).fields;',
+    );
     expect(rendererSource).toContain('normalizeRuntimeFormRules');
     expect(rendererSource).toContain('queryEmployeePage');
   });
@@ -324,9 +354,22 @@ describe('bpm module contracts', () => {
   it('keeps runtime bootstrap wiring form-create registration before the runtime form page uses it', () => {
     const bootstrapSource = readSource(bootstrapPath);
 
-    expect(bootstrapSource).toContain("import formCreate from '@form-create/element-ui';");
-    expect(bootstrapSource).toContain("import installFormCreateAutoImport from '@form-create/element-ui/auto-import';");
-    expect(bootstrapSource).toContain('installFormCreateAutoImport(formCreate as any);');
+    expect(bootstrapSource).toContain(
+      "import formCreate from '@form-create/element-ui';",
+    );
+    expect(bootstrapSource).toContain(
+      "import installFormCreateAutoImport from '@form-create/element-ui/auto-import';",
+    );
+    expect(bootstrapSource).toContain('ElContainer');
+    expect(bootstrapSource).toContain('ElMain');
+    expect(bootstrapSource).toContain('ElAside');
+    expect(bootstrapSource).toContain('FORM_CREATE_DESIGNER_COMPONENTS');
+    expect(bootstrapSource).toContain(
+      'installFormCreateAutoImport(formCreate as any);',
+    );
+    expect(bootstrapSource).toContain(
+      'app.component(component.name!, component);',
+    );
     expect(bootstrapSource).toContain('app.use(formCreate as any);');
   });
 
@@ -370,7 +413,9 @@ describe('bpm module contracts', () => {
 
     expect(instanceSource).toContain('BpmInstanceDetailDrawer');
     expect(instanceSource).toContain('detailDrawerRef');
-    expect(instanceSource).toContain("detailDrawerRef.value?.open(row.instanceId, 'admin')");
+    expect(instanceSource).toContain(
+      "detailDrawerRef.value?.open(row.instanceId, 'admin')",
+    );
     expect(instanceSource).not.toContain('ElDialog v-model="detailVisible"');
     expect(instanceSource).not.toContain('getBpmAdminInstanceDetail');
   });
@@ -437,7 +482,9 @@ describe('bpm module contracts', () => {
     expect(detailSource).toContain('approvalGroups');
 
     [todoSource, doneSource, taskSource, detailSource].forEach((source) => {
-      expect(source).not.toMatch(/taskKey.*split|taskKey.*join|taskName.*parallel/);
+      expect(source).not.toMatch(
+        /taskKey.*split|taskKey.*join|taskName.*parallel/,
+      );
       expect(source).not.toMatch(
         /runtimeAssignmentSnapshotJson.*approvalGroup|currentNodeSummaryJson.*approvalGroup/,
       );
@@ -469,7 +516,9 @@ describe('bpm module contracts', () => {
   it('keeps the runtime copy page wired to my-copy api and unified instance detail drawer', () => {
     const copySource = readSource(runtimeMyCopyPath);
 
-    expect(copySource).toContain("defineOptions({ name: 'SystemBpmRuntimeMyCopyList' })");
+    expect(copySource).toContain(
+      "defineOptions({ name: 'SystemBpmRuntimeMyCopyList' })",
+    );
     expect(copySource).toContain('ArtSearchPanel');
     expect(copySource).toContain('ArtTablePanel');
     expect(copySource).toContain(':collapsible="false"');
@@ -486,7 +535,9 @@ describe('bpm module contracts', () => {
     );
 
     expect(bpmMenuSqlSource).toContain("'/system/bpm/instance'");
-    expect(bpmMenuSqlSource).toContain("'/system/bpm/instance/instance-list.vue'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/instance/instance-list.vue'",
+    );
   });
 
   it('keeps the runtime bpm menu sql aligned to the employee route contracts', () => {
@@ -499,14 +550,20 @@ describe('bpm module contracts', () => {
     expect(bpmMenuSqlSource).toContain(
       "'/system/bpm/runtime/startable-list.vue'",
     );
-    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-instance-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/my-instance-list'",
+    );
     expect(bpmMenuSqlSource).toContain(
       "'/system/bpm/runtime/my-instance-list.vue'",
     );
     expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-todo-list'");
-    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-todo-list.vue'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/my-todo-list.vue'",
+    );
     expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-done-list'");
-    expect(bpmMenuSqlSource).toContain("'/system/bpm/runtime/my-done-list.vue'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/runtime/my-done-list.vue'",
+    );
   });
 
   it('keeps the runtime copy menu sql aligned to the employee route contract', () => {
@@ -530,11 +587,15 @@ describe('bpm module contracts', () => {
       'utf8',
     );
 
-    expect(bpmMenuSqlSource).toContain("'/system/bpm/integration/callback-record-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/integration/callback-record-list'",
+    );
     expect(bpmMenuSqlSource).toContain(
       "'/system/bpm/integration/callback-record-list.vue'",
     );
-    expect(bpmMenuSqlSource).toContain("'/system/bpm/integration/command-record-list'");
+    expect(bpmMenuSqlSource).toContain(
+      "'/system/bpm/integration/command-record-list'",
+    );
     expect(bpmMenuSqlSource).toContain(
       "'/system/bpm/integration/command-record-list.vue'",
     );
