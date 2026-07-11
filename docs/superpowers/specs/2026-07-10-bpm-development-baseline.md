@@ -63,7 +63,11 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - 这不是 Flowable multi-instance。设计器中的一个节点会按员工顺序展开为多个连续的单处理人任务，例如 `task_finance_1`、`task_finance_2`。
 - 顺序审批至少需要两名不同的正整数员工 ID；发布前逐一校验员工。
 - 编译后的节点 key 需要符合 `[A-Za-z_][A-Za-z0-9_]*`，全局唯一且不超过 128 字符，以保证 `assignee_<nodeKey>` 变量表达式安全。
-- 编译快照保留原始节点及顺序元数据；当前公共任务契约通过展开后的 `taskKey` 和任务名中的 `（序号/总数）` 表达顺序，而不是返回结构化审批组。
+- 编译快照会补齐 `approvalGroupKey`、`approvalGroupName`、`sequentialIndex`、`sequentialTotal`，运行时据此为同一 authored 节点的真实任务建立稳定审批组。
+- 运行时使用 `t_bpm_approval_group` 保存顺序审批组状态、进度、关闭原因和成员顺序；恢复时同时按 Hunyuan `instanceId` 与当前 `engineProcessInstanceId` 过滤，避免旧引擎遗留任务串组。
+- 实例详情、任务详情、trace 和员工待办列表已透出结构化顺序审批组；未来成员只显示待激活人数，不创建占位任务行。
+- 顺序审批的拒绝、退回会先取消当前 Flowable 实例，再关闭审批组并写入 `REJECTED` / `RETURNED` 语义；重提会生成新的引擎实例与新的审批组 ID，旧组保留为历史事实。
+- 顺序审批成员允许转办、委派、加签、减签；转办/委派保持同一任务和同一组内索引身份，加签子任务不继承 `approvalGroupId`、不计入 authored 组进度。
 
 #### 3.2 并行全员会签
 
@@ -95,15 +99,14 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - `reduceSign`：撤销可撤销的加签投影。
 - `recall`：将实例转为 `WAIT_RESUBMIT`，而不是任意跳转到历史节点。
 
-会签成员可转办、委派和实例级撤回；加签、减签被后端硬拒绝且前端不展示。普通任务继续按原有规则使用加签、减签。
+顺序审批成员可转办、委派、加签、减签和实例级撤回；`parallelAll` 成员可转办、委派和实例级撤回，但加签、减签被后端硬拒绝且前端不展示。普通任务继续按原有规则使用加签、减签。
 
 ## 当前优先级
 
-`parallelAll` 和员工高级动作已经闭环。下一切片必须重新从当前仓库事实和真实业务需求排序，不自动延伸为通用网关平台。
+顺序多人审批组、`parallelAll` 和员工高级动作已经闭环。下一切片必须重新从当前仓库事实和真实业务需求排序，不自动延伸为通用网关平台。
 
 仍可独立评估的工作：
 
-- 对顺序多人审批提供面向前端的结构化 authored 审批组、组级进度和聚合展示。
 - 根据真实业务流程补充更丰富的表单与业务单据集成；继续保持业务单据在 Hunyuan 业务模块中拥有生命周期，BPM 只管理审批过程。
 
 ## 平台能力边界
@@ -160,6 +163,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 | P3 总验收 | `docs/superpowers/specs/2026-07-10-bpm-p3-acceptance.md` |
 | 顺序审批验收 | `docs/superpowers/specs/2026-07-10-bpm-p3-sequential-approval-acceptance.md` |
 | 并行全员会签验收 | `docs/superpowers/specs/2026-07-10-bpm-collaborative-approval-acceptance.md` |
+| 顺序审批组闭环验收 | `docs/superpowers/specs/2026-07-11-bpm-sequential-approval-group-acceptance.md` |
 
 ## 验证基线
 
@@ -177,6 +181,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 
 - 2026-07-10 的 P3 总验收记录了 `hunyuan-bpm` 全量 `171` 个测试、前端四文件 `51` 个契约测试、`@hunyuan/system` 类型检查，以及发起时自选审批人和顺序多人审批的活体验收。
 - 2026-07-10 的并行全员会签验收记录了后端 `74` 个聚焦测试、Flowable 兼容测试、前端四文件 `57` 个契约测试、类型检查，以及 L1-L8 API/浏览器运行态证据。
+- 2026-07-11 的顺序审批组闭环验收记录了后端 `75` 个聚焦测试、`hunyuan-bpm` 全量 `207` 个测试、Flowable 兼容测试、前端四文件 `57` 个契约测试、`@hunyuan/system` 类型检查，以及 S1-S11 的 API/Chrome/数据库三层运行态证据。
 - 这些结果是可追溯的历史证据，不代表后续任意工作树或任意提交仍然通过。每个新切片必须运行自己的相关门禁。
 
 ## 理解检查
