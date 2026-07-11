@@ -81,6 +81,8 @@ const apiFiles = [
       'BpmApprovalGroupSummaryRecord',
       'BpmApprovalGroupDetailRecord',
       'BpmApprovalGroupMemberRecord',
+      "export type BpmApprovalMode = 'parallelAll' | 'sequential'",
+      'approvalMode: BpmApprovalMode',
       'approvalGroups',
       'copyEmployeeIds',
     ],

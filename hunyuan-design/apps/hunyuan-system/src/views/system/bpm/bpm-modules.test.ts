@@ -43,6 +43,8 @@ const runtimeFormRendererPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-runtime-form-renderer.vue';
 const runtimeDetailDrawerPath =
   'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-instance-detail-drawer.vue';
+const approvalGroupPanelPath =
+  'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-approval-group-panel.vue';
 const bpmAdminMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.34.0.sql';
 const bpmRuntimeMenuSqlPath = '数据库SQL脚本/mysql/sql-update-log/v3.35.0.sql';
 const bpmRuntimeCopyMenuSqlPath =
@@ -458,10 +460,15 @@ describe('bpm module contracts', () => {
     const doneSource = readSource(runtimeMyDonePath);
     const taskSource = readSource(taskPagePath);
     const detailSource = readSource(runtimeDetailDrawerPath);
+    const groupPanelSource = readSource(approvalGroupPanelPath);
 
     expect(runtimeApiSource).toContain('BpmApprovalGroupSummaryRecord');
     expect(runtimeApiSource).toContain('BpmApprovalGroupDetailRecord');
     expect(runtimeApiSource).toContain('BpmApprovalGroupMemberRecord');
+    expect(runtimeApiSource).toContain(
+      "export type BpmApprovalMode = 'parallelAll' | 'sequential'",
+    );
+    expect(runtimeApiSource).toContain('approvalMode: BpmApprovalMode');
     expect(runtimeApiSource).toContain(
       'approvalGroup?: BpmApprovalGroupSummaryRecord | null',
     );
@@ -480,6 +487,8 @@ describe('bpm module contracts', () => {
     expect(taskSource).toContain('BpmApprovalGroupPanel');
     expect(detailSource).toContain('BpmApprovalGroupPanel');
     expect(detailSource).toContain('approvalGroups');
+    expect(groupPanelSource).toContain("approvalMode === 'sequential'");
+    expect(groupPanelSource).toContain('后续');
 
     [todoSource, doneSource, taskSource, detailSource].forEach((source) => {
       expect(source).not.toMatch(
@@ -503,7 +512,10 @@ describe('bpm module contracts', () => {
     expect(todoSource).toContain('addSignBpmTask');
     expect(todoSource).toContain('reduceSignBpmTask');
     expect(todoSource).toContain('recallBpmTask');
-    expect(todoSource).toContain('!row.approvalGroup');
+    expect(todoSource).toContain(
+      "row.approvalGroup?.approvalMode !== 'parallelAll'",
+    );
+    expect(todoSource).not.toContain('v-if="!row.approvalGroup"');
     expect(todoSource).toContain('queryEmployeePage');
     expect(todoSource).not.toContain('请输入接收人员工ID');
     expect(todoSource).toContain('PARALLEL_MEMBER_APPROVED');

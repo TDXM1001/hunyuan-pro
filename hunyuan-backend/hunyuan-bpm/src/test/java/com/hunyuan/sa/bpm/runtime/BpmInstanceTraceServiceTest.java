@@ -8,6 +8,7 @@ import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessIntegrationRecor
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceTraceVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupDetailVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupMemberVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmNotificationRecordVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskActionLogVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
@@ -61,7 +62,16 @@ class BpmInstanceTraceServiceTest {
         detail.setActionLogs(List.of(actionLog));
         BpmApprovalGroupDetailVO groupDetail = new BpmApprovalGroupDetailVO();
         groupDetail.setApprovalGroupId(61L);
-        groupDetail.setApprovalGroupName("财务会签");
+        groupDetail.setApprovalGroupKey("finance_review");
+        groupDetail.setApprovalGroupName("财务复核");
+        groupDetail.setApprovalMode("sequential");
+        groupDetail.setProcessedMemberCount(1);
+        groupDetail.setTotalMemberCount(3);
+        BpmApprovalGroupMemberVO firstMember = new BpmApprovalGroupMemberVO();
+        firstMember.setMemberIndex(1);
+        BpmApprovalGroupMemberVO secondMember = new BpmApprovalGroupMemberVO();
+        secondMember.setMemberIndex(2);
+        groupDetail.setMembers(List.of(firstMember, secondMember));
         detail.setApprovalGroups(List.of(groupDetail));
         BpmCallbackRecordVO callbackRecord = new BpmCallbackRecordVO();
         callbackRecord.setCallbackRecordId(31L);
@@ -86,8 +96,14 @@ class BpmInstanceTraceServiceTest {
         assertThat(response.getData().getCallbackRecords()).hasSize(1);
         assertThat(response.getData().getCommandRecords()).hasSize(1);
         assertThat(response.getData().getNotificationRecords()).hasSize(1);
-        assertThat(response.getData().getApprovalGroups()).extracting(BpmApprovalGroupDetailVO::getApprovalGroupName)
-                .containsExactly("财务会签");
+        assertThat(response.getData().getApprovalGroups()).singleElement().satisfies(group -> {
+            assertThat(group.getApprovalMode()).isEqualTo("sequential");
+            assertThat(group.getApprovalGroupKey()).isEqualTo("finance_review");
+            assertThat(group.getProcessedMemberCount()).isEqualTo(1);
+            assertThat(group.getTotalMemberCount()).isEqualTo(3);
+            assertThat(group.getMembers()).extracting(BpmApprovalGroupMemberVO::getMemberIndex)
+                    .containsExactly(1, 2);
+        });
     }
 
     @Test

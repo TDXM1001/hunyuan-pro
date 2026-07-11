@@ -42,6 +42,17 @@ function getGroupStateType(value: string) {
   return 'info';
 }
 
+function getApprovalModeLabel(mode: BpmApprovalGroupDetailRecord['approvalMode']) {
+  return mode === 'sequential' ? '顺序审批' : '并行会签';
+}
+
+function getPendingActivationCount(group: BpmApprovalGroupDetailRecord) {
+  if (group.approvalMode === 'sequential') {
+    return Math.max(group.totalMemberCount - group.members.length, 0);
+  }
+  return 0;
+}
+
 function getCloseReasonLabel(value?: null | string) {
   const labelMap: Record<string, string> = {
     ALL_APPROVED: '全部成员已通过',
@@ -73,6 +84,7 @@ function getTaskResultLabel(value?: null | number) {
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
     ADD_SIGNED: '任务加签',
+    APPROVED: '审批通过',
     APPROVAL_GROUP_ALL_APPROVED: '审批组全员通过',
     APPROVAL_GROUP_CANCELLED: '审批组已关闭',
     DELEGATED: '任务委派',
@@ -80,7 +92,9 @@ function getActionLabel(actionType?: null | string) {
     PARALLEL_MEMBER_REJECTED: '会签成员拒绝，审批组已终止',
     PARALLEL_MEMBER_RETURNED: '会签成员退回发起人，其他待办已取消',
     RECALLED: '发起人撤回',
+    REJECTED: '审批拒绝',
     REDUCE_SIGNED: '任务减签',
+    RETURNED_TO_INITIATOR: '退回发起人',
     TRANSFERRED: '任务转办',
   };
   return actionType ? (labelMap[actionType] ?? actionType) : '-';
@@ -97,8 +111,12 @@ function getActionLabel(actionType?: null | string) {
       <div class="bpm-approval-group-panel__header">
         <div>
           <strong>{{ approvalGroup.approvalGroupName }}</strong>
+          <span>{{ getApprovalModeLabel(approvalGroup.approvalMode) }}</span>
           <span>
             {{ approvalGroup.processedMemberCount }}/{{ approvalGroup.totalMemberCount }} 已处理
+          </span>
+          <span v-if="getPendingActivationCount(approvalGroup) > 0">
+            后续 {{ getPendingActivationCount(approvalGroup) }} 人待激活
           </span>
         </div>
         <ElTag

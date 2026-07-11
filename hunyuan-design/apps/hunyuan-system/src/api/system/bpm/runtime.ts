@@ -37,11 +37,13 @@ export type BpmApprovalGroupState =
   | 'REJECTED'
   | 'RETURNED';
 
+export type BpmApprovalMode = 'parallelAll' | 'sequential';
+
 export interface BpmApprovalGroupSummaryRecord {
   approvalGroupId: number;
   approvalGroupKey: string;
   approvalGroupName: string;
-  approvalMode: 'parallelAll';
+  approvalMode: BpmApprovalMode;
   approvedMemberCount: number;
   groupState: BpmApprovalGroupState;
   processedMemberCount: number;

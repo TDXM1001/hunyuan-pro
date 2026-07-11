@@ -530,12 +530,18 @@ onMounted(() => {
                     <ElDropdownMenu>
                       <ElDropdownItem command="transfer">转办</ElDropdownItem>
                       <ElDropdownItem command="delegate">委派</ElDropdownItem>
-                      <ElDropdownItem v-if="!row.approvalGroup" command="addSign">
-                        加签
-                      </ElDropdownItem>
-                      <ElDropdownItem v-if="!row.approvalGroup" command="reduceSign">
-                        减签
-                      </ElDropdownItem>
+                       <ElDropdownItem
+                         v-if="row.approvalGroup?.approvalMode !== 'parallelAll'"
+                         command="addSign"
+                       >
+                         加签
+                       </ElDropdownItem>
+                       <ElDropdownItem
+                         v-if="row.approvalGroup?.approvalMode !== 'parallelAll'"
+                         command="reduceSign"
+                       >
+                         减签
+                       </ElDropdownItem>
                       <ElDropdownItem command="recall">撤回</ElDropdownItem>
                     </ElDropdownMenu>
                   </template>
