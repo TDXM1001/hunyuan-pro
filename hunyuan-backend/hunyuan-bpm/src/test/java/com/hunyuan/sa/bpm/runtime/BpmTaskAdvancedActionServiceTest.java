@@ -44,18 +44,21 @@ class BpmTaskAdvancedActionServiceTest {
 
     private BpmTaskActionLogDao bpmTaskActionLogDao;
 
+    private BpmApprovalGroupService bpmApprovalGroupService;
+
     @BeforeEach
     void setUp() {
         bpmTaskService = new BpmTaskService();
         bpmTaskDao = Mockito.mock(BpmTaskDao.class);
         bpmInstanceDao = Mockito.mock(BpmInstanceDao.class);
         bpmTaskActionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
+        bpmApprovalGroupService = Mockito.mock(BpmApprovalGroupService.class);
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmInstanceDao", bpmInstanceDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
         setField(bpmTaskService, "flowableTaskGateway", Mockito.mock(FlowableTaskGateway.class));
         setField(bpmTaskService, "flowableProcessInstanceGateway", Mockito.mock(FlowableProcessInstanceGateway.class));
-        setField(bpmTaskService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
+        setField(bpmTaskService, "bpmApprovalGroupService", bpmApprovalGroupService);
         setField(bpmTaskService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmTaskService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
     }
@@ -122,9 +125,11 @@ class BpmTaskAdvancedActionServiceTest {
     void reduceSignShouldCancelPendingAddSignTaskAndWriteActionLog() {
         BpmTaskEntity taskEntity = buildPendingTask();
         taskEntity.setTaskId(2L);
+        taskEntity.setApprovalGroupId(31L);
         taskEntity.setAssigneeEmployeeId(300L);
         taskEntity.setRuntimeAssignmentSnapshotJson("{\"addSign\":true,\"sourceTaskId\":1}");
         when(bpmTaskDao.selectById(2L)).thenReturn(taskEntity);
+        when(bpmApprovalGroupService.isParallelAllGroup(31L)).thenReturn(false);
         when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(identityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "王主管", 7L, "业务部", null, null));
 
@@ -145,6 +150,49 @@ class BpmTaskAdvancedActionServiceTest {
         verify(bpmTaskActionLogDao).insert(logCaptor.capture());
         assertThat(logCaptor.getValue().getActionType()).isEqualTo("REDUCE_SIGNED");
         assertThat(logCaptor.getValue().getCommentText()).isEqualTo("无需继续复核");
+    }
+
+    @Test
+    void addSignShouldRemainAvailableForSequentialApprovalGroupMember() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+        taskEntity.setApprovalGroupId(31L);
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(bpmApprovalGroupService.isParallelAllGroup(31L)).thenReturn(false);
+        when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(identityGateway().requireEmployee(100L)).thenReturn(
+                new BpmEmployeeSnapshot(100L, "王主管", 7L, "业务部", null, null));
+        when(identityGateway().requireEmployee(300L)).thenReturn(
+                new BpmEmployeeSnapshot(300L, "赵六", 10L, "法务部", null, null));
+
+        BpmTaskAddSignForm form = new BpmTaskAddSignForm();
+        form.setTaskId(1L);
+        form.setTargetEmployeeId(300L);
+        form.setReason("请法务复核");
+
+        ResponseDTO<String> response = bpmTaskService.addSign(form);
+
+        assertThat(response.getOk()).isTrue();
+        verify(bpmTaskDao).insert(org.mockito.ArgumentMatchers.argThat(
+                (BpmTaskEntity task) -> task.getApprovalGroupId() == null));
+    }
+
+    @Test
+    void addAndReduceSignShouldRemainBlockedForParallelApprovalGroupMember() {
+        BpmTaskEntity taskEntity = buildPendingTask();
+        taskEntity.setApprovalGroupId(32L);
+        when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
+        when(bpmApprovalGroupService.isParallelAllGroup(32L)).thenReturn(true);
+
+        BpmTaskAddSignForm addForm = new BpmTaskAddSignForm();
+        addForm.setTaskId(1L);
+        addForm.setTargetEmployeeId(300L);
+        BpmTaskReduceSignForm reduceForm = new BpmTaskReduceSignForm();
+        reduceForm.setTaskId(1L);
+
+        assertThat(bpmTaskService.addSign(addForm).getMsg())
+                .contains("并行全员会签成员不支持加签或减签");
+        assertThat(bpmTaskService.reduceSign(reduceForm).getMsg())
+                .contains("并行全员会签成员不支持加签或减签");
     }
 
     @Test

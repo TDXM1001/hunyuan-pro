@@ -174,38 +174,14 @@ public class BpmApprovalGroupService {
         List<BpmTaskEntity> pendingTasks =
                 bpmTaskDao.selectPendingByApprovalGroupIdForUpdate(group.getApprovalGroupId());
         LocalDateTime now = LocalDateTime.now();
-
-        return switch (action) {
-            case APPROVE -> approveMember(group, currentTask, actor, commentText, now);
-            case REJECT -> closeByMember(
-                    group,
-                    currentTask,
-                    pendingTasks,
-                    actor,
-                    commentText,
-                    BpmApprovalGroupStateEnum.REJECTED,
-                    BpmApprovalGroupCloseReasonEnum.MEMBER_REJECTED,
-                    BpmTaskResultEnum.REJECTED,
-                    "PARALLEL_MEMBER_REJECTED",
-                    "并行会签成员拒绝",
-                    false,
-                    now
-            );
-            case RETURN -> closeByMember(
-                    group,
-                    currentTask,
-                    pendingTasks,
-                    actor,
-                    commentText,
-                    BpmApprovalGroupStateEnum.RETURNED,
-                    BpmApprovalGroupCloseReasonEnum.MEMBER_RETURNED,
-                    BpmTaskResultEnum.RETURNED,
-                    "PARALLEL_MEMBER_RETURNED",
-                    "并行会签成员退回发起人",
-                    true,
-                    now
-            );
-        };
+        if ("parallelAll".equals(group.getApprovalMode())) {
+            return handleParallelMemberAction(
+                    group, currentTask, pendingTasks, action, actor, commentText, now);
+        }
+        if ("sequential".equals(group.getApprovalMode())) {
+            return handleSequentialMemberAction(group, currentTask, action, actor, commentText, now);
+        }
+        throw new IllegalStateException("不支持的审批组模式: " + group.getApprovalMode());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -494,6 +470,160 @@ public class BpmApprovalGroupService {
                 false,
                 group.getApprovalGroupId(),
                 nextState
+        );
+    }
+
+    private BpmApprovalGroupActionResult handleParallelMemberAction(
+            BpmApprovalGroupEntity group,
+            BpmTaskEntity currentTask,
+            List<BpmTaskEntity> pendingTasks,
+            BpmApprovalMemberAction action,
+            BpmEmployeeSnapshot actor,
+            String commentText,
+            LocalDateTime actionAt
+    ) {
+        return action == BpmApprovalMemberAction.APPROVE
+                ? approveMember(group, currentTask, actor, commentText, actionAt)
+                : closeByMember(
+                        group,
+                        currentTask,
+                        pendingTasks,
+                        actor,
+                        commentText,
+                        action == BpmApprovalMemberAction.REJECT
+                                ? BpmApprovalGroupStateEnum.REJECTED
+                                : BpmApprovalGroupStateEnum.RETURNED,
+                        action == BpmApprovalMemberAction.REJECT
+                                ? BpmApprovalGroupCloseReasonEnum.MEMBER_REJECTED
+                                : BpmApprovalGroupCloseReasonEnum.MEMBER_RETURNED,
+                        action == BpmApprovalMemberAction.REJECT
+                                ? BpmTaskResultEnum.REJECTED
+                                : BpmTaskResultEnum.RETURNED,
+                        action == BpmApprovalMemberAction.REJECT
+                                ? "PARALLEL_MEMBER_REJECTED"
+                                : "PARALLEL_MEMBER_RETURNED",
+                        action == BpmApprovalMemberAction.REJECT
+                                ? "并行会签成员拒绝"
+                                : "并行会签成员退回发起人",
+                        action == BpmApprovalMemberAction.RETURN,
+                        actionAt
+                );
+    }
+
+    private BpmApprovalGroupActionResult handleSequentialMemberAction(
+            BpmApprovalGroupEntity group,
+            BpmTaskEntity currentTask,
+            BpmApprovalMemberAction action,
+            BpmEmployeeSnapshot actor,
+            String commentText,
+            LocalDateTime actionAt
+    ) {
+        return switch (action) {
+            case APPROVE -> approveSequentialMember(group, currentTask, actor, commentText, actionAt);
+            case REJECT, RETURN -> closeSequentialMember(
+                    group, currentTask, action, actor, commentText, actionAt);
+        };
+    }
+
+    private BpmApprovalGroupActionResult approveSequentialMember(
+            BpmApprovalGroupEntity group,
+            BpmTaskEntity currentTask,
+            BpmEmployeeSnapshot actor,
+            String commentText,
+            LocalDateTime actionAt
+    ) {
+        flowableTaskGateway.complete(currentTask.getEngineTaskId());
+        completeTask(currentTask, BpmTaskResultEnum.APPROVED, actionAt);
+        bpmTaskActionLogDao.insert(buildActionLog(currentTask, actor, "APPROVED", commentText, actionAt));
+
+        int processedCount = safeCount(group.getProcessedMemberCount()) + 1;
+        int approvedCount = safeCount(group.getApprovedMemberCount()) + 1;
+        boolean allApproved = approvedCount == safeCount(group.getTotalMemberCount());
+        BpmApprovalGroupEntity updateGroup = new BpmApprovalGroupEntity();
+        updateGroup.setApprovalGroupId(group.getApprovalGroupId());
+        updateGroup.setProcessedMemberCount(processedCount);
+        updateGroup.setApprovedMemberCount(approvedCount);
+        updateGroup.setRejectedMemberCount(safeCount(group.getRejectedMemberCount()));
+        updateGroup.setGroupState((allApproved
+                ? BpmApprovalGroupStateEnum.APPROVED
+                : BpmApprovalGroupStateEnum.PENDING).name());
+        if (allApproved) {
+            updateGroup.setCloseReason(BpmApprovalGroupCloseReasonEnum.ALL_APPROVED.name());
+            updateGroup.setClosedAt(actionAt);
+        }
+        bpmApprovalGroupDao.updateById(updateGroup);
+        return new BpmApprovalGroupActionResult(
+                false,
+                true,
+                true,
+                true,
+                false,
+                allApproved ? BpmInstanceResultStateEnum.APPROVED : null,
+                false,
+                group.getApprovalGroupId(),
+                allApproved ? BpmApprovalGroupStateEnum.APPROVED : BpmApprovalGroupStateEnum.PENDING
+        );
+    }
+
+    private BpmApprovalGroupActionResult closeSequentialMember(
+            BpmApprovalGroupEntity group,
+            BpmTaskEntity currentTask,
+            BpmApprovalMemberAction action,
+            BpmEmployeeSnapshot actor,
+            String commentText,
+            LocalDateTime actionAt
+    ) {
+        boolean returned = action == BpmApprovalMemberAction.RETURN;
+        BpmApprovalGroupStateEnum groupState = returned
+                ? BpmApprovalGroupStateEnum.RETURNED
+                : BpmApprovalGroupStateEnum.REJECTED;
+        BpmTaskResultEnum taskResult = returned
+                ? BpmTaskResultEnum.RETURNED
+                : BpmTaskResultEnum.REJECTED;
+        flowableProcessInstanceGateway.cancel(
+                group.getEngineProcessInstanceId(),
+                returned ? "审批退回发起人" : "审批驳回"
+        );
+        completeTask(currentTask, taskResult, actionAt);
+        bpmTaskActionLogDao.insert(buildActionLog(
+                currentTask,
+                actor,
+                returned ? "RETURNED_TO_INITIATOR" : "REJECTED",
+                commentText,
+                actionAt
+        ));
+
+        BpmApprovalGroupEntity updateGroup = new BpmApprovalGroupEntity();
+        updateGroup.setApprovalGroupId(group.getApprovalGroupId());
+        updateGroup.setGroupState(groupState.name());
+        updateGroup.setCloseReason((returned
+                ? BpmApprovalGroupCloseReasonEnum.MEMBER_RETURNED
+                : BpmApprovalGroupCloseReasonEnum.MEMBER_REJECTED).name());
+        updateGroup.setProcessedMemberCount(safeCount(group.getProcessedMemberCount()) + 1);
+        updateGroup.setApprovedMemberCount(safeCount(group.getApprovedMemberCount()));
+        updateGroup.setRejectedMemberCount(safeCount(group.getRejectedMemberCount()) + (returned ? 0 : 1));
+        updateGroup.setClosedAt(actionAt);
+        bpmApprovalGroupDao.updateById(updateGroup);
+
+        if (returned) {
+            BpmInstanceEntity updateInstance = new BpmInstanceEntity();
+            updateInstance.setInstanceId(group.getInstanceId());
+            updateInstance.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
+            updateInstance.setActiveTaskCount(0);
+            updateInstance.setCurrentNodeSummaryJson(null);
+            updateInstance.setLastActionAt(actionAt);
+            bpmInstanceDao.updateById(updateInstance);
+        }
+        return new BpmApprovalGroupActionResult(
+                false,
+                true,
+                true,
+                false,
+                true,
+                returned ? null : BpmInstanceResultStateEnum.REJECTED,
+                returned,
+                group.getApprovalGroupId(),
+                groupState
         );
     }
 

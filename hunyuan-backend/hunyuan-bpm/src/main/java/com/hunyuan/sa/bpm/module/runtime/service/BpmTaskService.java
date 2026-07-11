@@ -219,7 +219,10 @@ public class BpmTaskService {
 
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
-        flowableTaskGateway.complete(taskEntity.getEngineTaskId());
+        flowableProcessInstanceGateway.cancel(
+                taskEntity.getEngineProcessInstanceId(),
+                "审批退回发起人"
+        );
 
         LocalDateTime now = LocalDateTime.now();
         BpmTaskEntity updateTaskEntity = new BpmTaskEntity();
@@ -229,6 +232,12 @@ public class BpmTaskService {
         updateTaskEntity.setCompletedAt(now);
         updateTaskEntity.setLastActionAt(now);
         bpmTaskDao.updateById(updateTaskEntity);
+        closeOtherPendingTasks(
+                taskEntity.getInstanceId(),
+                taskEntity.getTaskId(),
+                BpmTaskResultEnum.RETURNED,
+                now
+        );
 
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
@@ -319,7 +328,7 @@ public class BpmTaskService {
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
-        if (taskEntity.getApprovalGroupId() != null) {
+        if (bpmApprovalGroupService.isParallelAllGroup(taskEntity.getApprovalGroupId())) {
             return ResponseDTO.userErrorParam("并行全员会签成员不支持加签或减签");
         }
         if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())) {
@@ -354,7 +363,7 @@ public class BpmTaskService {
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
-        if (taskEntity.getApprovalGroupId() != null) {
+        if (bpmApprovalGroupService.isParallelAllGroup(taskEntity.getApprovalGroupId())) {
             return ResponseDTO.userErrorParam("并行全员会签成员不支持加签或减签");
         }
         if (!BpmTaskStateEnum.PENDING.equalsValue(taskEntity.getTaskState())) {
@@ -550,6 +559,14 @@ public class BpmTaskService {
         updateTaskEntity.setCompletedAt(now);
         updateTaskEntity.setLastActionAt(now);
         bpmTaskDao.updateById(updateTaskEntity);
+        if (BpmTaskResultEnum.REJECTED.equals(resultEnum)) {
+            closeOtherPendingTasks(
+                    taskEntity.getInstanceId(),
+                    taskEntity.getTaskId(),
+                    BpmTaskResultEnum.REJECTED,
+                    now
+            );
+        }
 
         bpmTaskActionLogDao.insert(buildActionLog(
                 taskEntity,
@@ -602,6 +619,22 @@ public class BpmTaskService {
             return ResponseDTO.userErrorParam("审批组已关闭或任务已处理");
         }
 
+        if (actionResult.waitResubmit()) {
+            closeOtherPendingTasks(
+                    taskEntity.getInstanceId(),
+                    taskEntity.getTaskId(),
+                    BpmTaskResultEnum.RETURNED,
+                    LocalDateTime.now()
+            );
+        } else if (actionResult.finishInstanceResultState() == BpmInstanceResultStateEnum.REJECTED) {
+            closeOtherPendingTasks(
+                    taskEntity.getInstanceId(),
+                    taskEntity.getTaskId(),
+                    BpmTaskResultEnum.REJECTED,
+                    LocalDateTime.now()
+            );
+        }
+
         if (action == BpmApprovalMemberAction.APPROVE) {
             int activeTaskCount = bpmTaskProjectionService.syncActiveTasksForInstance(taskEntity.getInstanceId());
             if (actionResult.finishInstanceResultState() == BpmInstanceResultStateEnum.APPROVED
@@ -619,6 +652,32 @@ public class BpmTaskService {
                 copyTypeEnum
         );
         return copyResponse.getOk() ? ResponseDTO.ok() : copyResponse;
+    }
+
+    private void closeOtherPendingTasks(
+            Long instanceId,
+            Long currentTaskId,
+            BpmTaskResultEnum closeResult,
+            LocalDateTime actionAt
+    ) {
+        List<BpmTaskEntity> pendingTasks = bpmTaskDao.selectList(Wrappers.<BpmTaskEntity>lambdaQuery()
+                .eq(BpmTaskEntity::getInstanceId, instanceId)
+                .eq(BpmTaskEntity::getTaskState, BpmTaskStateEnum.PENDING.getValue()));
+        if (pendingTasks == null) {
+            return;
+        }
+        for (BpmTaskEntity pendingTask : pendingTasks) {
+            if (Objects.equals(pendingTask.getTaskId(), currentTaskId)) {
+                continue;
+            }
+            BpmTaskEntity updateTask = new BpmTaskEntity();
+            updateTask.setTaskId(pendingTask.getTaskId());
+            updateTask.setTaskState(BpmTaskStateEnum.CANCELLED.getValue());
+            updateTask.setTaskResult(closeResult.getValue());
+            updateTask.setCancelledAt(actionAt);
+            updateTask.setLastActionAt(actionAt);
+            bpmTaskDao.updateById(updateTask);
+        }
     }
 
     private void finishInstance(Long instanceId, BpmInstanceResultStateEnum resultStateEnum) {

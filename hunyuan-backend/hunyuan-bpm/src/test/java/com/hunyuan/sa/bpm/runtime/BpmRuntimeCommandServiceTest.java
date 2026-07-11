@@ -48,6 +48,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -167,6 +168,14 @@ class BpmRuntimeCommandServiceTest {
 
         when(bpmTaskDao.selectById(1L)).thenReturn(taskEntity);
         when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+        BpmTaskEntity otherPendingAddSignTask = new BpmTaskEntity();
+        otherPendingAddSignTask.setTaskId(2L);
+        otherPendingAddSignTask.setInstanceId(8L);
+        otherPendingAddSignTask.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        otherPendingAddSignTask.setRuntimeAssignmentSnapshotJson(
+                "{\"addSign\":true,\"sourceTaskId\":1}"
+        );
+        when(bpmTaskDao.selectList(any())).thenReturn(List.of(otherPendingAddSignTask));
         when(taskCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(10L);
         when(taskIdentityGateway().requireEmployee(10L)).thenReturn(new BpmEmployeeSnapshot(10L, "王主管", 7L, "人事部", null, null));
 
@@ -177,12 +186,20 @@ class BpmRuntimeCommandServiceTest {
         ResponseDTO<String> response = bpmTaskService.returnToInitiator(form);
 
         assertThat(response.getOk()).isTrue();
-        verify(taskGateway()).complete("task-1");
+        verify(processInstanceGateway()).cancel("process-8", "审批退回发起人");
+        verify(taskGateway(), never()).complete("task-1");
 
         ArgumentCaptor<BpmTaskEntity> taskCaptor = ArgumentCaptor.forClass(BpmTaskEntity.class);
-        verify(bpmTaskDao).updateById(taskCaptor.capture());
-        assertThat(taskCaptor.getValue().getTaskState()).isEqualTo(BpmTaskStateEnum.COMPLETED.getValue());
-        assertThat(taskCaptor.getValue().getTaskResult()).isEqualTo(BpmTaskResultEnum.RETURNED.getValue());
+        verify(bpmTaskDao, Mockito.times(2)).updateById(taskCaptor.capture());
+        assertThat(taskCaptor.getAllValues()).anySatisfy(update -> {
+            assertThat(update.getTaskId()).isEqualTo(1L);
+            assertThat(update.getTaskState()).isEqualTo(BpmTaskStateEnum.COMPLETED.getValue());
+            assertThat(update.getTaskResult()).isEqualTo(BpmTaskResultEnum.RETURNED.getValue());
+        });
+        verify(bpmTaskDao).updateById(argThat((BpmTaskEntity update) ->
+                update.getTaskId().equals(otherPendingAddSignTask.getTaskId())
+                        && update.getTaskState().equals(BpmTaskStateEnum.CANCELLED.getValue())
+                        && update.getTaskResult().equals(BpmTaskResultEnum.RETURNED.getValue())));
 
         ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
         verify(bpmInstanceDao).updateById(instanceCaptor.capture());

@@ -3,6 +3,7 @@ package com.hunyuan.sa.bpm.runtime;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupStateEnum;
+import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
@@ -15,6 +16,7 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalGroupEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskActionLogVO;
@@ -34,6 +36,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -159,6 +162,98 @@ class BpmApprovalGroupServiceTest {
                 updatedGroup.getProcessedMemberCount() == 1
                         && updatedGroup.getApprovedMemberCount() == 1
                         && "PENDING".equals(updatedGroup.getGroupState())));
+    }
+
+    @Test
+    void approveSequentialMemberShouldKeepGroupPendingUntilFinalMember() {
+        BpmApprovalGroupEntity group = buildPendingGroup(21L, 3);
+        group.setApprovalMode("sequential");
+        BpmTaskEntity currentTask = buildMemberTask(11L, 101L);
+        prepareLockedAction(group, currentTask, List.of(currentTask));
+
+        BpmApprovalGroupActionResult result = service.handleMemberAction(
+                11L,
+                BpmApprovalMemberAction.APPROVE,
+                employee(101L, "审批人甲"),
+                "同意"
+        );
+
+        assertThat(result.processed()).isTrue();
+        assertThat(result.groupState()).isEqualTo(BpmApprovalGroupStateEnum.PENDING);
+        verify(taskGateway).complete("task-11");
+        verify(actionLogDao).insert(argThat((BpmTaskActionLogEntity log) ->
+                "APPROVED".equals(log.getActionType())));
+        verify(groupDao).updateById(argThat((BpmApprovalGroupEntity update) ->
+                update.getProcessedMemberCount() == 1
+                        && update.getApprovedMemberCount() == 1
+                        && "PENDING".equals(update.getGroupState())));
+    }
+
+    @Test
+    void approveFinalSequentialMemberShouldCloseGroupAndFinishInstance() {
+        BpmApprovalGroupEntity group = buildPendingGroup(21L, 3);
+        group.setApprovalMode("sequential");
+        group.setProcessedMemberCount(2);
+        group.setApprovedMemberCount(2);
+        BpmTaskEntity currentTask = buildMemberTask(13L, 103L);
+        prepareLockedAction(group, currentTask, List.of(currentTask));
+
+        BpmApprovalGroupActionResult result = service.handleMemberAction(
+                13L,
+                BpmApprovalMemberAction.APPROVE,
+                employee(103L, "审批人丙"),
+                "同意"
+        );
+
+        assertThat(result.groupState()).isEqualTo(BpmApprovalGroupStateEnum.APPROVED);
+        assertThat(result.finishInstanceResultState())
+                .isEqualTo(BpmInstanceResultStateEnum.APPROVED);
+        verify(groupDao).updateById(argThat((BpmApprovalGroupEntity update) ->
+                "APPROVED".equals(update.getGroupState())
+                        && update.getProcessedMemberCount() == 3
+                        && update.getApprovedMemberCount() == 3));
+    }
+
+    @Test
+    void returnSequentialMemberShouldCancelEngineAndCloseGroup() {
+        BpmApprovalGroupEntity group = buildPendingGroup(21L, 3);
+        group.setApprovalMode("sequential");
+        BpmTaskEntity currentTask = buildMemberTask(12L, 102L);
+        prepareLockedAction(group, currentTask, List.of(currentTask));
+
+        BpmApprovalGroupActionResult result = service.handleMemberAction(
+                12L,
+                BpmApprovalMemberAction.RETURN,
+                employee(102L, "审批人乙"),
+                "补充材料"
+        );
+
+        assertThat(result.waitResubmit()).isTrue();
+        verify(processGateway).cancel("process-8", "审批退回发起人");
+        verify(taskGateway, never()).complete(anyString());
+        verify(actionLogDao).insert(argThat((BpmTaskActionLogEntity log) ->
+                "RETURNED_TO_INITIATOR".equals(log.getActionType())));
+    }
+
+    @Test
+    void rejectSequentialMemberShouldCancelEngineAndCloseGroup() {
+        BpmApprovalGroupEntity group = buildPendingGroup(21L, 3);
+        group.setApprovalMode("sequential");
+        BpmTaskEntity currentTask = buildMemberTask(12L, 102L);
+        prepareLockedAction(group, currentTask, List.of(currentTask));
+
+        BpmApprovalGroupActionResult result = service.handleMemberAction(
+                12L,
+                BpmApprovalMemberAction.REJECT,
+                employee(102L, "审批人乙"),
+                "不同意"
+        );
+
+        assertThat(result.groupState()).isEqualTo(BpmApprovalGroupStateEnum.REJECTED);
+        assertThat(result.finishInstanceResultState())
+                .isEqualTo(BpmInstanceResultStateEnum.REJECTED);
+        verify(processGateway).cancel("process-8", "审批驳回");
+        verify(taskGateway, never()).complete(anyString());
     }
 
     @Test

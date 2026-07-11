@@ -56,6 +56,7 @@ class BpmTaskServiceTest {
     void addSignShouldRejectParallelAllMember() {
         BpmTaskEntity task = buildGroupMember();
         when(taskDao.selectById(11L)).thenReturn(task);
+        when(approvalGroupService.isParallelAllGroup(21L)).thenReturn(true);
         BpmTaskAddSignForm form = new BpmTaskAddSignForm();
         form.setTaskId(11L);
         form.setTargetEmployeeId(102L);
@@ -70,6 +71,7 @@ class BpmTaskServiceTest {
     void reduceSignShouldRejectParallelAllMember() {
         BpmTaskEntity task = buildGroupMember();
         when(taskDao.selectById(11L)).thenReturn(task);
+        when(approvalGroupService.isParallelAllGroup(21L)).thenReturn(true);
         BpmTaskReduceSignForm form = new BpmTaskReduceSignForm();
         form.setTaskId(11L);
 
