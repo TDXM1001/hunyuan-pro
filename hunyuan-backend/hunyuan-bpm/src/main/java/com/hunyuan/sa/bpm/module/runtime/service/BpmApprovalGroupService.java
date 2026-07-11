@@ -2,6 +2,7 @@ package com.hunyuan.sa.bpm.module.runtime.service;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupStateEnum;
@@ -43,7 +44,7 @@ import java.util.Objects;
 import java.util.logging.Logger;
 
 /**
- * 并行审批组运行时服务。
+ * 多人审批组运行时服务。
  */
 @Service
 public class BpmApprovalGroupService {
@@ -78,7 +79,7 @@ public class BpmApprovalGroupService {
             BpmDefinitionNodeEntity definitionNode,
             BpmTaskEntity memberTask
     ) {
-        ParallelGroupSnapshot snapshot = parseParallelGroupSnapshot(definitionNode);
+        ApprovalGroupNodeSnapshot snapshot = parseApprovalGroupSnapshot(definitionNode);
         if (snapshot == null) {
             return null;
         }
@@ -87,6 +88,10 @@ public class BpmApprovalGroupService {
                 snapshot.groupKey()
         );
         if (existing != null) {
+            verifyGroupRuntimeFacts(existing, instance, snapshot);
+            if (snapshot.isSequential()) {
+                restoreSequentialGroupMembers(instance, snapshot, existing.getApprovalGroupId(), memberTask);
+            }
             return existing.getApprovalGroupId();
         }
 
@@ -96,14 +101,17 @@ public class BpmApprovalGroupService {
         group.setEngineProcessInstanceId(instance.getEngineProcessInstanceId());
         group.setApprovalGroupKey(snapshot.groupKey());
         group.setApprovalGroupName(snapshot.groupName());
-        group.setApprovalMode("parallelAll");
+        group.setApprovalMode(snapshot.approvalMode());
         group.setGroupState(BpmApprovalGroupStateEnum.PENDING.name());
-        group.setTotalMemberCount(snapshot.parallelTotal());
+        group.setTotalMemberCount(snapshot.memberTotal());
         group.setProcessedMemberCount(0);
         group.setApprovedMemberCount(0);
         group.setRejectedMemberCount(0);
         try {
             bpmApprovalGroupDao.insert(group);
+            if (snapshot.isSequential()) {
+                restoreSequentialGroupMembers(instance, snapshot, group.getApprovalGroupId(), memberTask);
+            }
             return group.getApprovalGroupId();
         } catch (DuplicateKeyException ex) {
             // 并行分支可能同时投影，唯一键冲突后读取已经创建的审批组。
@@ -115,8 +123,23 @@ public class BpmApprovalGroupService {
             if (concurrentGroup == null) {
                 throw ex;
             }
+            verifyGroupRuntimeFacts(concurrentGroup, instance, snapshot);
+            if (snapshot.isSequential()) {
+                restoreSequentialGroupMembers(instance, snapshot, concurrentGroup.getApprovalGroupId(), memberTask);
+            }
             return concurrentGroup.getApprovalGroupId();
         }
+    }
+
+    /**
+     * 判断审批组是否仍使用并行全员会签语义。
+     */
+    public boolean isParallelAllGroup(Long approvalGroupId) {
+        if (approvalGroupId == null) {
+            return false;
+        }
+        BpmApprovalGroupEntity group = bpmApprovalGroupDao.selectById(approvalGroupId);
+        return group != null && "parallelAll".equals(group.getApprovalMode());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -272,7 +295,7 @@ public class BpmApprovalGroupService {
         for (BpmTaskEntity task : tasks) {
             tasksByGroupId.computeIfAbsent(task.getApprovalGroupId(), key -> new ArrayList<>()).add(task);
         }
-        Map<Long, Integer> parallelIndexByDefinitionNodeId = loadParallelIndexes(tasks);
+        Map<Long, Integer> memberIndexByDefinitionNodeId = loadMemberIndexes(tasks);
         Map<Long, BpmTaskActionLogVO> lastActionByTaskId = loadLastActions(groups);
 
         List<BpmApprovalGroupDetailVO> details = new ArrayList<>(groups.size());
@@ -283,7 +306,7 @@ public class BpmApprovalGroupService {
             groupTasks.sort(Comparator
                     .comparing(
                             (BpmTaskEntity task) ->
-                                    parallelIndexByDefinitionNodeId.get(task.getDefinitionNodeId()),
+                                    memberIndexByDefinitionNodeId.get(task.getDefinitionNodeId()),
                             Comparator.nullsLast(Integer::compareTo)
                     )
                     .thenComparing(
@@ -296,11 +319,11 @@ public class BpmApprovalGroupService {
                     ));
 
             boolean hasFallbackIndex = groupTasks.stream()
-                    .anyMatch(task -> !parallelIndexByDefinitionNodeId.containsKey(task.getDefinitionNodeId()));
+                    .anyMatch(task -> !memberIndexByDefinitionNodeId.containsKey(task.getDefinitionNodeId()));
             if (hasFallbackIndex) {
                 // 编译快照异常时保持返回顺序稳定，页面不参与序号推断。
                 LOGGER.warning(
-                        "审批组成员缺少有效 parallelIndex，已按到达时间和任务ID回退排序，approvalGroupId="
+                        "审批组成员缺少有效成员序号，已按到达时间和任务ID回退排序，approvalGroupId="
                                 + group.getApprovalGroupId()
                 );
             }
@@ -310,7 +333,7 @@ public class BpmApprovalGroupService {
             for (int index = 0; index < groupTasks.size(); index++) {
                 BpmTaskEntity task = groupTasks.get(index);
                 Integer snapshotIndex =
-                        parallelIndexByDefinitionNodeId.get(task.getDefinitionNodeId());
+                        memberIndexByDefinitionNodeId.get(task.getDefinitionNodeId());
                 members.add(buildMember(
                         task,
                         snapshotIndex == null ? index + 1 : snapshotIndex,
@@ -324,7 +347,7 @@ public class BpmApprovalGroupService {
         return details;
     }
 
-    private Map<Long, Integer> loadParallelIndexes(List<BpmTaskEntity> tasks) {
+    private Map<Long, Integer> loadMemberIndexes(List<BpmTaskEntity> tasks) {
         if (tasks.isEmpty() || bpmDefinitionNodeDao == null) {
             return Map.of();
         }
@@ -342,9 +365,9 @@ public class BpmApprovalGroupService {
         }
         Map<Long, Integer> result = new HashMap<>();
         for (BpmDefinitionNodeEntity node : nodes) {
-            Integer parallelIndex = parseParallelIndex(node.getCompiledNodeSnapshotJson());
-            if (parallelIndex != null) {
-                result.put(node.getDefinitionNodeId(), parallelIndex);
+            ApprovalGroupNodeSnapshot snapshot = parseApprovalGroupSnapshot(node);
+            if (snapshot != null) {
+                result.put(node.getDefinitionNodeId(), snapshot.memberIndex());
             }
         }
         return result;
@@ -424,19 +447,6 @@ public class BpmApprovalGroupService {
         member.setCancelledAt(task.getCancelledAt());
         member.setLastAction(lastAction);
         return member;
-    }
-
-    private Integer parseParallelIndex(String compiledNodeSnapshotJson) {
-        if (!StringUtils.hasText(compiledNodeSnapshotJson)) {
-            return null;
-        }
-        try {
-            Integer parallelIndex =
-                    JSON.parseObject(compiledNodeSnapshotJson).getInteger("parallelIndex");
-            return parallelIndex != null && parallelIndex > 0 ? parallelIndex : null;
-        } catch (Exception ex) {
-            return null;
-        }
     }
 
     private BpmApprovalGroupActionResult approveMember(
@@ -596,32 +606,172 @@ public class BpmApprovalGroupService {
         return log;
     }
 
-    private ParallelGroupSnapshot parseParallelGroupSnapshot(BpmDefinitionNodeEntity definitionNode) {
+    private ApprovalGroupNodeSnapshot parseApprovalGroupSnapshot(BpmDefinitionNodeEntity definitionNode) {
         if (definitionNode == null || !StringUtils.hasText(definitionNode.getCompiledNodeSnapshotJson())) {
             return null;
         }
         try {
             JSONObject snapshot = JSON.parseObject(definitionNode.getCompiledNodeSnapshotJson());
-            if (!"parallelAll".equals(snapshot.getString("approvalMode"))) {
-                return null;
-            }
+            String approvalMode = snapshot.getString("approvalMode");
             String groupKey = snapshot.getString("approvalGroupKey");
             String groupName = snapshot.getString("approvalGroupName");
-            Integer parallelIndex = snapshot.getInteger("parallelIndex");
-            Integer parallelTotal = snapshot.getInteger("parallelTotal");
-            if (!StringUtils.hasText(groupKey)
-                    || !StringUtils.hasText(groupName)
-                    || parallelIndex == null
-                    || parallelTotal == null
-                    || parallelIndex < 1
-                    || parallelIndex > parallelTotal
-                    || parallelTotal < 2) {
+            Integer memberIndex = "parallelAll".equals(approvalMode)
+                    ? snapshot.getInteger("parallelIndex")
+                    : snapshot.getInteger("sequentialIndex");
+            Integer memberTotal = "parallelAll".equals(approvalMode)
+                    ? snapshot.getInteger("parallelTotal")
+                    : snapshot.getInteger("sequentialTotal");
+            if (!"parallelAll".equals(approvalMode) && !"sequential".equals(approvalMode)) {
+                warnInvalidApprovalGroupSnapshot(definitionNode);
                 return null;
             }
-            return new ParallelGroupSnapshot(groupKey, groupName, parallelTotal);
+            if (!StringUtils.hasText(groupKey)
+                    || !StringUtils.hasText(groupName)
+                    || memberIndex == null
+                    || memberTotal == null
+                    || memberIndex < 1
+                    || memberIndex > memberTotal
+                    || memberTotal < 2) {
+                warnInvalidApprovalGroupSnapshot(definitionNode);
+                return null;
+            }
+            return new ApprovalGroupNodeSnapshot(
+                    groupKey,
+                    groupName,
+                    approvalMode,
+                    memberIndex,
+                    memberTotal
+            );
         } catch (Exception ex) {
+            warnInvalidApprovalGroupSnapshot(definitionNode);
             return null;
         }
+    }
+
+    private void warnInvalidApprovalGroupSnapshot(BpmDefinitionNodeEntity definitionNode) {
+        LOGGER.warning("审批组编译快照无效，definitionNodeId=" + definitionNode.getDefinitionNodeId());
+    }
+
+    private void verifyGroupRuntimeFacts(
+            BpmApprovalGroupEntity group,
+            BpmInstanceEntity instance,
+            ApprovalGroupNodeSnapshot snapshot
+    ) {
+        if (!Objects.equals(group.getInstanceId(), instance.getInstanceId())
+                || !Objects.equals(group.getDefinitionId(), instance.getDefinitionId())
+                || !Objects.equals(group.getEngineProcessInstanceId(), instance.getEngineProcessInstanceId())
+                || !Objects.equals(group.getApprovalMode(), snapshot.approvalMode())
+                || !Objects.equals(group.getTotalMemberCount(), snapshot.memberTotal())) {
+            throw new IllegalStateException("审批组快照与运行时事实不一致");
+        }
+    }
+
+    private void restoreSequentialGroupMembers(
+            BpmInstanceEntity instance,
+            ApprovalGroupNodeSnapshot snapshot,
+            Long approvalGroupId,
+            BpmTaskEntity currentTask
+    ) {
+        if (approvalGroupId == null) {
+            return;
+        }
+        List<BpmTaskEntity> instanceTasks = bpmTaskDao.selectList(Wrappers.<BpmTaskEntity>lambdaQuery()
+                .eq(BpmTaskEntity::getInstanceId, instance.getInstanceId())
+                .eq(BpmTaskEntity::getEngineProcessInstanceId, instance.getEngineProcessInstanceId()));
+        if (instanceTasks == null) {
+            instanceTasks = new ArrayList<>();
+        } else {
+            // DAO 查询条件是第一道边界；这里再次过滤，避免重提后的旧引擎流程混入恢复计算。
+            instanceTasks = instanceTasks.stream()
+                    .filter(task -> Objects.equals(task.getInstanceId(), instance.getInstanceId()))
+                    .filter(task -> Objects.equals(
+                            task.getEngineProcessInstanceId(),
+                            instance.getEngineProcessInstanceId()
+                    ))
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        }
+        boolean containsCurrentTask = currentTask != null && instanceTasks.stream()
+                .anyMatch(task -> Objects.equals(task.getTaskId(), currentTask.getTaskId())
+                        || Objects.equals(task.getEngineTaskId(), currentTask.getEngineTaskId()));
+        if (currentTask != null && !containsCurrentTask) {
+            instanceTasks.add(currentTask);
+        }
+
+        List<Long> nodeIds = instanceTasks.stream()
+                .map(BpmTaskEntity::getDefinitionNodeId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (nodeIds.isEmpty()) {
+            return;
+        }
+        List<BpmDefinitionNodeEntity> nodes = bpmDefinitionNodeDao.selectBatchIds(nodeIds);
+        if (nodes == null || nodes.isEmpty()) {
+            return;
+        }
+        Map<Long, ApprovalGroupNodeSnapshot> snapshotsByNodeId = new HashMap<>();
+        for (BpmDefinitionNodeEntity node : nodes) {
+            ApprovalGroupNodeSnapshot nodeSnapshot = parseApprovalGroupSnapshot(node);
+            if (nodeSnapshot != null
+                    && nodeSnapshot.isSequential()
+                    && Objects.equals(nodeSnapshot.groupKey(), snapshot.groupKey())) {
+                snapshotsByNodeId.put(node.getDefinitionNodeId(), nodeSnapshot);
+            }
+        }
+
+        List<BpmTaskEntity> authoredTasks = new ArrayList<>();
+        for (BpmTaskEntity task : instanceTasks) {
+            if (!snapshotsByNodeId.containsKey(task.getDefinitionNodeId())) {
+                continue;
+            }
+            authoredTasks.add(task);
+            if (task.getApprovalGroupId() == null && task.getTaskId() != null) {
+                BpmTaskEntity updateTask = new BpmTaskEntity();
+                updateTask.setTaskId(task.getTaskId());
+                updateTask.setApprovalGroupId(approvalGroupId);
+                bpmTaskDao.updateById(updateTask);
+                task.setApprovalGroupId(approvalGroupId);
+            }
+        }
+        BpmApprovalGroupEntity group = bpmApprovalGroupDao.selectByEngineProcessInstanceIdAndGroupKey(
+                instance.getEngineProcessInstanceId(),
+                snapshot.groupKey()
+        );
+        if (group != null) {
+            recalculateSequentialGroup(group, authoredTasks);
+        }
+    }
+
+    private void recalculateSequentialGroup(
+            BpmApprovalGroupEntity group,
+            List<BpmTaskEntity> authoredTasks
+    ) {
+        int approvedCount = (int) authoredTasks.stream()
+                .filter(task -> BpmTaskResultEnum.APPROVED.equalsValue(task.getTaskResult()))
+                .count();
+        int rejectedCount = (int) authoredTasks.stream()
+                .filter(task -> BpmTaskResultEnum.REJECTED.equalsValue(task.getTaskResult()))
+                .count();
+        boolean hasReturned = authoredTasks.stream()
+                .anyMatch(task -> BpmTaskResultEnum.RETURNED.equalsValue(task.getTaskResult()));
+        int processedCount = (int) authoredTasks.stream()
+                .filter(task -> task.getTaskResult() != null)
+                .count();
+        BpmApprovalGroupStateEnum groupState = hasReturned
+                ? BpmApprovalGroupStateEnum.RETURNED
+                : rejectedCount > 0
+                        ? BpmApprovalGroupStateEnum.REJECTED
+                        : approvedCount == safeCount(group.getTotalMemberCount())
+                                ? BpmApprovalGroupStateEnum.APPROVED
+                                : BpmApprovalGroupStateEnum.PENDING;
+
+        BpmApprovalGroupEntity updateGroup = new BpmApprovalGroupEntity();
+        updateGroup.setApprovalGroupId(group.getApprovalGroupId());
+        updateGroup.setProcessedMemberCount(processedCount);
+        updateGroup.setApprovedMemberCount(approvedCount);
+        updateGroup.setRejectedMemberCount(rejectedCount);
+        updateGroup.setGroupState(groupState.name());
+        bpmApprovalGroupDao.updateById(updateGroup);
     }
 
     private BpmApprovalGroupStateEnum parseGroupState(String groupState) {
@@ -636,6 +786,20 @@ public class BpmApprovalGroupService {
         return count == null ? 0 : count;
     }
 
-    private record ParallelGroupSnapshot(String groupKey, String groupName, Integer parallelTotal) {
+    private record ApprovalGroupNodeSnapshot(
+            String groupKey,
+            String groupName,
+            String approvalMode,
+            Integer memberIndex,
+            Integer memberTotal
+    ) {
+
+        boolean isParallelAll() {
+            return "parallelAll".equals(approvalMode);
+        }
+
+        boolean isSequential() {
+            return "sequential".equals(approvalMode);
+        }
     }
 }

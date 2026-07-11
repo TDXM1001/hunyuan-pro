@@ -26,6 +26,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -202,6 +204,39 @@ class BpmTaskProjectionServiceTest {
         service.syncActiveTasksForInstance(8L);
 
         verify(bpmNotificationListenerService, never()).dispatch(any(BpmNotificationCommand.class));
+    }
+
+    @Test
+    void syncShouldAttachGroupToExistingSequentialTaskWhenGroupIdIsMissing() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmTaskEntity existing = new BpmTaskEntity();
+        existing.setTaskId(22L);
+        existing.setDefinitionNodeId(12L);
+        existing.setEngineTaskId("engine-task-2");
+        existing.setEngineProcessInstanceId("process-1");
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(12L);
+        node.setNodeKey("finance_review_2");
+        node.setCompiledNodeSnapshotJson("{\"approvalMode\":\"sequential\","
+                + "\"approvalGroupKey\":\"finance_review\","
+                + "\"approvalGroupName\":\"财务复核\","
+                + "\"sequentialIndex\":2,\"sequentialTotal\":3}");
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot(
+                        "engine-task-2", "execution-2", "process-1", "finance_review_2", "财务复核", 102L
+                )
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(existing);
+        when(bpmDefinitionNodeDao.selectOne(any(Wrapper.class))).thenReturn(node);
+        when(bpmApprovalGroupService.assignApprovalGroup(any(), same(node), same(existing)))
+                .thenReturn(31L);
+
+        service.syncActiveTasksForInstance(8L);
+
+        verify(bpmTaskDao).updateById(argThat((BpmTaskEntity update) ->
+                update.getTaskId().equals(existing.getTaskId())
+                        && update.getApprovalGroupId().equals(31L)));
     }
 
     @Test

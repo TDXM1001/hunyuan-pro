@@ -72,13 +72,13 @@ public class BpmTaskProjectionService {
     private void insertTaskIfMissing(BpmInstanceEntity instance, FlowableActiveTaskSnapshot activeTask) {
         BpmTaskEntity existing = bpmTaskDao.selectOne(Wrappers.<BpmTaskEntity>lambdaQuery()
                 .eq(BpmTaskEntity::getEngineTaskId, activeTask.engineTaskId()));
-        if (existing != null) {
-            return;
-        }
-
         BpmDefinitionNodeEntity node = bpmDefinitionNodeDao.selectOne(Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
                 .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
                 .eq(BpmDefinitionNodeEntity::getNodeKey, activeTask.taskKey()));
+        if (existing != null) {
+            attachApprovalGroupIfMissing(instance, node, existing);
+            return;
+        }
         BpmEmployeeSnapshot assigneeSnapshot = activeTask.assigneeEmployeeId() == null
                 ? null
                 : bpmOrgIdentityGateway.requireEmployee(activeTask.assigneeEmployeeId());
@@ -104,7 +104,7 @@ public class BpmTaskProjectionService {
         task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         task.setAssignedAt(now);
         task.setLastActionAt(now);
-        if (isParallelApprovalGroupNode(node)) {
+        if (isApprovalGroupNode(node)) {
             task.setApprovalGroupId(bpmApprovalGroupService.assignApprovalGroup(instance, node, task));
         }
         bpmTaskDao.insert(task);
@@ -123,21 +123,45 @@ public class BpmTaskProjectionService {
         task.setRuntimeAssignmentSnapshotJson(assignment.toJSONString());
     }
 
-    private boolean isParallelApprovalGroupNode(BpmDefinitionNodeEntity node) {
+    private void attachApprovalGroupIfMissing(
+            BpmInstanceEntity instance,
+            BpmDefinitionNodeEntity node,
+            BpmTaskEntity task
+    ) {
+        if (task.getApprovalGroupId() != null || !isApprovalGroupNode(node)) {
+            return;
+        }
+        Long groupId = bpmApprovalGroupService.assignApprovalGroup(instance, node, task);
+        if (groupId == null || task.getApprovalGroupId() != null) {
+            return;
+        }
+        BpmTaskEntity updateTask = new BpmTaskEntity();
+        updateTask.setTaskId(task.getTaskId());
+        updateTask.setApprovalGroupId(groupId);
+        bpmTaskDao.updateById(updateTask);
+    }
+
+    private boolean isApprovalGroupNode(BpmDefinitionNodeEntity node) {
         if (node == null || node.getCompiledNodeSnapshotJson() == null) {
             return false;
         }
         try {
             JSONObject snapshot = JSON.parseObject(node.getCompiledNodeSnapshotJson());
-            Integer parallelIndex = snapshot.getInteger("parallelIndex");
-            Integer parallelTotal = snapshot.getInteger("parallelTotal");
-            return "parallelAll".equals(snapshot.getString("approvalMode"))
+            String mode = snapshot.getString("approvalMode");
+            Integer memberIndex = "parallelAll".equals(mode)
+                    ? snapshot.getInteger("parallelIndex")
+                    : snapshot.getInteger("sequentialIndex");
+            Integer memberTotal = "parallelAll".equals(mode)
+                    ? snapshot.getInteger("parallelTotal")
+                    : snapshot.getInteger("sequentialTotal");
+            return ("parallelAll".equals(mode) || "sequential".equals(mode))
                     && snapshot.getString("approvalGroupKey") != null
-                    && parallelIndex != null
-                    && parallelTotal != null
-                    && parallelIndex >= 1
-                    && parallelIndex <= parallelTotal
-                    && parallelTotal >= 2;
+                    && snapshot.getString("approvalGroupName") != null
+                    && memberIndex != null
+                    && memberTotal != null
+                    && memberIndex >= 1
+                    && memberIndex <= memberTotal
+                    && memberTotal >= 2;
         } catch (Exception ex) {
             return false;
         }

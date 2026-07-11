@@ -7,6 +7,7 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
+import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalGroupDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
@@ -32,6 +33,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +45,7 @@ class BpmApprovalGroupServiceTest {
     private BpmTaskDao taskDao;
     private BpmInstanceDao instanceDao;
     private BpmTaskActionLogDao actionLogDao;
+    private BpmDefinitionNodeDao definitionNodeDao;
     private FlowableTaskGateway taskGateway;
     private FlowableProcessInstanceGateway processGateway;
 
@@ -53,12 +56,14 @@ class BpmApprovalGroupServiceTest {
         taskDao = Mockito.mock(BpmTaskDao.class);
         instanceDao = Mockito.mock(BpmInstanceDao.class);
         actionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
+        definitionNodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
         taskGateway = Mockito.mock(FlowableTaskGateway.class);
         processGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
         setField(service, "bpmApprovalGroupDao", groupDao);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmInstanceDao", instanceDao);
         setField(service, "bpmTaskActionLogDao", actionLogDao);
+        setField(service, "bpmDefinitionNodeDao", definitionNodeDao);
         setField(service, "flowableTaskGateway", taskGateway);
         setField(service, "flowableProcessInstanceGateway", processGateway);
     }
@@ -96,6 +101,64 @@ class BpmApprovalGroupServiceTest {
 
         assertThat(firstGroupId).isEqualTo(21L);
         assertThat(secondGroupId).isEqualTo(22L);
+    }
+
+    @Test
+    void assignApprovalGroupShouldCreateSequentialGroup() {
+        BpmDefinitionNodeEntity node = buildSequentialNode(11L, "finance_review_1", 1, 3, 101L);
+        BpmInstanceEntity instance = buildInstance("process-8");
+        BpmTaskEntity task = buildSequentialTask(21L, 11L, "process-8", 101L, null);
+        when(groupDao.selectByEngineProcessInstanceIdAndGroupKey("process-8", "finance_review"))
+                .thenReturn(null);
+        when(groupDao.insert(any(BpmApprovalGroupEntity.class))).thenAnswer(invocation -> {
+            BpmApprovalGroupEntity group = invocation.getArgument(0);
+            group.setApprovalGroupId(31L);
+            return 1;
+        });
+
+        Long groupId = service.assignApprovalGroup(instance, node, task);
+
+        assertThat(groupId).isEqualTo(31L);
+        ArgumentCaptor<BpmApprovalGroupEntity> captor =
+                ArgumentCaptor.forClass(BpmApprovalGroupEntity.class);
+        verify(groupDao).insert(captor.capture());
+        assertThat(captor.getValue().getApprovalMode()).isEqualTo("sequential");
+        assertThat(captor.getValue().getApprovalGroupKey()).isEqualTo("finance_review");
+        assertThat(captor.getValue().getTotalMemberCount()).isEqualTo(3);
+    }
+
+    @Test
+    void recoverSequentialGroupShouldUseOnlyCurrentEngineProcessTasksAndBeIdempotent() {
+        BpmInstanceEntity instance = buildInstance("process-new");
+        BpmApprovalGroupEntity group = buildPendingGroup(31L, 3);
+        group.setApprovalMode("sequential");
+        group.setEngineProcessInstanceId("process-new");
+        BpmTaskEntity approved = buildSequentialTask(21L, 11L, "process-new", 101L, null);
+        approved.setTaskState(BpmTaskStateEnum.COMPLETED.getValue());
+        approved.setTaskResult(BpmTaskResultEnum.APPROVED.getValue());
+        BpmTaskEntity current = buildSequentialTask(22L, 12L, "process-new", 102L, null);
+        BpmTaskEntity oldRun = buildSequentialTask(9L, 11L, "process-old", 101L, null);
+        when(groupDao.selectByEngineProcessInstanceIdAndGroupKey("process-new", "finance_review"))
+                .thenReturn(group);
+        when(taskDao.selectList(any())).thenReturn(List.of(approved, current, oldRun));
+        when(definitionNodeDao.selectBatchIds(any())).thenReturn(List.of(
+                buildSequentialNode(11L, "finance_review_1", 1, 3, 101L),
+                buildSequentialNode(12L, "finance_review_2", 2, 3, 102L)
+        ));
+
+        service.assignApprovalGroup(
+                instance,
+                buildSequentialNode(12L, "finance_review_2", 2, 3, 102L),
+                current
+        );
+
+        verify(taskDao).updateById(argThat((BpmTaskEntity task) ->
+                task.getTaskId().equals(21L) && task.getApprovalGroupId().equals(31L)));
+        verify(taskDao, never()).updateById(argThat((BpmTaskEntity task) -> task.getTaskId().equals(9L)));
+        verify(groupDao).updateById(argThat((BpmApprovalGroupEntity updatedGroup) ->
+                updatedGroup.getProcessedMemberCount() == 1
+                        && updatedGroup.getApprovedMemberCount() == 1
+                        && "PENDING".equals(updatedGroup.getGroupState())));
     }
 
     @Test
@@ -322,6 +385,25 @@ class BpmApprovalGroupServiceTest {
         return node;
     }
 
+    private BpmDefinitionNodeEntity buildSequentialNode(
+            Long definitionNodeId,
+            String nodeKey,
+            int index,
+            int total,
+            Long employeeId
+    ) {
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(definitionNodeId);
+        node.setNodeKey(nodeKey);
+        node.setCompiledNodeSnapshotJson(("{\"approvalMode\":\"sequential\","
+                + "\"approvalGroupKey\":\"finance_review\","
+                + "\"approvalGroupName\":\"财务复核\","
+                + "\"authoredNodeKey\":\"finance_review\","
+                + "\"sequentialIndex\":%d,\"sequentialTotal\":%d,\"employeeId\":%d}")
+                .formatted(index, total, employeeId));
+        return node;
+    }
+
     private BpmApprovalGroupEntity buildPendingGroup(Long groupId, int total) {
         BpmApprovalGroupEntity group = new BpmApprovalGroupEntity();
         group.setApprovalGroupId(groupId);
@@ -350,6 +432,26 @@ class BpmApprovalGroupServiceTest {
         task.setEngineProcessInstanceId("process-8");
         task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         task.setAssigneeEmployeeId(assigneeEmployeeId);
+        return task;
+    }
+
+    private BpmTaskEntity buildSequentialTask(
+            Long taskId,
+            Long definitionNodeId,
+            String engineProcessInstanceId,
+            Long employeeId,
+            Long approvalGroupId
+    ) {
+        BpmTaskEntity task = new BpmTaskEntity();
+        task.setTaskId(taskId);
+        task.setInstanceId(8L);
+        task.setDefinitionId(2L);
+        task.setDefinitionNodeId(definitionNodeId);
+        task.setEngineTaskId("task-" + taskId);
+        task.setEngineProcessInstanceId(engineProcessInstanceId);
+        task.setAssigneeEmployeeId(employeeId);
+        task.setApprovalGroupId(approvalGroupId);
+        task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         return task;
     }
 
