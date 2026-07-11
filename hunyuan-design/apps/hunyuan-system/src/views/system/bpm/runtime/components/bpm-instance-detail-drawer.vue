@@ -26,6 +26,8 @@ import {
   ElTimelineItem,
 } from 'element-plus';
 
+import BpmApprovalGroupPanel from './bpm-approval-group-panel.vue';
+
 defineOptions({ name: 'SystemBpmInstanceDetailDrawer' });
 
 const visible = ref(false);
@@ -40,12 +42,24 @@ const commandRecords = computed(() => trace.value?.commandRecords ?? []);
 const notificationRecords = computed(() => trace.value?.notificationRecords ?? []);
 const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
 const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
+const approvalGroups = computed(
+  () => trace.value?.approvalGroups ?? detail.value?.approvalGroups ?? [],
+);
 type DetailSource = 'admin' | 'runtime';
 
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
+    ADD_SIGNED: '任务加签',
+    APPROVAL_GROUP_ALL_APPROVED: '审批组全员通过',
+    APPROVAL_GROUP_CANCELLED: '审批组已关闭',
     APPROVED: '审批通过',
+    DELEGATED: '任务委派',
     INSTANCE_CANCELLED: '实例取消',
+    PARALLEL_MEMBER_APPROVED: '会签成员通过',
+    PARALLEL_MEMBER_REJECTED: '会签成员拒绝，审批组已终止',
+    PARALLEL_MEMBER_RETURNED: '会签成员退回发起人，其他待办已取消',
+    RECALLED: '发起人撤回',
+    REDUCE_SIGNED: '任务减签',
     REJECTED: '审批拒绝',
     RESUBMITTED: '重新提交',
     RETURNED_TO_INITIATOR: '退回发起人',
@@ -171,6 +185,11 @@ defineExpose({ open });
         </div>
       </div>
       <ElEmpty v-else description="暂无当前待办" />
+
+      <template v-if="approvalGroups.length > 0">
+        <div class="bpm-instance-detail__section-title">审批组</div>
+        <BpmApprovalGroupPanel :groups="approvalGroups" />
+      </template>
 
       <div class="bpm-instance-detail__section-title">动作轨迹</div>
       <ElTimeline v-if="actionLogs.length > 0" class="bpm-instance-detail__timeline">

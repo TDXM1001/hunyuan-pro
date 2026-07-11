@@ -14,6 +14,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationCommand;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationListenerService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ class BpmTaskProjectionServiceTest {
     private FlowableTaskGateway flowableTaskGateway;
     private BpmOrgIdentityGateway bpmOrgIdentityGateway;
     private BpmNotificationListenerService bpmNotificationListenerService;
+    private BpmApprovalGroupService bpmApprovalGroupService;
 
     @BeforeEach
     void setUp() {
@@ -49,12 +51,14 @@ class BpmTaskProjectionServiceTest {
         flowableTaskGateway = Mockito.mock(FlowableTaskGateway.class);
         bpmOrgIdentityGateway = Mockito.mock(BpmOrgIdentityGateway.class);
         bpmNotificationListenerService = Mockito.mock(BpmNotificationListenerService.class);
+        bpmApprovalGroupService = Mockito.mock(BpmApprovalGroupService.class);
         setField(service, "bpmInstanceDao", bpmInstanceDao);
         setField(service, "bpmTaskDao", bpmTaskDao);
         setField(service, "bpmDefinitionNodeDao", bpmDefinitionNodeDao);
         setField(service, "flowableTaskGateway", flowableTaskGateway);
         setField(service, "bpmOrgIdentityGateway", bpmOrgIdentityGateway);
         setField(service, "bpmNotificationListenerService", bpmNotificationListenerService);
+        setField(service, "bpmApprovalGroupService", bpmApprovalGroupService);
     }
 
     @Test
@@ -130,6 +134,58 @@ class BpmTaskProjectionServiceTest {
         assertThat(commandCaptor.getValue().definitionNodeId()).isEqualTo(5L);
         assertThat(commandCaptor.getValue().eventKey()).isEqualTo("TASK_CREATED");
         assertThat(commandCaptor.getValue().receiverEmployeeId()).isEqualTo(22L);
+        assertThat(commandCaptor.getValue().title()).isEqualTo("流程待办提醒");
+        assertThat(commandCaptor.getValue().subject()).isEqualTo("流程待办提醒");
+        assertThat(commandCaptor.getValue().content()).isEqualTo("你有一个新的流程待办：请假申请");
+    }
+
+    @Test
+    void syncActiveTasksShouldIncludeApprovalGroupProgressInParallelNotification() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(5L);
+        node.setNodeKey("finance_review_1");
+        node.setCompiledNodeSnapshotJson("""
+                {
+                  "approvalMode":"parallelAll",
+                  "approvalGroupKey":"finance_review",
+                  "approvalGroupName":"财务会签",
+                  "parallelIndex":1,
+                  "parallelTotal":3,
+                  "listeners":[{"channel":"MESSAGE"}]
+                }
+                """);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot(
+                        "task-1",
+                        "execution-1",
+                        "process-1",
+                        "finance_review_1",
+                        "财务会签-审批人甲",
+                        101L
+                )
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(bpmDefinitionNodeDao.selectOne(any(Wrapper.class))).thenReturn(node);
+        when(bpmOrgIdentityGateway.requireEmployee(101L)).thenReturn(
+                new BpmEmployeeSnapshot(101L, "审批人甲", 9L, "财务部", null, null)
+        );
+        when(bpmApprovalGroupService.assignApprovalGroup(any(), any(), any())).thenReturn(21L);
+        when(bpmTaskDao.insert(any(BpmTaskEntity.class))).thenAnswer(invocation -> {
+            BpmTaskEntity task = invocation.getArgument(0);
+            task.setTaskId(11L);
+            return 1;
+        });
+
+        service.syncActiveTasksForInstance(8L);
+
+        ArgumentCaptor<BpmNotificationCommand> commandCaptor = ArgumentCaptor.forClass(BpmNotificationCommand.class);
+        verify(bpmNotificationListenerService).dispatch(commandCaptor.capture());
+        assertThat(commandCaptor.getValue().title()).isEqualTo("流程会签待办提醒");
+        assertThat(commandCaptor.getValue().subject()).isEqualTo("流程会签待办提醒");
+        assertThat(commandCaptor.getValue().content())
+                .isEqualTo("你有一个新的流程待办：请假申请；审批组：财务会签，成员 1/3");
     }
 
     @Test
@@ -165,6 +221,70 @@ class BpmTaskProjectionServiceTest {
         service.syncActiveTasksForInstance(8L);
 
         verify(bpmNotificationListenerService, never()).dispatch(any(BpmNotificationCommand.class));
+    }
+
+    @Test
+    void syncActiveTasksShouldAssignSameApprovalGroupToParallelMembers() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmDefinitionNodeEntity firstNode = new BpmDefinitionNodeEntity();
+        firstNode.setDefinitionNodeId(5L);
+        firstNode.setNodeKey("finance_review_1");
+        firstNode.setCompiledNodeSnapshotJson("""
+                {"approvalMode":"parallelAll","approvalGroupKey":"finance_review","approvalGroupName":"财务会签","parallelIndex":1,"parallelTotal":2}
+                """);
+        BpmDefinitionNodeEntity secondNode = new BpmDefinitionNodeEntity();
+        secondNode.setDefinitionNodeId(6L);
+        secondNode.setNodeKey("finance_review_2");
+        secondNode.setCompiledNodeSnapshotJson("""
+                {"approvalMode":"parallelAll","approvalGroupKey":"finance_review","approvalGroupName":"财务会签","parallelIndex":2,"parallelTotal":2}
+                """);
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot("task-1", "execution-1", "process-1", "finance_review_1", "财务会签-审批人甲", 101L),
+                new FlowableActiveTaskSnapshot("task-2", "execution-2", "process-1", "finance_review_2", "财务会签-审批人乙", 102L)
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(bpmDefinitionNodeDao.selectOne(any(Wrapper.class))).thenReturn(firstNode, secondNode);
+        when(bpmOrgIdentityGateway.requireEmployee(101L)).thenReturn(
+                new BpmEmployeeSnapshot(101L, "审批人甲", 9L, "财务部", null, null)
+        );
+        when(bpmOrgIdentityGateway.requireEmployee(102L)).thenReturn(
+                new BpmEmployeeSnapshot(102L, "审批人乙", 9L, "财务部", null, null)
+        );
+        when(bpmApprovalGroupService.assignApprovalGroup(any(), any(), any())).thenReturn(21L);
+
+        service.syncActiveTasksForInstance(8L);
+
+        ArgumentCaptor<BpmTaskEntity> taskCaptor = ArgumentCaptor.forClass(BpmTaskEntity.class);
+        verify(bpmTaskDao, Mockito.times(2)).insert(taskCaptor.capture());
+        assertThat(taskCaptor.getAllValues())
+                .extracting(BpmTaskEntity::getApprovalGroupId)
+                .containsExactly(21L, 21L);
+    }
+
+    @Test
+    void syncActiveTasksShouldKeepOrdinaryTaskApprovalGroupNull() {
+        BpmInstanceEntity instance = buildInstance();
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setDefinitionNodeId(5L);
+        node.setNodeKey("approve_1");
+        node.setCompiledNodeSnapshotJson("{\"approvalMode\":\"single\"}");
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot("task-1", "execution-1", "process-1", "approve_1", "一级审批", 22L)
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(bpmDefinitionNodeDao.selectOne(any(Wrapper.class))).thenReturn(node);
+        when(bpmOrgIdentityGateway.requireEmployee(22L)).thenReturn(
+                new BpmEmployeeSnapshot(22L, "李四", 9L, "财务部", null, null)
+        );
+
+        service.syncActiveTasksForInstance(8L);
+
+        ArgumentCaptor<BpmTaskEntity> taskCaptor = ArgumentCaptor.forClass(BpmTaskEntity.class);
+        verify(bpmTaskDao).insert(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getApprovalGroupId()).isNull();
+        verify(bpmApprovalGroupService, never()).assignApprovalGroup(any(), any(), any());
     }
 
     private BpmInstanceEntity buildInstance() {

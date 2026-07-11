@@ -376,6 +376,23 @@ class BpmTaskAssignmentResolverTest {
         verify(identityGateway).requireEmployee(302L);
     }
 
+    @Test
+    void resolveShouldCreateIndependentVariablesForParallelAllMembers() {
+        BpmEmployeeSnapshot startEmployee = new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null);
+
+        Map<String, Object> variables = resolver.resolve(
+                List.of(
+                        buildParallelNode("finance_review_1", "财务会签（1/2）", 101, 1, 2),
+                        buildParallelNode("finance_review_2", "财务会签（2/2）", 102, 2, 2)
+                ),
+                startEmployee
+        );
+
+        assertThat(variables)
+                .containsEntry("assignee_finance_review_1", "101")
+                .containsEntry("assignee_finance_review_2", "102");
+    }
+
     private BpmDefinitionNodeEntity buildNode(String nodeKey, String authoredRuleSnapshotJson) {
         BpmDefinitionNodeEntity entity = new BpmDefinitionNodeEntity();
         entity.setNodeKey(nodeKey);
@@ -399,6 +416,28 @@ class BpmTaskAssignmentResolverTest {
         entity.setNodeNameSnapshot(nodeName);
         entity.setCompiledNodeSnapshotJson(
                 "{\"nodeKey\":\"" + nodeKey + "\",\"name\":\"" + nodeName + "\",\"type\":\"userTask\",\"approvalMode\":\"sequential\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":" + employeeId + ",\"authoredNodeKey\":\"task_finance\",\"authoredNodeName\":\"财务复核\",\"sequentialIndex\":" + sequentialIndex + ",\"sequentialTotal\":" + sequentialTotal + "}"
+        );
+        return entity;
+    }
+
+    private BpmDefinitionNodeEntity buildParallelNode(
+            String nodeKey,
+            String nodeName,
+            long employeeId,
+            int parallelIndex,
+            int parallelTotal
+    ) {
+        BpmDefinitionNodeEntity entity = buildNode(
+                nodeKey,
+                "{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":[101,102]}"
+        );
+        entity.setNodeNameSnapshot(nodeName);
+        entity.setCompiledNodeSnapshotJson(
+                "{\"nodeKey\":\"" + nodeKey + "\",\"name\":\"" + nodeName
+                        + "\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":"
+                        + employeeId
+                        + ",\"approvalGroupKey\":\"finance_review\",\"approvalGroupName\":\"财务会签\",\"parallelIndex\":"
+                        + parallelIndex + ",\"parallelTotal\":" + parallelTotal + "}"
         );
         return entity;
     }

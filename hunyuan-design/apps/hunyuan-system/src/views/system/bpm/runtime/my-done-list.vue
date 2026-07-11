@@ -48,7 +48,7 @@ const columnsFactory = (): ColumnOption<BpmTaskRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
   { prop: 'instanceNo', label: '实例编号', minWidth: 150 },
   { prop: 'instanceTitle', label: '流程标题', minWidth: 220 },
-  { prop: 'taskName', label: '任务名称', minWidth: 160 },
+  { prop: 'taskName', label: '任务名称', minWidth: 190, useSlot: true },
   { prop: 'taskResult', label: '任务结果', width: 100, align: 'center', useSlot: true },
   { prop: 'assignedAt', label: '到达时间', minWidth: 180 },
   { prop: 'completedAt', label: '完成时间', minWidth: 180 },
@@ -181,6 +181,18 @@ onMounted(() => {
             @pagination:current-change="handleCurrentChange"
             @pagination:size-change="handleSizeChange"
           >
+            <template #taskName="{ row }">
+              <div class="runtime-done-page__task-name">
+                <span>{{ row.taskName }}</span>
+                <small v-if="row.approvalGroup">
+                  {{ row.approvalGroup.approvalGroupName }}，
+                  {{ row.approvalGroup.processedMemberCount }}/{{
+                    row.approvalGroup.totalMemberCount
+                  }}
+                  已处理
+                </small>
+              </div>
+            </template>
             <template #taskResult="{ row }">
               <ElTag effect="plain" size="small">
                 {{ getTaskResultLabel(row.taskResult) }}
@@ -264,5 +276,17 @@ onMounted(() => {
   line-height: 22px;
   min-height: 22px;
   padding: 0;
+}
+
+.runtime-done-page__task-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.runtime-done-page__task-name small {
+  color: var(--el-text-color-secondary);
+  line-height: 18px;
 }
 </style>

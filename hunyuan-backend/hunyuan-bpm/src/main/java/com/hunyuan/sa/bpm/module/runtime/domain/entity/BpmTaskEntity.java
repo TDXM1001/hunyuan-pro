@@ -25,6 +25,8 @@ public class BpmTaskEntity {
 
     private Long definitionNodeId;
 
+    private Long approvalGroupId;
+
     private String engineTaskId;
 
     private String engineExecutionId;

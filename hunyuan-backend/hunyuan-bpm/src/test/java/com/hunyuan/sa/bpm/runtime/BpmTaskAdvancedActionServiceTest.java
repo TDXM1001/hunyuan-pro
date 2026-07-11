@@ -8,6 +8,7 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
+import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
@@ -19,6 +20,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskDelegateForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRecallForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReduceSignForm;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -52,6 +54,8 @@ class BpmTaskAdvancedActionServiceTest {
         setField(bpmTaskService, "bpmInstanceDao", bpmInstanceDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
         setField(bpmTaskService, "flowableTaskGateway", Mockito.mock(FlowableTaskGateway.class));
+        setField(bpmTaskService, "flowableProcessInstanceGateway", Mockito.mock(FlowableProcessInstanceGateway.class));
+        setField(bpmTaskService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
         setField(bpmTaskService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmTaskService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
     }

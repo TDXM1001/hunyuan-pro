@@ -62,6 +62,41 @@ class BpmCandidatePrecheckServiceTest {
     }
 
     @Test
+    void precheckShouldExplainParallelAllEmployeeApproval() {
+        when(identityGateway.requireEmployee(101L))
+                .thenReturn(new BpmEmployeeSnapshot(101L, "审批人A", 8L, "财务部", null, null));
+        when(identityGateway.requireEmployee(102L))
+                .thenReturn(new BpmEmployeeSnapshot(102L, "审批人B", 8L, "财务部", null, null));
+
+        List<BpmDefinitionValidationReportVO.CandidateCheck> checks = service.precheck(
+                "{\"nodes\":[{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":[101,102]}]}",
+                "[]"
+        );
+
+        assertThat(checks).hasSize(1);
+        assertThat(checks.get(0).getStatus()).isEqualTo("READY");
+        assertThat(checks.get(0).getRequiredConfig()).contains("101").contains("102");
+        assertThat(checks.get(0).getMessage()).contains("并行会签").contains("2");
+    }
+
+    @Test
+    void precheckShouldBlockParallelAllWhenAnyEmployeeUnavailable() {
+        when(identityGateway.requireEmployee(101L))
+                .thenReturn(new BpmEmployeeSnapshot(101L, "审批人A", 8L, "财务部", null, null));
+        when(identityGateway.requireEmployee(102L)).thenThrow(new IllegalArgumentException("员工已禁用"));
+
+        List<BpmDefinitionValidationReportVO.CandidateCheck> checks = service.precheck(
+                "{\"nodes\":[{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":[101,102]}]}",
+                "[]"
+        );
+
+        assertThat(checks).hasSize(1);
+        assertThat(checks.get(0).getStatus()).isEqualTo("BLOCKING");
+        assertThat(checks.get(0).getCode()).isEqualTo("EMPLOYEE_NOT_FOUND");
+        assertThat(checks.get(0).getMessage()).contains("员工已禁用");
+    }
+
+    @Test
     void precheckShouldBlockRoleWhenNoEmployeeCanBeResolved() {
         when(identityGateway.listEmployeeIdsByRoleId(9L)).thenReturn(List.of());
 

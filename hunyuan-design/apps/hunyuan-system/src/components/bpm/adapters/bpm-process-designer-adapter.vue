@@ -114,7 +114,13 @@ async function renderCanvas() {
 async function load(snapshot: Partial<BpmProcessDesignerSnapshot>) {
   nodes.value = snapshot.nodes?.length ? snapshot.nodes : [];
   selectedNodeId.value = nodes.value[0]?.nodeKey || '';
-  if (nodes.value.some((item) => item.approvalMode === 'sequential')) {
+  if (
+    nodes.value.some(
+      (item) =>
+        item.approvalMode === 'sequential' ||
+        item.approvalMode === 'parallelAll',
+    )
+  ) {
     await loadEmployeeOptions();
   }
   await renderCanvas();
@@ -153,20 +159,28 @@ async function validate() {
     };
   }
 
-  const invalidSequentialResolverNode = nodes.value.find(
+  const invalidMultipleResolverNode = nodes.value.find(
     (item) =>
-      item.approvalMode === 'sequential' &&
+      (item.approvalMode === 'sequential' ||
+        item.approvalMode === 'parallelAll') &&
       item.candidateResolverType !== 'EMPLOYEE',
   );
-  if (invalidSequentialResolverNode) {
+  if (invalidMultipleResolverNode) {
+    const modeLabel =
+      invalidMultipleResolverNode.approvalMode === 'parallelAll'
+        ? '并行全员会签'
+        : '顺序审批';
     return {
-      message: `审批节点【${invalidSequentialResolverNode.name}】顺序审批仅支持指定员工`,
+      message: `审批节点【${invalidMultipleResolverNode.name}】${modeLabel}仅支持指定员工`,
       ok: false,
     };
   }
 
-  const invalidSequentialEmployeesNode = nodes.value.find((item) => {
-    if (item.approvalMode !== 'sequential') {
+  const invalidMultipleEmployeesNode = nodes.value.find((item) => {
+    if (
+      item.approvalMode !== 'sequential' &&
+      item.approvalMode !== 'parallelAll'
+    ) {
       return false;
     }
     const employeeIds = item.employeeIds ?? [];
@@ -179,9 +193,13 @@ async function validate() {
       new Set(employeeIds).size !== employeeIds.length
     );
   });
-  if (invalidSequentialEmployeesNode) {
+  if (invalidMultipleEmployeesNode) {
+    const modeLabel =
+      invalidMultipleEmployeesNode.approvalMode === 'parallelAll'
+        ? '并行会签'
+        : '顺序审批';
     return {
-      message: `审批节点【${invalidSequentialEmployeesNode.name}】请至少选择 2 名不同的顺序审批员工`,
+      message: `审批节点【${invalidMultipleEmployeesNode.name}】请至少选择 2 名不同的${modeLabel}员工`,
       ok: false,
     };
   }
@@ -237,7 +255,8 @@ async function handleCandidateResolverChange() {
     return;
   }
   if (
-    selectedNode.value.approvalMode === 'sequential' &&
+    (selectedNode.value.approvalMode === 'sequential' ||
+      selectedNode.value.approvalMode === 'parallelAll') &&
     selectedNode.value.candidateResolverType !== 'EMPLOYEE'
   ) {
     selectedNode.value.approvalMode = 'single';
@@ -255,7 +274,10 @@ async function handleApprovalModeChange() {
   if (!selectedNode.value) {
     return;
   }
-  if (selectedNode.value.approvalMode === 'sequential') {
+  if (
+    selectedNode.value.approvalMode === 'sequential' ||
+    selectedNode.value.approvalMode === 'parallelAll'
+  ) {
     selectedNode.value.candidateResolverType = 'EMPLOYEE';
     selectedNode.value.employeeSelectFieldKey = undefined;
     selectedNode.value.employeeIds ??= [];
@@ -367,7 +389,10 @@ onBeforeUnmount(() => {
             <ElSelect
               v-model="selectedNode.candidateResolverType"
               :disabled="
-                disabled || readonly || selectedNode.approvalMode === 'sequential'
+                disabled ||
+                readonly ||
+                selectedNode.approvalMode === 'sequential' ||
+                selectedNode.approvalMode === 'parallelAll'
               "
               @change="handleCandidateResolverChange"
             >
@@ -412,11 +437,19 @@ onBeforeUnmount(() => {
               <ElOption label="单人审批" value="single" />
               <ElOption label="单人审批（严格）" value="singleOnly" />
               <ElOption label="顺序多人审批" value="sequential" />
+              <ElOption label="并行全员会签" value="parallelAll" />
             </ElSelect>
           </ElFormItem>
           <ElFormItem
-            v-if="selectedNode.approvalMode === 'sequential'"
-            label="顺序审批员工"
+            v-if="
+              selectedNode.approvalMode === 'sequential' ||
+              selectedNode.approvalMode === 'parallelAll'
+            "
+            :label="
+              selectedNode.approvalMode === 'parallelAll'
+                ? '并行会签员工'
+                : '顺序审批员工'
+            "
           >
             <ElSelect
               v-model="selectedNode.employeeIds"
@@ -426,7 +459,11 @@ onBeforeUnmount(() => {
               filterable
               :loading="employeeLoading"
               multiple
-              placeholder="请按审批顺序选择员工"
+              :placeholder="
+                selectedNode.approvalMode === 'parallelAll'
+                  ? '请选择全部会签员工'
+                  : '请按审批顺序选择员工'
+              "
               remote
               :remote-method="loadEmployeeOptions"
               @change="handleStateChange"

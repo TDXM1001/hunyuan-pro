@@ -206,4 +206,53 @@ class SimpleModelValidatorTest {
                     .contains("编译器保留");
         }
     }
+
+    @Test
+    void validateShouldAcceptParallelAllEmployeeApproval() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"nodes\":[{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":[101,102]}]}",
+                "{\"type\":\"ALL\"}"
+        );
+
+        assertThat(response.getOk()).isTrue();
+    }
+
+    @Test
+    void validateShouldRejectParallelAllWhenResolverIsNotEmployee() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"nodes\":[{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"ROLE\",\"employeeIds\":[101,102]}]}",
+                "{\"type\":\"ALL\"}"
+        );
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("并行全员会签").contains("指定员工");
+    }
+
+    @Test
+    void validateShouldRejectInvalidParallelAllEmployeeIds() {
+        for (String employeeIds : new String[]{"[101]", "[101,0]", "[101,102.5]", "[101,101]"}) {
+            ResponseDTO<String> response = validator.validate(
+                    "{\"nodes\":[{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":"
+                            + employeeIds + "}]}",
+                    "{\"type\":\"ALL\"}"
+            );
+
+            assertThat(response.getOk()).as(employeeIds).isFalse();
+            assertThat(response.getMsg()).as(employeeIds).contains("并行全员会签");
+        }
+    }
+
+    @Test
+    void validateShouldRejectParallelAllGeneratedGatewayCollision() {
+        ResponseDTO<String> response = validator.validate(
+                "{\"nodes\":["
+                        + "{\"nodeKey\":\"finance_review\",\"name\":\"财务会签\",\"type\":\"userTask\",\"approvalMode\":\"parallelAll\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeIds\":[101,102]},"
+                        + "{\"nodeKey\":\"gateway_finance_review_split\",\"name\":\"冲突节点\",\"type\":\"userTask\",\"approvalMode\":\"single\",\"candidateResolverType\":\"EMPLOYEE\",\"employeeId\":103}"
+                        + "]}",
+                "{\"type\":\"ALL\"}"
+        );
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("gateway_finance_review_split").contains("冲突");
+    }
 }

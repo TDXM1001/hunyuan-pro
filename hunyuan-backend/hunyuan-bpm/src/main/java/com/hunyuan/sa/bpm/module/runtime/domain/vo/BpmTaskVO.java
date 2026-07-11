@@ -1,5 +1,6 @@
 package com.hunyuan.sa.bpm.module.runtime.domain.vo;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -13,6 +14,13 @@ public class BpmTaskVO {
 
     @Schema(description = "任务ID")
     private Long taskId;
+
+    @JsonIgnore
+    @Schema(hidden = true)
+    private Long approvalGroupId;
+
+    @Schema(description = "审批组摘要")
+    private BpmApprovalGroupSummaryVO approvalGroup;
 
     @Schema(description = "任务节点标识")
     private String taskKey;

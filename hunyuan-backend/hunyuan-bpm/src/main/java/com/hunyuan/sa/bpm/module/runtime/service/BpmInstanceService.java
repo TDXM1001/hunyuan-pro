@@ -16,6 +16,7 @@ import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessStartCommand;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
@@ -40,8 +41,10 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceResubmitForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceStartForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupSummaryVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeStartDraftVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmStartableDefinitionVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -50,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 流程实例服务。
@@ -89,6 +93,9 @@ public class BpmInstanceService {
 
     @Resource
     private BpmTaskProjectionService bpmTaskProjectionService;
+
+    @Resource
+    private BpmApprovalGroupService bpmApprovalGroupService;
 
     public ResponseDTO<PageResult<BpmInstanceVO>> queryAdminPage(BpmInstanceQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
@@ -143,9 +150,31 @@ public class BpmInstanceService {
         detail.setCurrentNodeSummaryJson(instance.getCurrentNodeSummaryJson());
         detail.setStartedAt(instance.getStartedAt());
         detail.setFinishedAt(instance.getFinishedAt());
-        detail.setCurrentTasks(bpmTaskDao.queryCurrentTasksByInstanceId(instanceId));
+        List<BpmTaskVO> currentTasks = bpmTaskDao.queryCurrentTasksByInstanceId(instanceId);
+        attachApprovalGroupSummaries(currentTasks);
+        detail.setCurrentTasks(currentTasks);
         detail.setActionLogs(bpmTaskActionLogDao.queryByInstanceId(instanceId));
+        detail.setApprovalGroups(bpmApprovalGroupService.listDetailsByInstanceId(instanceId));
         return ResponseDTO.ok(detail);
+    }
+
+    private void attachApprovalGroupSummaries(List<BpmTaskVO> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return;
+        }
+        List<Long> approvalGroupIds = tasks.stream()
+                .map(BpmTaskVO::getApprovalGroupId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (approvalGroupIds.isEmpty()) {
+            return;
+        }
+        Map<Long, BpmApprovalGroupSummaryVO> summaryMap =
+                bpmApprovalGroupService.mapSummariesById(approvalGroupIds);
+        tasks.stream()
+                .filter(task -> task.getApprovalGroupId() != null)
+                .forEach(task -> task.setApprovalGroup(summaryMap.get(task.getApprovalGroupId())));
     }
 
     public ResponseDTO<BpmRuntimeStartDraftVO> getResubmitDraft(Long instanceId) {
@@ -199,6 +228,12 @@ public class BpmInstanceService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        bpmApprovalGroupService.closePendingGroupsForInstance(
+                instanceEntity.getInstanceId(),
+                BpmApprovalGroupCloseReasonEnum.INSTANCE_CANCELLED,
+                BpmTaskResultEnum.INSTANCE_CANCELLED,
+                now
+        );
         closePendingTasks(instanceEntity.getInstanceId(), now);
 
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
@@ -237,6 +272,12 @@ public class BpmInstanceService {
         }
 
         LocalDateTime now = LocalDateTime.now();
+        bpmApprovalGroupService.closePendingGroupsForInstance(
+                instanceEntity.getInstanceId(),
+                BpmApprovalGroupCloseReasonEnum.INSTANCE_CANCELLED,
+                BpmTaskResultEnum.INSTANCE_CANCELLED,
+                now
+        );
         closePendingTasks(instanceEntity.getInstanceId(), now);
 
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
@@ -529,6 +570,7 @@ public class BpmInstanceService {
     private void closePendingTasks(Long instanceId, LocalDateTime actionAt) {
         List<BpmTaskEntity> pendingTasks = bpmTaskDao.selectList(Wrappers.<BpmTaskEntity>lambdaQuery()
                 .eq(BpmTaskEntity::getInstanceId, instanceId)
+                .isNull(BpmTaskEntity::getApprovalGroupId)
                 .eq(BpmTaskEntity::getTaskState, BpmTaskStateEnum.PENDING.getValue()));
         for (BpmTaskEntity pendingTask : pendingTasks) {
             BpmTaskEntity updateTaskEntity = new BpmTaskEntity();

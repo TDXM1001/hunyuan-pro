@@ -5,16 +5,20 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupSummaryVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskActionLogVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -27,9 +31,11 @@ class BpmRuntimeDetailServiceTest {
         BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
         BpmTaskDao taskDao = Mockito.mock(BpmTaskDao.class);
         BpmTaskActionLogDao actionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
+        BpmApprovalGroupService approvalGroupService = Mockito.mock(BpmApprovalGroupService.class);
         setField(service, "bpmInstanceDao", instanceDao);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmTaskActionLogDao", actionLogDao);
+        setField(service, "bpmApprovalGroupService", approvalGroupService);
 
         BpmInstanceEntity instance = new BpmInstanceEntity();
         instance.setInstanceId(8L);
@@ -45,6 +51,10 @@ class BpmRuntimeDetailServiceTest {
         when(instanceDao.selectById(8L)).thenReturn(instance);
         when(taskDao.queryCurrentTasksByInstanceId(8L)).thenReturn(List.of());
         when(actionLogDao.queryByInstanceId(8L)).thenReturn(List.of(log));
+        BpmApprovalGroupDetailVO groupDetail = new BpmApprovalGroupDetailVO();
+        groupDetail.setApprovalGroupId(21L);
+        groupDetail.setApprovalGroupName("部门会签");
+        when(approvalGroupService.listDetailsByInstanceId(8L)).thenReturn(List.of(groupDetail));
 
         ResponseDTO<BpmInstanceDetailVO> response = service.getDetail(8L);
 
@@ -52,6 +62,8 @@ class BpmRuntimeDetailServiceTest {
         assertThat(response.getData().getInstanceNo()).isEqualTo("SN-2026-0001");
         assertThat(response.getData().getActionLogs()).hasSize(1);
         assertThat(response.getData().getActionLogs().get(0).getActionType()).isEqualTo("APPROVED");
+        assertThat(response.getData().getApprovalGroups()).extracting(BpmApprovalGroupDetailVO::getApprovalGroupName)
+                .containsExactly("部门会签");
     }
 
     @Test
@@ -60,9 +72,11 @@ class BpmRuntimeDetailServiceTest {
         BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
         BpmTaskDao taskDao = Mockito.mock(BpmTaskDao.class);
         BpmTaskActionLogDao actionLogDao = Mockito.mock(BpmTaskActionLogDao.class);
+        BpmApprovalGroupService approvalGroupService = Mockito.mock(BpmApprovalGroupService.class);
         setField(service, "bpmInstanceDao", instanceDao);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmTaskActionLogDao", actionLogDao);
+        setField(service, "bpmApprovalGroupService", approvalGroupService);
 
         BpmInstanceEntity instance = new BpmInstanceEntity();
         instance.setInstanceId(8L);
@@ -79,6 +93,7 @@ class BpmRuntimeDetailServiceTest {
         firstTask.setTaskName("部门审批");
         firstTask.setAssigneeNameSnapshot("李四");
         firstTask.setAssignedAt(LocalDateTime.of(2026, 7, 8, 9, 0));
+        firstTask.setApprovalGroupId(21L);
 
         BpmTaskVO secondTask = new BpmTaskVO();
         secondTask.setTaskId(19L);
@@ -92,6 +107,11 @@ class BpmRuntimeDetailServiceTest {
         when(instanceDao.selectById(8L)).thenReturn(instance);
         when(taskDao.queryCurrentTasksByInstanceId(8L)).thenReturn(List.of(firstTask, secondTask));
         when(actionLogDao.queryByInstanceId(8L)).thenReturn(List.of());
+        when(approvalGroupService.listDetailsByInstanceId(8L)).thenReturn(List.of());
+        BpmApprovalGroupSummaryVO summary = new BpmApprovalGroupSummaryVO();
+        summary.setApprovalGroupId(21L);
+        summary.setApprovalGroupName("部门会签");
+        when(approvalGroupService.mapSummariesById(List.of(21L))).thenReturn(Map.of(21L, summary));
 
         ResponseDTO<BpmInstanceDetailVO> response = service.getDetail(8L);
 
@@ -99,7 +119,10 @@ class BpmRuntimeDetailServiceTest {
         assertThat(response.getData().getCurrentTasks()).extracting(BpmTaskVO::getTaskId)
                 .containsExactly(18L, 19L);
         assertThat(response.getData().getCurrentTasks().get(0).getTaskName()).isEqualTo("部门审批");
+        assertThat(response.getData().getCurrentTasks().get(0).getApprovalGroup()).isSameAs(summary);
+        assertThat(response.getData().getCurrentTasks().get(1).getApprovalGroup()).isNull();
         assertThat(response.getData().getActionLogs()).isEmpty();
+        assertThat(response.getData().getApprovalGroups()).isEmpty();
     }
 
     @Test

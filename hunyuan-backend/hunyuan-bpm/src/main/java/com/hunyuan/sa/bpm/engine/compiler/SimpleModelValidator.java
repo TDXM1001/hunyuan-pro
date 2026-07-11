@@ -69,8 +69,9 @@ public class SimpleModelValidator {
             if (StringUtils.isNotBlank(approvalMode)
                     && !"single".equalsIgnoreCase(approvalMode)
                     && !"singleOnly".equalsIgnoreCase(approvalMode)
-                    && !"sequential".equalsIgnoreCase(approvalMode)) {
-                return ResponseDTO.userErrorParam("当前只支持单人审批或顺序审批");
+                    && !"sequential".equalsIgnoreCase(approvalMode)
+                    && !"parallelAll".equalsIgnoreCase(approvalMode)) {
+                return ResponseDTO.userErrorParam("当前只支持单人审批、顺序审批或并行全员会签");
             }
 
             String resolverType = firstNonBlank(
@@ -81,9 +82,23 @@ public class SimpleModelValidator {
                 return ResponseDTO.userErrorParam("当前只支持 EMPLOYEE、DEPARTMENT_MANAGER、ROLE、START_EMPLOYEE、START_DEPARTMENT_MANAGER、EMPLOYEE_SELECT_AT_START 六类候选人解析类型");
             }
             if ("sequential".equalsIgnoreCase(approvalMode)) {
-                ResponseDTO<String> sequentialResponse = validateSequentialEmployeeApproval(nodeObject, resolverType);
+                ResponseDTO<String> sequentialResponse = validateMultipleEmployeeApproval(
+                        nodeObject,
+                        resolverType,
+                        "顺序审批"
+                );
                 if (!Boolean.TRUE.equals(sequentialResponse.getOk())) {
                     return sequentialResponse;
+                }
+            }
+            if ("parallelAll".equalsIgnoreCase(approvalMode)) {
+                ResponseDTO<String> parallelResponse = validateMultipleEmployeeApproval(
+                        nodeObject,
+                        resolverType,
+                        "并行全员会签"
+                );
+                if (!Boolean.TRUE.equals(parallelResponse.getOk())) {
+                    return parallelResponse;
                 }
             }
             if ("EMPLOYEE_SELECT_AT_START".equalsIgnoreCase(resolverType)
@@ -113,12 +128,28 @@ public class SimpleModelValidator {
                     "task_" + (i + 1)
             );
             JSONArray employeeIds = nodeObject.getJSONArray("employeeIds");
-            if (isSequentialEmployeeApproval(nodeObject, employeeIds)) {
+            if (isMultipleEmployeeApproval(nodeObject, employeeIds)) {
                 for (int sequentialIndex = 0; sequentialIndex < employeeIds.size(); sequentialIndex++) {
                     String expandedNodeKey = nodeKey + "_" + (sequentialIndex + 1);
                     ResponseDTO<String> response = addCompiledNodeKey(compiledNodeKeys, expandedNodeKey);
                     if (!Boolean.TRUE.equals(response.getOk())) {
                         return response;
+                    }
+                }
+                if ("parallelAll".equalsIgnoreCase(nodeObject.getString("approvalMode"))) {
+                    ResponseDTO<String> splitResponse = addCompiledNodeKey(
+                            compiledNodeKeys,
+                            "gateway_" + nodeKey + "_split"
+                    );
+                    if (!Boolean.TRUE.equals(splitResponse.getOk())) {
+                        return splitResponse;
+                    }
+                    ResponseDTO<String> joinResponse = addCompiledNodeKey(
+                            compiledNodeKeys,
+                            "gateway_" + nodeKey + "_join"
+                    );
+                    if (!Boolean.TRUE.equals(joinResponse.getOk())) {
+                        return joinResponse;
                     }
                 }
                 continue;
@@ -132,9 +163,11 @@ public class SimpleModelValidator {
         return ResponseDTO.ok();
     }
 
-    private boolean isSequentialEmployeeApproval(JSONObject nodeObject, JSONArray employeeIds) {
+    private boolean isMultipleEmployeeApproval(JSONObject nodeObject, JSONArray employeeIds) {
+        String approvalMode = nodeObject.getString("approvalMode");
         return USER_TASK_TYPE.equals(nodeObject.getString("type"))
-                && "sequential".equalsIgnoreCase(nodeObject.getString("approvalMode"))
+                && ("sequential".equalsIgnoreCase(approvalMode)
+                || "parallelAll".equalsIgnoreCase(approvalMode))
                 && "EMPLOYEE".equalsIgnoreCase(firstNonBlank(
                 nodeObject.getString("candidateResolverType"),
                 nodeObject.getString("resolverType")
@@ -179,7 +212,11 @@ public class SimpleModelValidator {
         return ResponseDTO.okMsg("模拟通过");
     }
 
-    private ResponseDTO<String> validateSequentialEmployeeApproval(JSONObject nodeObject, String resolverType) {
+    private ResponseDTO<String> validateMultipleEmployeeApproval(
+            JSONObject nodeObject,
+            String resolverType,
+            String modeLabel
+    ) {
         String nodeName = firstNonBlank(
                 nodeObject.getString("name"),
                 nodeObject.getString("nodeKey"),
@@ -187,22 +224,22 @@ public class SimpleModelValidator {
                 "未命名审批节点"
         );
         if (!"EMPLOYEE".equalsIgnoreCase(resolverType)) {
-            return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】顺序审批仅支持指定员工");
+            return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】" + modeLabel + "仅支持指定员工");
         }
 
         Object rawEmployeeIds = nodeObject.get("employeeIds");
         if (!(rawEmployeeIds instanceof JSONArray employeeIds) || employeeIds.size() < 2) {
-            return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】顺序审批至少配置 2 名员工");
+            return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】" + modeLabel + "至少配置 2 名员工");
         }
 
         Set<Long> uniqueEmployeeIds = new HashSet<>();
         for (Object rawEmployeeId : employeeIds) {
             Long employeeId = parsePositiveLong(rawEmployeeId);
             if (employeeId == null) {
-                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】顺序审批员工 ID 无效");
+                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】" + modeLabel + "员工 ID 无效");
             }
             if (!uniqueEmployeeIds.add(employeeId)) {
-                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】顺序审批存在重复员工");
+                return ResponseDTO.userErrorParam("审批节点【" + nodeName + "】" + modeLabel + "存在重复员工");
             }
         }
         return ResponseDTO.ok();

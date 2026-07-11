@@ -59,4 +59,7 @@ public class BpmTaskDetailVO {
 
     @Schema(description = "动作轨迹")
     private List<BpmTaskActionLogVO> actionLogs;
+
+    @Schema(description = "审批组详情")
+    private BpmApprovalGroupDetailVO approvalGroup;
 }

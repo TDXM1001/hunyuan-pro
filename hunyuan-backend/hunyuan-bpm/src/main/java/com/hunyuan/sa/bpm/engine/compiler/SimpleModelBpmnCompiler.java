@@ -10,13 +10,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * SimpleModel -> BPMN XML 的最小编译器。
+ * SimpleModel -> BPMN XML 的受限编译器。
  */
 @Component
 public class SimpleModelBpmnCompiler {
 
     /**
-     * 将当前设计器草稿编译为顺序审批 BPMN XML 与节点快照。
+     * 按 authored 节点顺序编译；并行能力只存在于单个 parallelAll 固定片段内部。
      */
     public CompiledDefinitionArtifact compile(
             String modelKey,
@@ -27,9 +27,8 @@ public class SimpleModelBpmnCompiler {
     ) {
         JSONObject simpleModelObject = JSON.parseObject(simpleModelJson);
         JSONArray nodes = simpleModelObject.getJSONArray("nodes");
-
         List<CompiledNodeSnapshot> nodeSnapshots = new ArrayList<>();
-        List<UserTaskNode> userTaskNodes = new ArrayList<>();
+        List<BpmnFragment> fragments = new ArrayList<>();
 
         if (nodes != null) {
             for (int index = 0; index < nodes.size(); index++) {
@@ -37,74 +36,123 @@ public class SimpleModelBpmnCompiler {
                 if (nodeObject == null) {
                     continue;
                 }
-
-                String nodeKey = firstNonBlank(
-                        nodeObject.getString("nodeKey"),
-                        nodeObject.getString("id"),
-                        "task_" + (index + 1)
-                );
-                String nodeType = firstNonBlank(nodeObject.getString("type"), "userTask");
-                String nodeName = firstNonBlank(nodeObject.getString("name"), "审批节点" + (index + 1));
-
-                if (isSequentialEmployeeApproval(nodeObject, nodeType)) {
-                    JSONArray employeeIds = nodeObject.getJSONArray("employeeIds");
-                    int sequentialTotal = employeeIds.size();
-                    for (int sequentialIndex = 0; sequentialIndex < sequentialTotal; sequentialIndex++) {
-                        String expandedNodeKey = nodeKey + "_" + (sequentialIndex + 1);
-                        String expandedNodeName = nodeName + "（" + (sequentialIndex + 1) + "/" + sequentialTotal + "）";
-                        JSONObject compiledNodeObject = buildCompiledNodeObject(
-                                nodeObject,
-                                expandedNodeKey,
-                                nodeType,
-                                expandedNodeName,
-                                startRuleJson,
-                                variableMappingJson
-                        );
-                        compiledNodeObject.put("employeeId", employeeIds.getLongValue(sequentialIndex));
-                        compiledNodeObject.put("authoredNodeKey", nodeKey);
-                        compiledNodeObject.put("authoredNodeName", nodeName);
-                        compiledNodeObject.put("sequentialIndex", sequentialIndex + 1);
-                        compiledNodeObject.put("sequentialTotal", sequentialTotal);
-
-                        nodeSnapshots.add(new CompiledNodeSnapshot(
-                                expandedNodeKey,
-                                nodeType,
-                                expandedNodeName,
-                                nodeSnapshots.size() + 1,
-                                JSON.toJSONString(nodeObject),
-                                JSON.toJSONString(compiledNodeObject)
-                        ));
-                        userTaskNodes.add(new UserTaskNode(expandedNodeKey, expandedNodeName));
-                    }
-                    continue;
-                }
-
-                JSONObject compiledNodeObject = buildCompiledNodeObject(
+                compileNode(
                         nodeObject,
-                        nodeKey,
-                        nodeType,
-                        nodeName,
+                        index,
                         startRuleJson,
-                        variableMappingJson
+                        variableMappingJson,
+                        nodeSnapshots,
+                        fragments
                 );
-                nodeSnapshots.add(new CompiledNodeSnapshot(
-                        nodeKey,
-                        nodeType,
-                        nodeName,
-                        nodeSnapshots.size() + 1,
-                        JSON.toJSONString(nodeObject),
-                        JSON.toJSONString(compiledNodeObject)
-                ));
-
-                if ("userTask".equals(nodeType)) {
-                    userTaskNodes.add(new UserTaskNode(nodeKey, nodeName));
-                }
             }
         }
 
         return new CompiledDefinitionArtifact(
-                buildSequentialBpmnXml(modelKey, modelName, userTaskNodes),
+                buildBpmnXml(modelKey, modelName, fragments),
                 nodeSnapshots
+        );
+    }
+
+    private void compileNode(
+            JSONObject nodeObject,
+            int index,
+            String startRuleJson,
+            String variableMappingJson,
+            List<CompiledNodeSnapshot> nodeSnapshots,
+            List<BpmnFragment> fragments
+    ) {
+        String nodeKey = firstNonBlank(
+                nodeObject.getString("nodeKey"),
+                nodeObject.getString("id"),
+                "task_" + (index + 1)
+        );
+        String nodeType = firstNonBlank(nodeObject.getString("type"), "userTask");
+        String nodeName = firstNonBlank(nodeObject.getString("name"), "审批节点" + (index + 1));
+
+        if (isMultipleEmployeeApproval(nodeObject, nodeType)) {
+            JSONArray employeeIds = nodeObject.getJSONArray("employeeIds");
+            List<UserTaskNode> expandedTasks = new ArrayList<>();
+            for (int memberIndex = 0; memberIndex < employeeIds.size(); memberIndex++) {
+                String expandedNodeKey = nodeKey + "_" + (memberIndex + 1);
+                String expandedNodeName = nodeName + "（" + (memberIndex + 1) + "/" + employeeIds.size() + "）";
+                JSONObject compiledNodeObject = buildCompiledNodeObject(
+                        nodeObject,
+                        expandedNodeKey,
+                        nodeType,
+                        expandedNodeName,
+                        startRuleJson,
+                        variableMappingJson
+                );
+                compiledNodeObject.put("employeeId", employeeIds.getLongValue(memberIndex));
+                compiledNodeObject.put("authoredNodeKey", nodeKey);
+                compiledNodeObject.put("authoredNodeName", nodeName);
+                if (isParallelAll(nodeObject)) {
+                    compiledNodeObject.put("approvalGroupKey", nodeKey);
+                    compiledNodeObject.put("approvalGroupName", nodeName);
+                    compiledNodeObject.put("parallelIndex", memberIndex + 1);
+                    compiledNodeObject.put("parallelTotal", employeeIds.size());
+                } else {
+                    compiledNodeObject.put("sequentialIndex", memberIndex + 1);
+                    compiledNodeObject.put("sequentialTotal", employeeIds.size());
+                }
+                nodeSnapshots.add(buildSnapshot(
+                        nodeObject,
+                        expandedNodeKey,
+                        nodeType,
+                        expandedNodeName,
+                        compiledNodeObject,
+                        nodeSnapshots.size() + 1
+                ));
+                expandedTasks.add(new UserTaskNode(expandedNodeKey, expandedNodeName));
+            }
+            if (isParallelAll(nodeObject)) {
+                fragments.add(new ParallelAllFragment(
+                        "gateway_" + nodeKey + "_split",
+                        expandedTasks,
+                        "gateway_" + nodeKey + "_join"
+                ));
+            } else {
+                expandedTasks.forEach(task -> fragments.add(new UserTaskFragment(task)));
+            }
+            return;
+        }
+
+        JSONObject compiledNodeObject = buildCompiledNodeObject(
+                nodeObject,
+                nodeKey,
+                nodeType,
+                nodeName,
+                startRuleJson,
+                variableMappingJson
+        );
+        nodeSnapshots.add(buildSnapshot(
+                nodeObject,
+                nodeKey,
+                nodeType,
+                nodeName,
+                compiledNodeObject,
+                nodeSnapshots.size() + 1
+        ));
+        if ("userTask".equals(nodeType)) {
+            fragments.add(new UserTaskFragment(new UserTaskNode(nodeKey, nodeName)));
+        }
+    }
+
+    private CompiledNodeSnapshot buildSnapshot(
+            JSONObject authoredNode,
+            String nodeKey,
+            String nodeType,
+            String nodeName,
+            JSONObject compiledNode,
+            int sortOrder
+    ) {
+        return new CompiledNodeSnapshot(
+                nodeKey,
+                nodeType,
+                nodeName,
+                sortOrder,
+                JSON.toJSONString(authoredNode),
+                JSON.toJSONString(compiledNode)
         );
     }
 
@@ -131,9 +179,10 @@ public class SimpleModelBpmnCompiler {
         return compiledNodeObject;
     }
 
-    private boolean isSequentialEmployeeApproval(JSONObject nodeObject, String nodeType) {
+    private boolean isMultipleEmployeeApproval(JSONObject nodeObject, String nodeType) {
+        String approvalMode = nodeObject.getString("approvalMode");
         return "userTask".equals(nodeType)
-                && "sequential".equalsIgnoreCase(nodeObject.getString("approvalMode"))
+                && ("sequential".equalsIgnoreCase(approvalMode) || "parallelAll".equalsIgnoreCase(approvalMode))
                 && "EMPLOYEE".equalsIgnoreCase(firstNonBlank(
                 nodeObject.getString("candidateResolverType"),
                 nodeObject.getString("resolverType")
@@ -142,7 +191,11 @@ public class SimpleModelBpmnCompiler {
                 && !nodeObject.getJSONArray("employeeIds").isEmpty();
     }
 
-    private String buildSequentialBpmnXml(String modelKey, String modelName, List<UserTaskNode> userTaskNodes) {
+    private boolean isParallelAll(JSONObject nodeObject) {
+        return "parallelAll".equalsIgnoreCase(nodeObject.getString("approvalMode"));
+    }
+
+    private String buildBpmnXml(String modelKey, String modelName, List<BpmnFragment> fragments) {
         StringBuilder xmlBuilder = new StringBuilder();
         xmlBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
         xmlBuilder.append("<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" ");
@@ -153,24 +206,65 @@ public class SimpleModelBpmnCompiler {
         xmlBuilder.append("<startEvent id=\"startEvent\" name=\"开始\"/>");
 
         String previousRef = "startEvent";
-        for (int index = 0; index < userTaskNodes.size(); index++) {
-            UserTaskNode taskNode = userTaskNodes.get(index);
-            xmlBuilder.append("<userTask id=\"").append(escapeXml(taskNode.nodeKey())).append("\" ");
-            xmlBuilder.append("name=\"").append(escapeXml(taskNode.nodeName())).append("\" ");
-            xmlBuilder.append("flowable:assignee=\"${assignee_").append(escapeXml(taskNode.nodeKey())).append("}\"/>");
+        int flowIndex = 0;
+        for (BpmnFragment fragment : fragments) {
+            if (fragment instanceof UserTaskFragment userTaskFragment) {
+                UserTaskNode task = userTaskFragment.task();
+                appendUserTask(xmlBuilder, task);
+                appendSequenceFlow(xmlBuilder, "flow_" + flowIndex++, previousRef, task.nodeKey());
+                previousRef = task.nodeKey();
+                continue;
+            }
 
-            String flowId = "flow_" + index;
-            xmlBuilder.append("<sequenceFlow id=\"").append(flowId).append("\" sourceRef=\"")
-                    .append(previousRef).append("\" targetRef=\"").append(escapeXml(taskNode.nodeKey())).append("\"/>");
-            previousRef = taskNode.nodeKey();
+            ParallelAllFragment parallel = (ParallelAllFragment) fragment;
+            xmlBuilder.append("<parallelGateway id=\"").append(escapeXml(parallel.splitGatewayKey()))
+                    .append("\" name=\"并行分叉\"/>");
+            xmlBuilder.append("<parallelGateway id=\"").append(escapeXml(parallel.joinGatewayKey()))
+                    .append("\" name=\"并行汇聚\"/>");
+            appendSequenceFlow(xmlBuilder, "flow_" + flowIndex++, previousRef, parallel.splitGatewayKey());
+            for (UserTaskNode memberTask : parallel.memberTasks()) {
+                appendUserTask(xmlBuilder, memberTask);
+                appendSequenceFlow(
+                        xmlBuilder,
+                        "flow_" + flowIndex++,
+                        parallel.splitGatewayKey(),
+                        memberTask.nodeKey()
+                );
+                appendSequenceFlow(
+                        xmlBuilder,
+                        "flow_" + flowIndex++,
+                        memberTask.nodeKey(),
+                        parallel.joinGatewayKey()
+                );
+            }
+            previousRef = parallel.joinGatewayKey();
         }
 
         xmlBuilder.append("<endEvent id=\"endEvent\" name=\"结束\"/>");
-        xmlBuilder.append("<sequenceFlow id=\"flow_end\" sourceRef=\"")
-                .append(previousRef).append("\" targetRef=\"endEvent\"/>");
+        appendSequenceFlow(xmlBuilder, "flow_end", previousRef, "endEvent");
         xmlBuilder.append("</process>");
         xmlBuilder.append("</definitions>");
         return xmlBuilder.toString();
+    }
+
+    private void appendUserTask(StringBuilder xmlBuilder, UserTaskNode taskNode) {
+        xmlBuilder.append("<userTask id=\"").append(escapeXml(taskNode.nodeKey())).append("\" ");
+        xmlBuilder.append("name=\"").append(escapeXml(taskNode.nodeName())).append("\" ");
+        xmlBuilder.append("flowable:assignee=\"${assignee_")
+                .append(escapeXml(taskNode.nodeKey()))
+                .append("}\"/>");
+    }
+
+    private void appendSequenceFlow(
+            StringBuilder xmlBuilder,
+            String flowId,
+            String sourceRef,
+            String targetRef
+    ) {
+        xmlBuilder.append("<sequenceFlow id=\"").append(escapeXml(flowId))
+                .append("\" sourceRef=\"").append(escapeXml(sourceRef))
+                .append("\" targetRef=\"").append(escapeXml(targetRef))
+                .append("\"/>");
     }
 
     private String firstNonBlank(String... values) {
@@ -190,6 +284,19 @@ public class SimpleModelBpmnCompiler {
                 .replace("\"", "&quot;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");
+    }
+
+    private sealed interface BpmnFragment permits UserTaskFragment, ParallelAllFragment {
+    }
+
+    private record UserTaskFragment(UserTaskNode task) implements BpmnFragment {
+    }
+
+    private record ParallelAllFragment(
+            String splitGatewayKey,
+            List<UserTaskNode> memberTasks,
+            String joinGatewayKey
+    ) implements BpmnFragment {
     }
 
     private record UserTaskNode(String nodeKey, String nodeName) {

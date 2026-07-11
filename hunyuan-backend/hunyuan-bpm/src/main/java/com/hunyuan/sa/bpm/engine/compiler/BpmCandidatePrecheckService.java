@@ -118,7 +118,10 @@ public class BpmCandidatePrecheckService {
             JSONObject nodeObject
     ) {
         if ("sequential".equalsIgnoreCase(nodeObject.getString("approvalMode"))) {
-            return buildSequentialEmployeeCheck(check, nodeObject);
+            return buildMultipleEmployeeCheck(check, nodeObject, "顺序审批", false);
+        }
+        if ("parallelAll".equalsIgnoreCase(nodeObject.getString("approvalMode"))) {
+            return buildMultipleEmployeeCheck(check, nodeObject, "并行全员会签", true);
         }
 
         Long employeeId = firstNonNull(
@@ -149,11 +152,13 @@ public class BpmCandidatePrecheckService {
         return ready(check, "固定审批人为员工 ID " + employeeId);
     }
 
-    private BpmDefinitionValidationReportVO.CandidateCheck buildSequentialEmployeeCheck(
+    private BpmDefinitionValidationReportVO.CandidateCheck buildMultipleEmployeeCheck(
             BpmDefinitionValidationReportVO.CandidateCheck check,
-            JSONObject nodeObject
+            JSONObject nodeObject,
+            String modeLabel,
+            boolean parallel
     ) {
-        SequentialEmployeeAnalysis analysis = analyzeSequentialEmployeeIds(nodeObject);
+        MultipleEmployeeAnalysis analysis = analyzeMultipleEmployeeIds(nodeObject, modeLabel);
         if (!analysis.valid()) {
             return block(
                     check,
@@ -180,7 +185,12 @@ public class BpmCandidatePrecheckService {
         }
 
         check.setRequiredConfig("employeeIds=" + analysis.employeeIds());
-        return ready(check, "顺序审批将按配置依次由 " + analysis.employeeIds().size() + " 名员工处理");
+        return ready(
+                check,
+                parallel
+                        ? "指定 " + analysis.employeeIds().size() + " 名并行会签员工，全部通过后继续"
+                        : "顺序审批将按配置依次由 " + analysis.employeeIds().size() + " 名员工处理"
+        );
     }
 
     private BpmDefinitionValidationReportVO.CandidateCheck buildRoleCheck(
@@ -517,10 +527,10 @@ public class BpmCandidatePrecheckService {
         return value == null ? -1L : value;
     }
 
-    private SequentialEmployeeAnalysis analyzeSequentialEmployeeIds(JSONObject nodeObject) {
+    private MultipleEmployeeAnalysis analyzeMultipleEmployeeIds(JSONObject nodeObject, String modeLabel) {
         Object rawEmployeeIds = nodeObject.get("employeeIds");
         if (!(rawEmployeeIds instanceof JSONArray employeeIds) || employeeIds.size() < 2) {
-            return new SequentialEmployeeAnalysis(false, List.of(), "顺序审批至少配置 2 名员工");
+            return new MultipleEmployeeAnalysis(false, List.of(), modeLabel + "至少配置 2 名员工");
         }
 
         List<Long> normalizedEmployeeIds = new ArrayList<>();
@@ -528,14 +538,14 @@ public class BpmCandidatePrecheckService {
         for (Object rawEmployeeId : employeeIds) {
             Long employeeId = readPositiveLongValue(rawEmployeeId);
             if (employeeId == null) {
-                return new SequentialEmployeeAnalysis(false, List.of(), "顺序审批员工 ID 无效");
+                return new MultipleEmployeeAnalysis(false, List.of(), modeLabel + "员工 ID 无效");
             }
             if (!uniqueEmployeeIds.add(employeeId)) {
-                return new SequentialEmployeeAnalysis(false, List.of(), "顺序审批存在重复员工");
+                return new MultipleEmployeeAnalysis(false, List.of(), modeLabel + "存在重复员工");
             }
             normalizedEmployeeIds.add(employeeId);
         }
-        return new SequentialEmployeeAnalysis(true, normalizedEmployeeIds, null);
+        return new MultipleEmployeeAnalysis(true, normalizedEmployeeIds, null);
     }
 
     private Long readPositiveLongValue(Object rawValue) {
@@ -702,6 +712,6 @@ public class BpmCandidatePrecheckService {
     private record FormDataAnalysis(boolean provided, boolean valid, JSONObject formData) {
     }
 
-    private record SequentialEmployeeAnalysis(boolean valid, List<Long> employeeIds, String message) {
+    private record MultipleEmployeeAnalysis(boolean valid, List<Long> employeeIds, String message) {
     }
 }

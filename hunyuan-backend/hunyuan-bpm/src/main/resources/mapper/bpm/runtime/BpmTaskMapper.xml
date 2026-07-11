@@ -5,6 +5,7 @@
     <select id="queryPage" resultType="com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO">
         select
             task_id as taskId,
+            approval_group_id as approvalGroupId,
             task_key as taskKey,
             instance_id as instanceId,
             task_name as taskName,
@@ -35,6 +36,7 @@
     <select id="queryCurrentTasksByInstanceId" resultType="com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO">
         select
             task_id as taskId,
+            approval_group_id as approvalGroupId,
             task_key as taskKey,
             instance_id as instanceId,
             task_name as taskName,
@@ -49,5 +51,34 @@
         where instance_id = #{instanceId}
           and task_state = 1
         order by assigned_at asc, task_id asc
+    </select>
+
+    <select id="selectByIdForUpdate"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity">
+        select *
+        from t_bpm_task
+        where task_id = #{taskId}
+        for update
+    </select>
+
+    <select id="selectPendingByApprovalGroupIdForUpdate"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity">
+        select *
+        from t_bpm_task
+        where approval_group_id = #{approvalGroupId}
+          and task_state = 1
+        order by task_id
+        for update
+    </select>
+
+    <select id="selectByApprovalGroupIds"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity">
+        select *
+        from t_bpm_task
+        where approval_group_id in
+        <foreach collection="approvalGroupIds" item="approvalGroupId" open="(" separator="," close=")">
+            #{approvalGroupId}
+        </foreach>
+        order by assigned_at, task_id
     </select>
 </mapper>

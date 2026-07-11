@@ -181,6 +181,43 @@ describe('bpm designer adapters', () => {
     );
   });
 
+  it('保留并行全员会签的员工列表合同', () => {
+    const parsedNodes = parseSimpleModelDraft(
+      JSON.stringify({
+        nodes: [
+          {
+            approvalMode: 'parallelAll',
+            candidateResolverType: 'EMPLOYEE',
+            employeeIds: [101, 102],
+            id: 'finance_review',
+            listeners: [],
+            name: '财务会签',
+            type: 'userTask',
+          },
+        ],
+      }),
+    );
+
+    expect(parsedNodes).toEqual([
+      {
+        approvalMode: 'parallelAll',
+        candidateResolverType: 'EMPLOYEE',
+        employeeIds: [101, 102],
+        id: 'finance_review',
+        listeners: [],
+        name: '财务会签',
+        nodeKey: 'finance_review',
+        type: 'userTask',
+      },
+    ]);
+    expect(stringifySimpleModelDraft(parsedNodes)).toContain(
+      '"approvalMode":"parallelAll"',
+    );
+    expect(stringifySimpleModelDraft(parsedNodes)).toContain(
+      '"employeeIds":[101,102]',
+    );
+  });
+
   it('保留指定员工、角色和指定部门主管的候选参数', () => {
     const parsedNodes = parseSimpleModelDraft(
       JSON.stringify({
@@ -282,6 +319,32 @@ describe('bpm designer adapters', () => {
     expect(xml).toContain('<process id="leave_apply"');
     expect(xml).toContain('<userTask id="task_manager"');
     expect(xml).toContain('flowable:assignee="${assignee_task_manager}"');
+    expect(xml).toContain(
+      '<bpmndi:BPMNPlane id="BPMNPlane_leave_apply" bpmnElement="leave_apply">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNShape id="task_manager_di" bpmnElement="task_manager">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNEdge id="flow_0_di" bpmnElement="flow_0">',
+    );
+  });
+
+  it('空草稿仍生成可导入的 BPMN DI 预览', () => {
+    const xml = buildReadonlyBpmnXml('empty_process', '空流程', []);
+
+    expect(xml).toContain(
+      '<bpmndi:BPMNDiagram id="BPMNDiagram_empty_process">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNShape id="startEvent_di" bpmnElement="startEvent">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNShape id="endEvent_di" bpmnElement="endEvent">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNEdge id="flow_end_di" bpmnElement="flow_end">',
+    );
   });
 
   it('根据顺序多人审批节点展开只读 BPMN XML 预览', () => {
@@ -302,5 +365,36 @@ describe('bpm designer adapters', () => {
     expect(xml).toContain('<userTask id="task_finance_2"');
     expect(xml).toContain('财务复核（1/2）');
     expect(xml).toContain('flowable:assignee="${assignee_task_finance_2}"');
+  });
+
+  it('根据并行全员会签节点生成固定分叉和汇聚预览', () => {
+    const xml = buildReadonlyBpmnXml('expense_apply', '费用流程', [
+      {
+        approvalMode: 'parallelAll',
+        candidateResolverType: 'EMPLOYEE',
+        employeeIds: [101, 102],
+        id: 'finance_review',
+        listeners: [],
+        name: '财务会签',
+        nodeKey: 'finance_review',
+        type: 'userTask',
+      },
+    ]);
+
+    expect(xml).toContain('<parallelGateway id="gateway_finance_review_split"');
+    expect(xml).toContain('<userTask id="finance_review_1"');
+    expect(xml).toContain('<userTask id="finance_review_2"');
+    expect(xml).toContain('<parallelGateway id="gateway_finance_review_join"');
+    expect(xml).toContain('sourceRef="gateway_finance_review_split"');
+    expect(xml).toContain('targetRef="gateway_finance_review_join"');
+    expect(xml).toContain(
+      '<bpmndi:BPMNShape id="gateway_finance_review_split_di" bpmnElement="gateway_finance_review_split">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNShape id="finance_review_1_di" bpmnElement="finance_review_1">',
+    );
+    expect(xml).toContain(
+      '<bpmndi:BPMNShape id="gateway_finance_review_join_di" bpmnElement="gateway_finance_review_join">',
+    );
   });
 });

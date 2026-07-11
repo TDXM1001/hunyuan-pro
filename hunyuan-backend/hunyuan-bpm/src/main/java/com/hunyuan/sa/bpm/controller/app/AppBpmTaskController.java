@@ -13,7 +13,10 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReduceSignForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,6 +30,12 @@ public class AppBpmTaskController {
 
     @Resource
     private BpmTaskService bpmTaskService;
+
+    @Operation(summary = "查询我的任务详情")
+    @GetMapping("/app/bpm/task/detail/{taskId}")
+    public ResponseDTO<BpmTaskDetailVO> getMyDetail(@PathVariable Long taskId) {
+        return bpmTaskService.getMyDetail(taskId);
+    }
 
     @Operation(summary = "审批通过任务")
     @PostMapping("/app/bpm/task/approve")

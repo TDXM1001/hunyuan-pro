@@ -25,4 +25,19 @@ public interface BpmTaskDao extends BaseMapper<BpmTaskEntity> {
      * 查询流程实例当前待办任务。
      */
     List<BpmTaskVO> queryCurrentTasksByInstanceId(@Param("instanceId") Long instanceId);
+
+    /**
+     * 按主键锁定任务。
+     */
+    BpmTaskEntity selectByIdForUpdate(@Param("taskId") Long taskId);
+
+    /**
+     * 锁定审批组内仍可处理的成员任务。
+     */
+    List<BpmTaskEntity> selectPendingByApprovalGroupIdForUpdate(@Param("approvalGroupId") Long approvalGroupId);
+
+    /**
+     * 查询审批组全部成员任务。
+     */
+    List<BpmTaskEntity> selectByApprovalGroupIds(@Param("approvalGroupIds") List<Long> approvalGroupIds);
 }

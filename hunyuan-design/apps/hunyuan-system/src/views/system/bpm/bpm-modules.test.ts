@@ -407,6 +407,65 @@ describe('bpm module contracts', () => {
     expect(todoSource).not.toContain("ElMessageBox.prompt('请输入审批意见'");
   });
 
+  it('keeps collaborative approval on structured runtime contracts', () => {
+    const runtimeApiSource = readSource(runtimeApiPath);
+    const todoSource = readSource(runtimeMyTodoPath);
+    const doneSource = readSource(runtimeMyDonePath);
+    const taskSource = readSource(taskPagePath);
+    const detailSource = readSource(runtimeDetailDrawerPath);
+
+    expect(runtimeApiSource).toContain('BpmApprovalGroupSummaryRecord');
+    expect(runtimeApiSource).toContain('BpmApprovalGroupDetailRecord');
+    expect(runtimeApiSource).toContain('BpmApprovalGroupMemberRecord');
+    expect(runtimeApiSource).toContain(
+      'approvalGroup?: BpmApprovalGroupSummaryRecord | null',
+    );
+    expect(runtimeApiSource).toContain(
+      'approvalGroup?: BpmApprovalGroupDetailRecord | null',
+    );
+    expect(runtimeApiSource).toContain(
+      'approvalGroups: BpmApprovalGroupDetailRecord[]',
+    );
+
+    [todoSource, doneSource, taskSource].forEach((source) => {
+      expect(source).toContain('approvalGroup');
+      expect(source).toContain('已处理');
+    });
+    expect(todoSource).toContain('BpmApprovalGroupPanel');
+    expect(taskSource).toContain('BpmApprovalGroupPanel');
+    expect(detailSource).toContain('BpmApprovalGroupPanel');
+    expect(detailSource).toContain('approvalGroups');
+
+    [todoSource, doneSource, taskSource, detailSource].forEach((source) => {
+      expect(source).not.toMatch(/taskKey.*split|taskKey.*join|taskName.*parallel/);
+      expect(source).not.toMatch(
+        /runtimeAssignmentSnapshotJson.*approvalGroup|currentNodeSummaryJson.*approvalGroup/,
+      );
+    });
+  });
+
+  it('keeps collaborative task actions aligned with backend boundaries', () => {
+    const runtimeApiSource = readSource(runtimeApiPath);
+    const todoSource = readSource(runtimeMyTodoPath);
+
+    expect(runtimeApiSource).toContain('/app/bpm/task/delegate');
+    expect(runtimeApiSource).toContain('/app/bpm/task/addSign');
+    expect(runtimeApiSource).toContain('/app/bpm/task/reduceSign');
+    expect(runtimeApiSource).toContain('/app/bpm/task/recall');
+    expect(todoSource).toContain('delegateBpmTask');
+    expect(todoSource).toContain('addSignBpmTask');
+    expect(todoSource).toContain('reduceSignBpmTask');
+    expect(todoSource).toContain('recallBpmTask');
+    expect(todoSource).toContain('!row.approvalGroup');
+    expect(todoSource).toContain('queryEmployeePage');
+    expect(todoSource).not.toContain('请输入接收人员工ID');
+    expect(todoSource).toContain('PARALLEL_MEMBER_APPROVED');
+    expect(todoSource).toContain('PARALLEL_MEMBER_REJECTED');
+    expect(todoSource).toContain('PARALLEL_MEMBER_RETURNED');
+    expect(todoSource).toContain('APPROVAL_GROUP_ALL_APPROVED');
+    expect(todoSource).toContain('APPROVAL_GROUP_CANCELLED');
+  });
+
   it('keeps the runtime copy page wired to my-copy api and unified instance detail drawer', () => {
     const copySource = readSource(runtimeMyCopyPath);
 

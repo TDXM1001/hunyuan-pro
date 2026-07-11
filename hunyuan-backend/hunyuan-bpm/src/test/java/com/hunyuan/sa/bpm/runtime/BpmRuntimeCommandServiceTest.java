@@ -32,6 +32,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeStartDraftVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskAssignmentResolver;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
@@ -88,6 +89,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "serialNumberService", Mockito.mock(SerialNumberService.class));
         setField(bpmInstanceService, "bpmTaskAssignmentResolver", Mockito.mock(BpmTaskAssignmentResolver.class));
         setField(bpmInstanceService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
+        setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmInstanceDao", bpmInstanceDao);
@@ -99,6 +101,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmTaskService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
         setField(bpmTaskService, "bpmInstanceCopyService", bpmInstanceCopyService);
         setField(bpmTaskService, "bpmBusinessProcessApi", bpmBusinessProcessApi);
+        setField(bpmTaskService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
         when(bpmInstanceCopyService.createManualCopies(any(), any(), any(), any())).thenReturn(ResponseDTO.ok());
     }
 

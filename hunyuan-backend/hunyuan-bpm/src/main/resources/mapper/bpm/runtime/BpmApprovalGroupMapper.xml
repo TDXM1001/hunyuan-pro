@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalGroupDao">
+
+    <select id="selectByEngineProcessInstanceIdAndGroupKey"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalGroupEntity">
+        select *
+        from t_bpm_approval_group
+        where engine_process_instance_id = #{engineProcessInstanceId}
+          and approval_group_key = #{approvalGroupKey}
+        limit 1
+    </select>
+
+    <select id="selectByIdForUpdate"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalGroupEntity">
+        select *
+        from t_bpm_approval_group
+        where approval_group_id = #{approvalGroupId}
+        for update
+    </select>
+
+    <select id="selectPendingByInstanceIdForUpdate"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalGroupEntity">
+        select *
+        from t_bpm_approval_group
+        where instance_id = #{instanceId}
+          and group_state = 'PENDING'
+        order by approval_group_id
+        for update
+    </select>
+
+    <select id="queryByIds"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalGroupEntity">
+        select *
+        from t_bpm_approval_group
+        where approval_group_id in
+        <foreach collection="approvalGroupIds" item="approvalGroupId" open="(" separator="," close=")">
+            #{approvalGroupId}
+        </foreach>
+    </select>
+
+    <select id="selectByInstanceId"
+            resultType="com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalGroupEntity">
+        select *
+        from t_bpm_approval_group
+        where instance_id = #{instanceId}
+        order by approval_group_id
+    </select>
+</mapper>

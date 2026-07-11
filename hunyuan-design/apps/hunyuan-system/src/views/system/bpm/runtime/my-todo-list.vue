@@ -20,11 +20,13 @@ import {
   ElDescriptions,
   ElDescriptionsItem,
   ElDialog,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
   ElEmpty,
   ElFormItem,
   ElInput,
   ElMessage,
-  ElMessageBox,
   ElOption,
   ElSelect,
   ElTag,
@@ -33,18 +35,30 @@ import {
 } from 'element-plus';
 
 import {
+  addSignBpmTask,
   approveBpmTask,
+  delegateBpmTask,
   getBpmTaskDetail,
   queryMyBpmTodoPage,
+  recallBpmTask,
+  reduceSignBpmTask,
   rejectBpmTask,
   returnBpmTaskToInitiator,
   transferBpmTask,
 } from '#/api/system/bpm';
 import { queryEmployeePage } from '#/api/system/organization';
 
+import BpmApprovalGroupPanel from './components/bpm-approval-group-panel.vue';
+
 defineOptions({ name: 'SystemBpmRuntimeMyTodoList' });
 
 type TodoActionType = 'approve' | 'reject' | 'return';
+type AdvancedActionType =
+  | 'addSign'
+  | 'delegate'
+  | 'recall'
+  | 'reduceSign'
+  | 'transfer';
 
 const loading = ref(false);
 const showSearchBar = ref(true);
@@ -58,11 +72,20 @@ const actionSubmitting = ref(false);
 const employeeLoading = ref(false);
 const employeeOptions = ref<EmployeeRecord[]>([]);
 const currentActionRow = ref<BpmTaskRecord>();
+const advancedDialogVisible = ref(false);
+const advancedSubmitting = ref(false);
+const currentAdvancedRow = ref<BpmTaskRecord>();
 
 const actionForm = reactive({
   commentText: '',
   copyEmployeeIds: [] as number[],
   type: 'approve' as TodoActionType,
+});
+
+const advancedForm = reactive({
+  reason: '',
+  targetEmployeeId: undefined as number | undefined,
+  type: 'transfer' as AdvancedActionType,
 });
 
 const searchForm = reactive({
@@ -80,12 +103,12 @@ const columnsFactory = (): ColumnOption<BpmTaskRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
   { prop: 'instanceNo', label: '实例编号', minWidth: 150 },
   { prop: 'instanceTitle', label: '流程标题', minWidth: 220 },
-  { prop: 'taskName', label: '任务名称', minWidth: 160 },
+  { prop: 'taskName', label: '任务名称', minWidth: 190, useSlot: true },
   { prop: 'assignedAt', label: '到达时间', minWidth: 180 },
   {
     prop: 'actions',
     label: '操作',
-    width: 280,
+    width: 320,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -159,8 +182,17 @@ function getTaskResultType(value?: null | number) {
 
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
+    ADD_SIGNED: '任务加签',
+    APPROVAL_GROUP_ALL_APPROVED: '审批组全员通过',
+    APPROVAL_GROUP_CANCELLED: '审批组已关闭',
     APPROVED: '审批通过',
+    DELEGATED: '任务委派',
     INSTANCE_CANCELLED: '实例取消',
+    PARALLEL_MEMBER_APPROVED: '会签成员通过',
+    PARALLEL_MEMBER_REJECTED: '会签成员拒绝，审批组已终止',
+    PARALLEL_MEMBER_RETURNED: '会签成员退回发起人，其他待办已取消',
+    RECALLED: '发起人撤回',
+    REDUCE_SIGNED: '任务减签',
     REJECTED: '审批拒绝',
     RESUBMITTED: '重新提交',
     RETURNED_TO_INITIATOR: '退回发起人',
@@ -315,19 +347,97 @@ async function submitActionDialog() {
   }
 }
 
-async function handleTransfer(row: BpmTaskRecord) {
-  const { value } = await ElMessageBox.prompt('请输入接收人员工ID', '转办任务', {
-    inputPattern: /^\d+$/,
-    inputPlaceholder: '员工ID',
-    inputErrorMessage: '请输入数字员工ID',
+function getAdvancedActionTitle() {
+  const labelMap: Record<AdvancedActionType, string> = {
+    addSign: '任务加签',
+    delegate: '任务委派',
+    recall: '发起人撤回',
+    reduceSign: '任务减签',
+    transfer: '任务转办',
+  };
+  return labelMap[advancedForm.type];
+}
+
+function advancedActionNeedsEmployee() {
+  return ['addSign', 'delegate', 'transfer'].includes(advancedForm.type);
+}
+
+async function openAdvancedActionDialog(
+  type: AdvancedActionType,
+  row: BpmTaskRecord,
+) {
+  currentAdvancedRow.value = row;
+  Object.assign(advancedForm, {
+    reason: '',
+    targetEmployeeId: undefined,
+    type,
   });
-  await transferBpmTask({
-    commentText: '转办',
-    taskId: row.taskId,
-    toEmployeeId: Number(value),
-  });
-  ElMessage.success('任务已转办');
-  await loadData();
+  advancedDialogVisible.value = true;
+  if (advancedActionNeedsEmployee()) {
+    await loadEmployeeOptions();
+  }
+}
+
+function handleAdvancedCommand(
+  command: AdvancedActionType,
+  row: BpmTaskRecord,
+) {
+  void openAdvancedActionDialog(command, row);
+}
+
+async function submitAdvancedActionDialog() {
+  const row = currentAdvancedRow.value;
+  if (!row) {
+    return;
+  }
+  if (advancedActionNeedsEmployee() && !advancedForm.targetEmployeeId) {
+    ElMessage.warning('请选择目标员工');
+    return;
+  }
+
+  advancedSubmitting.value = true;
+  try {
+    // 五类高级动作复用一个紧凑表单，但请求字段严格按后端契约分流。
+    if (advancedForm.type === 'transfer') {
+      await transferBpmTask({
+        commentText: advancedForm.reason,
+        taskId: row.taskId,
+        toEmployeeId: advancedForm.targetEmployeeId!,
+      });
+      ElMessage.success('任务已转办');
+    } else if (advancedForm.type === 'delegate') {
+      await delegateBpmTask({
+        reason: advancedForm.reason,
+        targetEmployeeId: advancedForm.targetEmployeeId!,
+        taskId: row.taskId,
+      });
+      ElMessage.success('任务已委派');
+    } else if (advancedForm.type === 'addSign') {
+      await addSignBpmTask({
+        reason: advancedForm.reason,
+        targetEmployeeId: advancedForm.targetEmployeeId!,
+        taskId: row.taskId,
+      });
+      ElMessage.success('任务已加签');
+    } else if (advancedForm.type === 'reduceSign') {
+      await reduceSignBpmTask({
+        reason: advancedForm.reason,
+        taskId: row.taskId,
+      });
+      ElMessage.success('任务已减签');
+    } else {
+      await recallBpmTask({
+        reason: advancedForm.reason,
+        taskId: row.taskId,
+      });
+      ElMessage.success('流程已撤回');
+    }
+    advancedDialogVisible.value = false;
+    detailVisible.value = false;
+    await loadData();
+  } finally {
+    advancedSubmitting.value = false;
+  }
 }
 
 onMounted(() => {
@@ -385,6 +495,18 @@ onMounted(() => {
             @pagination:current-change="handleCurrentChange"
             @pagination:size-change="handleSizeChange"
           >
+            <template #taskName="{ row }">
+              <div class="runtime-task-page__task-name">
+                <span>{{ row.taskName }}</span>
+                <small v-if="row.approvalGroup">
+                  {{ row.approvalGroup.approvalGroupName }}，
+                  {{ row.approvalGroup.processedMemberCount }}/{{
+                    row.approvalGroup.totalMemberCount
+                  }}
+                  已处理
+                </small>
+              </div>
+            </template>
             <template #actions="{ row }">
               <div class="runtime-task-page__actions">
                 <ElButton link size="small" type="primary" @click="openDetailDialog(row)">
@@ -399,7 +521,25 @@ onMounted(() => {
                 <ElButton link size="small" type="warning" @click="handleReturn(row)">
                   退回
                 </ElButton>
-                <ElButton link size="small" @click="handleTransfer(row)">转办</ElButton>
+                <ElDropdown
+                  trigger="click"
+                  @command="(command) => handleAdvancedCommand(command, row)"
+                >
+                  <ElButton link size="small">高级</ElButton>
+                  <template #dropdown>
+                    <ElDropdownMenu>
+                      <ElDropdownItem command="transfer">转办</ElDropdownItem>
+                      <ElDropdownItem command="delegate">委派</ElDropdownItem>
+                      <ElDropdownItem v-if="!row.approvalGroup" command="addSign">
+                        加签
+                      </ElDropdownItem>
+                      <ElDropdownItem v-if="!row.approvalGroup" command="reduceSign">
+                        减签
+                      </ElDropdownItem>
+                      <ElDropdownItem command="recall">撤回</ElDropdownItem>
+                    </ElDropdownMenu>
+                  </template>
+                </ElDropdown>
               </div>
             </template>
           </ArtTable>
@@ -459,6 +599,11 @@ onMounted(() => {
             </ElDescriptionsItem>
           </ElDescriptions>
 
+          <template v-if="detailData.approvalGroup">
+            <div class="runtime-task-page__timeline-title">审批组</div>
+            <BpmApprovalGroupPanel :group="detailData.approvalGroup" />
+          </template>
+
           <div class="runtime-task-page__timeline-title">动作轨迹</div>
           <ElTimeline v-if="detailData.actionLogs.length > 0" class="runtime-task-page__timeline">
             <ElTimelineItem
@@ -516,6 +661,54 @@ onMounted(() => {
       <template #footer>
         <ElButton @click="actionDialogVisible = false">取消</ElButton>
         <ElButton :loading="actionSubmitting" type="primary" @click="submitActionDialog">
+          确定
+        </ElButton>
+      </template>
+    </ElDialog>
+
+    <ElDialog
+      v-model="advancedDialogVisible"
+      :title="getAdvancedActionTitle()"
+      width="520px"
+    >
+      <div class="runtime-task-page__action-form">
+        <ElFormItem v-if="advancedActionNeedsEmployee()" label="目标员工">
+          <ElSelect
+            v-model="advancedForm.targetEmployeeId"
+            clearable
+            filterable
+            :loading="employeeLoading"
+            placeholder="请选择员工"
+            remote
+            :remote-method="loadEmployeeOptions"
+            style="width: 100%"
+          >
+            <ElOption
+              v-for="employee in employeeOptions"
+              :key="employee.employeeId"
+              :label="`${employee.actualName}（${employee.departmentName || '未分配部门'}）`"
+              :value="employee.employeeId"
+            />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="原因">
+          <ElInput
+            v-model="advancedForm.reason"
+            maxlength="500"
+            placeholder="可选，请填写操作原因"
+            :rows="3"
+            show-word-limit
+            type="textarea"
+          />
+        </ElFormItem>
+      </div>
+      <template #footer>
+        <ElButton @click="advancedDialogVisible = false">取消</ElButton>
+        <ElButton
+          :loading="advancedSubmitting"
+          type="primary"
+          @click="submitAdvancedActionDialog"
+        >
           确定
         </ElButton>
       </template>
@@ -590,6 +783,18 @@ onMounted(() => {
 
 .runtime-task-page__actions :deep(.el-button + .el-button) {
   margin-left: 0;
+}
+
+.runtime-task-page__task-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.runtime-task-page__task-name small {
+  color: var(--el-text-color-secondary);
+  line-height: 18px;
 }
 
 .runtime-task-page__detail {

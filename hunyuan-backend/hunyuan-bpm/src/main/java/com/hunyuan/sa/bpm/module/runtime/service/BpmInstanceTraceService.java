@@ -39,6 +39,7 @@ public class BpmInstanceTraceService {
         trace.setCallbackRecords(integrationRecordService.queryCallbackRecordsByInstanceId(instanceId));
         trace.setCommandRecords(integrationRecordService.queryCommandRecordsByInstanceId(instanceId));
         trace.setNotificationRecords(notificationRecordService.queryByInstanceId(instanceId));
+        trace.setApprovalGroups(detail.getApprovalGroups() == null ? List.of() : detail.getApprovalGroups());
         return ResponseDTO.ok(trace);
     }
 }

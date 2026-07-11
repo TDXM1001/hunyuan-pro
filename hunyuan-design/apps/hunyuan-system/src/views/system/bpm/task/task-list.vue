@@ -32,6 +32,8 @@ import {
 
 import { getBpmTaskDetail, queryBpmTaskPage } from '#/api/system/bpm';
 
+import BpmApprovalGroupPanel from '../runtime/components/bpm-approval-group-panel.vue';
+
 defineOptions({ name: 'SystemBpmTaskList' });
 
 const loading = ref(false);
@@ -58,7 +60,7 @@ const columnsFactory = (): ColumnOption<BpmTaskRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
   { prop: 'instanceNo', label: '实例编号', minWidth: 150 },
   { prop: 'instanceTitle', label: '流程标题', minWidth: 220 },
-  { prop: 'taskName', label: '任务名称', minWidth: 160 },
+  { prop: 'taskName', label: '任务名称', minWidth: 190, useSlot: true },
   {
     prop: 'assigneeNameSnapshot',
     label: '当前处理人',
@@ -292,6 +294,18 @@ onMounted(() => {
             @pagination:current-change="handleCurrentChange"
             @pagination:size-change="handleSizeChange"
           >
+            <template #taskName="{ row }">
+              <div class="task-page__task-name">
+                <span>{{ row.taskName }}</span>
+                <small v-if="row.approvalGroup">
+                  {{ row.approvalGroup.approvalGroupName }}，
+                  {{ row.approvalGroup.processedMemberCount }}/{{
+                    row.approvalGroup.totalMemberCount
+                  }}
+                  已处理
+                </small>
+              </div>
+            </template>
             <template #taskState="{ row }">
               <ElTag :type="getTaskStateType(row.taskState)" effect="plain" size="small">
                 {{ getTaskStateLabel(row.taskState) }}
@@ -367,6 +381,11 @@ onMounted(() => {
               <code>{{ detailData.runtimeAssignmentSnapshotJson || '-' }}</code>
             </ElDescriptionsItem>
           </ElDescriptions>
+
+          <template v-if="detailData.approvalGroup">
+            <div class="task-page__timeline-title">审批组</div>
+            <BpmApprovalGroupPanel :group="detailData.approvalGroup" />
+          </template>
 
           <div class="task-page__timeline-title">动作轨迹</div>
           <ElTimeline v-if="detailData.actionLogs.length > 0" class="task-page__timeline">
@@ -464,6 +483,18 @@ onMounted(() => {
 
 .task-page__actions :deep(.el-button + .el-button) {
   margin-left: 0;
+}
+
+.task-page__task-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.task-page__task-name small {
+  color: var(--el-text-color-secondary);
+  line-height: 18px;
 }
 
 .task-page__detail {

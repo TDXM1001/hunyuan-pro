@@ -50,6 +50,9 @@ public class BpmTaskProjectionService {
     @Resource
     private BpmNotificationListenerService bpmNotificationListenerService;
 
+    @Resource
+    private BpmApprovalGroupService bpmApprovalGroupService;
+
     @Transactional(rollbackFor = Exception.class)
     public int syncActiveTasksForInstance(Long instanceId) {
         BpmInstanceEntity instance = bpmInstanceDao.selectById(instanceId);
@@ -101,6 +104,9 @@ public class BpmTaskProjectionService {
         task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
         task.setAssignedAt(now);
         task.setLastActionAt(now);
+        if (isParallelApprovalGroupNode(node)) {
+            task.setApprovalGroupId(bpmApprovalGroupService.assignApprovalGroup(instance, node, task));
+        }
         bpmTaskDao.insert(task);
         dispatchTaskCreatedNotification(instance, task, node, assigneeSnapshot);
     }
@@ -117,6 +123,26 @@ public class BpmTaskProjectionService {
         task.setRuntimeAssignmentSnapshotJson(assignment.toJSONString());
     }
 
+    private boolean isParallelApprovalGroupNode(BpmDefinitionNodeEntity node) {
+        if (node == null || node.getCompiledNodeSnapshotJson() == null) {
+            return false;
+        }
+        try {
+            JSONObject snapshot = JSON.parseObject(node.getCompiledNodeSnapshotJson());
+            Integer parallelIndex = snapshot.getInteger("parallelIndex");
+            Integer parallelTotal = snapshot.getInteger("parallelTotal");
+            return "parallelAll".equals(snapshot.getString("approvalMode"))
+                    && snapshot.getString("approvalGroupKey") != null
+                    && parallelIndex != null
+                    && parallelTotal != null
+                    && parallelIndex >= 1
+                    && parallelIndex <= parallelTotal
+                    && parallelTotal >= 2;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     private void dispatchTaskCreatedNotification(
             BpmInstanceEntity instance,
             BpmTaskEntity task,
@@ -130,6 +156,7 @@ public class BpmTaskProjectionService {
         if (channels.isEmpty()) {
             return;
         }
+        TaskCreatedNotification notification = buildTaskCreatedNotification(instance, node);
 
         BpmNotificationCommand command = new BpmNotificationCommand(
                 channels,
@@ -142,12 +169,45 @@ public class BpmTaskProjectionService {
                 buildReceiverSnapshotJson(assigneeSnapshot),
                 assigneeSnapshot.phone(),
                 assigneeSnapshot.email() == null ? List.of() : List.of(assigneeSnapshot.email()),
-                "流程待办提醒",
-                "流程待办提醒",
-                "你有一个新的流程待办：" + task.getInstanceTitle(),
+                notification.title(),
+                notification.title(),
+                notification.content(),
                 "bpm_task_created"
         );
         bpmNotificationListenerService.dispatch(command);
+    }
+
+    private TaskCreatedNotification buildTaskCreatedNotification(
+            BpmInstanceEntity instance,
+            BpmDefinitionNodeEntity node
+    ) {
+        String ordinaryContent = "你有一个新的流程待办：" + instance.getTitle();
+        if (node == null || node.getCompiledNodeSnapshotJson() == null) {
+            return new TaskCreatedNotification("流程待办提醒", ordinaryContent);
+        }
+        try {
+            // 通知只读取冻结的编译快照，避免向用户暴露 Flowable 内部任务标识。
+            JSONObject snapshot = JSON.parseObject(node.getCompiledNodeSnapshotJson());
+            String groupName = snapshot.getString("approvalGroupName");
+            Integer parallelIndex = snapshot.getInteger("parallelIndex");
+            Integer parallelTotal = snapshot.getInteger("parallelTotal");
+            if (!"parallelAll".equals(snapshot.getString("approvalMode"))
+                    || groupName == null
+                    || groupName.isBlank()
+                    || parallelIndex == null
+                    || parallelTotal == null
+                    || parallelIndex < 1
+                    || parallelIndex > parallelTotal
+                    || parallelTotal < 2) {
+                return new TaskCreatedNotification("流程待办提醒", ordinaryContent);
+            }
+            return new TaskCreatedNotification(
+                    "流程会签待办提醒",
+                    ordinaryContent + "；审批组：" + groupName + "，成员 " + parallelIndex + "/" + parallelTotal
+            );
+        } catch (Exception ex) {
+            return new TaskCreatedNotification("流程待办提醒", ordinaryContent);
+        }
     }
 
     private List<String> parseNotificationChannels(BpmDefinitionNodeEntity node) {
@@ -221,5 +281,8 @@ public class BpmTaskProjectionService {
             nodeSummaryArray.add(nodeSummary);
         }
         return nodeSummaryArray.toJSONString();
+    }
+
+    private record TaskCreatedNotification(String title, String content) {
     }
 }

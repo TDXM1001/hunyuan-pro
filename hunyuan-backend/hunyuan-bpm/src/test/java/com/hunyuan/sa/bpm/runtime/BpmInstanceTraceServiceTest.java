@@ -7,6 +7,7 @@ import com.hunyuan.sa.bpm.module.integration.domain.vo.BpmCommandRecordVO;
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessIntegrationRecordService;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceTraceVO;
+import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmApprovalGroupDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmNotificationRecordVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskActionLogVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
@@ -58,6 +59,10 @@ class BpmInstanceTraceServiceTest {
         detail.setTitle("Expense approval");
         detail.setCurrentTasks(List.of(task));
         detail.setActionLogs(List.of(actionLog));
+        BpmApprovalGroupDetailVO groupDetail = new BpmApprovalGroupDetailVO();
+        groupDetail.setApprovalGroupId(61L);
+        groupDetail.setApprovalGroupName("财务会签");
+        detail.setApprovalGroups(List.of(groupDetail));
         BpmCallbackRecordVO callbackRecord = new BpmCallbackRecordVO();
         callbackRecord.setCallbackRecordId(31L);
         callbackRecord.setInstanceId(88L);
@@ -81,6 +86,8 @@ class BpmInstanceTraceServiceTest {
         assertThat(response.getData().getCallbackRecords()).hasSize(1);
         assertThat(response.getData().getCommandRecords()).hasSize(1);
         assertThat(response.getData().getNotificationRecords()).hasSize(1);
+        assertThat(response.getData().getApprovalGroups()).extracting(BpmApprovalGroupDetailVO::getApprovalGroupName)
+                .containsExactly("财务会签");
     }
 
     @Test

@@ -23,4 +23,6 @@ public class BpmInstanceTraceVO {
     private List<BpmCommandRecordVO> commandRecords;
 
     private List<BpmNotificationRecordVO> notificationRecords;
+
+    private List<BpmApprovalGroupDetailVO> approvalGroups;
 }

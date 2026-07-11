@@ -30,8 +30,51 @@ export interface BpmTaskActionLogRecord {
   toAssigneeEmployeeId?: null | number;
 }
 
+export type BpmApprovalGroupState =
+  | 'APPROVED'
+  | 'CANCELLED'
+  | 'PENDING'
+  | 'REJECTED'
+  | 'RETURNED';
+
+export interface BpmApprovalGroupSummaryRecord {
+  approvalGroupId: number;
+  approvalGroupKey: string;
+  approvalGroupName: string;
+  approvalMode: 'parallelAll';
+  approvedMemberCount: number;
+  groupState: BpmApprovalGroupState;
+  processedMemberCount: number;
+  rejectedMemberCount: number;
+  totalMemberCount: number;
+}
+
+export interface BpmApprovalGroupMemberRecord {
+  assignedAt?: null | string;
+  assigneeDepartmentNameSnapshot?: null | string;
+  assigneeEmployeeId?: null | number;
+  assigneeNameSnapshot?: null | string;
+  cancelledAt?: null | string;
+  completedAt?: null | string;
+  lastAction?: BpmTaskActionLogRecord | null;
+  memberIndex?: null | number;
+  memberTotal?: null | number;
+  taskId: number;
+  taskName: string;
+  taskResult?: null | number;
+  taskState?: null | number;
+}
+
+export interface BpmApprovalGroupDetailRecord
+  extends BpmApprovalGroupSummaryRecord {
+  closeReason?: null | string;
+  closedAt?: null | string;
+  members: BpmApprovalGroupMemberRecord[];
+}
+
 export interface BpmInstanceDetailRecord extends BpmInstanceRecord {
   actionLogs: BpmTaskActionLogRecord[];
+  approvalGroups: BpmApprovalGroupDetailRecord[];
   currentFormDataSnapshotJson?: null | string;
   currentNodeSummaryJson?: null | string;
   currentTasks?: BpmTaskRecord[];
@@ -63,6 +106,7 @@ export interface BpmNotificationRecordVO {
 
 export interface BpmInstanceTraceRecord {
   actionLogs: BpmTaskActionLogRecord[];
+  approvalGroups: BpmApprovalGroupDetailRecord[];
   callbackRecords: BpmCallbackRecordVO[];
   commandRecords: BpmCommandRecordVO[];
   currentTasks: BpmTaskRecord[];
@@ -88,6 +132,7 @@ export interface BpmInstanceCopyRecord {
 }
 
 export interface BpmTaskRecord {
+  approvalGroup?: BpmApprovalGroupSummaryRecord | null;
   assignedAt?: null | string;
   assigneeDepartmentNameSnapshot?: null | string;
   assigneeNameSnapshot?: null | string;
@@ -107,6 +152,7 @@ export interface BpmTaskRecord {
 
 export interface BpmTaskDetailRecord extends BpmTaskRecord {
   actionLogs: BpmTaskActionLogRecord[];
+  approvalGroup?: BpmApprovalGroupDetailRecord | null;
 }
 
 export interface BpmStartableDefinitionRecord {
@@ -199,6 +245,28 @@ export interface BpmTaskTransferForm {
   toEmployeeId: number;
 }
 
+export interface BpmTaskDelegateForm {
+  reason?: null | string;
+  targetEmployeeId: number;
+  taskId: number;
+}
+
+export interface BpmTaskAddSignForm {
+  reason?: null | string;
+  targetEmployeeId: number;
+  taskId: number;
+}
+
+export interface BpmTaskReduceSignForm {
+  reason?: null | string;
+  taskId: number;
+}
+
+export interface BpmTaskRecallForm {
+  reason?: null | string;
+  taskId: number;
+}
+
 export async function queryBpmInstancePage(params: BpmInstancePageQueryParams) {
   return requestClient.post<PageResult<BpmInstanceRecord>>('/bpm/instance/query', {
     instanceNo: params.instanceNo?.trim() || undefined,
@@ -232,7 +300,9 @@ export async function queryBpmTaskPage(params: BpmTaskPageQueryParams) {
 }
 
 export async function getBpmTaskDetail(taskId: number) {
-  return requestClient.get<BpmTaskDetailRecord>(`/bpm/task/detail/${taskId}`);
+  return requestClient.get<BpmTaskDetailRecord>(
+    `/app/bpm/task/detail/${taskId}`,
+  );
 }
 
 export async function queryBpmStartableDefinitions() {
@@ -365,5 +435,35 @@ export async function transferBpmTask(params: BpmTaskTransferForm) {
     commentText: params.commentText?.trim() || '',
     taskId: params.taskId,
     toEmployeeId: params.toEmployeeId,
+  });
+}
+
+export async function delegateBpmTask(params: BpmTaskDelegateForm) {
+  return requestClient.post<string>('/app/bpm/task/delegate', {
+    reason: params.reason?.trim() || '',
+    targetEmployeeId: params.targetEmployeeId,
+    taskId: params.taskId,
+  });
+}
+
+export async function addSignBpmTask(params: BpmTaskAddSignForm) {
+  return requestClient.post<string>('/app/bpm/task/addSign', {
+    reason: params.reason?.trim() || '',
+    targetEmployeeId: params.targetEmployeeId,
+    taskId: params.taskId,
+  });
+}
+
+export async function reduceSignBpmTask(params: BpmTaskReduceSignForm) {
+  return requestClient.post<string>('/app/bpm/task/reduceSign', {
+    reason: params.reason?.trim() || '',
+    taskId: params.taskId,
+  });
+}
+
+export async function recallBpmTask(params: BpmTaskRecallForm) {
+  return requestClient.post<string>('/app/bpm/task/recall', {
+    reason: params.reason?.trim() || '',
+    taskId: params.taskId,
   });
 }

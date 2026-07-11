@@ -9,7 +9,7 @@ export interface BpmFormDesignerSnapshot {
 }
 
 export interface BpmProcessNodeDraft {
-  approvalMode?: 'sequential' | 'single' | 'singleOnly';
+  approvalMode?: 'parallelAll' | 'sequential' | 'single' | 'singleOnly';
   candidateResolverType?:
     | 'DEPARTMENT_MANAGER'
     | 'EMPLOYEE'
