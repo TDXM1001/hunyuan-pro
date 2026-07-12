@@ -28,6 +28,14 @@ public class BpmTaskActionPolicy {
         if (!BpmTaskStateEnum.PENDING.equalsValue(task.getTaskState())) {
             return new TaskActions(taskKind, List.of());
         }
+        if (task.getApprovalStageId() != null || task.getApprovalStageMemberId() != null) {
+            // M2 stage members must go through the frozen-stage command boundary.
+            return new TaskActions(BpmTaskKind.APPROVAL, List.of(
+                    BpmTaskAction.APPROVE,
+                    BpmTaskAction.REJECT,
+                    BpmTaskAction.RETURN
+            ));
+        }
         if (BpmTaskKind.HANDLE.equals(taskKind)) {
             return new TaskActions(taskKind, List.of(
                     BpmTaskAction.COMPLETE,

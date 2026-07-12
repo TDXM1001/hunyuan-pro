@@ -21,4 +21,9 @@ public interface BpmOrgIdentityGateway {
      * 解析角色下的员工 id 列表。
      */
     List<Long> listEmployeeIdsByRoleId(Long roleId);
+
+    /**
+     * 解析岗位下仍有效的员工 id 列表。
+     */
+    List<Long> listActiveEmployeeIdsByPositionId(Long positionId);
 }

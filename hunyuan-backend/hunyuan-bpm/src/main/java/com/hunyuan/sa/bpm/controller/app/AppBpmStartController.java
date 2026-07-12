@@ -39,6 +39,12 @@ public class AppBpmStartController {
         return bpmInstanceService.getStartDraft(definitionId);
     }
 
+    @Operation(summary = "查询 Graph 发起草稿")
+    @GetMapping("/app/bpm/graph-start-draft/{graphDefinitionVersionId}")
+    public ResponseDTO<BpmRuntimeStartDraftVO> graphStartDraft(@PathVariable Long graphDefinitionVersionId) {
+        return bpmInstanceService.getGraphStartDraft(graphDefinitionVersionId);
+    }
+
     @Operation(summary = "发起流程实例")
     @PostMapping("/app/bpm/start")
     public ResponseDTO<Long> start(@RequestBody @Valid BpmInstanceStartForm startForm) {

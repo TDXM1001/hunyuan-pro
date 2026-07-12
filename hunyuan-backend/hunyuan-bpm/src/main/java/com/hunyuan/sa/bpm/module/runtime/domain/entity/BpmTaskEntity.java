@@ -23,9 +23,17 @@ public class BpmTaskEntity {
 
     private Long definitionId;
 
+    private Long graphDefinitionVersionId;
+
+    private String definitionSource;
+
     private Long definitionNodeId;
 
     private Long approvalGroupId;
+
+    private Long approvalStageId;
+
+    private Long approvalStageMemberId;
 
     private String engineTaskId;
 

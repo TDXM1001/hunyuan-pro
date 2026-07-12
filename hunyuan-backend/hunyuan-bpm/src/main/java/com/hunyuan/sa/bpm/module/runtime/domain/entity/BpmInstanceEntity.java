@@ -23,6 +23,10 @@ public class BpmInstanceEntity {
 
     private Long definitionId;
 
+    private Long graphDefinitionVersionId;
+
+    private String definitionSource;
+
     private String engineProcessDefinitionId;
 
     private String engineProcessInstanceId;
@@ -34,6 +38,12 @@ public class BpmInstanceEntity {
     private Long categoryIdSnapshot;
 
     private String categoryNameSnapshot;
+
+    private Long startVisibilityPolicyVersionId;
+
+    private String startVisibilityPolicyDigest;
+
+    private String startVisibilityDecisionJson;
 
     private String title;
 

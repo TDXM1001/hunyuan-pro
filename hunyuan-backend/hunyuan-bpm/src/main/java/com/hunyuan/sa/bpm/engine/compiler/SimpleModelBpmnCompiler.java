@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.engine.ast.BranchNode;
 import com.hunyuan.sa.bpm.engine.ast.CopyTaskNode;
+import com.hunyuan.sa.bpm.engine.ast.DelayNode;
+import com.hunyuan.sa.bpm.engine.ast.ExternalTriggerNode;
 import com.hunyuan.sa.bpm.engine.ast.HumanTaskNode;
 import com.hunyuan.sa.bpm.engine.ast.ProcessAst;
 import com.hunyuan.sa.bpm.engine.ast.ProcessBranch;
@@ -305,7 +307,78 @@ public class SimpleModelBpmnCompiler {
             if (node instanceof CopyTaskNode copyTaskNode) {
                 return compileCopyTask(copyTaskNode, branchPath);
             }
+            if (node instanceof DelayNode delayNode) {
+                return compileDelay(delayNode, branchPath);
+            }
+            if (node instanceof ExternalTriggerNode externalTriggerNode) {
+                return compileExternalTrigger(externalTriggerNode, branchPath);
+            }
             throw new IllegalArgumentException("M1 编译器暂不支持节点：" + node.type());
+        }
+
+        private BpmnFragment compileDelay(DelayNode node, List<String> branchPath) {
+            JSONObject authored = toAuthoredJson(node);
+            JSONObject compiled = buildCompiledSnapshot(node, authored, branchPath);
+            String timerDefinition = switch (node.mode()) {
+                case "DURATION" -> "<timeDuration>" + escapeXml(node.value()) + "</timeDuration>";
+                case "FIXED_DATETIME" -> "<timeDate>" + escapeXml(node.value()) + "</timeDate>";
+                case "FORM_DATETIME" -> "<timeDate>${delay_" + escapeXml(node.nodeKey()) + "}</timeDate>";
+                default -> throw new IllegalArgumentException("延迟节点模式不受支持：" + node.mode());
+            };
+            String element = "<intermediateCatchEvent id=\"" + escapeXml(node.nodeKey())
+                    + "\" name=\"" + escapeXml(node.name()) + "\"><extensionElements>"
+                    + "<flowable:executionListener event=\"start\" delegateExpression=\"${hunyuanDelayStartListener}\"/>"
+                    + "<flowable:executionListener event=\"end\" delegateExpression=\"${hunyuanDelayEndListener}\"/>"
+                    + "</extensionElements><timerEventDefinition>"
+                    + timerDefinition + "</timerEventDefinition></intermediateCatchEvent>";
+            return new BpmnFragment(
+                    List.of(node.nodeKey()),
+                    List.of(node.nodeKey()),
+                    List.of(element),
+                    List.of(),
+                    List.of(snapshot(node, authored, compiled)),
+                    Set.of("TIME_EVENT")
+            );
+        }
+
+        private BpmnFragment compileExternalTrigger(ExternalTriggerNode node, List<String> branchPath) {
+            JSONObject authored = toAuthoredJson(node);
+            JSONObject compiled = buildCompiledSnapshot(node, authored, branchPath);
+            String invokeId = "WAIT_CALLBACK".equals(node.waitMode()) ? node.nodeKey() + "_invoke" : node.nodeKey();
+            String invoke = "<serviceTask id=\"" + escapeXml(invokeId)
+                    + "\" name=\"" + escapeXml(node.name())
+                    + "\" flowable:delegateExpression=\"${hunyuanExternalTriggerDelegate}\">"
+                    + "<extensionElements>"
+                    + flowableField("externalNodeKey", node.nodeKey())
+                    + flowableField("connectorKey", node.connectorKey())
+                    + flowableField("operationKey", node.operationKey())
+                    + flowableField("waitMode", node.waitMode())
+                    + "</extensionElements></serviceTask>";
+            if (!"WAIT_CALLBACK".equals(node.waitMode())) {
+                return new BpmnFragment(
+                        List.of(invokeId), List.of(invokeId), List.of(invoke), List.of(),
+                        List.of(snapshot(node, authored, compiled)), Set.of("EXTERNAL_CONNECTOR")
+                );
+            }
+
+            String waitId = node.nodeKey() + "_wait";
+            String wait = "<receiveTask id=\"" + escapeXml(waitId) + "\" name=\""
+                    + escapeXml(node.name()) + "回调等待\"><extensionElements>"
+                    + "<flowable:executionListener event=\"start\" delegateExpression=\"${hunyuanExternalWaitListener}\"/>"
+                    + "</extensionElements></receiveTask>";
+            List<String> elements = new ArrayList<>();
+            elements.add(invoke);
+            elements.add(wait);
+            List<BpmnSequenceFlow> flows = new ArrayList<>();
+            flows.add(new BpmnSequenceFlow(idFactory.nextFlowId(invokeId, waitId), invokeId, waitId, null));
+            Object timeoutAfter = node.timeoutPolicy().get("timeoutAfter");
+            if (timeoutAfter instanceof String duration) {
+                appendBoundaryTimePath(elements, flows, waitId, node.nodeKey() + "_timeout", duration, "EXTERNAL_TIMEOUT", node.nodeKey(), true);
+            }
+            return new BpmnFragment(
+                    List.of(invokeId), List.of(waitId), elements, flows,
+                    List.of(snapshot(node, authored, compiled)), Set.of("EXTERNAL_CONNECTOR", "EXTERNAL_WAIT", "TIME_EVENT")
+            );
         }
 
         private BpmnFragment compileCopyTask(CopyTaskNode node, List<String> branchPath) {
@@ -430,14 +503,106 @@ public class SimpleModelBpmnCompiler {
             String element = "<userTask id=\"" + escapeXml(compiledKey)
                     + "\" name=\"" + escapeXml(compiledName)
                     + "\" flowable:assignee=\"${assignee_" + escapeXml(compiledKey) + "}\"/>";
+            List<String> elements = new ArrayList<>();
+            elements.add(element);
+            List<BpmnSequenceFlow> flows = new ArrayList<>();
+            Set<String> requirements = new LinkedHashSet<>();
+            requirements.add("ASSIGNMENT");
+            appendTaskSlaPaths(node, compiledKey, elements, flows, requirements);
             return new BpmnFragment(
                     List.of(compiledKey),
                     List.of(compiledKey),
-                    List.of(element),
-                    List.of(),
+                    elements,
+                    flows,
                     List.of(snapshot),
-                    Set.of("ASSIGNMENT")
+                    requirements
             );
+        }
+
+        private void appendTaskSlaPaths(
+                HumanTaskNode node,
+                String compiledKey,
+                List<String> elements,
+                List<BpmnSequenceFlow> flows,
+                Set<String> requirements
+        ) {
+            Object rawPolicy = node.configuration().get("taskSlaPolicy");
+            if (!(rawPolicy instanceof JSONObject policy)) {
+                return;
+            }
+            JSONArray reminders = policy.getJSONArray("reminderSchedule");
+            if (reminders != null) {
+                for (int index = 0; index < reminders.size(); index++) {
+                    appendBoundaryTimePath(
+                            elements,
+                            flows,
+                            compiledKey,
+                            "reminder_" + (index + 1),
+                            reminders.getString(index),
+                            "SLA_REMINDER",
+                            node.nodeKey(),
+                            false
+                    );
+                }
+            }
+            appendBoundaryTimePath(
+                    elements,
+                    flows,
+                    compiledKey,
+                    "due",
+                    policy.getString("dueAfter"),
+                    "SLA_DUE",
+                    node.nodeKey(),
+                    false
+            );
+            requirements.add("TIME_EVENT");
+        }
+
+        private void appendBoundaryTimePath(
+                List<String> elements,
+                List<BpmnSequenceFlow> flows,
+                String attachedToRef,
+                String suffix,
+                String duration,
+                String eventKind,
+                String authoredNodeKey,
+                boolean cancelActivity
+        ) {
+            String boundaryId = "sla_" + authoredNodeKey + "_" + suffix;
+            String delegateId = boundaryId + "_action";
+            String endId = boundaryId + "_end";
+            elements.add("<boundaryEvent id=\"" + escapeXml(boundaryId) + "\" attachedToRef=\""
+                    + escapeXml(attachedToRef) + "\" cancelActivity=\"" + cancelActivity + "\"><timerEventDefinition><timeDuration>"
+                    + escapeXml(duration) + "</timeDuration></timerEventDefinition></boundaryEvent>");
+            elements.add("<serviceTask id=\"" + escapeXml(delegateId)
+                    + "\" name=\"时间事件处理\" flowable:delegateExpression=\"${hunyuanTimeEventDelegate}\">"
+                    + "<extensionElements>" + flowableField("timeEventKind", eventKind)
+                    + flowableField("authoredNodeKey", authoredNodeKey)
+                    + "</extensionElements></serviceTask>");
+            elements.add("<endEvent id=\"" + escapeXml(endId) + "\" name=\"时间事件结束\"/>");
+            flows.add(new BpmnSequenceFlow(idFactory.nextFlowId(boundaryId, delegateId), boundaryId, delegateId, null));
+            flows.add(new BpmnSequenceFlow(idFactory.nextFlowId(delegateId, endId), delegateId, endId, null));
+        }
+
+        private JSONObject buildCompiledSnapshot(ProcessNode node, JSONObject authored, List<String> branchPath) {
+            JSONObject compiled = new JSONObject(true);
+            compiled.putAll(authored);
+            compiled.put("branchPath", branchPath);
+            compiled.put("startRuleJson", startRuleJson);
+            compiled.put("variableMappingJson", variableMappingJson);
+            return compiled;
+        }
+
+        private CompiledNodeSnapshot snapshot(ProcessNode node, JSONObject authored, JSONObject compiled) {
+            return new CompiledNodeSnapshot(
+                    node.nodeKey(), node.type().name(), node.name(), ++snapshotOrder,
+                    authored.toJSONString(), compiled.toJSONString()
+            );
+        }
+
+        private String flowableField(String name, String value) {
+            return "<flowable:field name=\"" + escapeXml(name) + "\" stringValue=\""
+                    + escapeXml(value) + "\"/>";
         }
 
         private BpmnFragment compileBranch(BranchNode node, List<String> parentBranchPath) {
@@ -531,6 +696,22 @@ public class SimpleModelBpmnCompiler {
             if (node instanceof CopyTaskNode copyTaskNode) {
                 JSONObject authored = new JSONObject(true);
                 authored.putAll(copyTaskNode.configuration());
+                authored.put("nodeKey", node.nodeKey());
+                authored.put("name", node.name());
+                authored.put("type", node.type().name());
+                return authored;
+            }
+            if (node instanceof DelayNode delayNode) {
+                JSONObject authored = new JSONObject(true);
+                authored.putAll(delayNode.configuration());
+                authored.put("nodeKey", node.nodeKey());
+                authored.put("name", node.name());
+                authored.put("type", node.type().name());
+                return authored;
+            }
+            if (node instanceof ExternalTriggerNode externalTriggerNode) {
+                JSONObject authored = new JSONObject(true);
+                authored.putAll(externalTriggerNode.configuration());
                 authored.put("nodeKey", node.nodeKey());
                 authored.put("name", node.name());
                 authored.put("type", node.type().name());

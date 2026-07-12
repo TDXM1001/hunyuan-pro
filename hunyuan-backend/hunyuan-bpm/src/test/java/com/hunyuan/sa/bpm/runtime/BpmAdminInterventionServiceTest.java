@@ -22,6 +22,8 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -63,6 +65,8 @@ class BpmAdminInterventionServiceTest {
         setField(bpmInstanceService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
         setField(bpmInstanceService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
         setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
+        setField(bpmInstanceService, "bpmTimeEventService", Mockito.mock(BpmTimeEventService.class));
+        setField(bpmInstanceService, "bpmExternalWaitService", Mockito.mock(BpmExternalWaitService.class));
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);

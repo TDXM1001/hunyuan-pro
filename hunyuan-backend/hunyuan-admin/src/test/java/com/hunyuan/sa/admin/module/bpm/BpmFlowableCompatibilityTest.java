@@ -11,6 +11,15 @@ import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.config.BpmFlowableAutoConfiguration;
 import com.hunyuan.sa.bpm.engine.compiler.CompiledDefinitionArtifact;
 import com.hunyuan.sa.bpm.engine.compiler.SimpleModelBpmnCompiler;
+import com.hunyuan.sa.bpm.engine.compiler.graph.GraphBpmnCompiler;
+import com.hunyuan.sa.bpm.engine.graph.GraphEdge;
+import com.hunyuan.sa.bpm.engine.graph.GraphNode;
+import com.hunyuan.sa.bpm.engine.graph.GraphNodeType;
+import com.hunyuan.sa.bpm.engine.graph.GraphScope;
+import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanDelayEndListener;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanDelayStartListener;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
 import org.flowable.engine.ProcessEngine;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
@@ -30,6 +39,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -87,6 +98,8 @@ class BpmFlowableCompatibilityTest {
     @Import({
             BpmFlowableAutoConfiguration.class,
             SimpleModelBpmnCompiler.class,
+            HunyuanDelayStartListener.class,
+            HunyuanDelayEndListener.class,
             AdminBpmOrgIdentityGateway.class,
             AdminBpmCurrentActorProvider.class
     })
@@ -104,6 +117,9 @@ class BpmFlowableCompatibilityTest {
 
     @MockBean
     private LoginManager loginManager;
+
+    @MockBean
+    private BpmTimeEventService bpmTimeEventService;
 
     @DynamicPropertySource
     static void registerDatasourceProperties(DynamicPropertyRegistry registry) {
@@ -171,6 +187,132 @@ class BpmFlowableCompatibilityTest {
 
         assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
                 .isEqualTo(1);
+    }
+
+    @Test
+    void deploysControlledV3TimeAndExternalWaitModel() {
+        CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
+                "compat_v3",
+                "v3 时间与外部等待兼容",
+                """
+                        {"schemaVersion":3,"nodes":[
+                          {
+                            "nodeKey":"review","name":"财务审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1,
+                            "taskSlaPolicy":{"dueAfter":"PT2H","reminderSchedule":["PT1H"],"timeoutAction":"REMIND_ONLY","systemActionComment":"审批超时提醒"}
+                          },
+                          {"nodeKey":"cooling","name":"冷静期","type":"DELAY","mode":"DURATION","value":"PT1H","timezone":"Asia/Shanghai","overduePolicy":"TRIGGER_IMMEDIATELY"},
+                          {
+                            "nodeKey":"finance_sync","name":"同步财务","type":"EXTERNAL_TRIGGER","connectorKey":"finance","operationKey":"createExpense",
+                            "requestMapping":{"amount":"approvedAmount"},"responseMapping":{"externalNo":"financeNo"},
+                            "waitMode":"WAIT_CALLBACK","timeoutPolicy":{"timeoutAfter":"PT30M"}
+                          }
+                        ]}
+                        """,
+                "{\"type\":\"ALL\"}",
+                "{}"
+        );
+
+        var deployment = repositoryService.createDeployment()
+                .name("v3 时间与外部等待兼容")
+                .addBytes("compat-v3.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+
+        assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void deploysControlledGraphDefinitionWithConditionalParallelAndCopyNodes() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_m1",
+                "Graph M1 兼容",
+                fullM1Graph()
+        );
+
+        var deployment = repositoryService.createDeployment()
+                .name("Graph M1 兼容")
+                .addBytes("compat-graph-m1.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+
+        assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
+                .isEqualTo(1);
+        assertThat(repositoryService.getBpmnModel(
+                repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).singleResult().getId()
+        ).getMainProcess().getFlowElement("graph_edge_route_large")).isNotNull();
+    }
+
+    private HunyuanProcessDefinitionGraph fullM1Graph() {
+        return new HunyuanProcessDefinitionGraph(
+                1,
+                "scope_root",
+                List.of(new GraphScope("scope_root", null, "主流程")),
+                List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        gateway("route_split", GraphNodeType.CONDITION, "金额路由", "SPLIT", "route_join"),
+                        node("large_review", GraphNodeType.APPROVAL, "大额审批"),
+                        gateway("route_join", GraphNodeType.CONDITION, "金额汇聚", "JOIN", "route_split"),
+                        gateway("parallel_split", GraphNodeType.PARALLEL_GATEWAY, "并行分叉", "SPLIT", "parallel_join"),
+                        node("finance_copy", GraphNodeType.COPY, "财务抄送"),
+                        node("archive_review", GraphNodeType.HANDLE, "归档办理"),
+                        gateway("parallel_join", GraphNodeType.PARALLEL_GATEWAY, "并行汇聚", "JOIN", "parallel_split"),
+                        node("end", GraphNodeType.END, "结束")
+                ),
+                List.of(
+                        edge("start_route", "start", "route_split", "default", Map.of()),
+                        edge("route_large", "route_split", "large_review", "large_amount", Map.of("routeCondition", Map.of(
+                                "sourceType", "FORM_FIELD", "fieldKey", "amount", "valueType", "NUMBER", "operator", "GT", "compareValue", 5000
+                        ))),
+                        edge("large_join", "large_review", "route_join", "default", Map.of()),
+                        edge("route_default", "route_split", "route_join", "default", Map.of()),
+                        edge("route_join_parallel", "route_join", "parallel_split", "default", Map.of()),
+                        edge("parallel_copy", "parallel_split", "finance_copy", "copy_branch", Map.of()),
+                        edge("parallel_archive", "parallel_split", "archive_review", "archive_branch", Map.of()),
+                        edge("copy_join", "finance_copy", "parallel_join", "default", Map.of()),
+                        edge("archive_join", "archive_review", "parallel_join", "default", Map.of()),
+                        edge("parallel_end", "parallel_join", "end", "default", Map.of())
+                ),
+                Map.of()
+        );
+    }
+
+    private GraphNode node(String nodeId, GraphNodeType type, String name) {
+        return new GraphNode(nodeId, "scope_root", type, name, Map.of(), Map.of());
+    }
+
+    private GraphNode gateway(String nodeId, GraphNodeType type, String name, String mode, String pairedGatewayId) {
+        return new GraphNode(nodeId, "scope_root", type, name, Map.of("gatewayMode", mode, "pairedGatewayId", pairedGatewayId), Map.of());
+    }
+
+    private GraphEdge edge(String edgeId, String sourceNodeId, String targetNodeId, String sourcePort, Map<String, Object> properties) {
+        return new GraphEdge(edgeId, "scope_root", sourceNodeId, targetNodeId, sourcePort, properties);
+    }
+
+    @Test
+    void createsRealFlowableTimerJobForV3DelayNode() {
+        CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
+                "compat_v3_delay",
+                "v3 延迟计时兼容",
+                """
+                        {"schemaVersion":3,"nodes":[
+                          {"nodeKey":"cooling","name":"冷静期","type":"DELAY","mode":"DURATION","value":"PT1H","timezone":"Asia/Shanghai","overduePolicy":"TRIGGER_IMMEDIATELY"}
+                        ]}
+                        """,
+                "{\"type\":\"ALL\"}",
+                "{}"
+        );
+        repositoryService.createDeployment()
+                .name("v3 延迟计时兼容")
+                .addBytes("compat-v3-delay.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+
+        var processInstance = runtimeService.startProcessInstanceByKey(
+                "compat_v3_delay",
+                Map.of("hunyuanInstanceId", 1L)
+        );
+
+        assertThat(processEngine.getManagementService().createTimerJobQuery()
+                .processInstanceId(processInstance.getId())
+                .count()).isEqualTo(1);
     }
 
     @Test

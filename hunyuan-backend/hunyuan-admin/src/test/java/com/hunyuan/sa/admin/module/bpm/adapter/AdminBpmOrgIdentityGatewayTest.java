@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 class AdminBpmOrgIdentityGatewayTest {
@@ -49,6 +50,13 @@ class AdminBpmOrgIdentityGatewayTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("员工已删除")
                 .hasMessageContaining("302");
+    }
+
+    @Test
+    void positionResolutionShouldDelegateToActiveEmployeeQuery() {
+        when(employeeService.listActiveEmployeeIdsByPositionId(8L)).thenReturn(java.util.List.of(20L, 30L));
+
+        assertThat(gateway.listActiveEmployeeIdsByPositionId(8L)).containsExactly(20L, 30L);
     }
 
     private EmployeeEntity buildEmployee(Long employeeId) {

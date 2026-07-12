@@ -18,6 +18,8 @@ import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersion
 import com.hunyuan.sa.bpm.module.definition.domain.form.GraphDefinitionPublishCommand;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.GraphDefinitionDetailVO;
 import com.hunyuan.sa.bpm.module.definition.domain.vo.GraphDefinitionElementMappingVO;
+import com.hunyuan.sa.bpm.module.category.dao.BpmCategoryDao;
+import com.hunyuan.sa.bpm.module.category.domain.entity.BpmCategoryEntity;
 import com.hunyuan.sa.bpm.module.model.dao.BpmProcessDraftDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmProcessDraftEntity;
 import jakarta.annotation.Resource;
@@ -33,6 +35,7 @@ import java.util.List;
 public class GraphDefinitionPublicationService {
     @Resource private BpmProcessDraftDao bpmProcessDraftDao; @Resource private GraphDefinitionVersionDao graphDefinitionVersionDao; @Resource private GraphDefinitionElementMappingDao graphDefinitionElementMappingDao; @Resource private GraphFlowableDeploymentGateway graphFlowableDeploymentGateway;
     @Resource private GraphPublicationDependencyResolver graphPublicationDependencyResolver;
+    @Resource private BpmCategoryDao bpmCategoryDao;
     private final GraphDocumentCodec codec = new GraphDocumentCodec(); private final GraphBpmnCompiler compiler = new GraphBpmnCompiler();
 
     public String compilerVersion() {
@@ -41,8 +44,9 @@ public class GraphDefinitionPublicationService {
     @Transactional(rollbackFor=Exception.class)
     public Long publish(GraphDefinitionPublishCommand command) {
       BpmProcessDraftEntity draft=bpmProcessDraftDao.selectById(command.draftId()); if(draft==null) throw new IllegalArgumentException("Graph 草稿不存在");
+      BpmCategoryEntity category = draft.getCategoryId() == null ? null : bpmCategoryDao.selectById(draft.getCategoryId()); if (draft.getCategoryId() != null && category == null) throw new IllegalArgumentException("Graph 草稿引用的流程分类不存在");
       HunyuanProcessDefinitionGraph graph=codec.restoreStored(draft.getGraphJson(),draft.getLayoutJson()); GraphPublicationDependencySnapshot dependencies=graphPublicationDependencyResolver.resolve(graph); GraphCompiledArtifact artifact=compiler.compile(draft.getProcessKey(),draft.getProcessName(),graph); GraphFlowableDeployment deployment=graphFlowableDeploymentGateway.deploy(draft.getProcessKey(),draft.getProcessName(),artifact.compiledBpmnXml());
-      try { GraphDefinitionVersionEntity version=new GraphDefinitionVersionEntity(); version.setDraftId(draft.getDraftId()); version.setProcessKey(draft.getProcessKey()); Integer max=graphDefinitionVersionDao.selectMaxVersionByProcessKey(draft.getProcessKey()); version.setDefinitionVersion(max==null?1:max+1); version.setLifecycleState("ACTIVE"); version.setGraphSnapshotJson(draft.getGraphJson()); version.setLayoutSnapshotJson(draft.getLayoutJson()); version.setSemanticHash(draft.getSemanticHash()); version.setDependencyVersionsJson(JSON.toJSONString(dependencies.toSnapshotMap())); version.setCompilerVersion(compilerVersion()); version.setCompiledBpmnXml(artifact.compiledBpmnXml()); version.setDeploymentId(deployment.deploymentId()); version.setEngineProcessDefinitionId(deployment.processDefinitionId()); version.setPublishedByEmployeeId(command.publishedByEmployeeId()); graphDefinitionVersionDao.insert(version);
+      try { GraphDefinitionVersionEntity version=new GraphDefinitionVersionEntity(); version.setDraftId(draft.getDraftId()); version.setProcessKey(draft.getProcessKey()); version.setProcessNameSnapshot(draft.getProcessName()); version.setCategoryIdSnapshot(category == null ? null : category.getCategoryId()); version.setCategoryNameSnapshot(category == null ? null : category.getCategoryName()); Integer max=graphDefinitionVersionDao.selectMaxVersionByProcessKey(draft.getProcessKey()); version.setDefinitionVersion(max==null?1:max+1); version.setLifecycleState("ACTIVE"); version.setGraphSnapshotJson(draft.getGraphJson()); version.setLayoutSnapshotJson(draft.getLayoutJson()); version.setSemanticHash(draft.getSemanticHash()); version.setDependencyVersionsJson(JSON.toJSONString(dependencies.toSnapshotMap())); version.setCompilerVersion(compilerVersion()); version.setCompiledBpmnXml(artifact.compiledBpmnXml()); version.setDeploymentId(deployment.deploymentId()); version.setEngineProcessDefinitionId(deployment.processDefinitionId()); version.setPublishedByEmployeeId(command.publishedByEmployeeId()); graphDefinitionVersionDao.insert(version);
         for(GraphCompiledElementMapping mapping:artifact.mappings()){ GraphDefinitionElementMappingEntity e=new GraphDefinitionElementMappingEntity(); e.setGraphDefinitionVersionId(version.getGraphDefinitionVersionId()); e.setAuthoredElementId(mapping.authoredElementId()); e.setAuthoredElementKind(mapping.authoredElementKind()); e.setCompiledElementId(mapping.compiledElementId()); e.setCompiledElementType(mapping.compiledElementType()); graphDefinitionElementMappingDao.insert(e); } return version.getGraphDefinitionVersionId();
       } catch(RuntimeException ex){ graphFlowableDeploymentGateway.delete(deployment); throw ex; }
     }

@@ -93,6 +93,9 @@ public class BpmTaskService {
     private BpmApprovalGroupService bpmApprovalGroupService;
 
     @Resource
+    private BpmApprovalStageCommandService bpmApprovalStageCommandService;
+
+    @Resource
     private BpmTaskFormContextService bpmTaskFormContextService;
 
     @Resource
@@ -228,6 +231,14 @@ public class BpmTaskService {
         if (policyResponse != null) {
             return policyResponse;
         }
+        ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
+                approveForm.getTaskId(),
+                "APPROVE",
+                approveForm.getCommentText()
+        );
+        if (approvalStageResponse != null) {
+            return approvalStageResponse;
+        }
         ResponseDTO<String> taskKindResponse = rejectApprovalActionForHandleTask(
                 approveForm.getTaskId(),
                 "审批通过"
@@ -252,6 +263,14 @@ public class BpmTaskService {
         ResponseDTO<String> policyResponse = requireAllowed(rejectForm.getTaskId(), BpmTaskAction.REJECT);
         if (policyResponse != null) {
             return policyResponse;
+        }
+        ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
+                rejectForm.getTaskId(),
+                "REJECT",
+                rejectForm.getCommentText()
+        );
+        if (approvalStageResponse != null) {
+            return approvalStageResponse;
         }
         ResponseDTO<String> taskKindResponse = rejectApprovalActionForHandleTask(
                 rejectForm.getTaskId(),
@@ -281,6 +300,14 @@ public class BpmTaskService {
         ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.RETURN);
         if (policyResponse != null) {
             return policyResponse;
+        }
+        ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
+                returnForm.getTaskId(),
+                "RETURN",
+                returnForm.getCommentText()
+        );
+        if (approvalStageResponse != null) {
+            return approvalStageResponse;
         }
         if (taskEntity.getApprovalGroupId() != null) {
             return handleApprovalGroupAction(
@@ -355,6 +382,10 @@ public class BpmTaskService {
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
+        ResponseDTO<String> stageMemberResponse = rejectGenericActionForApprovalStageMember(taskEntity);
+        if (stageMemberResponse != null) {
+            return stageMemberResponse;
+        }
         ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.TRANSFER);
         if (policyResponse != null) {
             return policyResponse;
@@ -380,6 +411,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(transferForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> stageMemberResponse = rejectGenericActionForApprovalStageMember(taskEntity);
+        if (stageMemberResponse != null) {
+            return stageMemberResponse;
         }
 
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
@@ -412,6 +447,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(addSignForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> stageMemberResponse = rejectGenericActionForApprovalStageMember(taskEntity);
+        if (stageMemberResponse != null) {
+            return stageMemberResponse;
         }
         ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.ADD_SIGN);
         if (policyResponse != null) {
@@ -451,6 +490,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(reduceSignForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> stageMemberResponse = rejectGenericActionForApprovalStageMember(taskEntity);
+        if (stageMemberResponse != null) {
+            return stageMemberResponse;
         }
         ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.REDUCE_SIGN);
         if (policyResponse != null) {
@@ -495,6 +538,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(recallForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> stageMemberResponse = rejectGenericActionForApprovalStageMember(taskEntity);
+        if (stageMemberResponse != null) {
+            return stageMemberResponse;
         }
         BpmInstanceEntity instanceEntity = bpmInstanceDao.selectById(taskEntity.getInstanceId());
         if (instanceEntity == null) {
@@ -555,6 +602,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(delegateForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> stageMemberResponse = rejectGenericActionForApprovalStageMember(taskEntity);
+        if (stageMemberResponse != null) {
+            return stageMemberResponse;
         }
         if (requireCurrentAssignee) {
             ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.DELEGATE);
@@ -745,6 +796,116 @@ public class BpmTaskService {
         );
     }
 
+    /**
+     * 执行发布时已冻结的系统超时动作；调用方必须位于运行时命令边界内。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> executeSystemTimeoutAction(Long taskId, String action, String commentText, Long adminEmployeeId) {
+        BpmTaskEntity taskLookup = bpmTaskDao.selectById(taskId);
+        if (taskLookup == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!"AUTO_APPROVE".equals(action) && !"AUTO_REJECT".equals(action) && !"ASSIGN_ADMIN".equals(action)) {
+            return ResponseDTO.userErrorParam("不支持的系统超时动作");
+        }
+        if (!BpmTaskStateEnum.PENDING.equalsValue(taskLookup.getTaskState())) {
+            return ResponseDTO.ok("任务已由其他动作处理");
+        }
+        BpmEmployeeSnapshot systemActor = new BpmEmployeeSnapshot(
+                taskLookup.getAssigneeEmployeeId(),
+                "系统自动动作",
+                taskLookup.getAssigneeDepartmentIdSnapshot(),
+                taskLookup.getAssigneeDepartmentNameSnapshot(),
+                null,
+                null
+        );
+        if ("ASSIGN_ADMIN".equals(action)) {
+            if (adminEmployeeId == null || adminEmployeeId <= 0) {
+                return ResponseDTO.userErrorParam("SLA 转管理员缺少目标员工");
+            }
+            BpmTaskEntity task = bpmTaskDao.selectByIdForUpdate(taskId);
+            if (task == null || !BpmTaskStateEnum.PENDING.equalsValue(task.getTaskState())) {
+                return ResponseDTO.ok("任务已由其他动作处理");
+            }
+            BpmEmployeeSnapshot target = bpmOrgIdentityGateway.requireEmployee(adminEmployeeId);
+            flowableTaskGateway.transfer(task.getEngineTaskId(), adminEmployeeId);
+            LocalDateTime now = LocalDateTime.now();
+            BpmTaskEntity update = new BpmTaskEntity();
+            update.setTaskId(taskId);
+            update.setAssigneeEmployeeId(target.employeeId());
+            update.setAssigneeNameSnapshot(target.actualName());
+            update.setAssigneeDepartmentIdSnapshot(target.departmentId());
+            update.setAssigneeDepartmentNameSnapshot(target.departmentName());
+            update.setLastActionAt(now);
+            bpmTaskDao.updateById(update);
+            bpmTaskActionLogDao.insert(buildActionLog(
+                    task, systemActor, "SYSTEM_SLA_ASSIGNED_ADMIN", commentText,
+                    task.getAssigneeEmployeeId(), target.employeeId(), now
+            ));
+            return ResponseDTO.ok();
+        }
+        BpmTaskResultEnum result = "AUTO_REJECT".equals(action)
+                ? BpmTaskResultEnum.REJECTED
+                : BpmTaskResultEnum.APPROVED;
+        if (taskLookup.getApprovalGroupId() != null) {
+            BpmApprovalGroupActionResult actionResult = bpmApprovalGroupService.handleMemberAction(
+                    taskId,
+                    result == BpmTaskResultEnum.REJECTED
+                            ? BpmApprovalMemberAction.REJECT
+                            : BpmApprovalMemberAction.APPROVE,
+                    systemActor,
+                    commentText
+            );
+            if (!actionResult.processed()) {
+                return ResponseDTO.ok("任务已由其他动作处理");
+            }
+            int activeTaskCount = bpmTaskProjectionService.syncActiveTasksForInstance(taskLookup.getInstanceId());
+            if (actionResult.finishInstanceResultState() == BpmInstanceResultStateEnum.REJECTED) {
+                closeOtherPendingTasks(taskLookup.getInstanceId(), taskId, BpmTaskResultEnum.REJECTED, LocalDateTime.now());
+                finishInstance(taskLookup.getInstanceId(), BpmInstanceResultStateEnum.REJECTED);
+            } else if (actionResult.finishInstanceResultState() == BpmInstanceResultStateEnum.APPROVED
+                    && activeTaskCount == 0) {
+                finishInstance(taskLookup.getInstanceId(), BpmInstanceResultStateEnum.APPROVED);
+            }
+            return ResponseDTO.ok();
+        }
+
+        BpmTaskEntity task = bpmTaskDao.selectByIdForUpdate(taskId);
+        if (task == null || !BpmTaskStateEnum.PENDING.equalsValue(task.getTaskState())) {
+            return ResponseDTO.ok("任务已由其他动作处理");
+        }
+        if (result == BpmTaskResultEnum.REJECTED) {
+            flowableProcessInstanceGateway.cancel(task.getEngineProcessInstanceId(), "SLA 超时自动拒绝");
+        } else {
+            flowableTaskGateway.complete(task.getEngineTaskId());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        BpmTaskEntity update = new BpmTaskEntity();
+        update.setTaskId(taskId);
+        update.setTaskState(BpmTaskStateEnum.COMPLETED.getValue());
+        update.setTaskResult(result.getValue());
+        update.setCompletedAt(now);
+        update.setLastActionAt(now);
+        bpmTaskDao.updateById(update);
+        bpmTaskActionLogDao.insert(buildActionLog(
+                task,
+                systemActor,
+                result == BpmTaskResultEnum.REJECTED ? "SYSTEM_AUTO_REJECTED" : "SYSTEM_AUTO_APPROVED",
+                commentText,
+                task.getAssigneeEmployeeId(),
+                task.getAssigneeEmployeeId(),
+                now
+        ));
+        int activeTaskCount = bpmTaskProjectionService.syncActiveTasksForInstance(task.getInstanceId());
+        if (result == BpmTaskResultEnum.REJECTED) {
+            closeOtherPendingTasks(task.getInstanceId(), taskId, BpmTaskResultEnum.REJECTED, now);
+            finishInstance(task.getInstanceId(), BpmInstanceResultStateEnum.REJECTED);
+        } else if (activeTaskCount == 0) {
+            finishInstance(task.getInstanceId(), BpmInstanceResultStateEnum.APPROVED);
+        }
+        return ResponseDTO.ok();
+    }
+
     private ResponseDTO<String> rejectApprovalActionForHandleTask(Long taskId, String actionLabel) {
         BpmTaskEntity task = bpmTaskDao.selectById(taskId);
         if (task == null) {
@@ -754,6 +915,28 @@ public class BpmTaskService {
             return ResponseDTO.userErrorParam("办理任务不支持" + actionLabel + "，请使用办理完成动作");
         }
         return null;
+    }
+
+    private ResponseDTO<String> executeApprovalStageMemberActionIfPresent(
+            Long taskId,
+            String action,
+            String commentText
+    ) {
+        BpmTaskEntity task = bpmTaskDao.selectById(taskId);
+        if (task == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (task.getApprovalStageId() == null && task.getApprovalStageMemberId() == null) {
+            return null;
+        }
+        return bpmApprovalStageCommandService.execute(taskId, action, commentText);
+    }
+
+    private ResponseDTO<String> rejectGenericActionForApprovalStageMember(BpmTaskEntity task) {
+        if (task.getApprovalStageId() == null && task.getApprovalStageMemberId() == null) {
+            return null;
+        }
+        return ResponseDTO.userErrorParam("M2 审批阶段成员不支持通用高级动作，请使用受控阶段治理命令");
     }
 
     private ResponseDTO<String> requireAllowed(Long taskId, BpmTaskAction action) {

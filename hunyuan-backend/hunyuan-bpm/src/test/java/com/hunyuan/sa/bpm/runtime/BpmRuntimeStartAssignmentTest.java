@@ -8,6 +8,7 @@ import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
@@ -44,6 +45,8 @@ class BpmRuntimeStartAssignmentTest {
 
     private BpmDefinitionNodeDao definitionNodeDao;
 
+    private GraphDefinitionVersionDao graphDefinitionVersionDao;
+
     private BpmInstanceDao instanceDao;
 
     private FlowableProcessInstanceGateway processInstanceGateway;
@@ -55,12 +58,14 @@ class BpmRuntimeStartAssignmentTest {
         service = new BpmInstanceService();
         definitionDao = Mockito.mock(BpmDefinitionDao.class);
         definitionNodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
+        graphDefinitionVersionDao = Mockito.mock(GraphDefinitionVersionDao.class);
         instanceDao = Mockito.mock(BpmInstanceDao.class);
         processInstanceGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
         formDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
 
         setField(service, "bpmDefinitionDao", definitionDao);
         setField(service, "bpmDefinitionNodeDao", definitionNodeDao);
+        setField(service, "graphDefinitionVersionDao", graphDefinitionVersionDao);
         setField(service, "bpmInstanceDao", instanceDao);
         setField(service, "flowableProcessInstanceGateway", processInstanceGateway);
         setField(service, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
@@ -83,6 +88,7 @@ class BpmRuntimeStartAssignmentTest {
 
         when(currentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(definitionDao.queryStartableList(100L)).thenReturn(List.of(definition));
+        when(graphDefinitionVersionDao.selectActiveStartableList()).thenReturn(List.of());
 
         ResponseDTO<List<BpmStartableDefinitionVO>> response = service.queryStartableDefinitions();
 

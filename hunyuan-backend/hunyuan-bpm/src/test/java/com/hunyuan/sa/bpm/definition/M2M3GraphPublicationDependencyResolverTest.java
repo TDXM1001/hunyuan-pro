@@ -6,7 +6,12 @@ import com.hunyuan.sa.bpm.engine.graph.GraphNodeType;
 import com.hunyuan.sa.bpm.engine.graph.GraphScope;
 import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
 import com.hunyuan.sa.bpm.module.candidate.dao.BpmCandidatePolicyVersionDao;
+import com.hunyuan.sa.bpm.module.candidate.dao.BpmApprovalPolicyVersionDao;
+import com.hunyuan.sa.bpm.module.candidate.dao.BpmStartVisibilityPolicyVersionDao;
+import com.hunyuan.sa.bpm.module.candidate.domain.entity.BpmApprovalPolicyVersionEntity;
 import com.hunyuan.sa.bpm.module.candidate.domain.entity.BpmCandidatePolicyVersionEntity;
+import com.hunyuan.sa.bpm.module.candidate.domain.entity.BpmStartVisibilityPolicyVersionEntity;
+import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyCatalogService;
 import com.hunyuan.sa.bpm.module.definition.service.GraphPublicationDependencyException;
 import com.hunyuan.sa.bpm.module.definition.service.GraphPublicationDependencySnapshot;
 import com.hunyuan.sa.bpm.module.definition.service.M2M3GraphPublicationDependencyResolver;
@@ -27,15 +32,19 @@ import static org.mockito.Mockito.when;
 class M2M3GraphPublicationDependencyResolverTest {
 
     private BpmCandidatePolicyVersionDao candidatePolicyVersionDao;
+    private BpmApprovalPolicyVersionDao approvalPolicyVersionDao;
+    private BpmStartVisibilityPolicyVersionDao startVisibilityPolicyVersionDao;
     private BpmBusinessContractVersionDao businessContractVersionDao;
     private M2M3GraphPublicationDependencyResolver resolver;
 
     @BeforeEach
     void setUp() {
         candidatePolicyVersionDao = mock(BpmCandidatePolicyVersionDao.class);
+        approvalPolicyVersionDao = mock(BpmApprovalPolicyVersionDao.class);
+        startVisibilityPolicyVersionDao = mock(BpmStartVisibilityPolicyVersionDao.class);
         businessContractVersionDao = mock(BpmBusinessContractVersionDao.class);
         resolver = new M2M3GraphPublicationDependencyResolver(
-                candidatePolicyVersionDao,
+                new BpmPolicyCatalogService(candidatePolicyVersionDao, approvalPolicyVersionDao, startVisibilityPolicyVersionDao),
                 businessContractVersionDao
         );
     }
@@ -43,6 +52,8 @@ class M2M3GraphPublicationDependencyResolverTest {
     @Test
     void shouldBlockPublishWhenReferencedCandidatePolicyVersionDoesNotExist() {
         when(businessContractVersionDao.selectOne(any())).thenReturn(businessContract());
+        when(startVisibilityPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("employee-start", 1))
+                .thenReturn(startVisibilityPolicy());
 
         assertThatThrownBy(() -> resolver.resolve(graph()))
                 .isInstanceOf(GraphPublicationDependencyException.class)
@@ -52,7 +63,8 @@ class M2M3GraphPublicationDependencyResolverTest {
 
     @Test
     void shouldBlockPublishWhenReferencedBusinessContractVersionDoesNotExist() {
-        when(candidatePolicyVersionDao.selectOne(any())).thenReturn(candidatePolicy());
+        when(candidatePolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("finance-review", 3))
+                .thenReturn(candidatePolicy());
 
         assertThatThrownBy(() -> resolver.resolve(graph()))
                 .isInstanceOf(GraphPublicationDependencyException.class)
@@ -62,7 +74,12 @@ class M2M3GraphPublicationDependencyResolverTest {
 
     @Test
     void shouldFreezeResolvedM2AndM3VersionsFromCatalogs() {
-        when(candidatePolicyVersionDao.selectOne(any())).thenReturn(candidatePolicy());
+        when(candidatePolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("finance-review", 3))
+                .thenReturn(candidatePolicy());
+        when(approvalPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("finance-completion", 1))
+                .thenReturn(approvalPolicy());
+        when(startVisibilityPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("employee-start", 1))
+                .thenReturn(startVisibilityPolicy());
         when(businessContractVersionDao.selectOne(any())).thenReturn(businessContract());
 
         GraphPublicationDependencySnapshot snapshot = resolver.resolve(graph());
@@ -72,13 +89,13 @@ class M2M3GraphPublicationDependencyResolverTest {
                 "contractVersion", 2,
                 "contractVersionId", 22L
         ));
-        assertThat(snapshot.toSnapshotMap()).containsEntry("candidatePolicies", Map.of(
-                "review", Map.of(
-                        "policyKey", "finance-review",
-                        "policyVersion", 3,
-                        "policyVersionId", 11L
-                )
-        ));
+        Map<String, Object> candidatePolicies = (Map<String, Object>) snapshot.toSnapshotMap().get("candidatePolicies");
+        Map<String, Object> candidatePolicy = (Map<String, Object>) candidatePolicies.get("review");
+        assertThat(candidatePolicy)
+                .containsEntry("policyKey", "finance-review")
+                .containsEntry("canonicalPayload", "{\"emptyCandidatePolicy\":\"BLOCK\",\"resolutionPhase\":\"ACTIVATE\",\"resolverParameters\":{\"roleId\":8},\"resolverType\":\"ROLE\",\"selfApprovalPolicy\":\"BLOCK\"}")
+                .containsKey("digest");
+        assertThat(snapshot.toSnapshotMap()).containsKeys("approvalPolicies", "startVisibilityPolicy");
     }
 
     private BpmCandidatePolicyVersionEntity candidatePolicy() {
@@ -87,6 +104,27 @@ class M2M3GraphPublicationDependencyResolverTest {
         entity.setPolicyKey("finance-review");
         entity.setPolicyVersion(3);
         entity.setLifecycleState("ACTIVE");
+        entity.setPolicyJson("{\"resolverType\":\"ROLE\",\"resolverParameters\":{\"roleId\":8},\"resolutionPhase\":\"ACTIVATE\",\"emptyCandidatePolicy\":\"BLOCK\",\"selfApprovalPolicy\":\"BLOCK\"}");
+        return entity;
+    }
+
+    private BpmApprovalPolicyVersionEntity approvalPolicy() {
+        BpmApprovalPolicyVersionEntity entity = new BpmApprovalPolicyVersionEntity();
+        entity.setApprovalPolicyVersionId(12L);
+        entity.setPolicyKey("finance-completion");
+        entity.setPolicyVersion(1);
+        entity.setLifecycleState("ACTIVE");
+        entity.setPolicyJson("{\"completionMode\":\"ALL\",\"ratioPercent\":100,\"rejectionRule\":\"IMMEDIATE\",\"allowedActions\":[\"APPROVE\",\"REJECT\",\"RETURN\"]}");
+        return entity;
+    }
+
+    private BpmStartVisibilityPolicyVersionEntity startVisibilityPolicy() {
+        BpmStartVisibilityPolicyVersionEntity entity = new BpmStartVisibilityPolicyVersionEntity();
+        entity.setStartVisibilityPolicyVersionId(13L);
+        entity.setPolicyKey("employee-start");
+        entity.setPolicyVersion(1);
+        entity.setLifecycleState("ACTIVE");
+        entity.setPolicyJson("{\"startScope\":{\"type\":\"EMPLOYEE_IDS\",\"employeeIds\":[10]},\"visibilityScope\":{\"type\":\"EMPLOYEE_IDS\",\"employeeIds\":[10]}}");
         return entity;
     }
 
@@ -107,7 +145,8 @@ class M2M3GraphPublicationDependencyResolverTest {
                 List.of(
                         new GraphNode("start", "scope_root", GraphNodeType.START, "开始", Map.of(), Map.of()),
                         new GraphNode("review", "scope_root", GraphNodeType.APPROVAL, "财务审批", Map.of(
-                                "candidatePolicy", Map.of("policyKey", "finance-review", "policyVersion", 3)
+                                "candidatePolicy", Map.of("policyKey", "finance-review", "policyVersion", 3),
+                                "approvalPolicy", Map.of("policyKey", "finance-completion", "policyVersion", 1)
                         ), Map.of()),
                         new GraphNode("end", "scope_root", GraphNodeType.END, "结束", Map.of(), Map.of())
                 ),
@@ -115,7 +154,10 @@ class M2M3GraphPublicationDependencyResolverTest {
                         new GraphEdge("edge_start_review", "scope_root", "start", "review", "default", Map.of()),
                         new GraphEdge("edge_review_end", "scope_root", "review", "end", "default", Map.of())
                 ),
-                Map.of("businessContract", Map.of("contractKey", "expense", "contractVersion", 2))
+                Map.of(
+                        "businessContract", Map.of("contractKey", "expense", "contractVersion", 2),
+                        "startVisibilityPolicy", Map.of("policyKey", "employee-start", "policyVersion", 1)
+                )
         );
     }
 }

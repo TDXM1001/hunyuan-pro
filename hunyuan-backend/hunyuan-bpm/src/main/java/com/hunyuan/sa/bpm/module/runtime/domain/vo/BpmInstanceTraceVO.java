@@ -5,6 +5,8 @@ import com.hunyuan.sa.bpm.module.integration.domain.vo.BpmCommandRecordVO;
 import lombok.Data;
 
 import java.util.List;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTimeEventEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmExternalWaitEntity;
 
 /**
  * BPM 实例可靠性追踪。
@@ -24,7 +26,13 @@ public class BpmInstanceTraceVO {
 
     private List<BpmNotificationRecordVO> notificationRecords;
 
+    private List<BpmTimeEventEntity> timeEvents;
+
+    private List<BpmExternalWaitEntity> externalWaits;
+
     private List<BpmApprovalGroupDetailVO> approvalGroups;
+
+    private List<BpmApprovalStageTraceVO> approvalStages;
 
     private List<BpmFormDataChangeVO> formDataChanges;
 

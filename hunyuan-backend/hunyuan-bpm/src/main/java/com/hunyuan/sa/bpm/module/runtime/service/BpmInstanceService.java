@@ -16,6 +16,9 @@ import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessStartCommand;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.StartVisibilityEvaluationContext;
+import com.hunyuan.sa.bpm.module.candidate.service.StartVisibilityPolicyEvaluator;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
@@ -27,8 +30,10 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmFormDataChangeSourceEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
@@ -54,7 +59,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -64,8 +72,13 @@ import java.util.Objects;
 @Service
 public class BpmInstanceService {
 
+    private static final long CURRENT_TENANT_ID = 1L;
+
     @Resource
     private BpmDefinitionDao bpmDefinitionDao;
+
+    @Resource
+    private GraphDefinitionVersionDao graphDefinitionVersionDao;
 
     @Resource
     private BpmInstanceDao bpmInstanceDao;
@@ -89,6 +102,9 @@ public class BpmInstanceService {
     private BpmOrgIdentityGateway bpmOrgIdentityGateway;
 
     @Resource
+    private StartVisibilityPolicyEvaluator startVisibilityPolicyEvaluator;
+
+    @Resource
     private SerialNumberService serialNumberService;
 
     @Resource
@@ -106,6 +122,12 @@ public class BpmInstanceService {
     @Resource
     private BpmFormDataChangeDao bpmFormDataChangeDao;
 
+    @Resource
+    private BpmTimeEventService bpmTimeEventService;
+
+    @Resource
+    private BpmExternalWaitService bpmExternalWaitService;
+
     public ResponseDTO<PageResult<BpmInstanceVO>> queryAdminPage(BpmInstanceQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<BpmInstanceVO> list = bpmInstanceDao.queryPage(page, queryForm);
@@ -119,9 +141,22 @@ public class BpmInstanceService {
 
     public ResponseDTO<List<BpmStartableDefinitionVO>> queryStartableDefinitions() {
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
-        List<BpmStartableDefinitionVO> list = bpmDefinitionDao.queryStartableList(employeeId).stream()
+        BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        List<BpmStartableDefinitionVO> list = new ArrayList<>();
+        bpmDefinitionDao.queryStartableList(employeeId).stream()
                 .filter(definition -> canEmployeeStart(definition.getStartScopeJson(), employeeId))
-                .toList();
+                .forEach(definition -> {
+                    definition.setDefinitionSource("LEGACY");
+                    list.add(definition);
+                });
+        graphDefinitionVersionDao.selectActiveStartableList().stream()
+                .filter(graphVersion -> canEmployeeStartGraph(graphVersion, employeeSnapshot))
+                .map(this::toGraphStartableDefinition)
+                .forEach(list::add);
+        list.sort(Comparator
+                .comparing(BpmStartableDefinitionVO::getDefinitionName, Comparator.nullsLast(String::compareTo))
+                .thenComparing(BpmStartableDefinitionVO::getDefinitionSource, Comparator.nullsLast(String::compareTo))
+                .thenComparing(BpmStartableDefinitionVO::getDefinitionVersion, Comparator.nullsLast(Comparator.reverseOrder())));
         return ResponseDTO.ok(list);
     }
 
@@ -139,6 +174,32 @@ public class BpmInstanceService {
                 null,
                 null
         ));
+    }
+
+    public ResponseDTO<BpmRuntimeStartDraftVO> getGraphStartDraft(Long graphDefinitionVersionId) {
+        GraphDefinitionVersionEntity graphVersion = graphDefinitionVersionDao.selectById(graphDefinitionVersionId);
+        if (graphVersion == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!"ACTIVE".equals(graphVersion.getLifecycleState())) {
+            return ResponseDTO.userErrorParam("Graph 定义版本已下线，无法发起");
+        }
+        if (graphVersion.getCategoryIdSnapshot() == null || StringUtils.isBlank(graphVersion.getCategoryNameSnapshot())) {
+            return ResponseDTO.userErrorParam("Graph 定义版本缺少分类快照，无法发起");
+        }
+        BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(
+                bpmCurrentActorProvider.requireCurrentEmployeeId()
+        );
+        GraphStartVisibilityPolicy visibilityPolicy = readGraphStartVisibilityPolicy(graphVersion);
+        StartDecision decision = startVisibilityPolicyEvaluator.evaluateStart(
+                visibilityPolicy.schemaVersion(),
+                visibilityPolicy.canonicalPayload(),
+                new StartVisibilityEvaluationContext(CURRENT_TENANT_ID, employeeSnapshot, java.util.Set.of(), false)
+        );
+        if (!decision.allowed()) {
+            return ResponseDTO.userErrorParam("当前 Graph 定义版本不在可发起范围内");
+        }
+        return ResponseDTO.ok(buildGraphStartDraft(graphVersion));
     }
 
     public ResponseDTO<BpmInstanceDetailVO> getDetail(Long instanceId) {
@@ -246,6 +307,8 @@ public class BpmInstanceService {
                 now
         );
         closePendingTasks(instanceEntity.getInstanceId(), now);
+        bpmTimeEventService.cancelPendingForInstance(instanceEntity.getInstanceId());
+        bpmExternalWaitService.cancelPendingForInstance(instanceEntity.getInstanceId());
 
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
@@ -290,6 +353,8 @@ public class BpmInstanceService {
                 now
         );
         closePendingTasks(instanceEntity.getInstanceId(), now);
+        bpmTimeEventService.cancelPendingForInstance(instanceEntity.getInstanceId());
+        bpmExternalWaitService.cancelPendingForInstance(instanceEntity.getInstanceId());
 
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
@@ -447,9 +512,160 @@ public class BpmInstanceService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> startInstance(BpmInstanceStartForm startForm) {
+        if (startForm == null || !startForm.hasExactlyOneDefinitionSource()) {
+            return ResponseDTO.userErrorParam("流程定义来源只能选择一种");
+        }
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        if (startForm.getGraphDefinitionVersionId() != null) {
+            return startGraphInstance(startForm, employeeId);
+        }
         BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(startForm.getDefinitionId());
         return startInstanceWithDefinition(startForm, definitionEntity, employeeId);
+    }
+
+    private ResponseDTO<Long> startGraphInstance(BpmInstanceStartForm startForm, Long employeeId) {
+        if (StringUtils.isBlank(startForm.getFormDataJson())) {
+            return ResponseDTO.userErrorParam("表单数据不能为空");
+        }
+        GraphDefinitionVersionEntity graphVersion = graphDefinitionVersionDao.selectById(startForm.getGraphDefinitionVersionId());
+        if (graphVersion == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (!"ACTIVE".equals(graphVersion.getLifecycleState())) {
+            return ResponseDTO.userErrorParam("Graph 定义版本已下线，无法发起");
+        }
+        if (StringUtils.isBlank(graphVersion.getEngineProcessDefinitionId())) {
+            throw new IllegalStateException("Graph 定义版本缺少 Flowable 流程定义ID");
+        }
+        if (graphVersion.getCategoryIdSnapshot() == null || StringUtils.isBlank(graphVersion.getCategoryNameSnapshot())) {
+            return ResponseDTO.userErrorParam("Graph 定义版本缺少分类快照，无法发起");
+        }
+
+        BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        GraphStartVisibilityPolicy visibilityPolicy = readGraphStartVisibilityPolicy(graphVersion);
+        StartDecision startDecision = startVisibilityPolicyEvaluator.evaluateStart(
+                visibilityPolicy.schemaVersion(),
+                visibilityPolicy.canonicalPayload(),
+                new StartVisibilityEvaluationContext(CURRENT_TENANT_ID, employeeSnapshot, java.util.Set.of(), false)
+        );
+        if (!startDecision.allowed()) {
+            return ResponseDTO.userErrorParam("当前 Graph 定义版本不在可发起范围内");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        BpmInstanceEntity entity = new BpmInstanceEntity();
+        entity.setInstanceNo(serialNumberService.generate(SerialNumberIdEnum.ORDER));
+        entity.setGraphDefinitionVersionId(graphVersion.getGraphDefinitionVersionId());
+        entity.setDefinitionSource("GRAPH");
+        entity.setEngineProcessDefinitionId(graphVersion.getEngineProcessDefinitionId());
+        entity.setDefinitionKeySnapshot(graphVersion.getProcessKey());
+        entity.setDefinitionVersionSnapshot(graphVersion.getDefinitionVersion());
+        entity.setCategoryIdSnapshot(graphVersion.getCategoryIdSnapshot());
+        entity.setCategoryNameSnapshot(graphVersion.getCategoryNameSnapshot());
+        entity.setTitle(StringUtils.defaultIfBlank(startForm.getTitle(), graphVersion.getProcessNameSnapshot()));
+        if (StringUtils.isBlank(entity.getTitle())) {
+            entity.setTitle(graphVersion.getProcessKey());
+        }
+        entity.setSummary(startForm.getSummary());
+        entity.setStartEmployeeId(employeeSnapshot.employeeId());
+        entity.setStartEmployeeNameSnapshot(employeeSnapshot.actualName());
+        entity.setStartDepartmentIdSnapshot(employeeSnapshot.departmentId());
+        entity.setStartDepartmentNameSnapshot(employeeSnapshot.departmentName());
+        entity.setBusinessType(startForm.getBusinessType());
+        entity.setBusinessId(startForm.getBusinessId());
+        entity.setBusinessKey(startForm.getBusinessKey());
+        entity.setInitialFormDataSnapshotJson(startForm.getFormDataJson());
+        entity.setCurrentFormDataSnapshotJson(startForm.getFormDataJson());
+        entity.setFormDataVersion(1L);
+        entity.setStartVisibilityPolicyVersionId(visibilityPolicy.policyVersionId());
+        entity.setStartVisibilityPolicyDigest(visibilityPolicy.digest());
+        entity.setStartVisibilityDecisionJson(buildStartVisibilityDecisionJson(startDecision, now));
+        entity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
+        entity.setActiveTaskCount(0);
+        entity.setStartedAt(now);
+        entity.setLastActionAt(now);
+        bpmInstanceDao.insert(entity);
+
+        String engineProcessInstanceId = flowableProcessInstanceGateway.start(
+                graphVersion.getEngineProcessDefinitionId(),
+                entity.getInstanceId(),
+                employeeSnapshot.employeeId(),
+                startForm.getFormDataJson(),
+                Map.of()
+        );
+        BpmInstanceEntity engineUpdate = new BpmInstanceEntity();
+        engineUpdate.setInstanceId(entity.getInstanceId());
+        engineUpdate.setEngineProcessInstanceId(engineProcessInstanceId);
+        bpmInstanceDao.updateById(engineUpdate);
+        bpmTaskProjectionService.syncActiveTasksForInstance(entity.getInstanceId());
+        return ResponseDTO.ok(entity.getInstanceId());
+    }
+
+    private GraphStartVisibilityPolicy readGraphStartVisibilityPolicy(GraphDefinitionVersionEntity graphVersion) {
+        JSONObject dependencies = JSON.parseObject(graphVersion.getDependencyVersionsJson());
+        JSONObject policy = dependencies == null ? null : dependencies.getJSONObject("startVisibilityPolicy");
+        if (policy == null) {
+            throw new IllegalStateException("Graph 定义版本缺少冻结发起可见范围策略");
+        }
+        Long policyVersionId = policy.getLong("policyVersionId");
+        Integer schemaVersion = policy.getInteger("schemaVersion");
+        String canonicalPayload = policy.getString("canonicalPayload");
+        String digest = policy.getString("digest");
+        if (policyVersionId == null || policyVersionId <= 0
+                || schemaVersion == null || schemaVersion <= 0
+                || StringUtils.isBlank(canonicalPayload) || StringUtils.isBlank(digest)) {
+            throw new IllegalStateException("Graph 定义版本的冻结发起可见范围策略内容不完整");
+        }
+        return new GraphStartVisibilityPolicy(policyVersionId, schemaVersion, canonicalPayload, digest);
+    }
+
+    private boolean canEmployeeStartGraph(
+            GraphDefinitionVersionEntity graphVersion,
+            BpmEmployeeSnapshot employeeSnapshot
+    ) {
+        if (graphVersion.getCategoryIdSnapshot() == null
+                || StringUtils.isBlank(graphVersion.getCategoryNameSnapshot())) {
+            return false;
+        }
+        try {
+            GraphStartVisibilityPolicy visibilityPolicy = readGraphStartVisibilityPolicy(graphVersion);
+            return startVisibilityPolicyEvaluator.evaluateStart(
+                    visibilityPolicy.schemaVersion(),
+                    visibilityPolicy.canonicalPayload(),
+                    new StartVisibilityEvaluationContext(CURRENT_TENANT_ID, employeeSnapshot, java.util.Set.of(), false)
+            ).allowed();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private BpmStartableDefinitionVO toGraphStartableDefinition(GraphDefinitionVersionEntity graphVersion) {
+        BpmStartableDefinitionVO vo = new BpmStartableDefinitionVO();
+        vo.setGraphDefinitionVersionId(graphVersion.getGraphDefinitionVersionId());
+        vo.setDefinitionSource("GRAPH");
+        vo.setDefinitionKey(graphVersion.getProcessKey());
+        vo.setDefinitionName(graphVersion.getProcessNameSnapshot());
+        vo.setDefinitionVersion(graphVersion.getDefinitionVersion());
+        vo.setCategoryNameSnapshot(graphVersion.getCategoryNameSnapshot());
+        return vo;
+    }
+
+    private String buildStartVisibilityDecisionJson(StartDecision decision, LocalDateTime decidedAt) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("tenantId", CURRENT_TENANT_ID);
+        snapshot.put("allowed", decision.allowed());
+        snapshot.put("matchedRule", decision.matchedRule());
+        snapshot.put("reason", decision.reason());
+        snapshot.put("decidedAt", decidedAt.toString());
+        return JSON.toJSONString(snapshot);
+    }
+
+    private record GraphStartVisibilityPolicy(
+            Long policyVersionId,
+            Integer schemaVersion,
+            String canonicalPayload,
+            String digest
+    ) {
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -599,6 +815,19 @@ public class BpmInstanceService {
         draftVO.setFormDataJson(StringUtils.defaultIfBlank(formDataJson, "{}"));
         draftVO.setFormDataVersion(formDataVersion);
         draftVO.setSourceInstanceId(sourceInstanceId);
+        return draftVO;
+    }
+
+    private BpmRuntimeStartDraftVO buildGraphStartDraft(GraphDefinitionVersionEntity graphVersion) {
+        BpmRuntimeStartDraftVO draftVO = new BpmRuntimeStartDraftVO();
+        draftVO.setGraphDefinitionVersionId(graphVersion.getGraphDefinitionVersionId());
+        draftVO.setDefinitionSource("GRAPH");
+        draftVO.setDefinitionName(StringUtils.defaultIfBlank(
+                graphVersion.getProcessNameSnapshot(),
+                graphVersion.getProcessKey()
+        ));
+        draftVO.setTitle(draftVO.getDefinitionName());
+        draftVO.setFormDataJson("{}");
         return draftVO;
     }
 

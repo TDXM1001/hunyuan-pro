@@ -27,9 +27,11 @@ public class GraphBpmnCompiler {
 
         Map<String, GraphNode> nodesById = new HashMap<>();
         Map<String, List<GraphEdge>> outgoingByNodeId = new HashMap<>();
+        Map<String, String> compiledNodeIds = new HashMap<>();
         for (GraphNode node : graph.nodes()) {
             nodesById.put(node.nodeId(), node);
             outgoingByNodeId.put(node.nodeId(), new ArrayList<>());
+            compiledNodeIds.put(node.nodeId(), compiledNodeId(node));
         }
         for (GraphEdge edge : graph.edges()) {
             outgoingByNodeId.get(edge.sourceNodeId()).add(edge);
@@ -44,13 +46,13 @@ public class GraphBpmnCompiler {
         xml.append("<process id=\"").append(escapeXml(processKey)).append("\" name=\"")
                 .append(escapeXml(processName)).append("\" isExecutable=\"true\">");
         for (GraphNode node : graph.nodes()) {
-            String compiledId = nodeId(node.nodeId());
+            String compiledId = compiledNodeIds.get(node.nodeId());
             String compiledType = appendNode(xml, node, compiledId, outgoingByNodeId.get(node.nodeId()));
             mappings.add(new GraphCompiledElementMapping(node.nodeId(), "NODE", compiledId, compiledType));
         }
         for (GraphEdge edge : graph.edges()) {
             String compiledId = edgeId(edge.edgeId());
-            appendEdge(xml, edge, compiledId, nodesById.get(edge.sourceNodeId()));
+            appendEdge(xml, edge, compiledId, nodesById.get(edge.sourceNodeId()), compiledNodeIds);
             mappings.add(new GraphCompiledElementMapping(edge.edgeId(), "EDGE", compiledId, "sequenceFlow"));
         }
         xml.append("</process></definitions>");
@@ -61,7 +63,8 @@ public class GraphBpmnCompiler {
         String tag = switch (node.type()) {
             case START -> "startEvent";
             case END -> "endEvent";
-            case APPROVAL, HANDLE -> "userTask";
+            case APPROVAL -> "receiveTask";
+            case HANDLE -> "userTask";
             case COPY -> "serviceTask";
             case CONDITION -> "exclusiveGateway";
             case PARALLEL_GATEWAY -> "parallelGateway";
@@ -77,14 +80,26 @@ public class GraphBpmnCompiler {
         if (node.type() == GraphNodeType.COPY) {
             xml.append(" flowable:delegateExpression=\"${hunyuanCopyTaskDelegate}\"");
         }
+        if (node.type() == GraphNodeType.APPROVAL) {
+            xml.append("><extensionElements><flowable:executionListener event=\"start\" ")
+                    .append("delegateExpression=\"${hunyuanApprovalStageControl}\"/>")
+                    .append("</extensionElements></receiveTask>");
+            return tag;
+        }
         xml.append("/>");
         return tag;
     }
 
-    private void appendEdge(StringBuilder xml, GraphEdge edge, String compiledId, GraphNode sourceNode) {
+    private void appendEdge(
+            StringBuilder xml,
+            GraphEdge edge,
+            String compiledId,
+            GraphNode sourceNode,
+            Map<String, String> compiledNodeIds
+    ) {
         xml.append("<sequenceFlow id=\"").append(escapeXml(compiledId))
-                .append("\" sourceRef=\"").append(escapeXml(nodeId(edge.sourceNodeId())))
-                .append("\" targetRef=\"").append(escapeXml(nodeId(edge.targetNodeId())))
+                .append("\" sourceRef=\"").append(escapeXml(compiledNodeIds.get(edge.sourceNodeId())))
+                .append("\" targetRef=\"").append(escapeXml(compiledNodeIds.get(edge.targetNodeId())))
                 .append("\"");
         String conditionExpression = generatedConditionExpression(sourceNode, edge);
         if (conditionExpression == null) {
@@ -117,8 +132,10 @@ public class GraphBpmnCompiler {
                 && (node.type() == GraphNodeType.CONDITION || node.type() == GraphNodeType.INCLUSIVE_GATEWAY);
     }
 
-    private String nodeId(String authoredId) {
-        return "graph_node_" + safeId(authoredId);
+    private String compiledNodeId(GraphNode node) {
+        return node.type() == GraphNodeType.APPROVAL
+                ? "graph_stage_" + safeId(node.nodeId())
+                : "graph_node_" + safeId(node.nodeId());
     }
 
     private String edgeId(String authoredId) {

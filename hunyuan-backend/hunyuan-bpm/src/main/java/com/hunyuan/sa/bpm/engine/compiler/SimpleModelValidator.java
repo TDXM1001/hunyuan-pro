@@ -6,6 +6,9 @@ import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.common.enumeration.BpmCandidateResolverTypeEnum;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;
+import com.hunyuan.sa.bpm.engine.ast.ExternalTriggerNode;
+import com.hunyuan.sa.bpm.engine.ast.ProcessAst;
+import com.hunyuan.sa.bpm.module.integration.service.BpmConnectorRegistryService;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -44,6 +47,9 @@ public class SimpleModelValidator {
     @Resource
     private BpmRouteExpressionRegistry bpmRouteExpressionRegistry;
 
+    @Resource
+    private BpmConnectorRegistryService bpmConnectorRegistryService;
+
     /**
      * 校验设计器草稿是否满足当前审批约束。
      */
@@ -59,16 +65,28 @@ public class SimpleModelValidator {
 
         if (simpleModelObject.getInteger("schemaVersion") != null) {
             try {
+                ProcessAst ast = processAstParser.parse(simpleModelJson);
                 java.util.List<ProcessValidationFinding> findings = processAstValidator.validate(
-                        processAstParser.parse(simpleModelJson),
+                        ast,
                         null,
                         bpmRouteExpressionRegistry == null ? emptyExpressionRegistry : bpmRouteExpressionRegistry
                 );
                 if (!findings.isEmpty()) {
                     return ResponseDTO.userErrorParam(findings.get(0).message());
                 }
+                if (bpmConnectorRegistryService != null) {
+                    for (var node : new ProcessAstWalker().walk(ast)) {
+                        if (!(node instanceof ExternalTriggerNode externalNode)) {
+                            continue;
+                        }
+                        Object rawVersion = externalNode.configuration().get("connectorVersion");
+                        Integer version = rawVersion == null ? null : Integer.valueOf(String.valueOf(rawVersion));
+                        bpmConnectorRegistryService.requireOperation(
+                                externalNode.connectorKey(), version, externalNode.operationKey());
+                    }
+                }
                 return ResponseDTO.ok();
-            } catch (ProcessModelParseException ex) {
+            } catch (IllegalArgumentException | IllegalStateException ex) {
                 return ResponseDTO.userErrorParam(ex.getMessage());
             }
         }

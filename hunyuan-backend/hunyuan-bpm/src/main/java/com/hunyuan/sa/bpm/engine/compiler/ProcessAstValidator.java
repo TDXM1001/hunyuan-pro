@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.engine.ast.BranchNode;
+import com.hunyuan.sa.bpm.engine.ast.DelayNode;
+import com.hunyuan.sa.bpm.engine.ast.ExternalTriggerNode;
 import com.hunyuan.sa.bpm.engine.ast.HumanTaskNode;
 import com.hunyuan.sa.bpm.engine.ast.ProcessAst;
 import com.hunyuan.sa.bpm.engine.ast.ProcessBranch;
@@ -17,7 +19,12 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.regex.Pattern;
 
 /**
@@ -54,6 +61,12 @@ public class ProcessAstValidator {
             if (node instanceof HumanTaskNode humanTaskNode) {
                 validateHumanTask(humanTaskNode, concurrentContext, state);
             }
+            if (node instanceof DelayNode delayNode) {
+                validateDelayNode(delayNode, state);
+            }
+            if (node instanceof ExternalTriggerNode externalTriggerNode) {
+                validateExternalTriggerNode(externalTriggerNode, state);
+            }
             if (node instanceof BranchNode branchNode) {
                 validateBranchNode(branchNode, branchDepth, concurrentContext, state, expressionRegistry);
             }
@@ -74,6 +87,7 @@ public class ProcessAstValidator {
     }
 
     private void validateHumanTask(HumanTaskNode node, boolean concurrentContext, ValidationState state) {
+        validateTaskSlaPolicy(node, state);
         Object rawPermissions = node.configuration().get("fieldPermissions");
         if (!(rawPermissions instanceof JSONArray permissions)) {
             return;
@@ -99,6 +113,110 @@ public class ProcessAstValidator {
                 );
             }
         }
+    }
+
+    private void validateTaskSlaPolicy(HumanTaskNode node, ValidationState state) {
+        Object rawPolicy = node.configuration().get("taskSlaPolicy");
+        if (!(rawPolicy instanceof JSONObject policy)) {
+            return;
+        }
+        if (!isPositiveDuration(policy.getString("dueAfter"))) {
+            state.add("SLA_DUE_AFTER_INVALID", "任务 SLA 到期时间必须是正数 ISO-8601 duration", node.nodeKey(), null, null, "例如使用 PT2H");
+        }
+        JSONArray reminders = policy.getJSONArray("reminderSchedule");
+        if (reminders != null) {
+            for (Object reminder : reminders) {
+                if (!(reminder instanceof String value) || !isPositiveDuration(value)) {
+                    state.add("SLA_REMINDER_INVALID", "提醒计划必须是正数 ISO-8601 duration", node.nodeKey(), null, null, "例如使用 PT1H");
+                    break;
+                }
+            }
+        }
+        String action = policy.getString("timeoutAction");
+        if (!Set.of("NONE", "REMIND_ONLY", "AUTO_APPROVE", "AUTO_REJECT", "ASSIGN_ADMIN").contains(action)) {
+            state.add("SLA_TIMEOUT_ACTION_INVALID", "任务 SLA 超时动作不受支持", node.nodeKey(), null, null, "从受控超时动作中选择");
+        }
+        if (("AUTO_APPROVE".equals(action) || "AUTO_REJECT".equals(action))
+                && StringUtils.isBlank(policy.getString("systemActionComment"))) {
+            state.add("SLA_AUTO_TERMINAL_COMMENT_REQUIRED", "自动终态必须配置固定系统意见", node.nodeKey(), null, null, "填写可审计的系统动作意见");
+        }
+        if (("AUTO_APPROVE".equals(action) || "AUTO_REJECT".equals(action))
+                && !"LOW".equals(policy.getString("riskLevel"))) {
+            state.add("SLA_AUTO_TERMINAL_RISK_FORBIDDEN", "自动终态首期只允许明确标记为低风险的流程", node.nodeKey(), null, null, "高风险流程改为提醒或人工处理");
+        }
+        if ("ASSIGN_ADMIN".equals(action)
+                && (policy.getLong("adminEmployeeId") == null || policy.getLongValue("adminEmployeeId") <= 0)) {
+            state.add("SLA_ADMIN_EMPLOYEE_REQUIRED", "转管理员必须配置有效员工", node.nodeKey(), null, null, "从员工选择器选择管理员");
+        }
+    }
+
+    private void validateDelayNode(DelayNode node, ValidationState state) {
+        if (StringUtils.isNotBlank(node.timezone())) {
+            try {
+                ZoneId.of(node.timezone());
+            } catch (DateTimeException ex) {
+                state.add("DELAY_TIMEZONE_INVALID", "延迟节点时区不合法", node.nodeKey(), null, null, "使用 IANA 时区，例如 Asia/Shanghai");
+            }
+        }
+        if ("DURATION".equals(node.mode())) {
+            if (!isPositiveDuration(node.value())) {
+                state.add("DELAY_DURATION_INVALID", "延迟时长必须是正数 ISO-8601 duration", node.nodeKey(), null, null, "例如使用 P1D 或 PT30M");
+            }
+            return;
+        }
+        if ("FIXED_DATETIME".equals(node.mode())) {
+            try {
+                OffsetDateTime.parse(node.value());
+            } catch (DateTimeException | NullPointerException ex) {
+                state.add("DELAY_DATETIME_INVALID", "固定延迟时间必须包含时区偏移", node.nodeKey(), null, null, "使用 ISO-8601 offset datetime");
+            }
+            return;
+        }
+        if ("FORM_DATETIME".equals(node.mode())) {
+            if (StringUtils.isBlank(node.value()) || (state.validateFormReferences && !state.formFields.contains(node.value()))) {
+                state.add("DELAY_FORM_FIELD_INVALID", "延迟日期字段不在发布表单中", node.nodeKey(), null, node.value(), "从冻结表单 schema 选择日期字段");
+            }
+            return;
+        }
+        state.add("DELAY_MODE_INVALID", "延迟节点模式不受支持", node.nodeKey(), null, null, "从 DURATION、FIXED_DATETIME、FORM_DATETIME 中选择");
+    }
+
+    private void validateExternalTriggerNode(ExternalTriggerNode node, ValidationState state) {
+        if (StringUtils.isBlank(node.connectorKey()) || !SAFE_KEY_PATTERN.matcher(node.connectorKey()).matches()
+                || StringUtils.isBlank(node.operationKey()) || !SAFE_KEY_PATTERN.matcher(node.operationKey()).matches()) {
+            state.add("EXTERNAL_REGISTRY_KEY_INVALID", "连接器和操作必须使用已登记的安全 key", node.nodeKey(), null, null, "从连接器目录选择操作");
+        }
+        if (!Set.of("NO_WAIT", "WAIT_CALLBACK").contains(node.waitMode())) {
+            state.add("EXTERNAL_WAIT_MODE_INVALID", "外部触发等待模式不受支持", node.nodeKey(), null, null, "从 NO_WAIT 或 WAIT_CALLBACK 中选择");
+        }
+        if (containsAnyKey(node.configuration(), Set.of("url", "endpoint", "baseUrl", "baseEndpoint"))) {
+            state.add("EXTERNAL_INLINE_ENDPOINT_FORBIDDEN", "流程模型禁止保存外部地址", node.nodeKey(), null, null, "使用登记连接器 key");
+        }
+        if (containsKeyFragment(node.configuration(), "credential") || containsKeyFragment(node.configuration(), "secret")) {
+            state.add("EXTERNAL_INLINE_CREDENTIAL_FORBIDDEN", "流程模型禁止保存凭据或秘密引用", node.nodeKey(), null, null, "由连接器目录绑定安全引用");
+        }
+        Object timeoutAfter = node.timeoutPolicy().get("timeoutAfter");
+        if ("WAIT_CALLBACK".equals(node.waitMode())
+                && (!(timeoutAfter instanceof String value) || !isPositiveDuration(value))) {
+            state.add("EXTERNAL_TIMEOUT_INVALID", "等待回调必须配置正数 ISO-8601 超时时长", node.nodeKey(), null, null, "例如使用 PT30M");
+        }
+    }
+
+    private boolean isPositiveDuration(String value) {
+        try {
+            Duration duration = Duration.parse(value);
+            return !duration.isZero() && !duration.isNegative();
+        } catch (DateTimeException | NullPointerException ex) {
+            return false;
+        }
+    }
+
+    private boolean containsAnyKey(Map<String, Object> values, Set<String> forbiddenKeys) {
+        return values.keySet().stream().anyMatch(forbiddenKeys::contains);
+    }
+
+    private boolean containsKeyFragment(Map<String, Object> values, String fragment) {
+        return values.keySet().stream().anyMatch(key -> key.toLowerCase().contains(fragment.toLowerCase()));
     }
 
     private void validateBranchNode(

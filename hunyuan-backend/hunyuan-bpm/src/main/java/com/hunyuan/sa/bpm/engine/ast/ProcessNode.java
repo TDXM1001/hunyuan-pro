@@ -3,7 +3,7 @@ package com.hunyuan.sa.bpm.engine.ast;
 /**
  * 受控流程 AST 节点。
  */
-public sealed interface ProcessNode permits HumanTaskNode, CopyTaskNode, BranchNode {
+public sealed interface ProcessNode permits HumanTaskNode, CopyTaskNode, BranchNode, DelayNode, ExternalTriggerNode {
 
     String nodeKey();
 

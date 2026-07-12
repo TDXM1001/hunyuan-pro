@@ -186,4 +186,40 @@ class SimpleModelBpmnCompilerTest {
                     assertThat(snapshot.nodeType()).isEqualTo("COPY_TASK");
                 });
     }
+
+    @Test
+    void compileV3ShouldBuildSlaDelayAndExternalWaitFragments() {
+        CompiledDefinitionArtifact artifact = compiler.compile(
+                "expense_v3",
+                "事件驱动费用审批",
+                """
+                        {"schemaVersion":3,"nodes":[
+                          {
+                            "nodeKey":"review","name":"财务审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1,
+                            "taskSlaPolicy":{"dueAfter":"PT2H","reminderSchedule":["PT1H"],"timeoutAction":"AUTO_REJECT","systemActionComment":"审批超时，系统自动拒绝"}
+                          },
+                          {"nodeKey":"cooling","name":"冷静期","type":"DELAY","mode":"DURATION","value":"P1D","timezone":"Asia/Shanghai","overduePolicy":"TRIGGER_IMMEDIATELY"},
+                          {
+                            "nodeKey":"finance_sync","name":"同步财务","type":"EXTERNAL_TRIGGER","connectorKey":"finance","operationKey":"createExpense",
+                            "requestMapping":{"amount":"approvedAmount"},"responseMapping":{"externalNo":"financeNo"},
+                            "waitMode":"WAIT_CALLBACK","timeoutPolicy":{"timeoutAfter":"PT30M"}
+                          }
+                        ]}
+                        """,
+                "{\"type\":\"ALL\"}",
+                "{}"
+        );
+
+        assertThat(artifact.compiledBpmnXml())
+                .contains("<boundaryEvent id=\"sla_review_due\" attachedToRef=\"review\" cancelActivity=\"false\">")
+                .contains("<timeDuration>PT2H</timeDuration>")
+                .contains("flowable:delegateExpression=\"${hunyuanTimeEventDelegate}\"")
+                .contains("<intermediateCatchEvent id=\"cooling\" name=\"冷静期\">")
+                .contains("<timeDuration>P1D</timeDuration>")
+                .contains("flowable:delegateExpression=\"${hunyuanExternalTriggerDelegate}\"")
+                .contains("<receiveTask id=\"finance_sync_wait\" name=\"同步财务回调等待\"")
+                .doesNotContain("http://127.0.0.1");
+        assertThat(artifact.nodeSnapshots()).extracting(CompiledNodeSnapshot::nodeType)
+                .containsExactly("USER_TASK", "DELAY", "EXTERNAL_TRIGGER");
+    }
 }

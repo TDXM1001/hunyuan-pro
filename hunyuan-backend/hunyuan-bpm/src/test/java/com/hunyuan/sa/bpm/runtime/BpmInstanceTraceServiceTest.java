@@ -16,6 +16,14 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceTraceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationRecordService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeGraphService;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmTimeEventDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmExternalWaitDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageMemberDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageMemberEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeGraphVO;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmFormDataChangeEntity;
@@ -43,6 +51,12 @@ class BpmInstanceTraceServiceTest {
 
     private BpmRuntimeGraphService runtimeGraphService;
 
+    private BpmApprovalStageDao approvalStageDao;
+
+    private BpmApprovalStageMemberDao approvalStageMemberDao;
+
+    private BpmTaskDao bpmTaskDao;
+
     @BeforeEach
     void setUp() {
         traceService = new BpmInstanceTraceService();
@@ -56,6 +70,14 @@ class BpmInstanceTraceServiceTest {
         setField(traceService, "notificationRecordService", notificationRecordService);
         setField(traceService, "bpmFormDataChangeDao", formDataChangeDao);
         setField(traceService, "bpmRuntimeGraphService", runtimeGraphService);
+        setField(traceService, "bpmTimeEventDao", Mockito.mock(BpmTimeEventDao.class));
+        setField(traceService, "bpmExternalWaitDao", Mockito.mock(BpmExternalWaitDao.class));
+        approvalStageDao = Mockito.mock(BpmApprovalStageDao.class);
+        approvalStageMemberDao = Mockito.mock(BpmApprovalStageMemberDao.class);
+        bpmTaskDao = Mockito.mock(BpmTaskDao.class);
+        setField(traceService, "bpmApprovalStageDao", approvalStageDao);
+        setField(traceService, "bpmApprovalStageMemberDao", approvalStageMemberDao);
+        setField(traceService, "bpmTaskDao", bpmTaskDao);
     }
 
     @Test
@@ -147,6 +169,73 @@ class BpmInstanceTraceServiceTest {
 
         assertThat(response.getOk()).isFalse();
         assertThat(response.getCode()).isEqualTo(UserErrorCode.DATA_NOT_EXIST.getCode());
+    }
+
+    @Test
+    void getTraceShouldExposeFrozenApprovalStageFactsWithoutEngineIdentifiers() {
+        BpmInstanceDetailVO detail = new BpmInstanceDetailVO();
+        detail.setInstanceId(89L);
+        detail.setCurrentTasks(List.of());
+        detail.setActionLogs(List.of());
+        detail.setApprovalGroups(List.of());
+        when(bpmInstanceService.getDetail(89L)).thenReturn(ResponseDTO.ok(detail));
+        when(integrationRecordService.queryCallbackRecordsByInstanceId(89L)).thenReturn(List.of());
+        when(integrationRecordService.queryCommandRecordsByInstanceId(89L)).thenReturn(List.of());
+        when(notificationRecordService.queryByInstanceId(89L)).thenReturn(List.of());
+        when(formDataChangeDao.queryByInstanceId(89L)).thenReturn(List.of());
+        BpmRuntimeGraphVO graph = new BpmRuntimeGraphVO();
+        graph.setRouteDecisions(List.of());
+        when(runtimeGraphService.build(89L, false)).thenReturn(graph);
+
+        BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
+        stage.setApprovalStageId(31L);
+        stage.setStageInvocationId("expense-review:0");
+        stage.setAuthoredNodeId("expense-review");
+        stage.setGeneration(0);
+        stage.setStageState("APPROVED");
+        stage.setTerminalReason("ALL_APPROVED");
+        stage.setCompletionMode("RATIO");
+        stage.setRatioPercent(67);
+        stage.setEffectiveMemberCount(3);
+        stage.setRequiredApprovalCount(2);
+        stage.setCandidatePolicyVersionId(12L);
+        stage.setApprovalPolicyVersionId(18L);
+        BpmApprovalStageMemberEntity member = new BpmApprovalStageMemberEntity();
+        member.setApprovalStageMemberId(41L);
+        member.setMemberOrder(1);
+        member.setSourceEmployeeId(1001L);
+        member.setCurrentEmployeeId(1002L);
+        member.setMemberState("APPROVED");
+        member.setActionResult("APPROVE");
+        member.setTaskId(51L);
+        member.setMemberSnapshotJson("{\"displayName\":\"原审批人\"}");
+        BpmTaskEntity task = new BpmTaskEntity();
+        task.setAssigneeNameSnapshot("当前处理人");
+        when(approvalStageDao.selectList(Mockito.any())).thenReturn(List.of(stage));
+        when(approvalStageMemberDao.selectByApprovalStageId(31L)).thenReturn(List.of(member));
+        when(bpmTaskDao.selectByApprovalStageMemberId(41L)).thenReturn(task);
+
+        ResponseDTO<BpmInstanceTraceVO> response = traceService.getTrace(89L);
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData().getApprovalStages()).singleElement().satisfies(stageVO -> {
+            assertThat(stageVO.getStageInvocationId()).isEqualTo("expense-review:0");
+            assertThat(stageVO.getCompletionMode()).isEqualTo("RATIO");
+            assertThat(stageVO.getRequiredApprovalCount()).isEqualTo(2);
+            assertThat(stageVO.getApprovedMemberCount()).isEqualTo(1);
+            assertThat(stageVO.getCandidatePolicyVersionId()).isEqualTo(12L);
+            assertThat(stageVO.getApprovalPolicyVersionId()).isEqualTo(18L);
+            assertThat(stageVO.getMembers()).singleElement().satisfies(memberVO -> {
+                assertThat(memberVO.getSourceEmployeeId()).isEqualTo(1001L);
+                assertThat(memberVO.getCurrentEmployeeId()).isEqualTo(1002L);
+                assertThat(memberVO.getSourceEmployeeNameSnapshot()).isEqualTo("原审批人");
+                assertThat(memberVO.getCurrentEmployeeNameSnapshot()).isEqualTo("当前处理人");
+                assertThat(memberVO.getMemberState()).isEqualTo("APPROVED");
+            });
+            assertThat(stageVO.getClass().getDeclaredFields())
+                    .extracting(field -> field.getName())
+                    .doesNotContain("engineProcessInstanceId", "engineExecutionId", "approvalPolicySnapshotJson");
+        });
     }
 
     private void setField(Object target, String fieldName, Object value) {

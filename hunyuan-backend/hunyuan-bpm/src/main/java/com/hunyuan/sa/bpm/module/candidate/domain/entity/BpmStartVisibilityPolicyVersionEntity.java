@@ -1,0 +1,51 @@
+package com.hunyuan.sa.bpm.module.candidate.domain.entity;
+
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+/**
+ * M2 发起与实例可见范围的不可变版本目录。
+ */
+@Data
+@TableName("t_bpm_start_visibility_policy_version")
+public class BpmStartVisibilityPolicyVersionEntity {
+
+    @TableId(type = IdType.AUTO)
+    private Long startVisibilityPolicyVersionId;
+
+    private String policyKey;
+
+    private Integer policyVersion;
+
+    private String lifecycleState;
+
+    private Integer schemaVersion;
+
+    private String policyJson;
+
+    private String policyDigest;
+
+    private Long catalogRevision;
+
+    private Long createdByEmployeeId;
+
+    private Long activatedByEmployeeId;
+
+    private LocalDateTime activatedAt;
+
+    private Long retiredByEmployeeId;
+
+    private LocalDateTime retiredAt;
+
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
+}

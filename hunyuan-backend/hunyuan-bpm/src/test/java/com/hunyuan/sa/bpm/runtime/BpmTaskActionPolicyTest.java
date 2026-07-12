@@ -52,6 +52,24 @@ class BpmTaskActionPolicyTest {
         assertThat(actions.availableActions()).isEmpty();
     }
 
+    @Test
+    void describeShouldHideGenericAdvancedActionsForFrozenApprovalStageMember() {
+        BpmDefinitionNodeDao nodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
+        BpmTaskActionPolicy policy = new BpmTaskActionPolicy(nodeDao);
+        BpmTaskEntity task = pendingTask();
+        task.setApprovalStageId(71L);
+        task.setApprovalStageMemberId(701L);
+
+        BpmTaskActionPolicy.TaskActions actions = policy.describe(task);
+
+        assertThat(actions.taskKind()).isEqualTo(BpmTaskKind.APPROVAL);
+        assertThat(actions.availableActions()).containsExactly(
+                BpmTaskAction.APPROVE,
+                BpmTaskAction.REJECT,
+                BpmTaskAction.RETURN
+        );
+    }
+
     private BpmTaskEntity pendingTask() {
         BpmTaskEntity task = new BpmTaskEntity();
         task.setTaskId(11L);

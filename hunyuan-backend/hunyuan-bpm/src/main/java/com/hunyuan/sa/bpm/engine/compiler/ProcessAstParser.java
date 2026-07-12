@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.engine.ast.BranchNode;
 import com.hunyuan.sa.bpm.engine.ast.CopyTaskNode;
+import com.hunyuan.sa.bpm.engine.ast.DelayNode;
+import com.hunyuan.sa.bpm.engine.ast.ExternalTriggerNode;
 import com.hunyuan.sa.bpm.engine.ast.HumanTaskNode;
 import com.hunyuan.sa.bpm.engine.ast.ProcessAst;
 import com.hunyuan.sa.bpm.engine.ast.ProcessBranch;
@@ -23,7 +25,7 @@ import java.util.Map;
  */
 public class ProcessAstParser {
 
-    private static final int CURRENT_SCHEMA_VERSION = 2;
+    private static final int CURRENT_SCHEMA_VERSION = 3;
 
     private static final int DEFAULT_MAX_BRANCH_DEPTH = 3;
 
@@ -90,6 +92,26 @@ public class ProcessAstParser {
                     firstNonBlank(rawNode.getString("candidateResolverType"), rawNode.getString("resolverType")),
                     configuration
             );
+            case DELAY -> new DelayNode(
+                    nodeKey,
+                    name,
+                    rawNode.getString("mode"),
+                    rawNode.getString("value"),
+                    rawNode.getString("timezone"),
+                    rawNode.getString("overduePolicy"),
+                    configuration
+            );
+            case EXTERNAL_TRIGGER -> new ExternalTriggerNode(
+                    nodeKey,
+                    name,
+                    rawNode.getString("connectorKey"),
+                    rawNode.getString("operationKey"),
+                    toMap(rawNode.getJSONObject("requestMapping")),
+                    toMap(rawNode.getJSONObject("responseMapping")),
+                    rawNode.getString("waitMode"),
+                    toMap(rawNode.getJSONObject("timeoutPolicy")),
+                    configuration
+            );
             case EXCLUSIVE_BRANCH, PARALLEL_BRANCH, INCLUSIVE_BRANCH -> new BranchNode(
                     nodeKey,
                     name,
@@ -152,6 +174,10 @@ public class ProcessAstParser {
         Map<String, Object> configuration = new LinkedHashMap<>();
         node.forEach((key, value) -> configuration.put(key, value));
         return configuration;
+    }
+
+    private Map<String, Object> toMap(JSONObject object) {
+        return object == null ? Map.of() : new LinkedHashMap<>(object);
     }
 
     private String firstNonBlank(String... values) {

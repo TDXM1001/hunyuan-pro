@@ -8,4 +8,8 @@ public class GraphPublicationDependencyException extends IllegalStateException {
     public GraphPublicationDependencyException(String message) {
         super(message);
     }
+
+    public GraphPublicationDependencyException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

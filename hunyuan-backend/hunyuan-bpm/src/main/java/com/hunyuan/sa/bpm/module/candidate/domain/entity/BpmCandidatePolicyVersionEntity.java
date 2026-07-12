@@ -25,7 +25,23 @@ public class BpmCandidatePolicyVersionEntity {
 
     private String lifecycleState;
 
+    private Integer schemaVersion;
+
     private String policyJson;
+
+    private String policyDigest;
+
+    private Long catalogRevision;
+
+    private Long createdByEmployeeId;
+
+    private Long activatedByEmployeeId;
+
+    private LocalDateTime activatedAt;
+
+    private Long retiredByEmployeeId;
+
+    private LocalDateTime retiredAt;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

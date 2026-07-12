@@ -78,4 +78,9 @@ public class AdminBpmOrgIdentityGateway implements BpmOrgIdentityGateway {
                 .map(item -> item.getEmployeeId())
                 .toList();
     }
+
+    @Override
+    public List<Long> listActiveEmployeeIdsByPositionId(Long positionId) {
+        return employeeService.listActiveEmployeeIdsByPositionId(positionId);
+    }
 }

@@ -78,4 +78,41 @@ class ProcessAstParserTest {
                         "archive"
                 );
     }
+
+    @Test
+    void parseV3ShouldReadDelayAndExternalTriggerNodes() {
+        ProcessAst ast = parser.parse("""
+                {
+                  "schemaVersion": 3,
+                  "nodes": [
+                    {
+                      "nodeKey": "wait_one_day",
+                      "name": "等待一天",
+                      "type": "DELAY",
+                      "mode": "DURATION",
+                      "value": "P1D",
+                      "timezone": "Asia/Shanghai",
+                      "overduePolicy": "TRIGGER_IMMEDIATELY"
+                    },
+                    {
+                      "nodeKey": "sync_finance",
+                      "name": "同步财务系统",
+                      "type": "EXTERNAL_TRIGGER",
+                      "connectorKey": "finance",
+                      "operationKey": "createExpense",
+                      "requestMapping": {"amount": "approvedAmount"},
+                      "responseMapping": {"externalNo": "financeNo"},
+                      "waitMode": "WAIT_CALLBACK",
+                      "timeoutPolicy": {"timeoutAfter": "PT30M"}
+                    }
+                  ]
+                }
+                """);
+
+        assertThat(ast.schemaVersion()).isEqualTo(3);
+        assertThat(ast.nodes()).extracting(node -> node.type().name())
+                .containsExactly("DELAY", "EXTERNAL_TRIGGER");
+        assertThat(ast.nodes()).extracting(ProcessNode::nodeKey)
+                .containsExactly("wait_one_day", "sync_finance");
+    }
 }

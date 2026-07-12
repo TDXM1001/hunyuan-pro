@@ -35,7 +35,7 @@ class GraphBpmnCompilerTest {
 
         assertThat(artifact.compiledBpmnXml()).contains(
                 "<startEvent id=\"graph_node_node_start\"",
-                "<userTask id=\"graph_node_node_review\"",
+                "<receiveTask id=\"graph_stage_node_review\"",
                 "<endEvent id=\"graph_node_node_end\"",
                 "<sequenceFlow id=\"graph_edge_edge_start_review\""
         );
@@ -68,6 +68,39 @@ class GraphBpmnCompilerTest {
                                 graph.edges().stream().map(GraphEdge::edgeId)
                         ).toList()
                 );
+    }
+
+    @Test
+    void approvalShouldCompileToSingleStageControlWaitAndStableMapping() {
+        HunyuanProcessDefinitionGraph graph = new HunyuanProcessDefinitionGraph(
+                1,
+                "scope_root",
+                List.of(new GraphScope("scope_root", null, "主流程")),
+                List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        node("finance_review", GraphNodeType.APPROVAL, "财务审批"),
+                        node("end", GraphNodeType.END, "结束")
+                ),
+                List.of(
+                        edge("start_finance", "start", "finance_review", "default", Map.of()),
+                        edge("finance_end", "finance_review", "end", "default", Map.of())
+                ),
+                Map.of()
+        );
+
+        GraphCompiledArtifact artifact = compiler.compile("expense", "费用", graph);
+
+        assertThat(artifact.compiledBpmnXml())
+                .contains("<receiveTask id=\"graph_stage_finance_review\"")
+                .contains("hunyuanApprovalStageControl")
+                .doesNotContain("name=\"authoredNodeId\"")
+                .doesNotContain("<userTask id=\"graph_node_finance_review\"");
+        assertThat(artifact.mappings()).filteredOn(mapping -> mapping.authoredElementId().equals("finance_review"))
+                .singleElement()
+                .satisfies(mapping -> {
+                    assertThat(mapping.compiledElementId()).isEqualTo("graph_stage_finance_review");
+                    assertThat(mapping.compiledElementType()).isEqualTo("receiveTask");
+                });
     }
 
     static HunyuanProcessDefinitionGraph fullM1Graph() {

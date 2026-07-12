@@ -7,6 +7,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -40,4 +41,10 @@ public interface BpmTaskDao extends BaseMapper<BpmTaskEntity> {
      * 查询审批组全部成员任务。
      */
     List<BpmTaskEntity> selectByApprovalGroupIds(@Param("approvalGroupIds") List<Long> approvalGroupIds);
+
+    /**
+     * 查询一个 M2 冻结成员对应的任务投影。
+     */
+    @Select("SELECT * FROM t_bpm_task WHERE approval_stage_member_id = #{approvalStageMemberId} LIMIT 1")
+    BpmTaskEntity selectByApprovalStageMemberId(@Param("approvalStageMemberId") Long approvalStageMemberId);
 }

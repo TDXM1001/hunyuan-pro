@@ -2,5 +2,5 @@ bpm:
   flowable:
     enabled: true
     database-schema-update: true
-    async-executor-activate: false
+    async-executor-activate: true
     history-level: audit

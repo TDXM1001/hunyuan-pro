@@ -40,6 +40,8 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeFormDataValidator;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -100,6 +102,8 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
         setField(bpmInstanceService, "bpmRuntimeFormDataValidator", new BpmRuntimeFormDataValidator());
         setField(bpmInstanceService, "bpmFormDataChangeDao", bpmFormDataChangeDao);
+        setField(bpmInstanceService, "bpmTimeEventService", Mockito.mock(BpmTimeEventService.class));
+        setField(bpmInstanceService, "bpmExternalWaitService", Mockito.mock(BpmExternalWaitService.class));
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));

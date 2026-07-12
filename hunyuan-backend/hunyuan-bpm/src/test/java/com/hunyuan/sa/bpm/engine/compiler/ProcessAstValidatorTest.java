@@ -96,4 +96,59 @@ class ProcessAstValidatorTest {
         assertThat(findings).extracting(ProcessValidationFinding::code)
                 .contains("ROUTE_EXPRESSION_NOT_REGISTERED");
     }
+
+    @Test
+    void validateShouldRejectInvalidDelayDuration() {
+        List<ProcessValidationFinding> findings = validator.validate(
+                parser.parse("""
+                        {"schemaVersion":3,"nodes":[
+                          {"nodeKey":"delay","name":"等待","type":"DELAY","mode":"DURATION","value":"tomorrow","timezone":"Asia/Shanghai","overduePolicy":"TRIGGER_IMMEDIATELY"}
+                        ]}
+                        """),
+                "{\"fields\":[]}",
+                expressionRegistry
+        );
+
+        assertThat(findings).extracting(ProcessValidationFinding::code)
+                .contains("DELAY_DURATION_INVALID");
+    }
+
+    @Test
+    void validateShouldRejectInlineEndpointAndCredential() {
+        List<ProcessValidationFinding> findings = validator.validate(
+                parser.parse("""
+                        {"schemaVersion":3,"nodes":[
+                          {
+                            "nodeKey":"external","name":"外部调用","type":"EXTERNAL_TRIGGER",
+                            "connectorKey":"finance","operationKey":"createExpense","waitMode":"NO_WAIT",
+                            "url":"http://127.0.0.1/internal","credential":"secret"
+                          }
+                        ]}
+                        """),
+                "{\"fields\":[]}",
+                expressionRegistry
+        );
+
+        assertThat(findings).extracting(ProcessValidationFinding::code)
+                .contains("EXTERNAL_INLINE_ENDPOINT_FORBIDDEN", "EXTERNAL_INLINE_CREDENTIAL_FORBIDDEN");
+    }
+
+    @Test
+    void validateShouldRejectAutoTerminalWithoutSystemComment() {
+        List<ProcessValidationFinding> findings = validator.validate(
+                parser.parse("""
+                        {"schemaVersion":3,"nodes":[
+                          {
+                            "nodeKey":"review","name":"审批","type":"USER_TASK",
+                            "taskSlaPolicy":{"dueAfter":"PT2H","reminderSchedule":["PT1H"],"timeoutAction":"AUTO_APPROVE","riskLevel":"HIGH"}
+                          }
+                        ]}
+                        """),
+                "{\"fields\":[]}",
+                expressionRegistry
+        );
+
+        assertThat(findings).extracting(ProcessValidationFinding::code)
+                .contains("SLA_AUTO_TERMINAL_COMMENT_REQUIRED");
+    }
 }

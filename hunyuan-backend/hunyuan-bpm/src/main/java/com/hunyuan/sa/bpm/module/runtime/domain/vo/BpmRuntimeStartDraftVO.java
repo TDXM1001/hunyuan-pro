@@ -12,6 +12,12 @@ public class BpmRuntimeStartDraftVO {
     @Schema(description = "定义ID")
     private Long definitionId;
 
+    @Schema(description = "Graph 定义版本ID")
+    private Long graphDefinitionVersionId;
+
+    @Schema(description = "定义来源：LEGACY/GRAPH")
+    private String definitionSource;
+
     @Schema(description = "流程定义名称")
     private String definitionName;
 
