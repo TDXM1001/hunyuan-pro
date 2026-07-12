@@ -1,5 +1,7 @@
 # BPM M1 流程建模与编译平台实施计划
 
+> **历史状态：** 本计划对应 2026-07-11 已完成的树形 AST 实现，不再作为当前 M1 执行计划。当前 M1 以 `docs/superpowers/specs/2026-07-11-bpm-module-01-modeling-compiler-design.md` 为准，不执行本文的旧模型兼容、旧 API 外观或树形资产任务。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development`（推荐）或 `executing-plans` 按任务实施。所有步骤使用 checkbox（`- [ ]`）跟踪；设计范围已经锁定，不在批次间重新发起总体架构审批。
 
 **目标：** 将 Hunyuan BPM 从线性 `userTask` 数组升级为受控 AST 与可组合 BPMN 片段编译平台，完整交付排他/并行/包容分支、结构化路由事实、办理/抄送节点、v2 资产导入导出、设计器与运行详情，并保持旧定义和历史实例兼容。

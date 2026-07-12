@@ -1,7 +1,7 @@
 # BPM M1 流程建模与编译平台验收记录
 
 - 日期：2026-07-11
-- 状态：已关闭；实现、自动化门禁、数据库迁移、API 多路径实流和 Chrome 验收均通过
+- 状态：历史 M1 实现验收已关闭；第 6 节记录的当前 Graph M1 已完成独立验收并关闭
 - 实施计划：`docs/superpowers/plans/2026-07-11-bpm-m1-modeling-compiler-implementation.md`
 
 ## 1. 当前能力事实
@@ -56,3 +56,57 @@
 ## 5. 关闭结论与边界
 
 M1 的受控 AST、编译器、排他/并行/包容分支、办理、设计时抄送、运行图和路由账本已形成可维护闭环，当前交付块关闭。任意 BPMN、脚本 EL、自由连线、Flowable multi-instance、时间事件和子流程仍是明确非目标；下一主交付块切换为 M4“时间、SLA 与事件驱动”。
+
+## 6. 2026-07-12 正式 Graph 重建执行证据
+
+本节只记录新 `HunyuanProcessDefinitionGraph` 定义中心的本次验证，和上文旧 AST 历史验收严格区分。
+
+### 已完成事实
+
+- 正式作者契约、canonical JSON、语义 hash、稳定 ID、草稿 revision、模板复制、导入导出、Graph 编译、不可变定义版本、元素映射、发布/下线权限及 Graph 设计器均已落入新 Graph 所有权模块。
+- 本次补齐 Graph 本地输入边界：scope、node、edge ID 统一限制为字母开头、仅包含字母数字下划线、最长 128 位；非法 ID 在草稿保存和导入前即被拒绝。
+- 发布冻结 Graph、依赖版本、BPMN、编译器版本与 authored/compiled 映射；映射写入异常会删除已部署 Flowable 定义，避免部署残留。
+
+### 本次自动化与 Flowable 证据
+
+| 门禁 | 本次结果 |
+| --- | --- |
+| Graph 聚焦后端测试 | 33 个测试，0 失败，0 错误 |
+| `hunyuan-bpm` 全量测试 | 323 个测试，0 失败，0 错误 |
+| Graph Flowable 兼容门禁 | 6 个测试，0 失败，0 错误；条件、并行、办理、抄送 Graph 成功部署并可读取 BPMN 元素 |
+| 前端 Graph 契约 | 1 个测试通过 |
+| `@hunyuan/system` 类型检查 | 退出码 0 |
+
+Flowable 兼容门禁须从 `hunyuan-backend` 使用 `mvn -pl hunyuan-admin -am -Dtest=BpmFlowableCompatibilityTest -Dsurefire.failIfNoSpecifiedTests=false test` 运行；单独选择 `hunyuan-admin` 会从本机 Maven 仓库读取旧 BPM JAR，不能代表当前工作树的 Graph 实现。
+
+### 本轮最终回归
+
+| 门禁 | 本轮结果 |
+| --- | --- |
+| `hunyuan-bpm` 全量测试 | 325 个测试，0 失败，0 错误 |
+| Graph 发布版本恢复服务与控制器 | 8 个测试，0 失败，0 错误 |
+| Graph Flowable 兼容门禁 | 6 个测试，0 失败，0 错误 |
+| 前端 Graph 模型、设计器与版本契约 | 9 个测试，0 失败 |
+| `@hunyuan/system` 类型检查 | 退出码 0 |
+| `hunyuan-admin` 运行 JAR 打包 | `BUILD SUCCESS` |
+
+### 认证浏览器业务链验收
+
+- 在已认证管理员会话中创建并保存草稿 `draftId=2`，`processKey=m1_graph_acceptance_20260712_1443`；页面显示“模拟通过”和“语义已保存”。
+- 已发布版本为 `v1`，Flowable 引擎定义为 `5f343e1c-7dc3-11f1-a8e1-a8e2913e212c`。版本详情实际显示编译 BPMN、19 条 authored/compiled 映射和冻结信息。
+- 冻结依赖为业务契约 `m1_acceptance_contract@1`，以及 `large_review`、`archive_review` 的候选策略 `m1_acceptance_policy@1`。
+- 修复 Vue Proxy 不能直接 `structuredClone` 的草稿快照问题后，创建、保存、模拟、发布和版本查看均可执行。随后补充 `GET /bpm/graph-definition/latest-by-draft/{draftId}`，刷新设计器后仍可恢复“查看版本 v1”，不再依赖本次发布的内存状态。
+- 本地开发库中的 `m1_acceptance_policy@1` 和 `m1_acceptance_contract@1` 是本次验收目录夹具，不属于提交的增量 SQL，也不代表生产业务目录数据。
+
+### 关闭边界
+
+M1 已关闭的是流程定义能力面：Graph 草稿、校验、模拟、编译、原子发布、冻结依赖、BPMN 与元素映射的可追溯查看。M1 不发起业务实例，不替代 M2 的实际审批人解析或 M3 的业务对象数据治理；生产发起仍必须在这些真实模块版本目录可用后另行验收。
+
+### 2026-07-12 当前工作树复验
+
+- 后端命令 `mvn -pl hunyuan-bpm test`：325 个测试，0 失败，0 错误；包含 Graph 往返、草稿 revision、模板复制、发布冻结/回滚、依赖目录解析、结构阻断定位、迁移与 API 隔离断言。
+- Flowable 命令 `mvn --% -pl hunyuan-admin -am -Dtest=BpmFlowableCompatibilityTest -Dsurefire.failIfNoSpecifiedTests=false test`：6 个测试，0 失败，0 错误。
+- 前端命令 `pnpm exec vitest run apps/hunyuan-system/src/components/bpm/graph/graph-process-model.test.ts apps/hunyuan-system/src/components/bpm/graph/graph-process-designer.contract.test.ts apps/hunyuan-system/src/api/system/bpm/graph-definition.contract.test.ts`：9 个测试通过；`pnpm --filter @hunyuan/system typecheck` 退出码 0。
+- 本地服务 `127.0.0.1:1024` 与 `127.0.0.1:5788` 均返回 HTTP 200。已认证管理员页面重新读取既有草稿 `draftId=2`，显示“模拟通过”“语义已保存”“查看版本 v1”。版本详情显示当前 Flowable 定义 `5f343e1c-7dc3-11f1-a8e1-a8e2913e212c`、19 条 authored/compiled 映射，以及 `m1_acceptance_contract@1`、`m1_acceptance_policy@1` 冻结依赖；页面控制台未发现 error 级日志。
+- 本轮未重新创建、发布、下线或复制验收夹具，避免向本地开发库重复写入定义版本；这些有副作用步骤沿用上文已记录的首次业务链证据。本轮证明的是当前工作树和运行服务仍能读取、校验并追溯该发布结果。
+- `BpmApiIsolationTest`、`BpmSchemaSourceTest` 均在本轮全量门禁内通过；新 Graph 前端与后端源码搜索未发现已删除的旧树形设计器适配器、双写桥接或旧路由编辑器引用。`git diff --check` 退出码 0，输出中的 CRLF 提示不属于 whitespace error。
