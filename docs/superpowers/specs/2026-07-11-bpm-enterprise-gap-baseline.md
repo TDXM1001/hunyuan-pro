@@ -1,8 +1,10 @@
 # Hunyuan 企业级流程引擎差距与借鉴基线
 
 - 日期：2026-07-11
-- 状态：持续维护的差距基线
+- 状态：当前持续维护的差距基线
 - 总体蓝图：`docs/superpowers/specs/2026-07-11-bpm-enterprise-blueprint.md`
+
+> 2026-07-12 重建：BPM 数据已清空，当前按总体蓝图重新规划 M1-M8。旧作者模型、旧表和旧发布链不进入新架构；`KEEP` 只表示语义、算法或验收断言可以吸收，不能据此保留旧数据契约或兼容入口。
 
 ## 1. 使用方式
 
@@ -13,6 +15,8 @@
 ## 2. 源码证据入口
 
 ### Hunyuan
+
+以下路径用于核对当前实现和可吸收的算法/测试证据，不代表新架构继续使用这些类名、JSON 或模块边界。
 
 - 当前能力基线：`docs/superpowers/specs/2026-07-10-bpm-development-baseline.md`
 - 受限编译器：`hunyuan-backend/hunyuan-bpm/src/main/java/com/hunyuan/sa/bpm/engine/compiler/SimpleModelBpmnCompiler.java`
@@ -52,15 +56,15 @@
 | 分类、表单、模型、定义 | 已有管理和发布闭环 | 参考项目同样具备 | `KEEP` | M1/M3 |
 | 发布快照与并发认领 | 已阻止并发发布旧快照 | 参考项目主要依赖模型更新部署 | `KEEP` | M1 |
 | 候选人发布预检 | 已有 READY/RUNTIME_REQUIRED/BLOCKING | 参考项目候选策略更广 | `KEEP+HARDEN` | M2 |
-| 简单模型结构 | v1 兼容，v2 为最大深度 3 的受控递归 AST，已完成多路径实流 | 树形节点及多种分支节点 | `KEEP`，M1 已关闭 | M1 |
-| 编译器结构 | 已按 typed fragment 组合任务、抄送和三类固定网关，JUEL 缺失变量安全 | 多类节点和网关编译 | `KEEP`，M1 已关闭 | M1 |
-| 模型 JSON 导入导出 | 已形成 `.hunyuan-process.json` v2 资产契约并校验版本、类型、key 和深度 | 前端支持 simple model JSON 导入导出 | `KEEP` | M1 |
+| 旧作者模型结构 | v1/v2 递归 AST 已证明若干分支语义，但不满足正式流程图和多层设计器要求 | 树形节点及多种分支节点 | `REPLACE`，新库只保存 `HunyuanProcessDefinitionGraph`，不建设旧模型导入 | M1 |
+| 编译器结构 | typed fragment、路由 delegate 和固定网关已证明部分算法可行 | 多类节点和网关编译 | `REFACTOR`，抽取可复用算法，唯一入口改为已验证 Graph/Structured IR | M1 |
+| 流程资产导入导出 | 旧 `.hunyuan-process.json` 是树形资产格式 | 参考前端支持 simple model JSON 导入导出 | `REPLACE` 为 Graph 资产、schema 版本、canonical hash 和错误定位契约 | M1 |
 | 完整 BPMN 模式 | 当前只维护 Hunyuan 简单模型 | 参考项目同时保留 BPMN 模型入口 | `DEFER`，不作为当前企业级门槛 | M1 边界 |
-| 设计时抄送节点 | 已实现非阻塞 `COPY_TASK`、收件人解析和 copy fact 幂等，实流生成 copy `2` | 参考有 COPY_NODE | `KEEP`；运营展示继续归 M6 | M1/M6 |
-| 办理节点 | 已实现 `HANDLE_TASK`、办理结果和独立可用动作，实流 task `124/127/130/131/132` 完成 | 参考有 TRANSACTOR_NODE 和办理按钮 | `KEEP`；运营体验继续归 M6 | M1/M6 |
-| 排他条件分支 | 已实现类型化条件、默认分支、路由 delegate 和账本，实流 routeDecision `3/5/7/9` | 条件/路由分支 | `KEEP`，M1 已关闭 | M1 |
-| 并行分支 | 已实现 authored 独立并行 split/join，旧 `parallelAll` 保持兼容；实流双任务汇合通过 | 独立并行分支 | `KEEP`，M1 已关闭 | M1 |
-| 包容分支 | 已实现单命中、多命中、默认分支和动态汇合 BPMN，实流 routeDecision `4/6/8/10` | 包容网关 | `KEEP`，M1 已关闭 | M1 |
+| 设计时抄送节点 | 已实现非阻塞抄送与 copy fact 幂等 | 参考有 COPY_NODE | `KEEP` 业务语义，在新 Graph、发布快照和 M4 运行事实中重新实现 | M1/M4 |
+| 办理节点 | 已实现办理结果和独立可用动作 | 参考有 TRANSACTOR_NODE 和办理按钮 | `KEEP` 业务语义，在新任务命令和运行投影中重新实现 | M1/M4 |
+| 排他条件分支 | 已实现类型化条件、默认分支、路由 delegate 和账本 | 条件/路由分支 | `KEEP+REFACTOR`，Graph 显式配置节点、边和条件，M4 记录路由事实 | M1/M4 |
+| 并行分支 | 已实现固定 split/join 与汇合运行证据 | 独立并行分支 | `KEEP+REFACTOR`，正式图校验成对汇合，M4 证明并发推进 | M1/M4 |
+| 包容分支 | 已实现单命中、多命中、默认分支和动态汇合 | 包容网关 | `KEEP+REFACTOR`，正式图负责结构，M4 负责动态路由与汇合事实 | M1/M4 |
 | 任意循环和自由连线 | 未支持 | 完整 BPMN 可表达更多结构 | `DEFER` | 蓝图边界 |
 | 任意条件表达式 | 未支持 | 支持规则和表达式 | `REJECT` 默认；登记表达式可 `ADAPT` | M1 |
 | 单人审批 | 已支持 | 已支持 | `KEEP` | M2 |
@@ -69,7 +73,7 @@
 | 或签和比例会签 | 未支持 | ANY、RATIO | `ADAPT` | M2 |
 | 随机一人 | 未支持 | RANDOM | `DEFER`，先验证业务价值 | M2 |
 | 自动通过/自动拒绝节点 | 未形成节点策略 | 参考审批类型支持自动终态 | `ADAPT`，按高风险系统动作治理 | M2/M4 |
-| 指定历史节点退回 | 当前稳定语义是退回发起人重提 | 参考支持驳回到指定任务节点 | `ADAPT`，仅允许已发布祖先 user task 且建立新执行代 | M1/M2 |
+| 指定历史节点退回 | 当前稳定语义是退回发起人重提 | 参考支持驳回到指定任务节点 | `ADAPT`，仅允许已发布祖先审批节点且建立新执行代 | M1/M4 |
 | 重复审批人自动通过 | 未支持 | 参考有全部/连续节点自动通过 | `DEFER`，需要先明确审计和自审语义 | M2 |
 | Flowable multi-instance | 未作为公共模型 | 参考广泛使用 | `REJECT` 直接外露；内部按场景评估 | M2/M5 |
 | 部门、角色、发起人策略 | 已覆盖常用六类 | 参考覆盖更多组织来源 | `KEEP+HARDEN` | M2 |
@@ -79,24 +83,26 @@
 | 审批人与发起人相同 | 无统一策略 | 自审/跳过/部门主管 | `ADAPT` | M2 |
 | 节点字段权限 | 仓库验收已通过 READONLY/EDITABLE/HIDDEN | 参考已有字段权限 | `KEEP+HARDEN` | M3 |
 | 数据版本和字段审计 | 仓库验收已通过显式版本/变更账本 | 参考主要使用流程变量和表单字段 | `KEEP` | M3 |
-| 任务超时 | 未支持 | 提醒、通过、拒绝 | `ADAPT`，自动终态需高风险控制 | M4 |
-| 延迟节点 | 未支持 | 固定时长/日期 | `ADAPT` | M4 |
-| HTTP 请求节点 | 未支持 | 设计器可配置 URL/参数 | `ADAPT` 为登记连接器，不复制任意 URL | M4 |
-| HTTP 回调等待 | 只有流程结果回调 | 参考有 receive task 等待 | `ADAPT` 并复用现有幂等补偿 | M4 |
-| 表单修改触发器 | 审批数据服务可修改 | 参考有更新/删除表单触发器 | `HARDEN` 为受控数据命令，不允许任意删除 | M3/M4 |
-| 子流程 | 未支持 | callActivity、变量映射、超时、多实例 | `ADAPT` | M5 |
-| 主子流程取消/拒绝传播 | 未支持 | 参考已有传播逻辑 | `ADAPT` 为显式策略 | M5 |
-| 任务、实例、抄送 | 已闭环 | 参考已闭环 | `KEEP` | M6 |
-| 流程管理员 | 依赖系统管理权限和管理员动作 | 参考定义可配置流程管理员 | `ADAPT` 为定义级运营责任人 | M6 |
-| 任务/执行监听器 | 已有监听器目录和节点 listeners 快照，运行契约有限 | 参考可登记 execution/task listener | `HARDEN` 为登记事件订阅，不开放 class/EL | M4/M6 |
-| 评论 | 审批意见属于动作日志 | 参考有独立评论域 | `ADAPT`，区分动作意见和协作评论 | M6 |
-| 附件、签名图片 | BPM 未形成结构化证据域 | 参考运行页已展示 | `ADAPT`，复用 Hunyuan 文件服务 | M6 |
-| 打印模板 | 未形成 BPM 打印资产 | 参考有打印模板和打印页 | `ADAPT` | M6 |
-| 运行流程图 | 受限设计预览和结构化 trace | 参考有 BPMN/simple viewer | `ADAPT`，数据来自结构化运行事实 | M6 |
-| 流程报表 | 缺少流程业务报表 | 参考有实例报表 | `ADAPT`，避免直接查询 Flowable 表 | M6 |
-| 命令、通知、回调记录 | Hunyuan 已有并可人工补偿 | 参考也有消息和触发器 | `KEEP+HARDEN` | M4/M6/M7 |
-| 业务结果事件 | 已有 Hunyuan 业务事件和样板费用 | 参考有 OA 请假和监听器接入 | `KEEP+HARDEN` | M7 |
-| 自定义业务表单 | 当前以表单 schema 和样板业务为主 | 参考支持自定义创建/详情路径 | `ADAPT` 为业务页面注册，不存任意路由字符串 | M7 |
+| 任务超时 | 已有 SLA、自动终态和转管理员实现资产，活体竞态未关闭 | 提醒、通过、拒绝 | `REBUILD` 到新事件状态机并完成真实竞态验收 | M5 |
+| 延迟节点 | 已证明真实 Flowable timer job 可行 | 固定时长/日期 | `REBUILD` 为新 Graph 节点、冻结策略和结构化事件事实 | M5 |
+| HTTP 请求节点 | 已有登记连接器、SSRF 策略和幂等重试资产 | 参考可配置 URL/参数 | `REBUILD` 为登记连接器，继续拒绝任意 URL | M5/M6 |
+| HTTP 回调等待 | 已有 receive task、token 摘要、HMAC 和单次恢复资产 | 参考有 receive task 等待 | `REBUILD` 并关闭成功回调、乱序、竞态和重启恢复 | M5 |
+| 表单修改触发器 | 审批数据服务已有版本化修改语义 | 参考有更新/删除表单触发器 | `HARDEN` 为受控数据命令，不允许任意删除 | M3/M5 |
+| 子流程 | 未形成当前 Graph 和运行事实下的闭环 | callActivity、变量映射、超时、多实例 | `ADAPT` 为冻结版本、映射和父子传播 | M5 |
+| 主子流程取消/拒绝传播 | 未形成当前闭环 | 参考已有传播逻辑 | `ADAPT` 为显式策略、幂等命令与补偿事实 | M5 |
+| 任务、实例、抄送 | 旧链路已形成运行证据 | 参考已闭环 | `REBUILD` 为统一实例事实、任务命令和 authored 运行投影 | M4 |
+| 流程管理员 | 依赖系统管理权限和管理员动作 | 参考定义可配置流程管理员 | `ADAPT` 为定义级运营责任人和授权范围 | M7 |
+| 任务/执行监听器 | 已有目录和节点快照资产，运行契约有限 | 参考可登记 execution/task listener | `HARDEN` 为登记事件订阅，不开放 class/EL | M5/M6 |
+| 评论 | 审批意见属于动作日志 | 参考有独立评论域 | `ADAPT`，区分动作证据和协作评论 | M4/M7 |
+| 附件、签名图片 | BPM 未形成完整结构化证据域 | 参考运行页已展示 | `ADAPT`，复用文件服务并进入动作证据 | M3/M4 |
+| 打印模板 | 未形成 BPM 打印资产 | 参考有打印模板和打印页 | `ADAPT` | M7 |
+| 运行流程图 | 有受限设计预览和结构化 trace 资产 | 参考有 BPMN/simple viewer | `REBUILD` 为正式 Graph 运行投影 | M4/M7 |
+| 流程报表 | 缺少流程业务报表 | 参考有实例报表 | `ADAPT`，只读运行投影和审计事实 | M7 |
+| 命令、通知、回调记录 | 已有幂等与人工补偿资产 | 参考也有消息和触发器 | `KEEP+REFACTOR` | M4/M5/M6/M7 |
+| 业务结果事件 | 已有业务事件和样板费用资产 | 参考有 OA 请假和监听器接入 | `KEEP+REFACTOR` 为固定协议与 Outbox/Inbox | M6 |
+| 业务接入与审批详情 | 当前以表单 schema 和样板业务为主 | 参考支持自定义创建/详情路径 | `REFACTOR` 为来源系统、业务契约、审批对象快照、通用详情和登记增强 | M3/M6 |
+| 内外任务入口 | 当前仅 Hunyuan 页面与内部 API 为主 | 成熟平台支持嵌入和开放任务 API | `ADAPT`，统一任务命令、员工映射和服务端字段权限 | M4/M6 |
+| 定义演进与实例迁移 | 定义版本和实例快照已具备，未提供受限迁移 | 成熟引擎提供迁移工具 | `ADAPT`，仅支持预演后满足安全条件的实例，使用补偿而非任意回滚 | M8 |
 
 ## 4. 必须保留的 Hunyuan 优势
 
@@ -110,25 +116,25 @@
 
 ## 5. 需要重构的当前结构
 
-### 5.1 `SimpleModelBpmnCompiler`
+### 5.1 定义与编译主链
 
-当前通过顺序循环和 `instanceof` 处理 `UserTaskFragment`、`ParallelAllFragment`。增加分支、时间、触发器和子流程后会快速膨胀。M1 必须将其重构为：
+当前作者模型、原始 JSON 校验和编译入口相互耦合。新 M1 不在旧入口上继续增加分支，而是重建唯一主链：
 
 ```text
-AST node
--> NodeCompiler
--> BpmnFragment(entryRefs, exitRefs, generatedElements, snapshots)
--> FragmentComposer
--> CompiledDefinitionArtifact
+HunyuanProcessDefinitionGraph
+-> GraphValidator
+-> Structured IR
+-> NodeCompiler / FragmentComposer
+-> CompiledDefinitionArtifact + authored/compiled mappings
 ```
 
 ### 5.2 运行时命令入口
 
-当前实例和任务服务直接承担较多 Flowable 推进、投影和动作日志职责。M4/M5 引入异步事件和子流程前，需要形成统一命令协调边界，明确：锁定、校验、驱动引擎、写运行事实、投影和异步后续。
+当前实例和任务服务直接承担较多 Flowable 推进、投影和动作日志职责。新 M4 必须先形成统一命令协调边界，明确锁定、校验、驱动引擎、写运行事实、投影和结果 Outbox；M5 再在此边界上增加异步事件与子流程。
 
 ### 5.3 审批组完成语义
 
-当前顺序与 parallelAll 的逻辑已经可用，但新增 ANY、RATIO 后不应继续增加大量模式分支。M2 应抽取成员解析、完成策略、终止策略和允许动作策略，同时保留现有表和公共 VO 兼容。
+当前顺序与 `parallelAll` 的逻辑已经证明部分完成语义可行，但新增 ANY、RATIO 后不应继续增加模式分支。M2 应以新的候选快照、审批组、完成策略、终止策略和授权决策重建，不保留旧表与公共 VO 兼容要求。
 
 ### 5.4 诊断快照与公共契约
 
@@ -149,15 +155,17 @@ AST node
 ## 7. 优先级
 
 ```text
-BASELINE  M3 审批数据治理已通过仓库验收，继续接受用户回归反馈
-P0  M4 时间、SLA 与事件驱动
-P1  M2 审批人与多人审批策略
-P1  M5 子流程与流程组合
-P1  M6 运行时工作台与运营治理
-P1  M7 业务接入与开放平台
+EVIDENCE  旧 M1/M3/M4 实现只作为算法、状态语义和测试资产
+P0  M1 流程定义中心
+P1  M2 身份组织与审批策略 + M3 审批对象与数据治理
+P1  M4 核心审批运行与工作台（关闭首个产品基线）
+P2  M5 高级流程运行
+P2  M6 配置化业务接入（在 M5 可靠事件语义稳定后关闭）
+P3  M7 运营治理
+P4  M8 定义演进与受限迁移
 ```
 
-M6、M7 的基础部分随每个前置模块同步接入，但其总体完成在核心运行能力稳定之后验收。
+严格依赖为 `M1 -> (M2 + M3) -> M4 -> M5 -> M6 -> M7 -> M8`。M1-M4 共同构成首个可用产品基线，不能把前置能力面的单独完成误报为整个平台完成。
 
 ## 8. 更新规则
 

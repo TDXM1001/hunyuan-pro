@@ -87,3 +87,9 @@ Graph
 7. 分类、模板复制、定义发布/下线权限和一条包含审批、条件、并行、抄送的编译部署均有证明。
 
 M1 完成只表示定义能力面闭环；M1-M4 全部完成后，才形成第一个可用审批产品基线。
+
+## 8. M2 审批阶段控制契约
+
+`APPROVAL` 节点的候选、完成和退回语义由 M2 的 `CandidatePolicyVersion`、`ApprovalPolicyVersion` 与节点级绑定定义；本节只定义 M1 的编译和冻结责任。发布时，M1 必须把完整 canonical 策略内容、schema 版本、摘要和节点级 `returnTargetNodeId` 一并冻结到定义依赖快照，不能只保留目录 ID 或摘要。
+
+每个已发布 `APPROVAL` 节点必须编译为一个稳定 `compiledElementId` 的 `ApprovalStageControl` 等待点，并在 authored/compiled 映射中保存 authored 节点、策略依赖和退回目标。该等待点不直接向员工公开分配，不以 Flowable multi-instance 表达多人语义；底层可以是受控 `receiveTask` 或内部 `userTask`，但必须由 M4 以一个 `stageInvocationId` 完成、关闭或恢复。M1 负责验证该端口可部署、可反查和在定义快照中唯一，M2/M4 负责成员解析、成员投影和运行推进。

@@ -3,8 +3,10 @@
 - 设计日期：2026-07-11
 - 适用仓库：`E:\my-project\hunyuan-pro`
 - 工作分类：平台或语义变更
-- 状态：设计已确认，待实施
+- 状态：历史字段治理设计已实施并通过仓库验收；不代表当前 M3 已关闭
 - 依赖基线：`docs/superpowers/specs/2026-07-10-bpm-development-baseline.md`
+
+> 当前 M3 已扩展为审批对象、路由事实、流程工作数据和动作证据四类数据面的完整治理，设计入口为 `docs/superpowers/specs/2026-07-11-bpm-module-03-approval-data-governance-design.md`。本文只保留字段权限、版本、审计和重提语义的历史证据。
 
 ## 1. 结论
 

@@ -1,51 +1,80 @@
-# Agent Instructions for Hunyuan Pro
+# Hunyuan Pro 项目级 Agent 开发规则
 
-## Working Rules
-- Make one incremental change at a time.
-- Explain why a change is needed before editing files.
-- Prefer existing project patterns over new abstractions.
-- Do not add new dependencies without explicit approval.
-- Keep changes tightly scoped to the task.
-- Verify every meaningful change with a concrete check.
+## 1. 核心目标与规则优先级
 
-## Frontend Page Rules
-- When creating or changing frontend edit/detail pages, read `docs/frontend-edit-detail-page-standard.md` first.
-- When creating or changing frontend list/search/table pages, read `docs/frontend-list-table-page-standard.md` first.
-- Treat the frontend standards as default baselines, not rigid templates. When a page has a stronger business prototype, sibling pattern, or subordinate-detail drawer workflow, follow the stronger scene-specific pattern and explain why it overrides the default baseline.
-- Use the existing `@vben/art-hooks` edit/detail page primitives before inventing new page shells.
-- Treat `hunyuan-design/apps/web-ele/src/views/demos/edit-test.vue` and `hunyuan-design/apps/web-ele/src/views/demos/detail-test.vue` as the current reference layout.
-- Keep edit/detail pages quiet, dense, and operational: page header, status/extra slot, action area, sectioned content, and targeted validation.
-- For ordinary menu-backed list/search/table pages, do not add explanatory page copy or standalone page title blocks that repeat the menu or obvious page purpose; if the menu/tab context is already clear, default to no extra title or description.
-- If a list/search page only has one natural search row, disable collapse behavior instead of showing an unnecessary `展开 / 收起` toggle.
-- When subordinate data needs to keep the parent list context visible, prefer existing drawer/side-surface patterns over forcing a permanent split layout.
-- Do not turn the reference pages into broad generators unless the repeated page code proves the abstraction is needed.
+- 本文件只保存长期稳定的项目级 Agent 指令，包括仓库约定、稳定命令、验证步骤和审查期望；领域目标、动态入口、端口、本机路径和一次性交付清单放入对应领域文档或运行手册。
+- 默认目标是用最短的安全路径，把用户已经确认的需求变成可运行、可验证、可解释的结果；过程完整不等于交付完成。
+- 安全、数据完整性、审计和已确认的可恢复性要求是交付硬约束，不得被进度或便利偏好豁免；要改变这些约束本身，必须进入设计通道并由用户明确决策。
+- 在不违反上述硬约束的前提下，规则冲突时依次遵循：用户最新要求、本文件、已确认设计或决策、相关领域文档、仓库现有代码与测试模式、Agent 内部计划与 Skill 默认流程。
+- 用户指向具体设计、基线、问题或文件并要求实现、修复或完成时，该内容就是当前任务契约。执行前只检查其状态与新鲜度、直接上游兼容性和硬约束冲突；无冲突后立即执行，不重新设计、不另设计划审批、不逐点等待确认。
+- Skill 和多 Agent 只用于提高实现质量或速度，不得扩大范围、增加批准关卡或强制生成过程文档。
 
-## Current Goal
-- Harden the backend foundation.
-- Focus on `system`, `file`, `sms`, `message`, `mail`, and shared platform rules.
-- Keep business modules out of the foundation work.
+## 2. 默认快速通道
 
-## BPM Reference Development Rules
-- For BPM/process-engine work, use `E:\my-project\huanyuan-pro-jichu\yudao-ui-admin-vue3-master` as the frontend reference line and `E:\my-project\huanyuan-pro-jichu\ruoyi-vue-pro-master` as the backend reference line.
-- Treat those repositories as reference material only: borrow component behavior, page structure, interaction patterns, API semantics, validation ideas, and backend processing mechanisms after understanding them.
-- All production code, contracts, routes, permissions, menus, tests, docs, and verification artifacts must be completed in the current repository `E:\my-project\hunyuan-pro`.
-- Do not wholesale-migrate Yudao/RuoYi code, names, API contracts, page shells, dependency assumptions, or module boundaries into Hunyuan.
-- Keep Flowable and third-party BPM concepts behind Hunyuan BPM boundaries; external consumers should see Hunyuan names, Hunyuan IDs, Hunyuan org/employee integration, and Hunyuan page patterns.
-- When a reference implementation is useful, first identify the mechanism being borrowed, then implement the smallest Hunyuan-native version that fits the current module and can be verified.
+除非命中第 3 节的设计触发条件，所有任务默认走快速通道：
 
-## Success Criteria
-- Foundation boundaries are clear.
-- File handling is reliable and documented.
-- SMS has a real minimal implementation path.
-- Platform rules are consistent and testable.
+1. 检查工作树，只读取完成下一步所必需的代码、测试和领域文档；能安全开工后停止前置调研，后续按需补读。
+2. 用一条简短更新说明本次要改什么、如何验证；非目标和风险只在不明显时说明。工作分类、风险分析和实施清单默认在 Agent 内部维护，不展开成新的用户讨论。
+3. 直接建立最小失败证据或开始编辑；涉及跨层交付时，先打通最短可运行的纵向主链并立即取得跨层证据，再在同一确认范围内补齐异常、兼容和治理能力。批次之间不等待用户批准。
+4. 按本节最低验证矩阵和实际风险选择证据；最终状态必须拥有当次相关门禁证据，门禁后无相关改动时不重复运行。
+5. 完成时报告实际变更、当次验证证据、剩余风险和文档状态，不复述命令流水账。
 
-## Verification
-- Use targeted checks first.
-- Prefer existing test commands when possible.
-- Do not ship changes you cannot explain.
-- For frontend edit/detail page changes, prefer `pnpm --dir hunyuan-design -F @vben/web-ele run typecheck` as the first contract check.
-- For frontend business-flow checks, use the configured `playwright` MCP server when browser proof is useful. The local MCP checkout is `G:\code-mcp\playwright-mcp-temp`, and its runtime/cache/output files must stay under that directory (`cache/` and `runtime/`) instead of being written into this repo.
-- For visible browser business-flow checks, keep one browser session alive and reuse it. Prefer the persistent Playwright MCP controller at `http://localhost:8934` when it is running; it holds a live MCP client connected to `http://localhost:8933/mcp` so browser contexts are not closed between tests. Do not write one-off Playwright MCP scripts that call `client.close()` for visible browser checks unless the user explicitly requests a throwaway run.
-- If the persistent controller is not running, start `G:\code-mcp\playwright-mcp-temp\local-scripts\start-http.ps1` for the MCP server and then start the controller under `G:\code-mcp\playwright-mcp-temp\runtime\persistent-mcp-controller.cjs`. Use `start-stdio.ps1` only when the user explicitly requests a one-off stdio run.
-- Before running Playwright MCP business-flow checks, make sure the required local services are available, especially frontend `http://127.0.0.1:5788` and backend `http://127.0.0.1:1024` when the flow needs real APIs.
-- Treat Playwright MCP screenshots, network logs, saved sessions, browser profiles, and temporary output as runtime evidence. Do not commit those artifacts unless the user explicitly asks for an evidence bundle.
+以下情况不得阻塞执行：可从仓库确认的普通实现细节、可逆的局部选择、已有模式能够回答的问题、测试失败后的常规定位，以及交付块内的跨层修改。
+
+若阅读、规划或过程文档持续增长，却没有新增实现、测试或运行证据，立即停止扩展上下文并转向下一项可验证改动；无法转向时只报告真实阻塞，不继续制造工件。
+
+## 3. 设计触发与停问条件
+
+- 只有用户明确要求设计，或存在无法从仓库消解且会实质改变需求、公共契约、数据语义、安全权限、模块边界、不可逆迁移、依赖选择的不确定性时，才进入设计通道。
+- 详细设计只建立在已稳定的直接上游契约上；上游仍在变化且会影响本块语义时，先完成或冻结上游契约，不在移动前提上继续扩写下游设计和计划。
+- 用户指出或仓库明确标记为当前基线的已有设计，能够回答目标、边界、关键语义、主要风险和验收方式时，设计阶段视为完成；不得再创建第二份设计或把实施计划变成新的设计审查。
+- 需要设计时，只产出一份决策完整的设计，最多进行一次合并审查；用户已明确确认时审查预算视为已消费。随后连续实施、分批验证、总体验收，不再按文件、接口、页面或测试逐点审批。
+- 实施开始后冻结已确认设计的决策部分；只有本节第一条列出的重大触发条件才能修改，并只记录变化、原因和影响，不整篇重写设计。
+- 只有确实需要用户作出上述重大决定，用户修改与任务发生无法绕开的冲突，或必要权限、凭据、外部环境缺失且无法在当前环境解决时才暂停提问。
+- 提问只描述新证据、影响和最小决策选项；其余不受影响的工作继续推进。
+
+## 4. 交付单位与实现边界
+
+- 默认交付单位是可独立验收的纵向闭环，可自然跨越数据库、后端、API、前端、测试和文档；不按技术层机械拆分，也不把每个字段或断言变成检查点。大模块拆成内部可验证批次连续推进，但不缩小用户确认的总体范围，也不为批次新增审批或过程文档。
+- “面、线、块、点”只作为复杂任务的内部思考工具，不是每次任务必须输出、逐层展开或建档的流程。
+- 默认在用户当前分支工作；保留用户和其他任务的未提交修改，不回退、不覆盖、不整理当前交付块之外的内容。
+- 代码和契约放入既有所有权模块，优先复用仓库模式和公共组件；未经用户明确批准不得新增依赖。
+- 参考仓库只用于理解机制、交互和契约语义，不得整包迁移代码、命名、依赖假设或模块边界。
+- 相邻问题只记录，不顺带扩展重构。并行工作必须有独立所有权边界，同一文件或强耦合链路保持单一负责人。
+
+## 5. 过程工件预算
+
+- 同一交付块默认只有一个持久化事实源。已有设计满足第 3 节条件时直接执行，实施拆分和进度留在 Agent 内部或原事实源中，不再另写详细实施计划。
+- 长期维护的设计、决策、基线和验收记录放入 `docs/superpowers/specs/`。只有不存在合适事实源且用户要求或确有跨会话交接价值时，才在 `docs/superpowers/plans/` 建立唯一执行清单，且不复述完整设计。
+- 不为同一交付块同时堆叠设计、详细计划、子任务 brief、执行 report 和 review package。子 Agent 的 brief/report 默认是临时协调信息，不提交仓库。
+- 使用持久化清单时必须原位更新进度和证据，不另写 report 形成第二套进度真相。
+- 完成证据优先回写现有设计、基线或验收记录；只有存在独立且长期维护的证据边界时才新增验收文档。
+- 平台与语义变更的执行证据采用追加记录或版本化链接，至少保留日期、仓库版本、基线版本、实际证据和未关闭缺口；可以更新状态摘要，不得覆盖历史执行事实。
+- 文档必须区分当前事实、本次执行证据和后续工作，不把计划或局部完成写成模块关闭。
+
+## 6. 验证与验收预算
+
+- 行为变更优先用最小相关测试或可重复运行证据建立失败基线；纯文档修改使用差异、结构、一致性和编码检查。
+- 验证强度与风险成比例：批次内做聚焦检查，交付块末做相关模块回归；不为每个点重复运行未受影响的全量门禁。
+- 审查解决重大决策，验证检查实现正确性，验收证明业务闭环；测试、代码检查、浏览器验收和完成前验证不得重开设计批准。
+- 平台与语义变更的验收至少覆盖主路径、关键异常、权限或数据边界、兼容或恢复、相关回归和真实运行证据。
+- 若必要门禁被无关基线问题或外部环境阻塞，先隔离并完成最大可行的聚焦验证，在事实源记录缺口、影响、替代证据和关闭条件，并标记为 `NOT_RELEASABLE`；不得进入可发布基线，也不得用反复执行同一失败命令代替定位。
+- 不以“应该可以”或历史通过结果代替本次证据。运行证据和临时输出不提交仓库，除非用户明确要求证据包。
+
+最低验证矩阵：
+
+| 变更类型 | 最低证据 | 关闭与发布条件 |
+| --- | --- | --- |
+| 纯文档或非行为配置 | 差异、结构、链接、一致性、UTF-8 | 检查通过且未改变运行行为 |
+| 局部行为或缺陷 | 失败复现或失败测试、聚焦测试、相关模块门禁 | 原问题有当次通过证据，无受影响回归 |
+| 普通跨层交付 | 最短纵向主链、API/契约检查、相关测试、必要运行证据 | 主路径可运行，受影响异常路径有证据 |
+| 平台、公共语义、数据、安全或迁移 | 基线与影响扫描、上下游兼容或恢复、相关回归、真实运行和追加式验收记录 | 所有必要门禁完成；必要缺口为 `NOT_RELEASABLE` |
+| 真实 UI 或运行联动 | 契约或类型检查、真实流程、网络与运行状态证据 | 用户可见主路径和关键失败路径已证明 |
+
+矩阵定义最低证据，不要求重复运行同一门禁；更高风险可以增加证据，低风险不得套用平台级全量流程。
+
+## 7. 进度与完成定义
+
+- 进度只报告已闭环批次、验证结果、真实阻塞和会改变交付判断的风险；不逐条播报 Skill、命令、文件读取或普通编辑。
+- 完成必须同时满足：确认范围内的行为已实现，受影响的关键异常路径有证据，相关门禁已执行，必要的真实验收已完成；长期事实发生变化时，对应事实源已更新。存在必要验收缺口时只能声明实现进度和 `NOT_RELEASABLE` 状态。
+- “实现完成”和“模块关闭”必须明确区分；存在未执行的必要验收时只能声明实现状态，不能宣称模块闭环。

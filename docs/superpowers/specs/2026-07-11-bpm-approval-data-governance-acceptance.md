@@ -3,7 +3,7 @@
 - 验收日期：2026-07-11
 - 验收范围：`docs/superpowers/specs/2026-07-11-bpm-approval-data-governance-design.md`
 - 实施计划：`docs/superpowers/plans/2026-07-11-bpm-approval-data-governance-implementation.md`
-- 验收状态：通过
+- 验收状态：历史字段治理范围通过；不代表当前 M3 四类数据面闭环已通过
 
 ## 1. 验收结论
 
