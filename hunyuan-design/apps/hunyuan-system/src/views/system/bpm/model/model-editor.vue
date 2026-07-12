@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ProcessDefinitionGraph } from '#/components/bpm/graph/graph-process-model';
-import type { BpmGraphDefinitionDetailRecord } from '#/api/system/bpm';
+import type { BpmGraphDefinitionDetailRecord, BpmPolicyCatalogRecord } from '#/api/system/bpm';
 
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
@@ -28,6 +28,7 @@ import {
   getBpmGraphDraft,
   getLatestBpmGraphDefinitionDetail,
   publishBpmGraphDefinition,
+  queryBpmPolicyCatalog,
   restoreBpmGraphDraft,
   saveBpmGraphDraft,
 } from '#/api/system/bpm';
@@ -56,6 +57,11 @@ const baseline = ref<ProcessDefinitionGraph>();
 const draftMeta = reactive<DraftMeta>({ processKey: '', processName: '' });
 const definitionDetailVisible = ref(false);
 const publishedDefinition = ref<BpmGraphDefinitionDetailRecord>();
+const policyCatalog = reactive({
+  approvalPolicies: [] as BpmPolicyCatalogRecord[],
+  candidatePolicies: [] as BpmPolicyCatalogRecord[],
+  startVisibilityPolicies: [] as BpmPolicyCatalogRecord[],
+});
 
 const hasDraft = computed(() => Boolean(draftId.value && revision.value));
 const simulation = computed(() => simulateGraph(graph.value));
@@ -108,6 +114,17 @@ async function loadDraft(targetDraftId: number) {
   } finally {
     busy.value = false;
   }
+}
+
+async function loadPolicyCatalog() {
+  const [candidatePolicies, approvalPolicies, startVisibilityPolicies] = await Promise.all([
+    queryBpmPolicyCatalog({ type: 'CANDIDATE', lifecycleState: 'ACTIVE' }),
+    queryBpmPolicyCatalog({ type: 'APPROVAL', lifecycleState: 'ACTIVE' }),
+    queryBpmPolicyCatalog({ type: 'START_VISIBILITY', lifecycleState: 'ACTIVE' }),
+  ]);
+  policyCatalog.candidatePolicies = candidatePolicies || [];
+  policyCatalog.approvalPolicies = approvalPolicies || [];
+  policyCatalog.startVisibilityPolicies = startVisibilityPolicies || [];
 }
 
 async function createDraft() {
@@ -229,6 +246,12 @@ watch(
   },
   { immediate: true },
 );
+
+onMounted(() => {
+  void loadPolicyCatalog().catch((error) => {
+    ElMessage.error(error?.message || '策略目录加载失败');
+  });
+});
 </script>
 
 <template>
@@ -261,7 +284,7 @@ watch(
         <ElButton :disabled="busy" :icon="Plus" type="primary" @click="createDraft">创建 Graph 草稿</ElButton>
       </section>
 
-      <GraphProcessDesigner v-model="graph" :baseline="baseline" :disabled="busy" />
+      <GraphProcessDesigner v-model="graph" :baseline="baseline" :disabled="busy" :policy-catalog="policyCatalog" />
 
       <ElDialog
         v-model="definitionDetailVisible"

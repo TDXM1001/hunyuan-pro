@@ -26,6 +26,7 @@ import {
 
 import {
   getBpmResubmitDraft,
+  getBpmGraphStartDraft,
   getBpmStartDraft,
   resubmitMyBpmInstance,
   startBpmInstance,
@@ -36,11 +37,13 @@ import BpmRuntimeFormRenderer from './components/bpm-runtime-form-renderer.vue';
 defineOptions({ name: 'SystemBpmRuntimeStartForm' });
 
 interface RuntimeStartFormState {
-  definitionId: number;
+  definitionId: null | number;
   definitionName: string;
+  definitionSource: 'GRAPH' | 'LEGACY';
   formNameSnapshot: string;
   formSchemaSnapshotJson: string;
   formDataVersion: number;
+  graphDefinitionVersionId: null | number;
   sourceInstanceId?: null | number;
   summary: string;
   title: string;
@@ -61,11 +64,13 @@ const submitting = ref(false);
 const runtimeFormData = ref<Record<string, any>>({});
 
 const formState = reactive<RuntimeStartFormState>({
-  definitionId: 0,
+  definitionId: null,
   definitionName: '',
+  definitionSource: 'LEGACY',
   formNameSnapshot: '',
   formSchemaSnapshotJson: '[]',
   formDataVersion: 0,
+  graphDefinitionVersionId: null,
   sourceInstanceId: null,
   summary: '',
   title: '',
@@ -76,14 +81,18 @@ const formRules: FormRules<RuntimeStartFormState> = {
 };
 
 const routeDefinitionId = computed(() => parseQueryId(route.query.definitionId));
+const routeGraphDefinitionVersionId = computed(() => parseQueryId(route.query.graphDefinitionVersionId));
 const routeInstanceId = computed(() => parseQueryId(route.query.instanceId));
 const isResubmitMode = computed(() => routeInstanceId.value > 0);
+const isGraphStartMode = computed(
+  () => !isResubmitMode.value && routeGraphDefinitionVersionId.value > 0,
+);
 const pageTitle = computed(() => (isResubmitMode.value ? '重新提交流程' : '发起流程'));
 const backLabel = computed(() => (isResubmitMode.value ? '返回我的申请' : '返回可发起流程'));
 const submitLabel = computed(() => (isResubmitMode.value ? '重新提交' : '发起流程'));
 const runtimeFormKey = computed(
   () =>
-    `${formState.definitionId}-${formState.sourceInstanceId ?? 0}-${isResubmitMode.value ? 'resubmit' : 'start'}`,
+    `${formState.definitionSource}-${formState.graphDefinitionVersionId ?? formState.definitionId ?? 0}-${formState.sourceInstanceId ?? 0}-${isResubmitMode.value ? 'resubmit' : 'start'}`,
 );
 
 const pageActions = computed<ArtActionItem[]>(() => [
@@ -131,11 +140,13 @@ function safeParseJson<T>(jsonText: string | undefined, fallbackValue: T): T {
 
 function resetFormState() {
   Object.assign(formState, {
-    definitionId: 0,
+    definitionId: null,
     definitionName: '',
+    definitionSource: 'LEGACY',
     formNameSnapshot: '',
     formSchemaSnapshotJson: '[]',
     formDataVersion: 0,
+    graphDefinitionVersionId: null,
     sourceInstanceId: null,
     summary: '',
     title: '',
@@ -147,11 +158,13 @@ function resetFormState() {
 
 function applyDraft(draft: BpmRuntimeStartDraftRecord) {
   Object.assign(formState, {
-    definitionId: draft.definitionId,
+    definitionId: draft.definitionId ?? null,
     definitionName: draft.definitionName,
+    definitionSource: draft.definitionSource ?? (draft.graphDefinitionVersionId ? 'GRAPH' : 'LEGACY'),
     formNameSnapshot: draft.formNameSnapshot || '',
     formSchemaSnapshotJson: draft.formSchemaSnapshotJson || '[]',
     formDataVersion: draft.formDataVersion ?? 0,
+    graphDefinitionVersionId: draft.graphDefinitionVersionId ?? null,
     sourceInstanceId: draft.sourceInstanceId ?? null,
     summary: draft.summary || '',
     title: draft.title || draft.definitionName,
@@ -162,9 +175,10 @@ function applyDraft(draft: BpmRuntimeStartDraftRecord) {
 
 async function loadDraft() {
   const definitionId = routeDefinitionId.value;
+  const graphDefinitionVersionId = routeGraphDefinitionVersionId.value;
   const instanceId = routeInstanceId.value;
 
-  if (!definitionId && !instanceId) {
+  if (!definitionId && !graphDefinitionVersionId && !instanceId) {
     ElMessage.warning('缺少有效的流程定义或实例参数');
     handleBack();
     return;
@@ -175,7 +189,9 @@ async function loadDraft() {
   try {
     const draft = instanceId
       ? await getBpmResubmitDraft(instanceId)
-      : await getBpmStartDraft(definitionId);
+      : graphDefinitionVersionId
+        ? await getBpmGraphStartDraft(graphDefinitionVersionId)
+        : await getBpmStartDraft(definitionId);
     applyDraft(draft);
   } catch (error: any) {
     loadErrorMessage.value = isResubmitMode.value
@@ -213,7 +229,8 @@ async function handleSubmit() {
   }
 
   const submitInstanceId = formState.sourceInstanceId || routeInstanceId.value;
-  if (!formState.definitionId || (isResubmitMode.value && !submitInstanceId)) {
+  if ((!formState.definitionId && !formState.graphDefinitionVersionId)
+    || (isResubmitMode.value && !submitInstanceId)) {
     ElMessage.warning('流程草稿上下文无效，请重新加载后再试');
     return;
   }
@@ -242,8 +259,10 @@ async function handleSubmit() {
       ElMessage.success('流程已重新提交');
     } else {
       const params: BpmInstanceStartForm = {
-        definitionId: formState.definitionId,
         formDataJson,
+        ...(formState.graphDefinitionVersionId
+          ? { graphDefinitionVersionId: formState.graphDefinitionVersionId }
+          : { definitionId: formState.definitionId }),
         summary: formState.summary,
         title: formState.title,
       };
@@ -266,7 +285,7 @@ async function handleSubmit() {
 }
 
 watch(
-  [routeDefinitionId, routeInstanceId],
+  [routeDefinitionId, routeGraphDefinitionVersionId, routeInstanceId],
   () => {
     void loadDraft();
   },
@@ -286,7 +305,7 @@ watch(
           {{ loadErrorMessage ? '加载失败' : loaded ? '已加载草稿' : '等待加载' }}
         </ElTag>
         <ElTag :type="isResubmitMode ? 'warning' : 'primary'" effect="light" round>
-          {{ isResubmitMode ? '重新提交' : '首次发起' }}
+          {{ isResubmitMode ? '重新提交' : isGraphStartMode ? 'Graph 版本发起' : '首次发起' }}
         </ElTag>
       </template>
 
@@ -309,6 +328,9 @@ watch(
         <ArtEditSection title="流程信息" :index="1">
           <ElFormItem label="流程名称">
             <ElInput :model-value="formState.definitionName" disabled />
+          </ElFormItem>
+          <ElFormItem label="定义来源">
+            <ElInput :model-value="formState.definitionSource === 'GRAPH' ? 'Graph 版本' : '旧定义'" disabled />
           </ElFormItem>
           <ElFormItem label="表单快照">
             <ElInput :model-value="formState.formNameSnapshot || '-'" disabled />

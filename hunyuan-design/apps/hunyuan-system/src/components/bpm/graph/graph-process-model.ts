@@ -115,6 +115,47 @@ export function updateGraphCandidatePolicy(
   };
 }
 
+export function updateGraphApprovalPolicy(
+  graph: ProcessDefinitionGraph,
+  nodeId: string,
+  patch: Record<string, unknown>,
+): ProcessDefinitionGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => {
+      if (node.nodeId !== nodeId) {
+        return node;
+      }
+      const current = asRecord(node.properties?.approvalPolicy) || {};
+      const approvalPolicy = {
+        policyVersion: positiveInteger(current.policyVersion) ? current.policyVersion : 1,
+        ...current,
+        ...patch,
+      };
+      return {
+        ...node,
+        properties: { ...node.properties, approvalPolicy },
+      };
+    }),
+  };
+}
+
+export function updateGraphStartVisibilityPolicy(
+  graph: ProcessDefinitionGraph,
+  patch: Record<string, unknown>,
+): ProcessDefinitionGraph {
+  const current = asRecord(graph.policies.startVisibilityPolicy) || {};
+  const startVisibilityPolicy = {
+    policyVersion: positiveInteger(current.policyVersion) ? current.policyVersion : 1,
+    ...current,
+    ...patch,
+  };
+  return {
+    ...graph,
+    policies: { ...graph.policies, startVisibilityPolicy },
+  };
+}
+
 export function updateGraphEdgeRouteCondition(
   graph: ProcessDefinitionGraph,
   edgeId: string,
@@ -274,6 +315,17 @@ export function simulateGraph(graph: ProcessDefinitionGraph): GraphSimulationRes
     if (node.type !== 'APPROVAL' && node.type !== 'HANDLE') {
       continue;
     }
+    if (node.type === 'APPROVAL') {
+      const approvalPolicy = asRecord(node.properties?.approvalPolicy);
+      if (!approvalPolicy || !nonEmptyText(approvalPolicy.policyKey) || !positiveInteger(approvalPolicy.policyVersion)) {
+        findings.push({
+          elementId: node.nodeId,
+          message: '审批节点必须配置已发布的审批策略版本。',
+          path: 'approvalPolicy',
+          severity: 'BLOCKING',
+        });
+      }
+    }
     const policy = asRecord(node.properties?.candidatePolicy);
     if (!policy || !nonEmptyText(policy.policyKey) || !positiveInteger(policy.policyVersion)) {
       findings.push({
@@ -291,6 +343,17 @@ export function simulateGraph(graph: ProcessDefinitionGraph): GraphSimulationRes
       elementId: graph.rootScopeId,
       message: '流程必须配置已发布的业务契约版本。',
       path: 'businessContract',
+      severity: 'BLOCKING',
+    });
+  }
+  const startVisibilityPolicy = asRecord(graph.policies.startVisibilityPolicy);
+  if (!startVisibilityPolicy
+    || !nonEmptyText(startVisibilityPolicy.policyKey)
+    || !positiveInteger(startVisibilityPolicy.policyVersion)) {
+    findings.push({
+      elementId: graph.rootScopeId,
+      message: '流程必须配置已发布的发起可见范围策略版本。',
+      path: 'startVisibilityPolicy',
       severity: 'BLOCKING',
     });
   }

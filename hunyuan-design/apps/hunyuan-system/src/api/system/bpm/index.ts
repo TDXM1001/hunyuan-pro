@@ -6,8 +6,11 @@ export const BPM_ENDPOINT_INDEX = {
   graphDraft: '/bpm/graph-draft/',
   graphDefinition: '/bpm/graph-definition/',
   integration: '/bpm/integration/',
+  timeEvent: '/bpm/time-event/',
+  connector: '/bpm/connector/',
   listener: '/bpm/listener/',
   model: '/bpm/model/',
+  policyCatalog: '/bpm/policy-catalog/',
   runtimeTask: '/bpm/task/',
   sampleExpense: '/bpm/sample/expense/',
 } as const;
@@ -19,5 +22,7 @@ export * from './graph';
 export * from './integration';
 export * from './listener';
 export * from './model';
+export * from './policy';
 export * from './runtime';
 export * from './sample-expense';
+export * from './time-event';

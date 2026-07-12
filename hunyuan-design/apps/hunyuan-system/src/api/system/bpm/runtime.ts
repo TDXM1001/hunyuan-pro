@@ -121,15 +121,53 @@ export interface BpmNotificationRecordVO {
   updateTime?: null | string;
 }
 
+export interface BpmApprovalStageMemberTraceRecord {
+  actionResult?: null | string;
+  activatedAt?: null | string;
+  approvalStageMemberId: number;
+  cancelledAt?: null | string;
+  changeReason?: null | string;
+  completedAt?: null | string;
+  currentEmployeeId: number;
+  memberOrder: number;
+  memberState: string;
+  sourceEmployeeId: number;
+  sourceEmployeeNameSnapshot?: null | string;
+  currentEmployeeNameSnapshot?: null | string;
+}
+
+export interface BpmApprovalStageTraceRecord {
+  approvalPolicyVersionId: number;
+  approvalStageId: number;
+  approvedMemberCount: number;
+  authoredNodeId: string;
+  candidatePolicyVersionId: number;
+  closedAt?: null | string;
+  completionMode: string;
+  effectiveMemberCount: number;
+  generation: number;
+  members: BpmApprovalStageMemberTraceRecord[];
+  openedAt?: null | string;
+  processedMemberCount: number;
+  ratioPercent: number;
+  requiredApprovalCount: number;
+  stageInvocationId: string;
+  stageState: string;
+  terminalReason?: null | string;
+}
+
 export interface BpmInstanceTraceRecord {
   actionLogs: BpmTaskActionLogRecord[];
   approvalGroups: BpmApprovalGroupDetailRecord[];
+  approvalStages: BpmApprovalStageTraceRecord[];
   callbackRecords: BpmCallbackRecordVO[];
   commandRecords: BpmCommandRecordVO[];
   currentTasks: BpmTaskRecord[];
   formDataChanges: BpmFormDataChangeRecord[];
   instance: BpmInstanceDetailRecord;
   notificationRecords: BpmNotificationRecordVO[];
+  timeEvents: import('./time-event').BpmTimeEventRecord[];
+  externalWaits: import('./time-event').BpmExternalWaitRecord[];
   processGraph?: BpmRuntimeGraphRecord;
   routeDecisions?: BpmRouteDecisionRecord[];
 }
@@ -238,20 +276,24 @@ export interface BpmTaskDetailRecord extends BpmTaskRecord {
 
 export interface BpmStartableDefinitionRecord {
   categoryNameSnapshot?: null | string;
-  definitionId: number;
+  definitionId?: null | number;
+  definitionSource?: 'GRAPH' | 'LEGACY';
   definitionKey: string;
   definitionName: string;
   definitionVersion: number;
   formNameSnapshot?: null | string;
+  graphDefinitionVersionId?: null | number;
 }
 
 export interface BpmRuntimeStartDraftRecord {
-  definitionId: number;
+  definitionId?: null | number;
+  definitionSource?: 'GRAPH' | 'LEGACY';
   definitionName: string;
   formDataJson: string;
   formDataVersion?: null | number;
   formNameSnapshot?: null | string;
   formSchemaSnapshotJson: string;
+  graphDefinitionVersionId?: null | number;
   sourceInstanceId?: null | number;
   summary?: null | string;
   title: string;
@@ -285,8 +327,9 @@ export interface BpmInstanceStartForm {
   businessId?: null | number;
   businessKey?: null | string;
   businessType?: null | string;
-  definitionId: number;
+  definitionId?: null | number;
   formDataJson: string;
+  graphDefinitionVersionId?: null | number;
   summary?: null | string;
   title?: null | string;
 }
@@ -402,6 +445,12 @@ export async function queryBpmStartableDefinitions() {
 export async function getBpmStartDraft(definitionId: number) {
   return requestClient.get<BpmRuntimeStartDraftRecord>(
     `/app/bpm/start-draft/${definitionId}`,
+  );
+}
+
+export async function getBpmGraphStartDraft(graphDefinitionVersionId: number) {
+  return requestClient.get<BpmRuntimeStartDraftRecord>(
+    `/app/bpm/graph-start-draft/${graphDefinitionVersionId}`,
   );
 }
 

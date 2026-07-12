@@ -28,6 +28,7 @@ import {
 } from 'element-plus';
 
 import BpmApprovalGroupPanel from './bpm-approval-group-panel.vue';
+import BpmApprovalStagePanel from './bpm-approval-stage-panel.vue';
 import BpmRouteDecisionList from './bpm-route-decision-list.vue';
 import BpmRuntimeProcessGraph from './bpm-runtime-process-graph.vue';
 
@@ -46,6 +47,8 @@ const actionLogs = computed(() => detail.value?.actionLogs ?? []);
 const callbackRecords = computed(() => trace.value?.callbackRecords ?? []);
 const commandRecords = computed(() => trace.value?.commandRecords ?? []);
 const notificationRecords = computed(() => trace.value?.notificationRecords ?? []);
+const timeEvents = computed(() => trace.value?.timeEvents ?? []);
+const externalWaits = computed(() => trace.value?.externalWaits ?? []);
 const formDataChanges = computed(() => trace.value?.formDataChanges ?? []);
 const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
 const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
@@ -54,6 +57,7 @@ const routeDecisions = computed(() => trace.value?.routeDecisions ?? []);
 const approvalGroups = computed(
   () => trace.value?.approvalGroups ?? detail.value?.approvalGroups ?? [],
 );
+const approvalStages = computed(() => trace.value?.approvalStages ?? []);
 
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
@@ -205,6 +209,11 @@ defineExpose({ open });
         <BpmApprovalGroupPanel :groups="approvalGroups" />
       </template>
 
+      <template v-if="approvalStages.length > 0">
+        <div class="bpm-instance-detail__section-title">审批阶段</div>
+        <BpmApprovalStagePanel :stages="approvalStages" />
+      </template>
+
       <div class="bpm-instance-detail__section-title">动作轨迹</div>
       <ElTimeline v-if="actionLogs.length > 0" class="bpm-instance-detail__timeline">
         <ElTimelineItem
@@ -283,7 +292,29 @@ defineExpose({ open });
             <span>通知记录</span>
             <strong>{{ notificationRecords.length }}</strong>
           </div>
+          <div class="bpm-instance-detail__trace-item"><span>时间事件</span><strong>{{ timeEvents.length }}</strong></div>
+          <div class="bpm-instance-detail__trace-item"><span>外部等待</span><strong>{{ externalWaits.length }}</strong></div>
         </div>
+
+        <div class="bpm-instance-detail__sub-title">时间事件</div>
+        <ElTable v-if="timeEvents.length" :data="timeEvents" border size="small">
+          <ElTableColumn label="类型" prop="eventKind" min-width="130" />
+          <ElTableColumn label="节点" prop="nodeKey" min-width="120" />
+          <ElTableColumn label="状态" prop="eventStatus" min-width="130" />
+          <ElTableColumn label="计划时间" prop="scheduledAt" min-width="170" />
+          <ElTableColumn label="触发次数" prop="triggerCount" width="90" />
+        </ElTable>
+        <ElEmpty v-else description="暂无时间事件" />
+
+        <div class="bpm-instance-detail__sub-title">外部等待</div>
+        <ElTable v-if="externalWaits.length" :data="externalWaits" border size="small">
+          <ElTableColumn label="连接器" prop="connectorKey" min-width="120" />
+          <ElTableColumn label="操作" prop="operationKey" min-width="130" />
+          <ElTableColumn label="节点" prop="nodeKey" min-width="120" />
+          <ElTableColumn label="状态" prop="waitStatus" min-width="120" />
+          <ElTableColumn label="超时时间" prop="timeoutAt" min-width="170" />
+        </ElTable>
+        <ElEmpty v-else description="暂无外部等待" />
 
         <div class="bpm-instance-detail__sub-title">回调记录</div>
         <ElTable

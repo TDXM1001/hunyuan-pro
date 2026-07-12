@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { GraphEdge, GraphNodeType, ProcessDefinitionGraph } from './graph-process-model';
+import type { BpmPolicyCatalogRecord } from '#/api/system/bpm';
 
 import { computed, ref, watch } from 'vue';
 
@@ -10,9 +11,11 @@ import {
   autoLayoutGraph,
   diffGraphSemantics,
   simulateGraph,
+  updateGraphApprovalPolicy,
   updateGraphBusinessContract,
   updateGraphCandidatePolicy,
   updateGraphEdgeRouteCondition,
+  updateGraphStartVisibilityPolicy,
   type GraphDiagnostic,
   type GraphNode,
 } from './graph-process-model';
@@ -21,6 +24,11 @@ const props = defineProps<{
   baseline?: ProcessDefinitionGraph;
   disabled?: boolean;
   modelValue: ProcessDefinitionGraph;
+  policyCatalog?: {
+    approvalPolicies: BpmPolicyCatalogRecord[];
+    candidatePolicies: BpmPolicyCatalogRecord[];
+    startVisibilityPolicies: BpmPolicyCatalogRecord[];
+  };
 }>();
 
 const emit = defineEmits<{
@@ -54,6 +62,9 @@ const diagnostics = computed(() => simulateGraph(graph.value).findings);
 const semanticDiff = computed(() =>
   props.baseline ? diffGraphSemantics(props.baseline, graph.value) : undefined,
 );
+const candidatePolicies = computed(() => props.policyCatalog?.candidatePolicies || []);
+const approvalPolicies = computed(() => props.policyCatalog?.approvalPolicies || []);
+const startVisibilityPolicies = computed(() => props.policyCatalog?.startVisibilityPolicies || []);
 
 const palette: Array<{ label: string; type: GraphNodeType }> = [
   { label: '审批', type: 'APPROVAL' },
@@ -134,11 +145,54 @@ function updateSelectedNode(patch: Partial<GraphNode>) {
   });
 }
 
-function updateCandidatePolicy(field: 'policyKey' | 'policyVersion', value: string | number | null | undefined) {
+function updateNodePolicy(
+  kind: 'approval' | 'candidate',
+  value: string | number | null | undefined,
+) {
   if (!selectedNode.value) {
     return;
   }
-  updateGraph(updateGraphCandidatePolicy(graph.value, selectedNode.value.nodeId, { [field]: value }));
+  const reference = parsePolicySelection(value);
+  if (!reference) {
+    return;
+  }
+  updateGraph(kind === 'candidate'
+    ? updateGraphCandidatePolicy(graph.value, selectedNode.value.nodeId, reference)
+    : updateGraphApprovalPolicy(graph.value, selectedNode.value.nodeId, reference));
+}
+
+function updateStartVisibilityPolicy(value: string | number | null | undefined) {
+  const reference = parsePolicySelection(value);
+  if (!reference) {
+    return;
+  }
+  updateGraph(updateGraphStartVisibilityPolicy(graph.value, reference));
+}
+
+function policySelectionValue(value: unknown): string {
+  const reference = asRecord(value);
+  const policyKey = asText(reference?.policyKey);
+  const policyVersion = reference?.policyVersion;
+  return policyKey && positiveInteger(policyVersion)
+    ? `${encodeURIComponent(policyKey)}:${policyVersion}`
+    : '';
+}
+
+function catalogPolicySelectionValue(policy: BpmPolicyCatalogRecord): string {
+  return policySelectionValue(policy.reference);
+}
+
+function parsePolicySelection(value: string | number | null | undefined): Record<string, unknown> | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const separator = value.lastIndexOf(':');
+  if (separator <= 0) {
+    return undefined;
+  }
+  const policyKey = decodeURIComponent(value.slice(0, separator));
+  const policyVersion = Number(value.slice(separator + 1));
+  return policyKey && positiveInteger(policyVersion) ? { policyKey, policyVersion } : undefined;
 }
 
 function updateGatewayProperty(field: 'gatewayMode' | 'pairedGatewayId', value: string | number | null | undefined) {
@@ -220,7 +274,10 @@ function focusDiagnostic(diagnostic: GraphDiagnostic) {
 }
 
 function initialNodeProperties(type: GraphNodeType): Record<string, unknown> {
-  if (type === 'APPROVAL' || type === 'HANDLE') {
+  if (type === 'APPROVAL') {
+    return { approvalPolicy: {}, candidatePolicy: {} };
+  }
+  if (type === 'HANDLE') {
     return { candidatePolicy: {} };
   }
   if (isGateway(type)) {
@@ -241,6 +298,14 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+function asText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function positiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 </script>
 
@@ -318,6 +383,22 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
           @update:model-value="updateBusinessContract('contractVersion', $event)"
         />
       </label>
+      <label class="graph-designer__field">
+        <span>发起可见策略</span>
+        <ElSelect
+          :disabled="disabled"
+          :model-value="policySelectionValue(graph.policies.startVisibilityPolicy)"
+          placeholder="选择已启用策略版本"
+          @update:model-value="updateStartVisibilityPolicy($event)"
+        >
+          <ElOption
+            v-for="policy in startVisibilityPolicies"
+            :key="catalogPolicySelectionValue(policy)"
+            :label="`${policy.reference.policyKey} v${policy.reference.policyVersion}`"
+            :value="catalogPolicySelectionValue(policy)"
+          />
+        </ElSelect>
+      </label>
 
       <template v-if="selectedNode">
         <ElDivider />
@@ -337,21 +418,35 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
         <template v-if="selectedNode.type === 'APPROVAL' || selectedNode.type === 'HANDLE'">
           <label class="graph-designer__field">
             <span>候选策略</span>
-            <ElInput
+            <ElSelect
               :disabled="disabled"
-              :model-value="String(asRecord(selectedNode.properties?.candidatePolicy)?.policyKey || '')"
-              placeholder="policyKey"
-              @update:model-value="updateCandidatePolicy('policyKey', $event)"
-            />
+              :model-value="policySelectionValue(selectedNode.properties?.candidatePolicy)"
+              placeholder="选择已启用策略版本"
+              @update:model-value="updateNodePolicy('candidate', $event)"
+            >
+              <ElOption
+                v-for="policy in candidatePolicies"
+                :key="catalogPolicySelectionValue(policy)"
+                :label="`${policy.reference.policyKey} v${policy.reference.policyVersion}`"
+                :value="catalogPolicySelectionValue(policy)"
+              />
+            </ElSelect>
           </label>
-          <label class="graph-designer__field">
-            <span>策略版本</span>
-            <ElInputNumber
+          <label v-if="selectedNode.type === 'APPROVAL'" class="graph-designer__field">
+            <span>审批策略</span>
+            <ElSelect
               :disabled="disabled"
-              :min="1"
-              :model-value="Number(asRecord(selectedNode.properties?.candidatePolicy)?.policyVersion || 1)"
-              @update:model-value="updateCandidatePolicy('policyVersion', $event)"
-            />
+              :model-value="policySelectionValue(selectedNode.properties?.approvalPolicy)"
+              placeholder="选择已启用策略版本"
+              @update:model-value="updateNodePolicy('approval', $event)"
+            >
+              <ElOption
+                v-for="policy in approvalPolicies"
+                :key="catalogPolicySelectionValue(policy)"
+                :label="`${policy.reference.policyKey} v${policy.reference.policyVersion}`"
+                :value="catalogPolicySelectionValue(policy)"
+              />
+            </ElSelect>
           </label>
         </template>
         <template v-if="isGateway(selectedNode.type)">
