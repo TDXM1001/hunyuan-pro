@@ -1,0 +1,30 @@
+package com.hunyuan.sa.bpm.module.model.domain.form;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+/**
+ * 管理端导入完整 Graph 文档请求。
+ */
+@Data
+public class BpmGraphDraftImportForm {
+
+    @Schema(description = "新流程资产编码")
+    @NotBlank(message = "流程资产编码不能为空")
+    @Size(max = 64, message = "流程资产编码最多 64 个字符")
+    private String processKey;
+
+    @Schema(description = "新流程资产名称")
+    @NotBlank(message = "流程资产名称不能为空")
+    @Size(max = 128, message = "流程资产名称最多 128 个字符")
+    private String processName;
+
+    @Schema(description = "流程分类 ID")
+    private Long categoryId;
+
+    @Schema(description = "完整 Graph 导出文档")
+    @NotBlank(message = "Graph 导出文档不能为空")
+    private String graphDocumentJson;
+}
