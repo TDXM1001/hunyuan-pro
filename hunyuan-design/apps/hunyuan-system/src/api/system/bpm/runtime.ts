@@ -352,12 +352,14 @@ export interface BpmTaskApproveForm {
   copyEmployeeIds?: number[];
   formDataPatchJson?: null | string;
   formDataVersion?: null | number;
+  requestId?: string;
   taskId: number;
 }
 
 export interface BpmTaskRejectForm {
   commentText?: null | string;
   copyEmployeeIds?: number[];
+  requestId?: string;
   taskId: number;
 }
 
@@ -369,6 +371,7 @@ export interface BpmTaskCompleteForm {
 export interface BpmTaskReturnForm {
   commentText?: null | string;
   copyEmployeeIds?: number[];
+  requestId?: string;
   taskId: number;
 }
 
@@ -558,6 +561,7 @@ export async function approveBpmTask(params: BpmTaskApproveForm) {
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     formDataPatchJson: params.formDataPatchJson?.trim() || undefined,
     formDataVersion: params.formDataVersion ?? undefined,
+    requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
   });
 }
@@ -573,6 +577,7 @@ export async function rejectBpmTask(params: BpmTaskRejectForm) {
   return requestClient.post<string>('/app/bpm/task/reject', {
     commentText: params.commentText?.trim() || '',
     copyEmployeeIds: params.copyEmployeeIds ?? [],
+    requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
   });
 }
@@ -581,6 +586,7 @@ export async function returnBpmTaskToInitiator(params: BpmTaskReturnForm) {
   return requestClient.post<string>('/app/bpm/task/returnToInitiator', {
     commentText: params.commentText?.trim() || '',
     copyEmployeeIds: params.copyEmployeeIds ?? [],
+    requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
   });
 }

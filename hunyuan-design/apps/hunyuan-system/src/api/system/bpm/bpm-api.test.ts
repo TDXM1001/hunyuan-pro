@@ -85,6 +85,7 @@ const apiFiles = [
       'approvalMode: BpmApprovalMode',
       'approvalGroups',
       'copyEmployeeIds',
+      'requestId: params.requestId ?? crypto.randomUUID()',
     ],
     path: 'apps/hunyuan-system/src/api/system/bpm/runtime.ts',
   },
