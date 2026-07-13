@@ -76,6 +76,8 @@ const taskFormWorkbenchRef = ref<{
   submitPatch: () => Promise<{
     formDataPatchJson?: string;
     formDataVersion?: number;
+    workingDataPatchJson?: string;
+    workingDataVersion?: number;
   }>;
 }>();
 const employeeLoading = ref(false);
@@ -368,12 +370,14 @@ async function submitActionDialog() {
       copyEmployeeIds: actionForm.copyEmployeeIds,
       taskId: currentActionRow.value.taskId,
     };
+    const dataMutation = actionForm.type === 'complete'
+      ? undefined
+      : await taskFormWorkbenchRef.value?.submitPatch();
     if (actionForm.type === 'approve') {
-      const formMutation = await taskFormWorkbenchRef.value?.submitPatch();
       await approveBpmTask({
         ...payload,
-        formDataPatchJson: formMutation?.formDataPatchJson,
-        formDataVersion: formMutation?.formDataVersion,
+        formDataPatchJson: dataMutation?.formDataPatchJson,
+        formDataVersion: dataMutation?.formDataVersion,
       });
       ElMessage.success('审批已通过');
     } else if (actionForm.type === 'complete') {
@@ -383,10 +387,18 @@ async function submitActionDialog() {
       });
       ElMessage.success('办理已完成');
     } else if (actionForm.type === 'reject') {
-      await rejectBpmTask(payload);
+      await rejectBpmTask({
+        ...payload,
+        workingDataPatchJson: dataMutation?.workingDataPatchJson,
+        workingDataVersion: dataMutation?.workingDataVersion,
+      });
       ElMessage.success('审批已拒绝');
     } else {
-      await returnBpmTaskToInitiator(payload);
+      await returnBpmTaskToInitiator({
+        ...payload,
+        workingDataPatchJson: dataMutation?.workingDataPatchJson,
+        workingDataVersion: dataMutation?.workingDataVersion,
+      });
       ElMessage.success('已退回发起人');
     }
     actionDialogVisible.value = false;
@@ -690,6 +702,12 @@ onMounted(() => {
             </ElDescriptionsItem>
           </ElDescriptions>
 
+          <BpmTaskFormWorkbench
+            v-if="detailData.approvalSubjectContext"
+            :approval-subject-context="detailData.approvalSubjectContext"
+            readonly
+          />
+
           <template v-if="detailData.approvalGroup">
             <div class="runtime-task-page__timeline-title">审批组</div>
             <BpmApprovalGroupPanel :group="detailData.approvalGroup" />
@@ -721,12 +739,13 @@ onMounted(() => {
     <ElDialog
       v-model="actionDialogVisible"
       :title="getActionDialogTitle()"
-      :width="actionForm.type === 'approve' ? '860px' : '560px'"
+      :width="actionForm.type === 'complete' ? '560px' : '860px'"
     >
       <div class="runtime-task-page__action-form">
         <BpmTaskFormWorkbench
-          v-if="actionForm.type === 'approve'"
+          v-if="actionForm.type !== 'complete'"
           ref="taskFormWorkbenchRef"
+          :approval-subject-context="actionTaskDetail?.approvalSubjectContext"
           :form-context="actionTaskDetail?.formContext"
         />
         <ElFormItem label="处理意见">

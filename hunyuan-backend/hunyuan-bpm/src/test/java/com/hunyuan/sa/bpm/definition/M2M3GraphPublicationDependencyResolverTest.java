@@ -17,6 +17,7 @@ import com.hunyuan.sa.bpm.module.definition.service.GraphPublicationDependencySn
 import com.hunyuan.sa.bpm.module.definition.service.M2M3GraphPublicationDependencyResolver;
 import com.hunyuan.sa.bpm.module.businesscontract.dao.BpmBusinessContractVersionDao;
 import com.hunyuan.sa.bpm.module.businesscontract.domain.entity.BpmBusinessContractVersionEntity;
+import com.hunyuan.sa.bpm.module.businesscontract.service.BpmBusinessContractCatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,13 +46,13 @@ class M2M3GraphPublicationDependencyResolverTest {
         businessContractVersionDao = mock(BpmBusinessContractVersionDao.class);
         resolver = new M2M3GraphPublicationDependencyResolver(
                 new BpmPolicyCatalogService(candidatePolicyVersionDao, approvalPolicyVersionDao, startVisibilityPolicyVersionDao),
-                businessContractVersionDao
+                new BpmBusinessContractCatalogService(businessContractVersionDao)
         );
     }
 
     @Test
     void shouldBlockPublishWhenReferencedCandidatePolicyVersionDoesNotExist() {
-        when(businessContractVersionDao.selectOne(any())).thenReturn(businessContract());
+        when(businessContractVersionDao.selectByKeyAndVersionForUpdate("expense", 2)).thenReturn(businessContract());
         when(startVisibilityPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("employee-start", 1))
                 .thenReturn(startVisibilityPolicy());
 
@@ -80,16 +81,18 @@ class M2M3GraphPublicationDependencyResolverTest {
                 .thenReturn(approvalPolicy());
         when(startVisibilityPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("employee-start", 1))
                 .thenReturn(startVisibilityPolicy());
-        when(businessContractVersionDao.selectOne(any())).thenReturn(businessContract());
+        when(businessContractVersionDao.selectByKeyAndVersionForUpdate("expense", 2)).thenReturn(businessContract());
 
         GraphPublicationDependencySnapshot snapshot = resolver.resolve(graph());
 
-        assertThat(snapshot.toSnapshotMap()).containsEntry("businessContract", Map.of(
-                "contractKey", "expense",
-                "contractVersion", 2,
-                "contractVersionId", 22L,
-                "canonicalPayload", "{}"
-        ));
+        Map<String, Object> contract = (Map<String, Object>) snapshot.toSnapshotMap().get("businessContract");
+        assertThat(contract)
+                .containsEntry("contractKey", "expense")
+                .containsEntry("contractVersion", 2)
+                .containsEntry("contractVersionId", 22L)
+                .containsEntry("schemaVersion", 1)
+                .containsKey("canonicalPayload")
+                .containsKey("digest");
         Map<String, Object> candidatePolicies = (Map<String, Object>) snapshot.toSnapshotMap().get("candidatePolicies");
         Map<String, Object> candidatePolicy = (Map<String, Object>) candidatePolicies.get("review");
         assertThat(candidatePolicy)
@@ -97,6 +100,24 @@ class M2M3GraphPublicationDependencyResolverTest {
                 .containsEntry("canonicalPayload", "{\"emptyCandidatePolicy\":\"BLOCK\",\"resolutionPhase\":\"ACTIVATE\",\"resolverParameters\":{\"roleId\":8},\"resolverType\":\"ROLE\",\"selfApprovalPolicy\":\"BLOCK\"}")
                 .containsKey("digest");
         assertThat(snapshot.toSnapshotMap()).containsKeys("approvalPolicies", "startVisibilityPolicy");
+    }
+
+    @Test
+    void shouldBlockPublishWhenActiveBusinessContractPayloadIsInvalid() {
+        when(candidatePolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("finance-review", 3))
+                .thenReturn(candidatePolicy());
+        when(approvalPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("finance-completion", 1))
+                .thenReturn(approvalPolicy());
+        when(startVisibilityPolicyVersionDao.selectByPolicyKeyAndVersionForUpdate("employee-start", 1))
+                .thenReturn(startVisibilityPolicy());
+        BpmBusinessContractVersionEntity invalid = businessContract();
+        invalid.setContractJson("{}");
+        when(businessContractVersionDao.selectByKeyAndVersionForUpdate("expense", 2)).thenReturn(invalid);
+
+        assertThatThrownBy(() -> resolver.resolve(graph()))
+                .isInstanceOf(GraphPublicationDependencyException.class)
+                .hasMessageContaining("业务契约")
+                .hasMessageContaining("不合法");
     }
 
     private BpmCandidatePolicyVersionEntity candidatePolicy() {
@@ -135,6 +156,15 @@ class M2M3GraphPublicationDependencyResolverTest {
         entity.setContractKey("expense");
         entity.setContractVersion(2);
         entity.setLifecycleState("ACTIVE");
+        entity.setSchemaVersion(1);
+        entity.setContractJson("""
+                {"sourceSystem":"HUNYUAN","businessType":"EXPENSE","businessKeyRule":{"pattern":"EXP-[0-9]+"},
+                "fieldSchema":[{"key":"amount","type":"DECIMAL","required":true,"sensitivity":"INTERNAL"}],
+                "routingFacts":[],
+                "workingDataSchema":[{"key":"approvedAmount","type":"DECIMAL","required":true,"sensitivity":"INTERNAL"}],
+                "attachmentRules":{"maxCount":5},"detailLayout":{"sections":["fields"]},
+                "changePolicy":{"mode":"FIELD_CONTROLLED","editableFields":["approvedAmount"]}}
+                """);
         return entity;
     }
 

@@ -2,7 +2,8 @@
 
 - 日期：2026-07-11
 - 重审日期：2026-07-12
-- 状态：当前模块设计；旧字段治理验收作为算法与测试资产
+- 状态：已实现并于 2026-07-13 验收关闭；旧字段治理验收继续作为算法与回归资产
+- 验收：`docs/superpowers/specs/2026-07-13-bpm-m3-approval-data-governance-acceptance.md`
 - 优先级：P1
 - 总体蓝图：`docs/superpowers/specs/2026-07-11-bpm-enterprise-blueprint.md`
 - 前置条件：M1 定义引用契约稳定；可与 M2 并行

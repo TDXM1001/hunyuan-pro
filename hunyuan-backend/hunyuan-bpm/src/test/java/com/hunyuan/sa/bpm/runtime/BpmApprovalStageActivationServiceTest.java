@@ -3,6 +3,9 @@ package com.hunyuan.sa.bpm.runtime;
 import com.alibaba.fastjson.JSON;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateMember;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateSnapshot;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateResolutionContext;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.RoutingFactView;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateAutomaticOutcome;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.EngineEffect;
 import com.hunyuan.sa.bpm.module.candidate.service.CandidateResolutionService;
@@ -26,6 +29,7 @@ import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectReque
 
 import java.util.List;
 import java.util.Map;
+import java.lang.reflect.Field;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -353,6 +357,47 @@ class BpmApprovalStageActivationServiceTest {
         assertThat(command.getValue().approvalPolicy().ratioPercent()).isEqualTo(100);
     }
 
+    @Test
+    void activateShouldUseFrozenM3RoutingFactSnapshot() {
+        BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
+        GraphDefinitionVersionDao versionDao = Mockito.mock(GraphDefinitionVersionDao.class);
+        GraphDefinitionElementMappingDao mappingDao = Mockito.mock(GraphDefinitionElementMappingDao.class);
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        CandidateResolutionService candidateService = Mockito.mock(CandidateResolutionService.class);
+        BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
+        BpmTaskProjectionService projectionService = Mockito.mock(BpmTaskProjectionService.class);
+        BpmApprovalRuntimeDataService approvalDataService = Mockito.mock(BpmApprovalRuntimeDataService.class);
+        BpmApprovalStageActivationService service = new BpmApprovalStageActivationService(
+                instanceDao, versionDao, mappingDao, stageDao, candidateService, stageService, projectionService
+        );
+        setField(service, "bpmApprovalRuntimeDataService", approvalDataService);
+        BpmInstanceEntity instance = instance();
+        instance.setRoutingFactSnapshotId(201L);
+        instance.setCurrentFormDataSnapshotJson("{\"financeApprover\":999}");
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance);
+        GraphDefinitionVersionEntity version = versionWithPolicies("IMMEDIATE");
+        when(versionDao.selectById(41L)).thenReturn(version);
+        when(mappingDao.selectByGraphDefinitionVersionIdAndCompiledElementId(41L, "graph_stage_finance_review_chief"))
+                .thenReturn(mapping());
+        when(stageDao.selectNextGeneration(81L, "finance-review:chief")).thenReturn(0);
+        when(approvalDataService.routingFactView(201L)).thenReturn(new RoutingFactView(
+                "22", "1", java.util.Set.of("financeApprover"), Map.of("financeApprover", 50L)
+        ));
+        when(candidateService.resolve(any(), any())).thenReturn(snapshot());
+        BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
+        stage.setApprovalStageId(71L);
+        when(stageService.open(any())).thenReturn(stage);
+
+        service.activate(command("execution-92"));
+
+        ArgumentCaptor<CandidateResolutionContext> context = ArgumentCaptor.forClass(CandidateResolutionContext.class);
+        verify(candidateService).resolve(any(), context.capture());
+        assertThat(context.getValue().routingFactView().employeeFacts())
+                .containsEntry("financeApprover", 50L)
+                .doesNotContainValue(999L);
+        verify(approvalDataService).routingFactView(201L);
+    }
+
     private BpmInstanceEntity instance() {
         BpmInstanceEntity instance = new BpmInstanceEntity();
         instance.setInstanceId(81L);
@@ -422,5 +467,15 @@ class BpmApprovalStageActivationServiceTest {
                 "canonicalPayload", canonicalPayload,
                 "digest", key + "-digest"
         );
+    }
+
+    private static void setField(Object target, String name, Object value) {
+        try {
+            Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException ex) {
+            throw new AssertionError(ex);
+        }
     }
 }

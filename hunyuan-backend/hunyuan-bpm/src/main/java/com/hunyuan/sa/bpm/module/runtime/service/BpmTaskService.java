@@ -12,6 +12,7 @@ import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessResultEvent;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalSubjectViewService;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmCopyTypeEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
@@ -107,6 +108,9 @@ public class BpmTaskService {
     @Resource
     private BpmTaskActionPolicy bpmTaskActionPolicy;
 
+    @Resource
+    private BpmApprovalSubjectViewService bpmApprovalSubjectViewService;
+
     public ResponseDTO<PageResult<BpmTaskVO>> queryAdminPage(BpmTaskQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<BpmTaskVO> list = bpmTaskDao.queryPage(page, queryForm);
@@ -184,6 +188,12 @@ public class BpmTaskService {
                     bpmTaskFormContextService.buildForEmployeeTask(taskEntity, instanceEntity)
             );
         }
+        if (instanceEntity != null && instanceEntity.getApprovalSubjectSnapshotId() != null
+                && bpmApprovalSubjectViewService != null) {
+            detailVO.setApprovalSubjectContext(
+                    bpmApprovalSubjectViewService.buildForTask(taskEntity, instanceEntity)
+            );
+        }
         return detailVO;
     }
 
@@ -231,7 +241,10 @@ public class BpmTaskService {
                 approveForm.getTaskId(),
                 "APPROVE",
                 approveForm.getCommentText(),
-                approveForm.getRequestId()
+                approveForm.getRequestId(),
+                approveForm.getFormDataVersion(),
+                approveForm.getFormDataPatchJson(),
+                approveForm.getActionAttachmentsJson()
         );
         if (approvalStageResponse != null) {
             return approvalStageResponse;
@@ -265,7 +278,10 @@ public class BpmTaskService {
                 rejectForm.getTaskId(),
                 "REJECT",
                 rejectForm.getCommentText(),
-                rejectForm.getRequestId()
+                rejectForm.getRequestId(),
+                rejectForm.getWorkingDataVersion(),
+                rejectForm.getWorkingDataPatchJson(),
+                rejectForm.getActionAttachmentsJson()
         );
         if (approvalStageResponse != null) {
             return approvalStageResponse;
@@ -303,7 +319,10 @@ public class BpmTaskService {
                 returnForm.getTaskId(),
                 "RETURN",
                 returnForm.getCommentText(),
-                returnForm.getRequestId()
+                returnForm.getRequestId(),
+                returnForm.getWorkingDataVersion(),
+                returnForm.getWorkingDataPatchJson(),
+                returnForm.getActionAttachmentsJson()
         );
         if (approvalStageResponse != null) {
             return approvalStageResponse;
@@ -924,7 +943,10 @@ public class BpmTaskService {
             Long taskId,
             String action,
             String commentText,
-            String requestId
+            String requestId,
+            Long expectedWorkingDataVersion,
+            String workingDataPatchJson,
+            String attachmentsJson
     ) {
         BpmTaskEntity task = bpmTaskDao.selectById(taskId);
         if (task == null) {
@@ -933,7 +955,10 @@ public class BpmTaskService {
         if (task.getApprovalStageId() == null && task.getApprovalStageMemberId() == null) {
             return null;
         }
-        return bpmApprovalStageCommandService.execute(taskId, action, commentText, requestId);
+        return bpmApprovalStageCommandService.execute(
+                taskId, action, commentText, requestId,
+                expectedWorkingDataVersion, workingDataPatchJson, attachmentsJson
+        );
     }
 
     private ResponseDTO<String> rejectGenericActionForApprovalStageMember(BpmTaskEntity task) {

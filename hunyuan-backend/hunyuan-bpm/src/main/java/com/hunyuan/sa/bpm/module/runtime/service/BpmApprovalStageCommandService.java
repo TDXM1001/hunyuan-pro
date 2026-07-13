@@ -38,6 +38,9 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectRequestedEvent;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationCommand;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationResult;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalDataMutationService;
 import jakarta.annotation.Resource;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
@@ -94,6 +97,9 @@ public class BpmApprovalStageCommandService {
     @Resource
     private BpmApprovalCommandReceiptDao bpmApprovalCommandReceiptDao;
 
+    @Resource
+    private BpmApprovalDataMutationService bpmApprovalDataMutationService;
+
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> execute(Long taskId, String action, String commentText) {
         return execute(taskId, action, commentText, "legacy-" + java.util.UUID.randomUUID());
@@ -101,6 +107,19 @@ public class BpmApprovalStageCommandService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> execute(Long taskId, String action, String commentText, String requestId) {
+        return execute(taskId, action, commentText, requestId, null, null, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> execute(
+            Long taskId,
+            String action,
+            String commentText,
+            String requestId,
+            Long expectedWorkingDataVersion,
+            String workingDataPatchJson,
+            String attachmentsJson
+    ) {
         BpmTaskEntity lookup = bpmTaskDao.selectById(taskId);
         if (lookup == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
@@ -120,7 +139,10 @@ public class BpmApprovalStageCommandService {
         Long actorEmployeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot actor = bpmOrgIdentityGateway.requireEmployee(actorEmployeeId);
         String normalizedRequestId = normalizeRequestId(requestId);
-        String commandFingerprint = commandFingerprint(taskId, action, actorEmployeeId, commentText);
+        String commandFingerprint = commandFingerprint(
+                taskId, action, actorEmployeeId, commentText,
+                expectedWorkingDataVersion, workingDataPatchJson, attachmentsJson
+        );
         BpmApprovalCommandReceiptEntity existingReceipt = bpmApprovalCommandReceiptDao.selectForUpdate(
                 stage.getTenantId(), instance.getInstanceId(), normalizedRequestId
         );
@@ -158,6 +180,11 @@ public class BpmApprovalStageCommandService {
         if (!receiptClaim.newlyClaimed()) {
             return replay(receipt, commandFingerprint);
         }
+
+        applyApprovalDataMutation(
+                instance, task, actor, action, commentText,
+                expectedWorkingDataVersion, workingDataPatchJson, attachmentsJson
+        );
 
         ApprovalCompletionDecision decision = approvalCompletionService.decide(
                 policy,
@@ -298,10 +325,16 @@ public class BpmApprovalStageCommandService {
             Long taskId,
             String action,
             Long actorEmployeeId,
-            String commentText
+            String commentText,
+            Long expectedWorkingDataVersion,
+            String workingDataPatchJson,
+            String attachmentsJson
     ) {
         String canonical = taskId + "\n" + action + "\n" + actorEmployeeId + "\n"
-                + (commentText == null ? "" : commentText.trim());
+                + (commentText == null ? "" : commentText.trim()) + "\n"
+                + String.valueOf(expectedWorkingDataVersion) + "\n"
+                + String.valueOf(workingDataPatchJson) + "\n"
+                + String.valueOf(attachmentsJson);
         try {
             return java.util.HexFormat.of().formatHex(
                     MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8))
@@ -309,6 +342,42 @@ public class BpmApprovalStageCommandService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("运行环境缺少 SHA-256", ex);
         }
+    }
+
+    private void applyApprovalDataMutation(
+            BpmInstanceEntity instance,
+            BpmTaskEntity task,
+            BpmEmployeeSnapshot actor,
+            String action,
+            String commentText,
+            Long expectedWorkingDataVersion,
+            String workingDataPatchJson,
+            String attachmentsJson
+    ) {
+        if (instance.getApprovalSubjectSnapshotId() == null) {
+            return;
+        }
+        if (expectedWorkingDataVersion == null) {
+            throw new IllegalArgumentException("M3 审批动作必须携带流程工作数据版本");
+        }
+        WorkingDataMutationResult result = bpmApprovalDataMutationService.update(new WorkingDataMutationCommand(
+                instance.getApprovalSubjectSnapshotId(),
+                task.getTaskId(),
+                expectedWorkingDataVersion,
+                workingDataPatchJson == null ? "{}" : workingDataPatchJson,
+                action + (commentText == null || commentText.isBlank() ? "" : "：" + commentText),
+                actor.employeeId(), actor.actualName(), action, commentText,
+                attachmentsJson == null ? "[]" : attachmentsJson
+        ));
+        BpmInstanceEntity update = new BpmInstanceEntity();
+        update.setInstanceId(instance.getInstanceId());
+        update.setProcessWorkingDataId(result.processWorkingDataId());
+        update.setCurrentFormDataSnapshotJson(result.dataJson());
+        update.setFormDataVersion(result.dataVersion());
+        bpmInstanceDao.updateById(update);
+        instance.setProcessWorkingDataId(result.processWorkingDataId());
+        instance.setCurrentFormDataSnapshotJson(result.dataJson());
+        instance.setFormDataVersion(result.dataVersion());
     }
 
     private ApprovalStageFact toStageFact(BpmApprovalStageEntity stage) {

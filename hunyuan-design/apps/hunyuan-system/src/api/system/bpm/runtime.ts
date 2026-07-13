@@ -54,6 +54,20 @@ export interface BpmTaskFormContext {
   permissions: BpmFieldPermission[];
 }
 
+export interface BpmApprovalSubjectContext {
+  approvalSubjectSnapshotId?: null | number;
+  attachmentsJson?: null | string;
+  diagnosticMessage?: null | string;
+  fieldPermissions: BpmFieldPermission[];
+  fieldsJson?: null | string;
+  lineItemsJson?: null | string;
+  summary?: null | string;
+  title?: null | string;
+  viewState: 'DIAGNOSTIC_ERROR' | 'READY';
+  workingDataJson?: null | string;
+  workingDataVersion?: null | number;
+}
+
 export interface BpmApprovalGroupSummaryRecord {
   approvalGroupId: number;
   approvalGroupKey: string;
@@ -270,6 +284,7 @@ export type BpmTaskAction =
 
 export interface BpmTaskDetailRecord extends BpmTaskRecord {
   actionLogs: BpmTaskActionLogRecord[];
+  approvalSubjectContext?: BpmApprovalSubjectContext | null;
   approvalGroup?: BpmApprovalGroupDetailRecord | null;
   formContext?: BpmTaskFormContext | null;
 }
@@ -324,6 +339,7 @@ export interface BpmTaskPageQueryParams {
 }
 
 export interface BpmInstanceStartForm {
+  approvalSubjectSnapshotId?: null | number;
   businessId?: null | number;
   businessKey?: null | string;
   businessType?: null | string;
@@ -348,6 +364,7 @@ export interface BpmInstanceResubmitForm {
 }
 
 export interface BpmTaskApproveForm {
+  actionAttachmentsJson?: null | string;
   commentText?: null | string;
   copyEmployeeIds?: number[];
   formDataPatchJson?: null | string;
@@ -357,10 +374,13 @@ export interface BpmTaskApproveForm {
 }
 
 export interface BpmTaskRejectForm {
+  actionAttachmentsJson?: null | string;
   commentText?: null | string;
   copyEmployeeIds?: number[];
   requestId?: string;
   taskId: number;
+  workingDataPatchJson?: null | string;
+  workingDataVersion?: null | number;
 }
 
 export interface BpmTaskCompleteForm {
@@ -369,10 +389,13 @@ export interface BpmTaskCompleteForm {
 }
 
 export interface BpmTaskReturnForm {
+  actionAttachmentsJson?: null | string;
   commentText?: null | string;
   copyEmployeeIds?: number[];
   requestId?: string;
   taskId: number;
+  workingDataPatchJson?: null | string;
+  workingDataVersion?: null | number;
 }
 
 export interface BpmTaskTransferForm {
@@ -558,6 +581,7 @@ export async function markBpmCopyRead(copyId: number) {
 export async function approveBpmTask(params: BpmTaskApproveForm) {
   return requestClient.post<string>('/app/bpm/task/approve', {
     commentText: params.commentText?.trim() || '',
+    actionAttachmentsJson: params.actionAttachmentsJson?.trim() || undefined,
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     formDataPatchJson: params.formDataPatchJson?.trim() || undefined,
     formDataVersion: params.formDataVersion ?? undefined,
@@ -576,18 +600,24 @@ export async function completeBpmTask(params: BpmTaskCompleteForm) {
 export async function rejectBpmTask(params: BpmTaskRejectForm) {
   return requestClient.post<string>('/app/bpm/task/reject', {
     commentText: params.commentText?.trim() || '',
+    actionAttachmentsJson: params.actionAttachmentsJson?.trim() || undefined,
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
+    workingDataPatchJson: params.workingDataPatchJson?.trim() || undefined,
+    workingDataVersion: params.workingDataVersion ?? undefined,
   });
 }
 
 export async function returnBpmTaskToInitiator(params: BpmTaskReturnForm) {
   return requestClient.post<string>('/app/bpm/task/returnToInitiator', {
     commentText: params.commentText?.trim() || '',
+    actionAttachmentsJson: params.actionAttachmentsJson?.trim() || undefined,
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
+    workingDataPatchJson: params.workingDataPatchJson?.trim() || undefined,
+    workingDataVersion: params.workingDataVersion ?? undefined,
   });
 }
 

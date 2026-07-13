@@ -8,6 +8,8 @@ import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.ApprovalRuntimeBinding;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.candidate.service.StartVisibilityPolicyEvaluator;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
@@ -43,6 +45,7 @@ class BpmGraphStartServiceTest {
     private BpmInstanceDao instanceDao;
     private FlowableProcessInstanceGateway processInstanceGateway;
     private StartVisibilityPolicyEvaluator startVisibilityPolicyEvaluator;
+    private BpmApprovalRuntimeDataService approvalRuntimeDataService;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +55,7 @@ class BpmGraphStartServiceTest {
         instanceDao = Mockito.mock(BpmInstanceDao.class);
         processInstanceGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
         startVisibilityPolicyEvaluator = Mockito.mock(StartVisibilityPolicyEvaluator.class);
+        approvalRuntimeDataService = Mockito.mock(BpmApprovalRuntimeDataService.class);
         setField(service, "bpmDefinitionDao", definitionDao);
         setField(service, "graphDefinitionVersionDao", graphDefinitionVersionDao);
         setField(service, "bpmInstanceDao", instanceDao);
@@ -61,6 +65,7 @@ class BpmGraphStartServiceTest {
         setField(service, "serialNumberService", serialNumberService());
         setField(service, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
         setField(service, "startVisibilityPolicyEvaluator", startVisibilityPolicyEvaluator);
+        setField(service, "bpmApprovalRuntimeDataService", approvalRuntimeDataService);
     }
 
     @Test
@@ -69,6 +74,10 @@ class BpmGraphStartServiceTest {
         when(graphDefinitionVersionDao.selectById(41L)).thenReturn(graphVersion);
         when(startVisibilityPolicyEvaluator.evaluateStart(eq(1), any(), any()))
                 .thenReturn(new StartDecision(true, "EMPLOYEE_IDS", "命中发起范围"));
+        when(approvalRuntimeDataService.prepareForStart(101L, graphVersion)).thenReturn(new ApprovalRuntimeBinding(
+                101L, 201L, 301L, 22L, "HUNYUAN", "EXPENSE", "EXP-1001",
+                "图形费用申请", "费用申请", "{}", 1L
+        ));
         when(instanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
             invocation.getArgument(0, BpmInstanceEntity.class).setInstanceId(9L);
             return 1;
@@ -78,6 +87,7 @@ class BpmGraphStartServiceTest {
 
         BpmInstanceStartForm form = new BpmInstanceStartForm();
         form.setGraphDefinitionVersionId(41L);
+        form.setApprovalSubjectSnapshotId(101L);
         form.setFormDataJson("{}");
 
         ResponseDTO<Long> response = service.startInstance(form);

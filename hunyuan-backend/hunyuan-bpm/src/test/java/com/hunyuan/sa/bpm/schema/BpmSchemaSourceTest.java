@@ -218,6 +218,36 @@ class BpmSchemaSourceTest {
     }
 
     @Test
+    void definesM3ApprovalSubjectAndSeparatedRuntimeDataPlanes() throws IOException {
+        String sql = Files.readString(Path.of("../../数据库SQL脚本/mysql/sql-update-log/v3.55.0.sql"));
+
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_bpm_approval_subject_snapshot`");
+        assertThat(sql).contains("UNIQUE KEY `uk_bpm_approval_subject_business_identity`");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_bpm_routing_fact_snapshot`");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_bpm_process_working_data`");
+        assertThat(sql).contains("UNIQUE KEY `uk_bpm_working_data_subject_version`");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_bpm_task_action_evidence`");
+        assertThat(sql).contains("`before_working_data_version` bigint NOT NULL");
+        assertThat(sql).contains("`after_working_data_version` bigint NOT NULL");
+        assertThat(sql).contains("ALTER TABLE `t_bpm_instance`");
+        assertThat(sql).contains("`approval_subject_snapshot_id` bigint NULL");
+        assertThat(sql).contains("`routing_fact_snapshot_id` bigint NULL");
+        assertThat(sql).contains("`process_working_data_id` bigint NULL");
+        assertThat(sql).contains("UNIQUE KEY `uk_bpm_instance_approval_subject` (`approval_subject_snapshot_id`)");
+        assertThat(sql).contains("ALTER TABLE `t_bpm_business_contract_version`");
+        assertThat(sql).contains("information_schema.columns", "m3_contract_columns_sql");
+        assertThat(sql).contains("m3_instance_columns_sql");
+        assertThat(sql).contains("`contract_digest` char(64) NULL");
+        assertThat(sql).contains("`catalog_revision` bigint NOT NULL DEFAULT 0");
+        assertThat(sql).contains("BPM_BUSINESS_CONTRACT_LIFECYCLE");
+        assertThat(sql).contains("BPM_DATA_SENSITIVITY");
+        assertThat(sql).contains("BPM_DATA_CHANGE_POLICY");
+        assertThat(sql).contains("/system/bpm/business-contract/business-contract-catalog");
+        assertThat(sql).contains("bpm:business-contract:list", "bpm:business-contract:activate");
+        assertThat(sql).contains("/system/bpm/runtime/generic-application");
+    }
+
+    @Test
     void definesM2ReleaseAndIneligibleMemberDictionaryValues() throws IOException {
         String sql = Files.readString(Path.of("../../数据库SQL脚本/mysql/sql-update-log/v3.54.0.sql"));
 

@@ -26,4 +26,13 @@ public class BpmTaskReturnForm {
 
     @Schema(description = "手工抄送员工ID列表")
     private List<Long> copyEmployeeIds;
+
+    @Schema(description = "客户端加载的流程工作数据版本")
+    private Long workingDataVersion;
+
+    @Schema(description = "流程工作数据修改 JSON，退回通常为空")
+    private String workingDataPatchJson;
+
+    @Schema(description = "动作附件 JSON")
+    private String actionAttachmentsJson;
 }

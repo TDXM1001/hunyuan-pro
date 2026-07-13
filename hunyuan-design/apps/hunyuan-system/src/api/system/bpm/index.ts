@@ -11,11 +11,13 @@ export const BPM_ENDPOINT_INDEX = {
   listener: '/bpm/listener/',
   model: '/bpm/model/',
   policyCatalog: '/bpm/policy-catalog/',
+  businessContract: '/bpm/business-contract/',
   runtimeTask: '/bpm/task/',
   sampleExpense: '/bpm/sample/expense/',
 } as const;
 
 export * from './category';
+export * from './business-contract';
 export * from './definition';
 export * from './form';
 export * from './graph';

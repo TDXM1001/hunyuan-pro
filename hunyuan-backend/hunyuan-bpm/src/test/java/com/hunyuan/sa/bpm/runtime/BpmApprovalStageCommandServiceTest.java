@@ -21,6 +21,9 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectRequestedEvent;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageCommandService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationCommand;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationResult;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalDataMutationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -46,6 +49,7 @@ class BpmApprovalStageCommandServiceTest {
     private ApplicationEventPublisher eventPublisher;
 
     private BpmApprovalCommandReceiptDao receiptDao;
+    private BpmApprovalDataMutationService approvalDataMutationService;
 
     @BeforeEach
     void setUp() {
@@ -55,6 +59,7 @@ class BpmApprovalStageCommandServiceTest {
         projectionService = Mockito.mock(BpmTaskProjectionService.class);
         eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
         receiptDao = Mockito.mock(BpmApprovalCommandReceiptDao.class);
+        approvalDataMutationService = Mockito.mock(BpmApprovalDataMutationService.class);
         when(receiptDao.updateById(any(BpmApprovalCommandReceiptEntity.class))).thenReturn(1);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmInstanceDao", instanceDao());
@@ -68,6 +73,7 @@ class BpmApprovalStageCommandServiceTest {
         setField(service, "bpmTaskProjectionService", projectionService);
         setField(service, "bpmTaskActionLogDao", Mockito.mock(BpmTaskActionLogDao.class));
         setField(service, "bpmApprovalCommandReceiptDao", receiptDao);
+        setField(service, "bpmApprovalDataMutationService", approvalDataMutationService);
     }
 
     @Test
@@ -212,6 +218,38 @@ class BpmApprovalStageCommandServiceTest {
 
         verify(memberDao, never()).updateById(any(BpmApprovalStageMemberEntity.class));
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void m3ApprovalShouldMutateWorkingDataOnceAndAdvanceInstancePointer() {
+        BpmTaskEntity task = task(101L, 11L);
+        BpmApprovalStageEntity stage = stage("SINGLE");
+        arrange(task, stage, List.of(member(11L, 1, "ACTIVE", 20L)));
+        BpmInstanceDao instanceDao = getField(service, "bpmInstanceDao", BpmInstanceDao.class);
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(8L);
+        instance.setRunState(1);
+        instance.setApprovalSubjectSnapshotId(101L);
+        instance.setProcessWorkingDataId(301L);
+        when(instanceDao.selectByIdForUpdate(8L)).thenReturn(instance);
+        when(approvalDataMutationService.update(any(WorkingDataMutationCommand.class)))
+                .thenReturn(new WorkingDataMutationResult(302L, 401L, 2L, "{\"approvedAmount\":9800}"));
+
+        ResponseDTO<String> response = service.execute(
+                101L, "APPROVE", "同意", "request-m3", 1L, "{\"approvedAmount\":9800}", "[]"
+        );
+
+        assertThat(response.getOk()).isTrue();
+        ArgumentCaptor<WorkingDataMutationCommand> mutation = ArgumentCaptor.forClass(WorkingDataMutationCommand.class);
+        verify(approvalDataMutationService).update(mutation.capture());
+        assertThat(mutation.getValue().approvalSubjectSnapshotId()).isEqualTo(101L);
+        assertThat(mutation.getValue().expectedDataVersion()).isEqualTo(1L);
+        assertThat(mutation.getValue().actorEmployeeId()).isEqualTo(20L);
+        verify(instanceDao).updateById(org.mockito.ArgumentMatchers.argThat((BpmInstanceEntity update) ->
+                Long.valueOf(302L).equals(update.getProcessWorkingDataId())
+                        && Long.valueOf(2L).equals(update.getFormDataVersion())
+                        && update.getCurrentFormDataSnapshotJson().contains("9800")
+        ));
     }
 
     private void arrange(

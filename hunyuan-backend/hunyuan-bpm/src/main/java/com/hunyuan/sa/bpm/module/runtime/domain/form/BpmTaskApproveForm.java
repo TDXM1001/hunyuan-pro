@@ -32,4 +32,7 @@ public class BpmTaskApproveForm {
 
     @Schema(description = "当前节点可编辑字段修改 JSON")
     private String formDataPatchJson;
+
+    @Schema(description = "动作附件 JSON")
+    private String actionAttachmentsJson;
 }

@@ -5,6 +5,20 @@ import { describe, expect, it } from 'vitest';
 
 const apiFiles = [
   {
+    label: 'businessContract',
+    needles: [
+      '/bpm/business-contract/list',
+      '/bpm/business-contract/validate',
+      '/bpm/business-contract/draft',
+      '/bpm/business-contract/activate',
+      '/app/bpm/generic-application/contracts',
+      '/app/bpm/generic-application/submit',
+      'BpmBusinessContractRecord',
+      'BpmGenericApplicationSubmitParams',
+    ],
+    path: 'apps/hunyuan-system/src/api/system/bpm/business-contract.ts',
+  },
+  {
     label: 'category',
     needles: ['/bpm/category/query', '/bpm/category/add', '/bpm/category/update'],
     path: 'apps/hunyuan-system/src/api/system/bpm/category.ts',

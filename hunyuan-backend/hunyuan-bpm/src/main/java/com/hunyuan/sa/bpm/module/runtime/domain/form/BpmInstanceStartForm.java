@@ -17,6 +17,9 @@ public class BpmInstanceStartForm {
     @Schema(description = "Graph 定义版本ID")
     private Long graphDefinitionVersionId;
 
+    @Schema(description = "M3 审批对象快照ID，Graph流程必填")
+    private Long approvalSubjectSnapshotId;
+
     @Schema(description = "流程标题")
     private String title;
 

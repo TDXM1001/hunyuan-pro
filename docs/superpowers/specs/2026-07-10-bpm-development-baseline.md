@@ -129,7 +129,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - 当前差距基线：`docs/superpowers/specs/2026-07-11-bpm-enterprise-gap-baseline.md`
 - 模块设计：`2026-07-11-bpm-module-01-modeling-compiler-design.md`、`02-assignment-approval-strategy-design.md`、`03-approval-data-governance-design.md`、`04-core-runtime-workbench-design.md`、`05-advanced-runtime-design.md`、`06-configurable-business-integration-design.md`、`07-operations-governance-design.md`、`08-definition-evolution-migration-design.md`
 
-M1“流程定义中心”已关闭：`HunyuanProcessDefinitionGraph`、结构校验、业务化设计器、编译发布、不可变定义版本、authored/compiled 映射和认证浏览器验收均已形成证据，详见 `docs/superpowers/specs/2026-07-11-bpm-m1-modeling-compiler-acceptance.md` 第 6 节。下一交付块必须以总体蓝图和最新模块验收为准，不按模块编号机械推断；M1 不包含业务实例发起，M2 身份审批策略与 M3 审批对象数据治理的真实版本目录仍是生产发起的前置边界。
+M1“流程定义中心”、M2“身份组织与审批策略”和 M3“审批对象与数据治理”均已关闭，分别见 `docs/superpowers/specs/2026-07-11-bpm-m1-modeling-compiler-acceptance.md`、`docs/superpowers/specs/2026-07-13-bpm-m2-assignment-approval-strategy-acceptance.md` 和 `docs/superpowers/specs/2026-07-13-bpm-m3-approval-data-governance-acceptance.md`。下一交付块必须以总体蓝图和最新模块验收为准，不按模块编号机械推断；M1-M3 的正式版本目录与真实运行主链已经闭合，M4 仍是首个可交付产品基线的下一前置能力面。
 
 M2“身份组织与审批策略”已关闭：策略目录、五种审批模式、自动终态、完整组织来源、高风险独立确认、受控转办、`INELIGIBLE` 恢复、幂等并发、重启恢复、跨节点连续审批、退回发起人和浏览器详情均形成真实证据，当前状态为 `RELEASABLE`，详见 `docs/superpowers/specs/2026-07-13-bpm-m2-assignment-approval-strategy-acceptance.md`。
 

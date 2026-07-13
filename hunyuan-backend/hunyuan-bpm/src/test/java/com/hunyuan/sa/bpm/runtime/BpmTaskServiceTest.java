@@ -25,6 +25,8 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskFormContextService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.vo.BpmApprovalSubjectContextVO;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalSubjectViewService;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,7 @@ class BpmTaskServiceTest {
     private BpmTaskFormContextService taskFormContextService;
     private BpmCurrentActorProvider currentActorProvider;
     private BpmDefinitionNodeDao definitionNodeDao;
+    private BpmApprovalSubjectViewService approvalSubjectViewService;
 
     @BeforeEach
     void setUp() {
@@ -59,12 +62,14 @@ class BpmTaskServiceTest {
         taskFormContextService = Mockito.mock(BpmTaskFormContextService.class);
         currentActorProvider = Mockito.mock(BpmCurrentActorProvider.class);
         definitionNodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
+        approvalSubjectViewService = Mockito.mock(BpmApprovalSubjectViewService.class);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmApprovalGroupService", approvalGroupService);
         setField(service, "bpmInstanceDao", instanceDao);
         setField(service, "bpmTaskFormContextService", taskFormContextService);
         setField(service, "bpmCurrentActorProvider", currentActorProvider);
         setField(service, "bpmDefinitionNodeDao", definitionNodeDao);
+        setField(service, "bpmApprovalSubjectViewService", approvalSubjectViewService);
         setField(service, "bpmTaskActionLogDao", Mockito.mock(BpmTaskActionLogDao.class));
     }
 
@@ -133,6 +138,30 @@ class BpmTaskServiceTest {
 
         assertThat(response.getOk()).isTrue();
         assertThat(response.getData().getFormContext()).isSameAs(context);
+    }
+
+    @Test
+    void getMyDetailShouldAttachM3ApprovalSubjectContextForGraphTask() {
+        BpmTaskEntity task = new BpmTaskEntity();
+        task.setTaskId(11L);
+        task.setInstanceId(31L);
+        task.setAssigneeEmployeeId(9L);
+        task.setGraphDefinitionVersionId(41L);
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(31L);
+        instance.setApprovalSubjectSnapshotId(101L);
+        BpmApprovalSubjectContextVO context = new BpmApprovalSubjectContextVO();
+        context.setViewState("READY");
+        when(taskDao.selectById(11L)).thenReturn(task);
+        when(currentActorProvider.requireCurrentEmployeeId()).thenReturn(9L);
+        when(instanceDao.selectById(31L)).thenReturn(instance);
+        when(approvalSubjectViewService.buildForTask(task, instance)).thenReturn(context);
+
+        ResponseDTO<BpmTaskDetailVO> response = service.getMyDetail(11L);
+
+        assertThat(response.getOk()).isTrue();
+        assertThat(response.getData().getApprovalSubjectContext()).isSameAs(context);
+        verify(approvalSubjectViewService).buildForTask(task, instance);
     }
 
     @Test

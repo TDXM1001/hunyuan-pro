@@ -16,6 +16,11 @@ import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessStartCommand;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationCommand;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationResult;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalDataMutationService;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.ApprovalRuntimeBinding;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartVisibilityEvaluationContext;
 import com.hunyuan.sa.bpm.module.candidate.service.StartVisibilityPolicyEvaluator;
@@ -130,6 +135,12 @@ public class BpmInstanceService {
 
     @Resource
     private BpmExternalWaitService bpmExternalWaitService;
+
+    @Resource
+    private BpmApprovalRuntimeDataService bpmApprovalRuntimeDataService;
+
+    @Resource
+    private BpmApprovalDataMutationService bpmApprovalDataMutationService;
 
     public ResponseDTO<PageResult<BpmInstanceVO>> queryAdminPage(BpmInstanceQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
@@ -454,6 +465,35 @@ public class BpmInstanceService {
         long afterVersion = changedFields.isEmpty() ? currentVersion : currentVersion + 1;
 
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
+        String nextFormDataJson = resubmitForm.getFormDataJson();
+        Long nextProcessWorkingDataId = instanceEntity.getProcessWorkingDataId();
+        if (instanceEntity.getApprovalSubjectSnapshotId() != null) {
+            JSONObject patch = new JSONObject(true);
+            for (Object rawField : changedFields) {
+                String field = String.valueOf(rawField);
+                patch.put(field, afterData.get(field));
+            }
+            WorkingDataMutationResult mutation;
+            try {
+                mutation = bpmApprovalDataMutationService.update(new WorkingDataMutationCommand(
+                        instanceEntity.getApprovalSubjectSnapshotId(),
+                        null,
+                        currentVersion,
+                        JSON.toJSONString(patch),
+                        "发起人退回重提",
+                        employeeSnapshot.employeeId(),
+                        employeeSnapshot.actualName(),
+                        "RESUBMIT",
+                        resubmitForm.getSummary(),
+                        "[]"
+                ));
+            } catch (IllegalArgumentException | IllegalStateException ex) {
+                return ResponseDTO.userErrorParam(ex.getMessage());
+            }
+            nextFormDataJson = mutation.dataJson();
+            nextProcessWorkingDataId = mutation.processWorkingDataId();
+            afterVersion = mutation.dataVersion();
+        }
         List<BpmDefinitionNodeEntity> definitionNodes = bpmDefinitionNodeDao.selectList(
                 Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
                         .eq(BpmDefinitionNodeEntity::getDefinitionId, definitionEntity.getDefinitionId())
@@ -464,7 +504,7 @@ public class BpmInstanceService {
         try {
             runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(
                     definitionNodes,
-                    new BpmTaskAssignmentContext(employeeSnapshot, resubmitForm.getFormDataJson())
+                    new BpmTaskAssignmentContext(employeeSnapshot, nextFormDataJson)
             );
         } catch (IllegalArgumentException ex) {
             return ResponseDTO.userErrorParam(ex.getMessage());
@@ -480,8 +520,9 @@ public class BpmInstanceService {
         updateInstanceEntity.setCategoryNameSnapshot(definitionEntity.getCategoryNameSnapshot());
         updateInstanceEntity.setTitle(StringUtils.isBlank(resubmitForm.getTitle()) ? definitionEntity.getDefinitionName() : resubmitForm.getTitle());
         updateInstanceEntity.setSummary(resubmitForm.getSummary());
-        updateInstanceEntity.setCurrentFormDataSnapshotJson(resubmitForm.getFormDataJson());
+        updateInstanceEntity.setCurrentFormDataSnapshotJson(nextFormDataJson);
         updateInstanceEntity.setFormDataVersion(afterVersion);
+        updateInstanceEntity.setProcessWorkingDataId(nextProcessWorkingDataId);
         updateInstanceEntity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
         updateInstanceEntity.setResultState(null);
         updateInstanceEntity.setActiveTaskCount(0);
@@ -489,7 +530,7 @@ public class BpmInstanceService {
         updateInstanceEntity.setLastActionAt(now);
         bpmInstanceDao.updateById(updateInstanceEntity);
 
-        if (!changedFields.isEmpty()) {
+        if (instanceEntity.getApprovalSubjectSnapshotId() == null && !changedFields.isEmpty()) {
             BpmFormDataChangeEntity change = new BpmFormDataChangeEntity();
             change.setInstanceId(instanceEntity.getInstanceId());
             change.setChangeSource(BpmFormDataChangeSourceEnum.INSTANCE_RESUBMITTED.name());
@@ -507,7 +548,7 @@ public class BpmInstanceService {
                 definitionEntity.getEngineProcessDefinitionId(),
                 instanceEntity.getInstanceId(),
                 employeeId,
-                resubmitForm.getFormDataJson(),
+                nextFormDataJson,
                 runtimeAssignmentVariables
         );
         BpmInstanceEntity engineUpdate = new BpmInstanceEntity();
@@ -562,6 +603,15 @@ public class BpmInstanceService {
             return ResponseDTO.userErrorParam("当前 Graph 定义版本不在可发起范围内");
         }
 
+        ApprovalRuntimeBinding approvalBinding;
+        try {
+            approvalBinding = bpmApprovalRuntimeDataService.prepareForStart(
+                    startForm.getApprovalSubjectSnapshotId(), graphVersion
+            );
+        } catch (IllegalArgumentException ex) {
+            return ResponseDTO.userErrorParam(ex.getMessage());
+        }
+
         LocalDateTime now = LocalDateTime.now();
         BpmInstanceEntity entity = new BpmInstanceEntity();
         entity.setInstanceNo(serialNumberService.generate(SerialNumberIdEnum.ORDER));
@@ -572,21 +622,20 @@ public class BpmInstanceService {
         entity.setDefinitionVersionSnapshot(graphVersion.getDefinitionVersion());
         entity.setCategoryIdSnapshot(graphVersion.getCategoryIdSnapshot());
         entity.setCategoryNameSnapshot(graphVersion.getCategoryNameSnapshot());
-        entity.setTitle(StringUtils.defaultIfBlank(startForm.getTitle(), graphVersion.getProcessNameSnapshot()));
-        if (StringUtils.isBlank(entity.getTitle())) {
-            entity.setTitle(graphVersion.getProcessKey());
-        }
-        entity.setSummary(startForm.getSummary());
+        entity.setTitle(approvalBinding.title());
+        entity.setSummary(approvalBinding.summary());
         entity.setStartEmployeeId(employeeSnapshot.employeeId());
         entity.setStartEmployeeNameSnapshot(employeeSnapshot.actualName());
         entity.setStartDepartmentIdSnapshot(employeeSnapshot.departmentId());
         entity.setStartDepartmentNameSnapshot(employeeSnapshot.departmentName());
-        entity.setBusinessType(startForm.getBusinessType());
-        entity.setBusinessId(startForm.getBusinessId());
-        entity.setBusinessKey(startForm.getBusinessKey());
-        entity.setInitialFormDataSnapshotJson(startForm.getFormDataJson());
-        entity.setCurrentFormDataSnapshotJson(startForm.getFormDataJson());
-        entity.setFormDataVersion(1L);
+        entity.setBusinessType(approvalBinding.businessType());
+        entity.setBusinessKey(approvalBinding.businessKey());
+        entity.setApprovalSubjectSnapshotId(approvalBinding.approvalSubjectSnapshotId());
+        entity.setRoutingFactSnapshotId(approvalBinding.routingFactSnapshotId());
+        entity.setProcessWorkingDataId(approvalBinding.processWorkingDataId());
+        entity.setInitialFormDataSnapshotJson(approvalBinding.workingDataJson());
+        entity.setCurrentFormDataSnapshotJson(approvalBinding.workingDataJson());
+        entity.setFormDataVersion(approvalBinding.workingDataVersion());
         entity.setStartVisibilityPolicyVersionId(visibilityPolicy.policyVersionId());
         entity.setStartVisibilityPolicyDigest(visibilityPolicy.digest());
         entity.setStartVisibilityDecisionJson(buildStartVisibilityDecisionJson(startDecision, now));
@@ -600,7 +649,7 @@ public class BpmInstanceService {
                 graphVersion.getEngineProcessDefinitionId(),
                 entity.getInstanceId(),
                 employeeSnapshot.employeeId(),
-                startForm.getFormDataJson(),
+                approvalBinding.workingDataJson(),
                 Map.of()
         );
         BpmInstanceEntity engineUpdate = new BpmInstanceEntity();

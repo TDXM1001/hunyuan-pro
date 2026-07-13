@@ -103,7 +103,7 @@ class BpmTaskServiceM2ActionTest {
     void approveM2MemberTaskShouldDelegateToStageCommandWithoutCompletingFlowableTask() {
         BpmTaskEntity task = m2MemberTask();
         when(taskDao.selectById(101L)).thenReturn(task);
-        when(approvalStageCommandService.execute(101L, "APPROVE", "approved", "request-approve"))
+        when(approvalStageCommandService.execute(101L, "APPROVE", "approved", "request-approve", null, null, null))
                 .thenReturn(ResponseDTO.ok());
 
         BpmTaskApproveForm form = new BpmTaskApproveForm();
@@ -114,7 +114,7 @@ class BpmTaskServiceM2ActionTest {
         ResponseDTO<String> response = service.approve(form);
 
         assertThat(response.getOk()).isTrue();
-        verify(approvalStageCommandService).execute(101L, "APPROVE", "approved", "request-approve");
+        verify(approvalStageCommandService).execute(101L, "APPROVE", "approved", "request-approve", null, null, null);
         verifyNoInteractions(flowableTaskGateway, flowableProcessInstanceGateway);
     }
 
@@ -123,7 +123,7 @@ class BpmTaskServiceM2ActionTest {
         BpmTaskEntity task = m2MemberTask();
         task.setTaskState(BpmTaskStateEnum.COMPLETED.getValue());
         when(taskDao.selectById(101L)).thenReturn(task);
-        when(approvalStageCommandService.execute(101L, "APPROVE", "approved", "request-replay"))
+        when(approvalStageCommandService.execute(101L, "APPROVE", "approved", "request-replay", null, null, null))
                 .thenReturn(ResponseDTO.ok());
 
         BpmTaskApproveForm form = new BpmTaskApproveForm();
@@ -132,14 +132,14 @@ class BpmTaskServiceM2ActionTest {
         form.setRequestId("request-replay");
 
         assertThat(service.approve(form).getOk()).isTrue();
-        verify(approvalStageCommandService).execute(101L, "APPROVE", "approved", "request-replay");
+        verify(approvalStageCommandService).execute(101L, "APPROVE", "approved", "request-replay", null, null, null);
     }
 
     @Test
     void rejectM2MemberTaskShouldDelegateToStageCommandWithoutCancellingFlowableInstance() {
         BpmTaskEntity task = m2MemberTask();
         when(taskDao.selectById(101L)).thenReturn(task);
-        when(approvalStageCommandService.execute(101L, "REJECT", "rejected", "request-reject"))
+        when(approvalStageCommandService.execute(101L, "REJECT", "rejected", "request-reject", null, null, null))
                 .thenReturn(ResponseDTO.ok());
 
         BpmTaskRejectForm form = new BpmTaskRejectForm();
@@ -150,7 +150,7 @@ class BpmTaskServiceM2ActionTest {
         ResponseDTO<String> response = service.reject(form);
 
         assertThat(response.getOk()).isTrue();
-        verify(approvalStageCommandService).execute(101L, "REJECT", "rejected", "request-reject");
+        verify(approvalStageCommandService).execute(101L, "REJECT", "rejected", "request-reject", null, null, null);
         verifyNoInteractions(flowableTaskGateway, flowableProcessInstanceGateway);
     }
 
@@ -158,7 +158,7 @@ class BpmTaskServiceM2ActionTest {
     void returnM2MemberTaskShouldDelegateToStageCommandWithoutCancellingFlowableInstance() {
         BpmTaskEntity task = m2MemberTask();
         when(taskDao.selectById(101L)).thenReturn(task);
-        when(approvalStageCommandService.execute(101L, "RETURN", "returned", "request-return"))
+        when(approvalStageCommandService.execute(101L, "RETURN", "returned", "request-return", null, null, null))
                 .thenReturn(ResponseDTO.ok());
 
         BpmTaskReturnForm form = new BpmTaskReturnForm();
@@ -169,7 +169,7 @@ class BpmTaskServiceM2ActionTest {
         ResponseDTO<String> response = service.returnToInitiator(form);
 
         assertThat(response.getOk()).isTrue();
-        verify(approvalStageCommandService).execute(101L, "RETURN", "returned", "request-return");
+        verify(approvalStageCommandService).execute(101L, "RETURN", "returned", "request-return", null, null, null);
         verifyNoInteractions(flowableTaskGateway, flowableProcessInstanceGateway);
     }
 
@@ -320,13 +320,13 @@ class BpmTaskServiceM2ActionTest {
         }
         when(taskDao.selectById(101L)).thenReturn(task);
         String requestId = "request-" + action.toLowerCase();
-        when(approvalStageCommandService.execute(101L, action, action.toLowerCase(), requestId))
+        when(approvalStageCommandService.execute(101L, action, action.toLowerCase(), requestId, null, null, null))
                 .thenReturn(ResponseDTO.ok());
 
         ResponseDTO<String> response = invokeAction(action, 101L, action.toLowerCase());
 
         assertThat(response.getOk()).isTrue();
-        verify(approvalStageCommandService).execute(101L, action, action.toLowerCase(), requestId);
+        verify(approvalStageCommandService).execute(101L, action, action.toLowerCase(), requestId, null, null, null);
         verifyNoInteractions(flowableTaskGateway, flowableProcessInstanceGateway);
     }
 

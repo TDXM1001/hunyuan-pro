@@ -8,6 +8,8 @@ import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.exception.BusinessException;
 import com.hunyuan.sa.bpm.engine.ast.RouteCondition;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionContext;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.RoutingDataSnapshot;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
@@ -44,6 +46,9 @@ public class BpmRouteDecisionService {
     @Resource
     private BpmRouteConditionEvaluator conditionEvaluator;
 
+    @Resource
+    private BpmApprovalRuntimeDataService bpmApprovalRuntimeDataService;
+
     @Transactional(rollbackFor = Exception.class)
     public BpmRouteDecisionResult evaluateAndRecord(BpmRouteDecisionCommand command) {
         BpmRouteDecisionEntity existing = findExisting(command);
@@ -70,12 +75,11 @@ public class BpmRouteDecisionService {
         }
 
         JSONObject snapshot = JSON.parseObject(routeNode.getCompiledNodeSnapshotJson());
-        JSONObject formData = JSON.parseObject(instance.getCurrentFormDataSnapshotJson());
-        if (formData == null) {
-            formData = new JSONObject();
-        }
-        Evaluation evaluation = evaluateBranches(snapshot, instance, formData);
-        BpmRouteDecisionEntity entity = buildEntity(command, instance, routeNode, evaluation);
+        RouteInput routeInput = routeInput(instance);
+        Evaluation evaluation = evaluateBranches(snapshot, instance, routeInput.data());
+        BpmRouteDecisionEntity entity = buildEntity(
+                command, instance, routeNode, evaluation, routeInput.version()
+        );
         try {
             bpmRouteDecisionDao.insert(entity);
         } catch (DuplicateKeyException ex) {
@@ -180,11 +184,28 @@ public class BpmRouteDecisionService {
         return context;
     }
 
+    private RouteInput routeInput(BpmInstanceEntity instance) {
+        if (instance.getRoutingFactSnapshotId() != null) {
+            RoutingDataSnapshot routing = bpmApprovalRuntimeDataService.routingData(
+                    instance.getRoutingFactSnapshotId()
+            );
+            JSONObject data = new JSONObject(true);
+            data.putAll(routing.facts());
+            return new RouteInput(data, routing.version());
+        }
+        JSONObject formData = JSON.parseObject(instance.getCurrentFormDataSnapshotJson());
+        return new RouteInput(
+                formData == null ? new JSONObject(true) : formData,
+                instance.getFormDataVersion() == null ? 1L : instance.getFormDataVersion()
+        );
+    }
+
     private BpmRouteDecisionEntity buildEntity(
             BpmRouteDecisionCommand command,
             BpmInstanceEntity instance,
             BpmDefinitionNodeEntity routeNode,
-            Evaluation evaluation
+            Evaluation evaluation,
+            Long inputVersion
     ) {
         LocalDateTime now = LocalDateTime.now();
         BpmRouteDecisionEntity entity = new BpmRouteDecisionEntity();
@@ -193,7 +214,7 @@ public class BpmRouteDecisionService {
         entity.setDefinitionNodeId(routeNode.getDefinitionNodeId());
         entity.setEngineProcessInstanceId(command.engineProcessInstanceId());
         entity.setRouteNodeKey(command.routeNodeKey());
-        entity.setInputFormDataVersion(instance.getFormDataVersion() == null ? 1L : instance.getFormDataVersion());
+        entity.setInputFormDataVersion(inputVersion);
         entity.setMatchedBranchKeysJson(JSON.toJSONString(evaluation.matchedBranchKeys()));
         entity.setDefaultBranchUsed(evaluation.defaultBranchUsed());
         entity.setEvaluationStatus("SUCCEEDED");
@@ -225,5 +246,8 @@ public class BpmRouteDecisionService {
             boolean defaultBranchUsed,
             String reasonSnapshotJson
     ) {
+    }
+
+    private record RouteInput(JSONObject data, Long version) {
     }
 }

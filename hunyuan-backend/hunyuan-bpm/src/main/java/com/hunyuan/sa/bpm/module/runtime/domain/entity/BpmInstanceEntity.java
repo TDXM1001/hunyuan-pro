@@ -63,6 +63,12 @@ public class BpmInstanceEntity {
 
     private String businessKey;
 
+    private Long approvalSubjectSnapshotId;
+
+    private Long routingFactSnapshotId;
+
+    private Long processWorkingDataId;
+
     private String initialFormDataSnapshotJson;
 
     private String currentFormDataSnapshotJson;

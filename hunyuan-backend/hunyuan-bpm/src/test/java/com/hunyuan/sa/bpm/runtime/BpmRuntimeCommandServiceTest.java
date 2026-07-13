@@ -14,6 +14,9 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationCommand;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationResult;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalDataMutationService;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
@@ -77,6 +80,8 @@ class BpmRuntimeCommandServiceTest {
 
     private BpmFormDataChangeDao bpmFormDataChangeDao;
 
+    private BpmApprovalDataMutationService bpmApprovalDataMutationService;
+
     @BeforeEach
     void setUp() {
         bpmInstanceService = new BpmInstanceService();
@@ -87,6 +92,7 @@ class BpmRuntimeCommandServiceTest {
         bpmInstanceCopyService = Mockito.mock(BpmInstanceCopyService.class);
         bpmBusinessProcessApi = Mockito.mock(BpmBusinessProcessApi.class);
         bpmFormDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
+        bpmApprovalDataMutationService = Mockito.mock(BpmApprovalDataMutationService.class);
 
         setField(bpmInstanceService, "bpmDefinitionDao", Mockito.mock(BpmDefinitionDao.class));
         setField(bpmInstanceService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
@@ -102,6 +108,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
         setField(bpmInstanceService, "bpmRuntimeFormDataValidator", new BpmRuntimeFormDataValidator());
         setField(bpmInstanceService, "bpmFormDataChangeDao", bpmFormDataChangeDao);
+        setField(bpmInstanceService, "bpmApprovalDataMutationService", bpmApprovalDataMutationService);
         setField(bpmInstanceService, "bpmTimeEventService", Mockito.mock(BpmTimeEventService.class));
         setField(bpmInstanceService, "bpmExternalWaitService", Mockito.mock(BpmExternalWaitService.class));
 
@@ -666,6 +673,66 @@ class BpmRuntimeCommandServiceTest {
         assertThat(changeCaptor.getValue().getChangeSource()).isEqualTo("INSTANCE_RESUBMITTED");
         assertThat(changeCaptor.getValue().getBeforeVersion()).isEqualTo(3L);
         assertThat(changeCaptor.getValue().getAfterVersion()).isEqualTo(4L);
+    }
+
+    @Test
+    void resubmitM3InstanceShouldCreateWorkingDataVersionAndEvidence() {
+        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
+        definitionEntity.setDefinitionId(2L);
+        definitionEntity.setDefinitionKey("expense");
+        definitionEntity.setDefinitionName("费用流程");
+        definitionEntity.setDefinitionVersion(2);
+        definitionEntity.setLifecycleState(1);
+        definitionEntity.setStartState(1);
+        definitionEntity.setEngineProcessDefinitionId("expense:2:2000");
+
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(8L);
+        instance.setDefinitionId(2L);
+        instance.setStartEmployeeId(100L);
+        instance.setApprovalSubjectSnapshotId(101L);
+        instance.setProcessWorkingDataId(301L);
+        instance.setCurrentFormDataSnapshotJson("{\"amount\":100}");
+        instance.setFormDataVersion(3L);
+        instance.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
+
+        when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instance);
+        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
+        when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
+                new BpmEmployeeSnapshot(100L, "张三", 7L, "财务部", null, null)
+        );
+        when(definitionNodeDao().selectList(any())).thenReturn(List.of());
+        when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
+        when(bpmApprovalDataMutationService.update(any())).thenReturn(
+                new WorkingDataMutationResult(302L, 901L, 4L, "{\"amount\":200}")
+        );
+        when(processInstanceGateway().start("expense:2:2000", 8L, 100L, "{\"amount\":200}", Map.of()))
+                .thenReturn("process-2000");
+
+        BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
+        form.setInstanceId(8L);
+        form.setFormDataVersion(3L);
+        form.setFormDataJson("{\"amount\":200}");
+        form.setTitle("费用申请-重提");
+
+        ResponseDTO<Long> response = bpmInstanceService.resubmitMyInstance(form);
+
+        assertThat(response.getOk()).isTrue();
+        ArgumentCaptor<WorkingDataMutationCommand> mutationCaptor =
+                ArgumentCaptor.forClass(WorkingDataMutationCommand.class);
+        verify(bpmApprovalDataMutationService).update(mutationCaptor.capture());
+        assertThat(mutationCaptor.getValue()).satisfies(command -> {
+            assertThat(command.approvalSubjectSnapshotId()).isEqualTo(101L);
+            assertThat(command.expectedDataVersion()).isEqualTo(3L);
+            assertThat(command.patchJson()).isEqualTo("{\"amount\":200}");
+            assertThat(command.actionType()).isEqualTo("RESUBMIT");
+        });
+        ArgumentCaptor<BpmInstanceEntity> updateCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
+        verify(bpmInstanceDao, Mockito.times(2)).updateById(updateCaptor.capture());
+        assertThat(updateCaptor.getAllValues().get(0).getProcessWorkingDataId()).isEqualTo(302L);
+        assertThat(updateCaptor.getAllValues().get(0).getFormDataVersion()).isEqualTo(4L);
+        verify(bpmFormDataChangeDao, never()).insert(any(BpmFormDataChangeEntity.class));
     }
 
     @Test

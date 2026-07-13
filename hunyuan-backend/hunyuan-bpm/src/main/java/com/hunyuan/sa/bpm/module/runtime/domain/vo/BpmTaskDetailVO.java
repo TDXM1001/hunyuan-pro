@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.vo.BpmApprovalSubjectContextVO;
 
 /**
  * 流程任务详情。
@@ -72,4 +73,7 @@ public class BpmTaskDetailVO {
 
     @Schema(description = "当前员工可访问的任务表单上下文")
     private BpmTaskFormContextVO formContext;
+
+    @Schema(description = "M3 审批对象与工作数据授权上下文")
+    private BpmApprovalSubjectContextVO approvalSubjectContext;
 }

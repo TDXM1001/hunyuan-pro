@@ -1,11 +1,10 @@
 package com.hunyuan.sa.bpm.module.definition.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hunyuan.sa.bpm.engine.graph.GraphNode;
 import com.hunyuan.sa.bpm.engine.graph.GraphNodeType;
 import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
-import com.hunyuan.sa.bpm.module.businesscontract.dao.BpmBusinessContractVersionDao;
-import com.hunyuan.sa.bpm.module.businesscontract.domain.entity.BpmBusinessContractVersionEntity;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractCatalogVersion;
+import com.hunyuan.sa.bpm.module.businesscontract.service.BpmBusinessContractCatalogService;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyPublicationLease;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
@@ -22,17 +21,15 @@ import java.util.Map;
 @Component
 public class M2M3GraphPublicationDependencyResolver implements GraphPublicationDependencyResolver {
 
-    private static final String ACTIVE = "ACTIVE";
-
     private final BpmPolicyCatalogService policyCatalogService;
-    private final BpmBusinessContractVersionDao businessContractVersionDao;
+    private final BpmBusinessContractCatalogService businessContractCatalogService;
 
     public M2M3GraphPublicationDependencyResolver(
             BpmPolicyCatalogService policyCatalogService,
-            BpmBusinessContractVersionDao businessContractVersionDao
+            BpmBusinessContractCatalogService businessContractCatalogService
     ) {
         this.policyCatalogService = policyCatalogService;
-        this.businessContractVersionDao = businessContractVersionDao;
+        this.businessContractCatalogService = businessContractCatalogService;
     }
 
     @Override
@@ -69,22 +66,22 @@ public class M2M3GraphPublicationDependencyResolver implements GraphPublicationD
         Map<String, Object> reference = readReference(graph.policies().get("businessContract"), "业务契约");
         String contractKey = requiredText(reference.get("contractKey"), "业务契约 contractKey 不能为空");
         int contractVersion = requiredVersion(reference.get("contractVersion"), "业务契约 contractVersion 必须为正整数");
-        BpmBusinessContractVersionEntity entity = businessContractVersionDao.selectOne(
-                new LambdaQueryWrapper<BpmBusinessContractVersionEntity>()
-                        .eq(BpmBusinessContractVersionEntity::getContractKey, contractKey)
-                        .eq(BpmBusinessContractVersionEntity::getContractVersion, contractVersion)
-                        .eq(BpmBusinessContractVersionEntity::getLifecycleState, ACTIVE)
-        );
-        if (entity == null) {
+        BusinessContractCatalogVersion contract;
+        try {
+            contract = businessContractCatalogService.freezeForPublication(contractKey, contractVersion);
+        } catch (RuntimeException ex) {
             throw new GraphPublicationDependencyException(
-                    "业务契约版本不存在或未启用：" + contractKey + "@" + contractVersion
+                    "业务契约版本不存在、未启用或内容不合法："
+                            + contractKey + "@" + contractVersion + "；" + ex.getMessage()
             );
         }
         return Map.of(
-                "contractKey", entity.getContractKey(),
-                "contractVersion", entity.getContractVersion(),
-                "contractVersionId", entity.getBusinessContractVersionId(),
-                "canonicalPayload", StringUtils.defaultIfBlank(entity.getContractJson(), "{}")
+                "contractKey", contract.contractKey(),
+                "contractVersion", contract.contractVersion(),
+                "contractVersionId", contract.businessContractVersionId(),
+                "schemaVersion", contract.schemaVersion(),
+                "canonicalPayload", contract.canonicalContractJson(),
+                "digest", contract.contractDigest()
         );
     }
 

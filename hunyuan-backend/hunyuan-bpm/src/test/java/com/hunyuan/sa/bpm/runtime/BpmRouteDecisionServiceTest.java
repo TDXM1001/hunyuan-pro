@@ -1,6 +1,8 @@
 package com.hunyuan.sa.bpm.runtime;
 
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;
+import com.hunyuan.sa.bpm.module.approvaldata.domain.model.RoutingDataSnapshot;
+import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
@@ -18,6 +20,7 @@ import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -87,6 +90,32 @@ class BpmRouteDecisionServiceTest {
         assertThat(result.matchedBranchKeys()).containsExactly("large");
         verify(instanceDao, never()).selectByIdForUpdate(any());
         verify(routeDecisionDao, never()).insert(any(BpmRouteDecisionEntity.class));
+    }
+
+    @Test
+    void evaluateAndRecordShouldUseFrozenRoutingFactsForM3Instance() {
+        BpmInstanceEntity instance = instance();
+        instance.setCurrentFormDataSnapshotJson("{\"amount\":100}");
+        instance.setRoutingFactSnapshotId(51L);
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance);
+        when(definitionNodeDao.selectOne(any())).thenReturn(routeNode());
+        when(routeDecisionDao.selectByGenerationAndNode(81L, "engine-1", "amount_route"))
+                .thenReturn(null);
+        when(routeDecisionDao.insert(any(BpmRouteDecisionEntity.class))).thenAnswer(invocation -> {
+            invocation.<BpmRouteDecisionEntity>getArgument(0).setRouteDecisionId(903L);
+            return 1;
+        });
+        BpmApprovalRuntimeDataService runtimeDataService = Mockito.mock(BpmApprovalRuntimeDataService.class);
+        when(runtimeDataService.routingData(51L))
+                .thenReturn(new RoutingDataSnapshot(7L, Map.of("amount", 9000)));
+        setField(service, "bpmApprovalRuntimeDataService", runtimeDataService);
+
+        BpmRouteDecisionResult result = service.evaluateAndRecord(
+                new BpmRouteDecisionCommand(81L, "engine-1", "amount_route")
+        );
+
+        assertThat(result.matchedBranchKeys()).containsExactly("large");
+        assertThat(result.inputFormDataVersion()).isEqualTo(7L);
     }
 
     private BpmInstanceEntity instance() {
