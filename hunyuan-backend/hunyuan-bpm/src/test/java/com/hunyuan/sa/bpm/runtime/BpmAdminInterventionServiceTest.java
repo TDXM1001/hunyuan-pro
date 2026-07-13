@@ -20,6 +20,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminInstanceCancelForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmAdminTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageInstanceProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
@@ -193,6 +194,25 @@ class BpmAdminInterventionServiceTest {
 
         assertThat(response.getOk()).isTrue();
         verify(taskProjectionService()).syncActiveTasksForInstance(8L);
+    }
+
+    @Test
+    void resyncProjectionShouldReconcileFinishedFlowableHistoryForRunningGraphInstance() {
+        BpmApprovalStageInstanceProjectionService instanceProjectionService =
+                Mockito.mock(BpmApprovalStageInstanceProjectionService.class);
+        setField(bpmInstanceService, "bpmApprovalStageInstanceProjectionService", instanceProjectionService);
+        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
+        instanceEntity.setInstanceId(8L);
+        instanceEntity.setGraphDefinitionVersionId(3L);
+        instanceEntity.setEngineProcessInstanceId("process-8");
+        instanceEntity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
+
+        ResponseDTO<String> response = bpmInstanceService.resyncProjection(8L);
+
+        assertThat(response.getOk()).isTrue();
+        verify(taskProjectionService()).syncActiveTasksForInstance(8L);
+        verify(instanceProjectionService).reconcileApprovedCompletion(8L, "process-8");
     }
 
     private FlowableProcessInstanceGateway processInstanceGateway() {

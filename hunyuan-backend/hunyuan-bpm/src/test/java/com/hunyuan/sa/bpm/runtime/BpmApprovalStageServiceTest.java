@@ -2,6 +2,7 @@ package com.hunyuan.sa.bpm.runtime;
 
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalCompletionMode;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalPolicyDocument;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateAutomaticOutcome;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateMember;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateSnapshot;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
@@ -30,6 +31,33 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BpmApprovalStageServiceTest {
+
+    @Test
+    void openShouldPersistAutomaticApprovalWithoutCreatingMembers() {
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        BpmApprovalStageMemberDao memberDao = Mockito.mock(BpmApprovalStageMemberDao.class);
+        BpmApprovalStageService service = service(stageDao, memberDao);
+        doAnswer(invocation -> {
+            BpmApprovalStageEntity stage = invocation.getArgument(0);
+            stage.setApprovalStageId(81L);
+            return 1;
+        }).when(stageDao).insert(any(BpmApprovalStageEntity.class));
+
+        BpmApprovalStageEntity stage = service.open(new BpmApprovalStageService.OpenApprovalStageCommand(
+                11L, 1L, 101L, "finance-review", 3, "execution-auto", 31L,
+                "candidate-policy-digest", 41L, "approval-policy-digest",
+                new ApprovalPolicyDocument(ApprovalCompletionMode.SINGLE, 100, "IMMEDIATE"),
+                new ResolvedCandidateSnapshot(List.of(), List.of(), CandidateAutomaticOutcome.AUTO_APPROVE),
+                "process-91", "execution-auto"
+        ));
+
+        assertThat(stage.getStageState()).isEqualTo("APPROVED");
+        assertThat(stage.getTerminalReason()).isEqualTo("AUTO_APPROVE");
+        assertThat(stage.getEffectiveMemberCount()).isZero();
+        assertThat(stage.getRequiredApprovalCount()).isZero();
+        assertThat(stage.getClosedAt()).isNotNull();
+        verify(memberDao, never()).insert(any(BpmApprovalStageMemberEntity.class));
+    }
 
     @Test
     void openShouldFreezeMembersBySourceEmployeeIdAndActivateOnlyFirstSequentialMember() {

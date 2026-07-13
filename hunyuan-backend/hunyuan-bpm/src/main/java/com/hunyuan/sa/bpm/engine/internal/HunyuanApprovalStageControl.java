@@ -4,6 +4,7 @@ import com.hunyuan.sa.bpm.engine.graph.ApprovalStageControl;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageActivationService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageInstanceProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageService;
 import jakarta.annotation.Resource;
 import org.flowable.engine.delegate.DelegateExecution;
@@ -27,6 +28,9 @@ public class HunyuanApprovalStageControl implements ExecutionListener, ApprovalS
 
     @Resource
     private FlowableProcessInstanceGateway flowableProcessInstanceGateway;
+
+    @Resource
+    private BpmApprovalStageInstanceProjectionService bpmApprovalStageInstanceProjectionService;
 
     @Override
     public void notify(DelegateExecution execution) {
@@ -63,6 +67,10 @@ public class HunyuanApprovalStageControl implements ExecutionListener, ApprovalS
                     claim.engineExecutionId(),
                     FlowableProcessInstanceGateway.approvalStageCompletionMarker(claim.stageInvocationId()),
                     true
+            );
+            bpmApprovalStageInstanceProjectionService.reconcileApprovedCompletion(
+                    claim.instanceId(),
+                    claim.engineProcessInstanceId()
             );
         } catch (RuntimeException ex) {
             bpmApprovalStageService.markEngineEffectFailed(claim.approvalStageId(), ex.getMessage());

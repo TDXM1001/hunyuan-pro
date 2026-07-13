@@ -3,6 +3,8 @@ package com.hunyuan.sa.bpm.runtime;
 import com.alibaba.fastjson.JSON;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateMember;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateSnapshot;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateAutomaticOutcome;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.EngineEffect;
 import com.hunyuan.sa.bpm.module.candidate.service.CandidateResolutionService;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionElementMappingDao;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.context.ApplicationEventPublisher;
+import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectRequestedEvent;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +35,46 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BpmApprovalStageActivationServiceTest {
+
+    @Test
+    void activateShouldQueueAutomaticApprovalOnceWithoutProjectingMemberTasks() {
+        BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
+        GraphDefinitionVersionDao versionDao = Mockito.mock(GraphDefinitionVersionDao.class);
+        GraphDefinitionElementMappingDao mappingDao = Mockito.mock(GraphDefinitionElementMappingDao.class);
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        CandidateResolutionService candidateResolutionService = Mockito.mock(CandidateResolutionService.class);
+        BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
+        BpmTaskProjectionService taskProjectionService = Mockito.mock(BpmTaskProjectionService.class);
+        ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        BpmApprovalStageActivationService service = new BpmApprovalStageActivationService(
+                instanceDao, versionDao, mappingDao, stageDao, candidateResolutionService, stageService,
+                taskProjectionService, eventPublisher
+        );
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance());
+        when(versionDao.selectById(41L)).thenReturn(versionWithPolicies("IMMEDIATE"));
+        when(mappingDao.selectByGraphDefinitionVersionIdAndCompiledElementId(41L, "graph_stage_finance_review_chief"))
+                .thenReturn(mapping());
+        when(stageDao.selectByStageInvocationId("execution-92")).thenReturn(null);
+        when(stageDao.selectNextGeneration(81L, "finance-review:chief")).thenReturn(0);
+        when(candidateResolutionService.resolve(any(), any())).thenReturn(new ResolvedCandidateSnapshot(
+                List.of(), List.of(), CandidateAutomaticOutcome.AUTO_APPROVE
+        ));
+        BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
+        stage.setApprovalStageId(71L);
+        stage.setStageInvocationId("execution-92");
+        stage.setStageState("APPROVED");
+        stage.setTerminalReason("AUTO_APPROVE");
+        when(stageService.open(any())).thenReturn(stage);
+
+        service.activate(command("execution-92"));
+
+        verify(taskProjectionService, Mockito.never()).projectActiveApprovalStageMembers(any());
+        ArgumentCaptor<BpmApprovalStageEngineEffectRequestedEvent> event =
+                ArgumentCaptor.forClass(BpmApprovalStageEngineEffectRequestedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().engineEffect()).isEqualTo(EngineEffect.COMPLETE_ONCE);
+        assertThat(event.getValue().terminalReason()).isEqualTo("AUTO_APPROVE");
+    }
 
     @Test
     void activateShouldUsePublishedCompiledMappingInsteadOfDecodingTheActivityId() {
@@ -101,7 +145,8 @@ class BpmApprovalStageActivationServiceTest {
         verify(stageService).open(command.capture());
         assertThat(command.getValue().authoredNodeId()).isEqualTo("finance-review:chief");
         assertThat(command.getValue().definitionVersionId()).isEqualTo(41L);
-        assertThat(command.getValue().stageInvocationId()).isEqualTo("execution-92");
+        assertThat(command.getValue().stageInvocationId()).startsWith("stage-");
+        assertThat(command.getValue().stageInvocationId()).isNotEqualTo("execution-92");
         assertThat(command.getValue().engineProcessInstanceId()).isEqualTo("process-91");
         assertThat(command.getValue().engineExecutionId()).isEqualTo("execution-92");
         verify(taskProjectionService).projectActiveApprovalStageMembers(stage);
@@ -146,9 +191,104 @@ class BpmApprovalStageActivationServiceTest {
                 .containsExactly(0, 1);
         InOrder order = inOrder(instanceDao, stageDao);
         order.verify(instanceDao).selectByIdForUpdate(81L);
-        order.verify(stageDao).selectByStageInvocationId("execution-92");
+        order.verify(stageDao).selectLatestByEngineBinding(81L, "finance-review:chief", "execution-92");
         order.verify(instanceDao).selectByIdForUpdate(81L);
-        order.verify(stageDao).selectByStageInvocationId("execution-93");
+        order.verify(stageDao).selectLatestByEngineBinding(81L, "finance-review:chief", "execution-93");
+    }
+
+    @Test
+    void activateShouldReuseCompletedStageForTheSameEngineBinding() {
+        BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
+        GraphDefinitionVersionDao versionDao = Mockito.mock(GraphDefinitionVersionDao.class);
+        GraphDefinitionElementMappingDao mappingDao = Mockito.mock(GraphDefinitionElementMappingDao.class);
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        CandidateResolutionService candidateResolutionService = Mockito.mock(CandidateResolutionService.class);
+        BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
+        BpmTaskProjectionService taskProjectionService = Mockito.mock(BpmTaskProjectionService.class);
+        BpmApprovalStageActivationService service = new BpmApprovalStageActivationService(
+                instanceDao, versionDao, mappingDao, stageDao, candidateResolutionService, stageService,
+                taskProjectionService
+        );
+
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance());
+        when(versionDao.selectById(41L)).thenReturn(versionWithPolicies("IMMEDIATE"));
+        when(mappingDao.selectByGraphDefinitionVersionIdAndCompiledElementId(
+                41L, "graph_stage_finance_review_chief"
+        )).thenReturn(mapping());
+        BpmApprovalStageEntity completed = new BpmApprovalStageEntity();
+        completed.setApprovalStageId(71L);
+        completed.setDefinitionVersionId(41L);
+        completed.setEngineProcessInstanceId("process-91");
+        completed.setEngineExecutionId("execution-92");
+        completed.setStageState("APPROVED");
+        completed.setEngineEffectState("COMPLETED");
+        when(stageDao.selectLatestByEngineBinding(81L, "finance-review:chief", "execution-92"))
+                .thenReturn(completed);
+
+        BpmApprovalStageEntity result = service.activate(command("execution-92"));
+
+        assertThat(result).isSameAs(completed);
+        verify(stageService, Mockito.never()).open(any());
+        verify(candidateResolutionService, Mockito.never()).resolve(any(), any());
+    }
+
+    @Test
+    void activateShouldCreateDifferentStagesWhenFlowableReusesExecutionAcrossApprovalNodes() {
+        BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
+        GraphDefinitionVersionDao versionDao = Mockito.mock(GraphDefinitionVersionDao.class);
+        GraphDefinitionElementMappingDao mappingDao = Mockito.mock(GraphDefinitionElementMappingDao.class);
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        CandidateResolutionService candidateResolutionService = Mockito.mock(CandidateResolutionService.class);
+        BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
+        BpmTaskProjectionService taskProjectionService = Mockito.mock(BpmTaskProjectionService.class);
+        BpmApprovalStageActivationService service = new BpmApprovalStageActivationService(
+                instanceDao, versionDao, mappingDao, stageDao, candidateResolutionService, stageService,
+                taskProjectionService
+        );
+
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance());
+        GraphDefinitionVersionEntity version = new GraphDefinitionVersionEntity();
+        version.setGraphDefinitionVersionId(41L);
+        version.setDependencyVersionsJson(JSON.toJSONString(Map.of(
+                "candidatePolicies", Map.of(
+                        "first-review", policy("candidate-first", 31L,
+                                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[20]}}"),
+                        "second-review", policy("candidate-second", 32L,
+                                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[20]}}")
+                ),
+                "approvalPolicies", Map.of(
+                        "first-review", policy("approval-first", 51L,
+                                "{\"completionMode\":\"SINGLE\",\"ratioPercent\":100,\"rejectionRule\":\"IMMEDIATE\",\"allowedActions\":[\"APPROVE\",\"REJECT\",\"RETURN\"]}"),
+                        "second-review", policy("approval-second", 52L,
+                                "{\"completionMode\":\"SINGLE\",\"ratioPercent\":100,\"rejectionRule\":\"IMMEDIATE\",\"allowedActions\":[\"APPROVE\",\"REJECT\",\"RETURN\"]}")
+                )
+        )));
+        when(versionDao.selectById(41L)).thenReturn(version);
+        when(mappingDao.selectByGraphDefinitionVersionIdAndCompiledElementId(41L, "graph_stage_first_review"))
+                .thenReturn(mapping("first-review", "graph_stage_first_review"));
+        when(mappingDao.selectByGraphDefinitionVersionIdAndCompiledElementId(41L, "graph_stage_second_review"))
+                .thenReturn(mapping("second-review", "graph_stage_second_review"));
+        BpmApprovalStageEntity first = new BpmApprovalStageEntity();
+        first.setApprovalStageId(71L);
+        first.setDefinitionVersionId(41L);
+        first.setEngineProcessInstanceId("process-91");
+        first.setEngineExecutionId("execution-92");
+        BpmApprovalStageEntity second = new BpmApprovalStageEntity();
+        second.setApprovalStageId(72L);
+        when(stageDao.selectNextGeneration(81L, "first-review")).thenReturn(0);
+        when(stageDao.selectNextGeneration(81L, "second-review")).thenReturn(0);
+        when(candidateResolutionService.resolve(any(), any())).thenReturn(snapshot());
+        when(stageService.open(any())).thenReturn(first, second);
+
+        service.activate(command("graph_stage_first_review", "execution-92"));
+        service.activate(command("graph_stage_second_review", "execution-92"));
+
+        ArgumentCaptor<BpmApprovalStageService.OpenApprovalStageCommand> commands =
+                ArgumentCaptor.forClass(BpmApprovalStageService.OpenApprovalStageCommand.class);
+        verify(stageService, Mockito.times(2)).open(commands.capture());
+        assertThat(commands.getAllValues())
+                .extracting(BpmApprovalStageService.OpenApprovalStageCommand::stageInvocationId)
+                .doesNotHaveDuplicates();
     }
 
     @Test
@@ -172,6 +312,45 @@ class BpmApprovalStageActivationServiceTest {
         assertThatThrownBy(() -> service.activate(command("execution-92")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("rejectionRule");
+    }
+
+    @Test
+    void activateShouldDefaultRatioPercentForNonRatioCompletionMode() {
+        BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
+        GraphDefinitionVersionDao versionDao = Mockito.mock(GraphDefinitionVersionDao.class);
+        GraphDefinitionElementMappingDao mappingDao = Mockito.mock(GraphDefinitionElementMappingDao.class);
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        CandidateResolutionService candidateResolutionService = Mockito.mock(CandidateResolutionService.class);
+        BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
+        BpmTaskProjectionService taskProjectionService = Mockito.mock(BpmTaskProjectionService.class);
+        BpmApprovalStageActivationService service = new BpmApprovalStageActivationService(
+                instanceDao, versionDao, mappingDao, stageDao, candidateResolutionService, stageService, taskProjectionService
+        );
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance());
+        GraphDefinitionVersionEntity version = new GraphDefinitionVersionEntity();
+        version.setGraphDefinitionVersionId(41L);
+        version.setDependencyVersionsJson(JSON.toJSONString(Map.of(
+                "candidatePolicies", Map.of("finance-review:chief", policy("candidate", 31L,
+                        "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[20]}}")),
+                "approvalPolicies", Map.of("finance-review:chief", policy("approval", 51L,
+                        "{\"completionMode\":\"SINGLE\",\"rejectionRule\":\"IMMEDIATE\",\"allowedActions\":[\"APPROVE\",\"REJECT\",\"RETURN\"]}"))
+        )));
+        when(versionDao.selectById(41L)).thenReturn(version);
+        when(mappingDao.selectByGraphDefinitionVersionIdAndCompiledElementId(41L, "graph_stage_finance_review_chief"))
+                .thenReturn(mapping());
+        when(stageDao.selectByStageInvocationId("execution-92")).thenReturn(null);
+        when(stageDao.selectNextGeneration(81L, "finance-review:chief")).thenReturn(0);
+        when(candidateResolutionService.resolve(any(), any())).thenReturn(snapshot());
+        BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
+        stage.setApprovalStageId(71L);
+        when(stageService.open(any())).thenReturn(stage);
+
+        service.activate(command("execution-92"));
+
+        ArgumentCaptor<BpmApprovalStageService.OpenApprovalStageCommand> command =
+                ArgumentCaptor.forClass(BpmApprovalStageService.OpenApprovalStageCommand.class);
+        verify(stageService).open(command.capture());
+        assertThat(command.getValue().approvalPolicy().ratioPercent()).isEqualTo(100);
     }
 
     private BpmInstanceEntity instance() {
@@ -201,11 +380,15 @@ class BpmApprovalStageActivationServiceTest {
     }
 
     private GraphDefinitionElementMappingEntity mapping() {
+        return mapping("finance-review:chief", "graph_stage_finance_review_chief");
+    }
+
+    private GraphDefinitionElementMappingEntity mapping(String authoredElementId, String compiledElementId) {
         GraphDefinitionElementMappingEntity mapping = new GraphDefinitionElementMappingEntity();
         mapping.setGraphDefinitionVersionId(41L);
-        mapping.setAuthoredElementId("finance-review:chief");
+        mapping.setAuthoredElementId(authoredElementId);
         mapping.setAuthoredElementKind("NODE");
-        mapping.setCompiledElementId("graph_stage_finance_review_chief");
+        mapping.setCompiledElementId(compiledElementId);
         mapping.setCompiledElementType("receiveTask");
         return mapping;
     }
@@ -218,8 +401,15 @@ class BpmApprovalStageActivationServiceTest {
     }
 
     private BpmApprovalStageActivationService.ActivateApprovalStageCommand command(String executionId) {
+        return command("graph_stage_finance_review_chief", executionId);
+    }
+
+    private BpmApprovalStageActivationService.ActivateApprovalStageCommand command(
+            String compiledActivityId,
+            String executionId
+    ) {
         return new BpmApprovalStageActivationService.ActivateApprovalStageCommand(
-                81L, 41L, "graph_stage_finance_review_chief", "process-91", executionId
+                81L, 41L, compiledActivityId, "process-91", executionId
         );
     }
 

@@ -7,8 +7,13 @@ import java.util.List;
  */
 public record ResolvedCandidateSnapshot(
         List<ResolvedCandidateMember> members,
-        List<CandidateDiagnostic> diagnostics
+        List<CandidateDiagnostic> diagnostics,
+        CandidateAutomaticOutcome automaticOutcome
 ) {
+
+    public ResolvedCandidateSnapshot(List<ResolvedCandidateMember> members, List<CandidateDiagnostic> diagnostics) {
+        this(members, diagnostics, null);
+    }
 
     public ResolvedCandidateSnapshot {
         members = List.copyOf(members);

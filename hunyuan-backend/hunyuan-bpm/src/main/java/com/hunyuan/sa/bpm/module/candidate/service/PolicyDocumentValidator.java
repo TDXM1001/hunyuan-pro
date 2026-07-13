@@ -69,6 +69,7 @@ public class PolicyDocumentValidator {
         optionalEnum(document, "emptyCandidatePolicy", EMPTY_CANDIDATE_POLICIES, "空候选策略");
         optionalEnum(document, "selfApprovalPolicy", SELF_APPROVAL_POLICIES, "自审策略");
         optionalEnum(document, "riskLevel", RISK_LEVELS, "风险级别");
+        validateFallbackIdentityReference(document);
         switch (resolverType) {
             case "EMPLOYEE" -> requiredPositiveIdArray(parameters, "employeeIds", "EMPLOYEE 候选策略缺少有效 employeeIds");
             case "ROLE" -> requiredPositiveId(parameters, "roleId", "ROLE 候选策略缺少有效 roleId");
@@ -77,15 +78,59 @@ public class PolicyDocumentValidator {
             case "POST" -> requiredPositiveId(parameters, "positionId", "POST 候选策略缺少有效 positionId");
             case "USER_GROUP" -> requiredPositiveId(parameters, "userGroupId", "USER_GROUP 候选策略缺少有效 userGroupId");
             case "MANAGEMENT_CHAIN" -> {
-                optionalEnum(parameters, "chainType", Set.of("DEPARTMENT_MANAGER_CHAIN", "EMPLOYEE_REPORTING_CHAIN"), "管理链类型");
+                String chainType = requiredEnum(
+                        parameters,
+                        "chainType",
+                        Set.of("DEPARTMENT_MANAGER_CHAIN", "EMPLOYEE_REPORTING_CHAIN"),
+                        "管理链 chainType"
+                );
                 Integer maxDepth = parameters.getInteger("maxDepth");
-                if (maxDepth != null && (maxDepth < 1 || maxDepth > 20)) {
+                if (maxDepth == null || maxDepth < 1 || maxDepth > 20) {
                     throw new IllegalArgumentException("MANAGEMENT_CHAIN maxDepth 必须在 1 到 20 之间");
                 }
+                validateManagementChainSeed(
+                        requiredObject(parameters, "seedIdentityReference", "MANAGEMENT_CHAIN seedIdentityReference 不能为空"),
+                        chainType
+                );
             }
             default -> {
                 // START_EMPLOYEE 与 START_DEPARTMENT_MANAGER 只消费服务端发起人快照。
             }
+        }
+    }
+
+    private void validateFallbackIdentityReference(JSONObject document) {
+        String emptyPolicy = document.getString("emptyCandidatePolicy");
+        if (!Set.of("ASSIGN_NAMED_EMPLOYEE", "ASSIGN_NAMED_ROLE").contains(emptyPolicy)) {
+            return;
+        }
+        JSONObject fallback = requiredObject(
+                document,
+                "fallbackIdentityReference",
+                "命名兜底 fallbackIdentityReference 不能为空"
+        );
+        rejectUnknownFields(fallback, Set.of("kind", "stableId"), "fallbackIdentityReference");
+        String expectedKind = "ASSIGN_NAMED_EMPLOYEE".equals(emptyPolicy) ? "EMPLOYEE" : "ROLE";
+        String kind = requiredText(fallback, "kind", "fallbackIdentityReference.kind 不能为空");
+        if (!expectedKind.equals(kind)) {
+            throw new IllegalArgumentException("fallbackIdentityReference.kind 必须为 " + expectedKind);
+        }
+        requiredPositiveId(fallback, "stableId", "fallbackIdentityReference.stableId 必须为正整数");
+    }
+
+    private void validateManagementChainSeed(JSONObject seed, String chainType) {
+        rejectUnknownFields(seed, Set.of("kind", "stableId", "factKey"), "seedIdentityReference");
+        String kind = requiredText(seed, "kind", "seedIdentityReference.kind 不能为空");
+        Set<String> allowedKinds = "DEPARTMENT_MANAGER_CHAIN".equals(chainType)
+                ? Set.of("DEPARTMENT", "EMPLOYEE", "START_EMPLOYEE", "ROUTING_FACT_EMPLOYEE")
+                : Set.of("EMPLOYEE", "START_EMPLOYEE", "ROUTING_FACT_EMPLOYEE");
+        if (!allowedKinds.contains(kind)) {
+            throw new IllegalArgumentException("seedIdentityReference.kind 与管理链类型不匹配：" + kind);
+        }
+        if ("ROUTING_FACT_EMPLOYEE".equals(kind)) {
+            requiredText(seed, "factKey", "路由事实主管链种子缺少 factKey");
+        } else if (!"START_EMPLOYEE".equals(kind)) {
+            requiredPositiveId(seed, "stableId", "主管链种子 stableId 必须为正整数");
         }
     }
 

@@ -227,17 +227,18 @@ public class BpmTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> approve(BpmTaskApproveForm approveForm) {
-        ResponseDTO<String> policyResponse = requireAllowed(approveForm.getTaskId(), BpmTaskAction.APPROVE);
-        if (policyResponse != null) {
-            return policyResponse;
-        }
         ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
                 approveForm.getTaskId(),
                 "APPROVE",
-                approveForm.getCommentText()
+                approveForm.getCommentText(),
+                approveForm.getRequestId()
         );
         if (approvalStageResponse != null) {
             return approvalStageResponse;
+        }
+        ResponseDTO<String> policyResponse = requireAllowed(approveForm.getTaskId(), BpmTaskAction.APPROVE);
+        if (policyResponse != null) {
+            return policyResponse;
         }
         ResponseDTO<String> taskKindResponse = rejectApprovalActionForHandleTask(
                 approveForm.getTaskId(),
@@ -260,17 +261,18 @@ public class BpmTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> reject(BpmTaskRejectForm rejectForm) {
-        ResponseDTO<String> policyResponse = requireAllowed(rejectForm.getTaskId(), BpmTaskAction.REJECT);
-        if (policyResponse != null) {
-            return policyResponse;
-        }
         ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
                 rejectForm.getTaskId(),
                 "REJECT",
-                rejectForm.getCommentText()
+                rejectForm.getCommentText(),
+                rejectForm.getRequestId()
         );
         if (approvalStageResponse != null) {
             return approvalStageResponse;
+        }
+        ResponseDTO<String> policyResponse = requireAllowed(rejectForm.getTaskId(), BpmTaskAction.REJECT);
+        if (policyResponse != null) {
+            return policyResponse;
         }
         ResponseDTO<String> taskKindResponse = rejectApprovalActionForHandleTask(
                 rejectForm.getTaskId(),
@@ -297,17 +299,18 @@ public class BpmTaskService {
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
-        ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.RETURN);
-        if (policyResponse != null) {
-            return policyResponse;
-        }
         ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
                 returnForm.getTaskId(),
                 "RETURN",
-                returnForm.getCommentText()
+                returnForm.getCommentText(),
+                returnForm.getRequestId()
         );
         if (approvalStageResponse != null) {
             return approvalStageResponse;
+        }
+        ResponseDTO<String> policyResponse = requireAllowed(taskEntity, BpmTaskAction.RETURN);
+        if (policyResponse != null) {
+            return policyResponse;
         }
         if (taskEntity.getApprovalGroupId() != null) {
             return handleApprovalGroupAction(
@@ -920,7 +923,8 @@ public class BpmTaskService {
     private ResponseDTO<String> executeApprovalStageMemberActionIfPresent(
             Long taskId,
             String action,
-            String commentText
+            String commentText,
+            String requestId
     ) {
         BpmTaskEntity task = bpmTaskDao.selectById(taskId);
         if (task == null) {
@@ -929,7 +933,7 @@ public class BpmTaskService {
         if (task.getApprovalStageId() == null && task.getApprovalStageMemberId() == null) {
             return null;
         }
-        return bpmApprovalStageCommandService.execute(taskId, action, commentText);
+        return bpmApprovalStageCommandService.execute(taskId, action, commentText, requestId);
     }
 
     private ResponseDTO<String> rejectGenericActionForApprovalStageMember(BpmTaskEntity task) {

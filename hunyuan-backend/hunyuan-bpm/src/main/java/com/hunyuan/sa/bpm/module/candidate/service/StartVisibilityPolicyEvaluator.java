@@ -9,6 +9,7 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.InstanceAccessDecision;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartVisibilityEvaluationContext;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
@@ -22,6 +23,7 @@ public class StartVisibilityPolicyEvaluator {
     private final BpmOrgIdentityGateway identityGateway;
     private final PolicyDocumentValidator validator;
 
+    @Autowired
     public StartVisibilityPolicyEvaluator(BpmOrgIdentityGateway identityGateway) {
         this(identityGateway, new PolicyDocumentValidator());
     }

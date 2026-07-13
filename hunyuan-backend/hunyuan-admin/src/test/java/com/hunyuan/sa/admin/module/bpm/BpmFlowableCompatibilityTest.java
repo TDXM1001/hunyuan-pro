@@ -3,6 +3,7 @@ package com.hunyuan.sa.admin.module.bpm;
 import com.hunyuan.sa.admin.module.bpm.adapter.AdminBpmCurrentActorProvider;
 import com.hunyuan.sa.admin.module.bpm.adapter.AdminBpmOrgIdentityGateway;
 import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.system.employee.dao.OrganizationRelationDao;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.login.manager.LoginManager;
 import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
@@ -114,6 +115,9 @@ class BpmFlowableCompatibilityTest {
 
     @MockBean
     private RoleEmployeeService roleEmployeeService;
+
+    @MockBean
+    private OrganizationRelationDao organizationRelationDao;
 
     @MockBean
     private LoginManager loginManager;

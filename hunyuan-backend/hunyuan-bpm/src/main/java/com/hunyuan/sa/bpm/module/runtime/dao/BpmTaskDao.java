@@ -8,6 +8,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -47,4 +48,20 @@ public interface BpmTaskDao extends BaseMapper<BpmTaskEntity> {
      */
     @Select("SELECT * FROM t_bpm_task WHERE approval_stage_member_id = #{approvalStageMemberId} LIMIT 1")
     BpmTaskEntity selectByApprovalStageMemberId(@Param("approvalStageMemberId") Long approvalStageMemberId);
+
+    @Select("SELECT * FROM t_bpm_task WHERE approval_stage_member_id = #{approvalStageMemberId} LIMIT 1 FOR UPDATE")
+    BpmTaskEntity selectByApprovalStageMemberIdForUpdate(@Param("approvalStageMemberId") Long approvalStageMemberId);
+
+    @Update("UPDATE t_bpm_task SET assignee_employee_id = #{employeeId}, assignee_name_snapshot = #{employeeName}, "
+            + "assignee_department_id_snapshot = #{departmentId}, assignee_department_name_snapshot = #{departmentName}, "
+            + "runtime_assignment_snapshot_json = #{assignmentJson}, task_state = 1, cancelled_at = NULL, "
+            + "assigned_at = NOW(), last_action_at = NOW(), update_time = NOW() WHERE task_id = #{taskId}")
+    int restoreM2Task(
+            @Param("taskId") Long taskId,
+            @Param("employeeId") Long employeeId,
+            @Param("employeeName") String employeeName,
+            @Param("departmentId") Long departmentId,
+            @Param("departmentName") String departmentName,
+            @Param("assignmentJson") String assignmentJson
+    );
 }

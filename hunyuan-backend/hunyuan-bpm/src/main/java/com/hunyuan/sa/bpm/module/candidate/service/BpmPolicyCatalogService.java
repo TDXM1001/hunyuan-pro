@@ -1,5 +1,7 @@
 package com.hunyuan.sa.bpm.module.candidate.service;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.hunyuan.sa.bpm.module.candidate.dao.BpmApprovalPolicyVersionDao;
@@ -16,12 +18,15 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyValidationResult;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.logging.Logger;
 import java.util.Set;
 
 /**
@@ -30,6 +35,7 @@ import java.util.Set;
 @Service
 public class BpmPolicyCatalogService {
 
+    private static final Logger LOGGER = Logger.getLogger(BpmPolicyCatalogService.class.getName());
     private static final String ACTIVE = "ACTIVE";
 
     private final BpmCandidatePolicyVersionDao candidatePolicyVersionDao;
@@ -38,6 +44,7 @@ public class BpmPolicyCatalogService {
     private final PolicyCanonicalizer canonicalizer;
     private final PolicyDocumentValidator validator;
 
+    @Autowired
     public BpmPolicyCatalogService(
             BpmCandidatePolicyVersionDao candidatePolicyVersionDao,
             BpmApprovalPolicyVersionDao approvalPolicyVersionDao,
@@ -83,7 +90,16 @@ public class BpmPolicyCatalogService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PolicyCatalogVersion activate(PolicyLifecycleCommand command) {
-        return transition(command, "DRAFT", "ACTIVE");
+        return transition(command, "DRAFT", "ACTIVE", false, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public PolicyCatalogVersion activateHighRisk(PolicyLifecycleCommand command, String confirmationReason) {
+        String normalizedReason = StringUtils.trimToNull(confirmationReason);
+        if (normalizedReason == null || normalizedReason.length() > 512) {
+            throw new IllegalArgumentException("高风险策略确认原因必须为 1 到 512 个字符");
+        }
+        return transition(command, "DRAFT", "ACTIVE", true, normalizedReason);
     }
 
     /**
@@ -91,7 +107,7 @@ public class BpmPolicyCatalogService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PolicyCatalogVersion retire(PolicyLifecycleCommand command) {
-        return transition(command, "ACTIVE", "RETIRED");
+        return transition(command, "ACTIVE", "RETIRED", true, null);
     }
 
     /**
@@ -167,30 +183,30 @@ public class BpmPolicyCatalogService {
                             .eq(normalizedLifecycleState != null, BpmCandidatePolicyVersionEntity::getLifecycleState, normalizedLifecycleState)
                             .orderByAsc(BpmCandidatePolicyVersionEntity::getPolicyKey)
                             .orderByDesc(BpmCandidatePolicyVersionEntity::getPolicyVersion)
-            ).stream().map(entity -> catalogVersion(
+            ).stream().map(entity -> catalogVersionIfValid(
                     new PolicyReference(type, entity.getPolicyKey(), entity.getPolicyVersion()),
                     candidateRecord(entity)
-            )).toList();
+            )).flatMap(Optional::stream).toList();
             case APPROVAL -> approvalPolicyVersionDao.selectList(
                     new LambdaQueryWrapper<BpmApprovalPolicyVersionEntity>()
                             .eq(normalizedPolicyKey != null, BpmApprovalPolicyVersionEntity::getPolicyKey, normalizedPolicyKey)
                             .eq(normalizedLifecycleState != null, BpmApprovalPolicyVersionEntity::getLifecycleState, normalizedLifecycleState)
                             .orderByAsc(BpmApprovalPolicyVersionEntity::getPolicyKey)
                             .orderByDesc(BpmApprovalPolicyVersionEntity::getPolicyVersion)
-            ).stream().map(entity -> catalogVersion(
+            ).stream().map(entity -> catalogVersionIfValid(
                     new PolicyReference(type, entity.getPolicyKey(), entity.getPolicyVersion()),
                     approvalRecord(entity)
-            )).toList();
+            )).flatMap(Optional::stream).toList();
             case START_VISIBILITY -> startVisibilityPolicyVersionDao.selectList(
                     new LambdaQueryWrapper<BpmStartVisibilityPolicyVersionEntity>()
                             .eq(normalizedPolicyKey != null, BpmStartVisibilityPolicyVersionEntity::getPolicyKey, normalizedPolicyKey)
                             .eq(normalizedLifecycleState != null, BpmStartVisibilityPolicyVersionEntity::getLifecycleState, normalizedLifecycleState)
                             .orderByAsc(BpmStartVisibilityPolicyVersionEntity::getPolicyKey)
                             .orderByDesc(BpmStartVisibilityPolicyVersionEntity::getPolicyVersion)
-            ).stream().map(entity -> catalogVersion(
+            ).stream().map(entity -> catalogVersionIfValid(
                     new PolicyReference(type, entity.getPolicyKey(), entity.getPolicyVersion()),
                     startVisibilityRecord(entity)
-            )).toList();
+            )).flatMap(Optional::stream).toList();
         };
     }
 
@@ -266,7 +282,23 @@ public class BpmPolicyCatalogService {
         );
     }
 
-    private PolicyCatalogVersion transition(PolicyLifecycleCommand command, String expectedState, String targetState) {
+    private Optional<PolicyCatalogVersion> catalogVersionIfValid(PolicyReference reference, CatalogRecord record) {
+        try {
+            return Optional.of(catalogVersion(reference, record));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            LOGGER.warning(() -> "忽略不符合当前 M2 schema 的历史策略版本："
+                    + reference.policyKey() + "@" + reference.policyVersion() + "，原因：" + ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private PolicyCatalogVersion transition(
+            PolicyLifecycleCommand command,
+            String expectedState,
+            String targetState,
+            boolean allowHighRisk,
+            String highRiskConfirmationReason
+    ) {
         CatalogRecord record = loadForUpdate(command.reference());
         if (record == null) {
             throw new IllegalArgumentException("策略版本不存在：" + command.reference().policyKey() + "@" + command.reference().policyVersion());
@@ -278,6 +310,18 @@ public class BpmPolicyCatalogService {
         if (!Objects.equals(catalogRevision, command.expectedCatalogRevision())) {
             throw new IllegalStateException("策略目录版本已变更，请刷新后重试");
         }
+        boolean highRisk = isHighRisk(command.reference().type(), record.policyJson());
+        if (!allowHighRisk && highRisk) {
+            throw new IllegalStateException("高风险策略必须通过独立确认入口启用");
+        }
+        if (highRiskConfirmationReason != null) {
+            if (!highRisk) {
+                throw new IllegalStateException("当前策略不是高风险策略，无需独立确认");
+            }
+            if (Objects.equals(record.createdByEmployeeId(), command.operatedByEmployeeId())) {
+                throw new IllegalStateException("高风险策略确认人不能是策略创建人");
+            }
+        }
         PolicyPublicationLease validated = lease(
                 command.reference(),
                 record.policyVersionId(),
@@ -287,7 +331,10 @@ public class BpmPolicyCatalogService {
         );
         LocalDateTime operatedAt = LocalDateTime.now();
         long nextRevision = catalogRevision + 1;
-        int affected = updateLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt);
+        int affected = updateLifecycle(
+                command, record, expectedState, targetState, validated, nextRevision, operatedAt,
+                highRisk ? "HIGH" : "LOW", highRiskConfirmationReason
+        );
         if (affected != 1) {
             throw new IllegalStateException("策略目录版本已变更，请刷新后重试");
         }
@@ -301,6 +348,27 @@ public class BpmPolicyCatalogService {
         );
     }
 
+    private boolean isHighRisk(PolicyType type, String policyJson) {
+        JSONObject document = JSON.parseObject(policyJson);
+        if (type == PolicyType.CANDIDATE) {
+            return "ALLOW".equals(document.getString("selfApprovalPolicy"))
+                    || Set.of("AUTO_APPROVE", "AUTO_REJECT").contains(document.getString("emptyCandidatePolicy"))
+                    || document.containsKey("fallbackIdentityReference");
+        }
+        if (type == PolicyType.APPROVAL) {
+            return "RETURN_ANCESTOR".equals(document.getString("returnRule"));
+        }
+        return containsHighRiskScope(document.getJSONObject("startScope"))
+                || containsHighRiskScope(document.getJSONObject("visibilityScope"));
+    }
+
+    private boolean containsHighRiskScope(JSONObject scope) {
+        if (scope == null) {
+            return false;
+        }
+        return Set.of("ALL", "ROLE_IDS", "DEPARTMENT_IDS").contains(scope.getString("type"));
+    }
+
     private int updateLifecycle(
             PolicyLifecycleCommand command,
             CatalogRecord record,
@@ -308,12 +376,14 @@ public class BpmPolicyCatalogService {
             String targetState,
             PolicyPublicationLease validated,
             long nextRevision,
-            LocalDateTime operatedAt
+            LocalDateTime operatedAt,
+            String effectiveRisk,
+            String highRiskConfirmationReason
     ) {
         return switch (command.reference().type()) {
-            case CANDIDATE -> updateCandidateLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt);
-            case APPROVAL -> updateApprovalLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt);
-            case START_VISIBILITY -> updateStartVisibilityLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt);
+            case CANDIDATE -> updateCandidateLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt, effectiveRisk, highRiskConfirmationReason);
+            case APPROVAL -> updateApprovalLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt, effectiveRisk, highRiskConfirmationReason);
+            case START_VISIBILITY -> updateStartVisibilityLifecycle(command, record, expectedState, targetState, validated, nextRevision, operatedAt, effectiveRisk, highRiskConfirmationReason);
         };
     }
 
@@ -324,7 +394,9 @@ public class BpmPolicyCatalogService {
             String targetState,
             PolicyPublicationLease validated,
             long nextRevision,
-            LocalDateTime operatedAt
+            LocalDateTime operatedAt,
+            String effectiveRisk,
+            String highRiskConfirmationReason
     ) {
         UpdateWrapper<BpmCandidatePolicyVersionEntity> update = new UpdateWrapper<BpmCandidatePolicyVersionEntity>()
                 .set("lifecycle_state", targetState)
@@ -337,7 +409,9 @@ public class BpmPolicyCatalogService {
                 .eq("catalog_revision", normalizeRevision(record.catalogRevision()));
         if ("ACTIVE".equals(targetState)) {
             update.set("activated_by_employee_id", command.operatedByEmployeeId())
-                    .set("activated_at", operatedAt);
+                    .set("activated_at", operatedAt)
+                    .set("effective_risk", effectiveRisk);
+            applyHighRiskConfirmation(update, command, validated, operatedAt, highRiskConfirmationReason);
         } else {
             update.set("retired_by_employee_id", command.operatedByEmployeeId())
                     .set("retired_at", operatedAt);
@@ -352,7 +426,9 @@ public class BpmPolicyCatalogService {
             String targetState,
             PolicyPublicationLease validated,
             long nextRevision,
-            LocalDateTime operatedAt
+            LocalDateTime operatedAt,
+            String effectiveRisk,
+            String highRiskConfirmationReason
     ) {
         UpdateWrapper<BpmApprovalPolicyVersionEntity> update = new UpdateWrapper<BpmApprovalPolicyVersionEntity>()
                 .set("lifecycle_state", targetState)
@@ -365,7 +441,9 @@ public class BpmPolicyCatalogService {
                 .eq("catalog_revision", normalizeRevision(record.catalogRevision()));
         if ("ACTIVE".equals(targetState)) {
             update.set("activated_by_employee_id", command.operatedByEmployeeId())
-                    .set("activated_at", operatedAt);
+                    .set("activated_at", operatedAt)
+                    .set("effective_risk", effectiveRisk);
+            applyHighRiskConfirmation(update, command, validated, operatedAt, highRiskConfirmationReason);
         } else {
             update.set("retired_by_employee_id", command.operatedByEmployeeId())
                     .set("retired_at", operatedAt);
@@ -380,7 +458,9 @@ public class BpmPolicyCatalogService {
             String targetState,
             PolicyPublicationLease validated,
             long nextRevision,
-            LocalDateTime operatedAt
+            LocalDateTime operatedAt,
+            String effectiveRisk,
+            String highRiskConfirmationReason
     ) {
         UpdateWrapper<BpmStartVisibilityPolicyVersionEntity> update = new UpdateWrapper<BpmStartVisibilityPolicyVersionEntity>()
                 .set("lifecycle_state", targetState)
@@ -393,12 +473,29 @@ public class BpmPolicyCatalogService {
                 .eq("catalog_revision", normalizeRevision(record.catalogRevision()));
         if ("ACTIVE".equals(targetState)) {
             update.set("activated_by_employee_id", command.operatedByEmployeeId())
-                    .set("activated_at", operatedAt);
+                    .set("activated_at", operatedAt)
+                    .set("effective_risk", effectiveRisk);
+            applyHighRiskConfirmation(update, command, validated, operatedAt, highRiskConfirmationReason);
         } else {
             update.set("retired_by_employee_id", command.operatedByEmployeeId())
                     .set("retired_at", operatedAt);
         }
         return startVisibilityPolicyVersionDao.update(null, update);
+    }
+
+    private void applyHighRiskConfirmation(
+            UpdateWrapper<?> update,
+            PolicyLifecycleCommand command,
+            PolicyPublicationLease validated,
+            LocalDateTime operatedAt,
+            String confirmationReason
+    ) {
+        if (confirmationReason != null) {
+            update.set("high_risk_confirmed_by_employee_id", command.operatedByEmployeeId())
+                    .set("high_risk_confirmation_reason", confirmationReason)
+                    .set("high_risk_confirmed_at", operatedAt)
+                    .set("high_risk_confirmed_digest", validated.digest());
+        }
     }
 
     private int nextPolicyVersion(PolicyType type, String policyKey) {
@@ -516,21 +613,21 @@ public class BpmPolicyCatalogService {
     private CatalogRecord candidateRecord(BpmCandidatePolicyVersionEntity entity) {
         return new CatalogRecord(
                 entity.getCandidatePolicyVersionId(), entity.getLifecycleState(), entity.getSchemaVersion(),
-                entity.getPolicyJson(), entity.getCatalogRevision()
+                entity.getPolicyJson(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId()
         );
     }
 
     private CatalogRecord approvalRecord(BpmApprovalPolicyVersionEntity entity) {
         return new CatalogRecord(
                 entity.getApprovalPolicyVersionId(), entity.getLifecycleState(), entity.getSchemaVersion(),
-                entity.getPolicyJson(), entity.getCatalogRevision()
+                entity.getPolicyJson(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId()
         );
     }
 
     private CatalogRecord startVisibilityRecord(BpmStartVisibilityPolicyVersionEntity entity) {
         return new CatalogRecord(
                 entity.getStartVisibilityPolicyVersionId(), entity.getLifecycleState(), entity.getSchemaVersion(),
-                entity.getPolicyJson(), entity.getCatalogRevision()
+                entity.getPolicyJson(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId()
         );
     }
 
@@ -554,7 +651,8 @@ public class BpmPolicyCatalogService {
             String lifecycleState,
             Integer schemaVersion,
             String policyJson,
-            Long catalogRevision
+            Long catalogRevision,
+            Long createdByEmployeeId
     ) {
     }
 }

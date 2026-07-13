@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -29,6 +30,16 @@ public interface BpmApprovalStageDao extends BaseMapper<BpmApprovalStageEntity> 
 
     @Select("SELECT * FROM t_bpm_approval_stage WHERE stage_invocation_id = #{stageInvocationId} FOR UPDATE")
     BpmApprovalStageEntity selectByStageInvocationIdForUpdate(@Param("stageInvocationId") String stageInvocationId);
+
+    @Select("SELECT * FROM t_bpm_approval_stage "
+            + "WHERE instance_id = #{instanceId} AND authored_node_id = #{authoredNodeId} "
+            + "AND engine_execution_id = #{engineExecutionId} "
+            + "ORDER BY generation DESC LIMIT 1")
+    BpmApprovalStageEntity selectLatestByEngineBinding(
+            @Param("instanceId") Long instanceId,
+            @Param("authoredNodeId") String authoredNodeId,
+            @Param("engineExecutionId") String engineExecutionId
+    );
 
     @Select("SELECT stage_invocation_id FROM t_bpm_approval_stage "
             + "WHERE stage_state IN ('APPROVED', 'REJECTED', 'RETURNED', 'CANCELLED') "
@@ -84,4 +95,26 @@ public interface BpmApprovalStageDao extends BaseMapper<BpmApprovalStageEntity> 
     @Select("SELECT * FROM t_bpm_approval_stage "
             + "WHERE approval_stage_id = #{approvalStageId} FOR UPDATE")
     BpmApprovalStageEntity selectByIdForUpdate(@Param("approvalStageId") Long approvalStageId);
+
+    @Update("UPDATE t_bpm_approval_stage "
+            + "SET stage_state = #{stageState}, terminal_reason = #{terminalReason}, "
+            + "closed_at = #{closedAt}, revision = revision + 1, update_time = NOW() "
+            + "WHERE approval_stage_id = #{approvalStageId} AND revision = #{expectedRevision}")
+    int updateState(
+            @Param("approvalStageId") Long approvalStageId,
+            @Param("expectedRevision") Integer expectedRevision,
+            @Param("stageState") String stageState,
+            @Param("terminalReason") String terminalReason,
+            @Param("closedAt") LocalDateTime closedAt
+    );
+
+    @Update("UPDATE t_bpm_approval_stage SET stage_state = 'EXCEPTION_PENDING', "
+            + "terminal_reason = #{reason}, revision = revision + 1, update_time = NOW() "
+            + "WHERE approval_stage_id = #{stageId} AND stage_state = 'ACTIVE'")
+    int markMemberEligibilityException(@Param("stageId") Long stageId, @Param("reason") String reason);
+
+    @Update("UPDATE t_bpm_approval_stage SET stage_state = 'ACTIVE', terminal_reason = NULL, "
+            + "revision = revision + 1, update_time = NOW() "
+            + "WHERE approval_stage_id = #{stageId} AND stage_state = 'EXCEPTION_PENDING'")
+    int restoreFromMemberEligibilityException(@Param("stageId") Long stageId);
 }

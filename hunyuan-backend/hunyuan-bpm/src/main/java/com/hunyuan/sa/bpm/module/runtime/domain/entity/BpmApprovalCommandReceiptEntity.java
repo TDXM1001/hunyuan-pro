@@ -10,45 +10,42 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 流程任务动作日志实体。
+ * M2 审批命令的持久化幂等回执。
  */
 @Data
-@TableName("t_bpm_task_action_log")
-public class BpmTaskActionLogEntity {
+@TableName("t_bpm_approval_command_receipt")
+public class BpmApprovalCommandReceiptEntity {
 
     @TableId(type = IdType.AUTO)
-    private Long actionLogId;
+    private Long approvalCommandReceiptId;
+
+    private Long tenantId;
 
     private Long instanceId;
 
     private Long taskId;
 
-    private Long definitionId;
+    private String requestId;
 
-    private Long graphDefinitionVersionId;
-
-    private String definitionSource;
-
-    private Long definitionNodeId;
-
-    private String engineTaskId;
+    private String commandFingerprint;
 
     private String actionType;
 
     private Long actorEmployeeId;
 
-    private String actorNameSnapshot;
+    private String receiptState;
 
-    private Long fromAssigneeEmployeeId;
+    private Boolean responseOk;
 
-    private Long toAssigneeEmployeeId;
+    private Integer responseCode;
 
-    private String commentText;
+    private String responseMessage;
 
-    private String actionPayloadJson;
-
-    private LocalDateTime actionAt;
+    private LocalDateTime completedAt;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
 }

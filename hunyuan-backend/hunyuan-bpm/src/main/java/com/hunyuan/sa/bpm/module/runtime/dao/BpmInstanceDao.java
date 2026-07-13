@@ -7,6 +7,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmInstanceQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmInstanceVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -25,4 +26,9 @@ public interface BpmInstanceDao extends BaseMapper<BpmInstanceEntity> {
      * 按主键锁定流程实例。
      */
     BpmInstanceEntity selectByIdForUpdate(@Param("instanceId") Long instanceId);
+
+    @Update("UPDATE t_bpm_instance SET run_state = 3, result_state = 1, "
+            + "finished_at = COALESCE(finished_at, NOW()), update_time = NOW() "
+            + "WHERE instance_id = #{instanceId} AND run_state = 1")
+    int finishApprovedIfRunning(@Param("instanceId") Long instanceId);
 }

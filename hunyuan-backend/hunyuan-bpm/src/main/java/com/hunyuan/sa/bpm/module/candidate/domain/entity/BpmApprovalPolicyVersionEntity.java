@@ -43,6 +43,12 @@ public class BpmApprovalPolicyVersionEntity {
 
     private LocalDateTime retiredAt;
 
+    private String effectiveRisk;
+    private Long highRiskConfirmedByEmployeeId;
+    private String highRiskConfirmationReason;
+    private LocalDateTime highRiskConfirmedAt;
+    private String highRiskConfirmedDigest;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

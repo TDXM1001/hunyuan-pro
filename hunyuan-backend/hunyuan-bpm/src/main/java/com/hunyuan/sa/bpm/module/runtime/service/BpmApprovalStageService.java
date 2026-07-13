@@ -5,6 +5,7 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalCompletionMode;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalMemberState;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalPolicyDocument;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalStageState;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateAutomaticOutcome;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateMember;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateSnapshot;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
@@ -93,6 +94,7 @@ public class BpmApprovalStageService {
             LocalDateTime openedAt
     ) {
         ApprovalPolicyDocument policy = command.approvalPolicy();
+        CandidateAutomaticOutcome automaticOutcome = command.candidateSnapshot().automaticOutcome();
         BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
         stage.setInstanceId(command.instanceId());
         stage.setTenantId(command.tenantId());
@@ -102,13 +104,14 @@ public class BpmApprovalStageService {
         stage.setStageInvocationId(command.stageInvocationId());
         stage.setEngineProcessInstanceId(command.engineProcessInstanceId());
         stage.setEngineExecutionId(command.engineExecutionId());
-        stage.setStageState(ApprovalStageState.ACTIVE.name());
+        stage.setStageState(automaticStageState(automaticOutcome).name());
+        stage.setTerminalReason(automaticOutcome == null ? null : automaticOutcome.name());
         stage.setEngineEffectState(ENGINE_EFFECT_PENDING);
         stage.setCompletionMode(policy.completionMode().name());
         stage.setRatioPercent(policy.ratioPercent());
         stage.setRejectionRule(policy.rejectionRule());
         stage.setEffectiveMemberCount(members.size());
-        stage.setRequiredApprovalCount(requiredApprovalCount(policy, members.size()));
+        stage.setRequiredApprovalCount(automaticOutcome == null ? requiredApprovalCount(policy, members.size()) : 0);
         stage.setCandidatePolicyVersionId(command.candidatePolicyVersionId());
         stage.setCandidatePolicyDigest(command.candidatePolicyDigest());
         stage.setApprovalPolicyVersionId(command.approvalPolicyVersionId());
@@ -118,8 +121,18 @@ public class BpmApprovalStageService {
         stage.setCandidateSnapshotDigest(candidateSnapshotDigest);
         stage.setDiagnosticsJson(JSON.toJSONString(command.candidateSnapshot().diagnostics()));
         stage.setOpenedAt(openedAt);
+        stage.setClosedAt(automaticOutcome == null ? null : openedAt);
         stage.setRevision(0);
         return stage;
+    }
+
+    private ApprovalStageState automaticStageState(CandidateAutomaticOutcome outcome) {
+        if (outcome == null) {
+            return ApprovalStageState.ACTIVE;
+        }
+        return outcome == CandidateAutomaticOutcome.AUTO_APPROVE
+                ? ApprovalStageState.APPROVED
+                : ApprovalStageState.REJECTED;
     }
 
     private BpmApprovalStageMemberEntity buildMember(
@@ -239,11 +252,17 @@ public class BpmApprovalStageService {
                 || isBlank(command.approvalPolicyDigest())
                 || command.approvalPolicy() == null
                 || command.candidateSnapshot() == null
-                || command.candidateSnapshot().members() == null
-                || command.candidateSnapshot().members().isEmpty()) {
+                || command.candidateSnapshot().members() == null) {
             throw new IllegalArgumentException("审批阶段冻结参数不完整");
         }
+        boolean automatic = command.candidateSnapshot().automaticOutcome() != null;
+        if (automatic == command.candidateSnapshot().members().isEmpty()) {
+            // 自动终态必须无成员；普通阶段必须至少冻结一个成员。
+        } else {
+            throw new IllegalArgumentException("审批阶段候选成员与自动终态不一致");
+        }
         if (command.approvalPolicy().completionMode() == ApprovalCompletionMode.SINGLE
+                && !automatic
                 && command.candidateSnapshot().members().size() != 1) {
             throw new IllegalArgumentException("SINGLE 审批阶段必须冻结一个成员");
         }
@@ -270,6 +289,7 @@ public class BpmApprovalStageService {
         }
         return new EngineEffectClaim(
                 stage.getApprovalStageId(),
+                stage.getInstanceId(),
                 stage.getStageInvocationId(),
                 stage.getEngineProcessInstanceId(),
                 stage.getEngineExecutionId(),
@@ -325,6 +345,7 @@ public class BpmApprovalStageService {
 
     public record EngineEffectClaim(
             Long approvalStageId,
+            Long instanceId,
             String stageInvocationId,
             String engineProcessInstanceId,
             String engineExecutionId,

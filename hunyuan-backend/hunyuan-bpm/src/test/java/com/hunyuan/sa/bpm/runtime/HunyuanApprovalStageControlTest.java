@@ -5,6 +5,7 @@ import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageActivationService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageInstanceProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageService;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.junit.jupiter.api.Test;
@@ -58,12 +59,15 @@ class HunyuanApprovalStageControlTest {
     void completeOnceShouldClaimBeforeTriggeringAndSkipARepeatedStageInvocation() {
         BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
         FlowableProcessInstanceGateway processGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
+        BpmApprovalStageInstanceProjectionService projectionService =
+                Mockito.mock(BpmApprovalStageInstanceProjectionService.class);
         HunyuanApprovalStageControl control = new HunyuanApprovalStageControl();
         setField(control, "bpmApprovalStageService", stageService);
         setField(control, "flowableProcessInstanceGateway", processGateway);
+        setField(control, "bpmApprovalStageInstanceProjectionService", projectionService);
         when(stageService.claimEngineEffect("execution-92", "APPROVED")).thenReturn(
                 new BpmApprovalStageService.EngineEffectClaim(
-                        81L, "execution-92", "process-91", "execution-92", "APPROVED"
+                        81L, 8L, "execution-92", "process-91", "execution-92", "APPROVED"
                 )
         ).thenReturn(null);
 
@@ -75,6 +79,7 @@ class HunyuanApprovalStageControlTest {
                 FlowableProcessInstanceGateway.approvalStageCompletionMarker("execution-92"),
                 true
         );
+        verify(projectionService).reconcileApprovedCompletion(8L, "process-91");
         verify(stageService).markEngineEffectCompleted(81L);
     }
 
@@ -87,7 +92,7 @@ class HunyuanApprovalStageControlTest {
         setField(control, "flowableProcessInstanceGateway", processGateway);
         when(stageService.claimEngineEffect("execution-92", "RETURNED")).thenReturn(
                 new BpmApprovalStageService.EngineEffectClaim(
-                        81L, "execution-92", "process-91", "execution-92", "RETURNED"
+                        81L, 8L, "execution-92", "process-91", "execution-92", "RETURNED"
                 )
         ).thenReturn(null);
 
@@ -107,7 +112,7 @@ class HunyuanApprovalStageControlTest {
         setField(control, "flowableProcessInstanceGateway", processGateway);
         when(stageService.claimEngineEffect("execution-92", "REJECTED")).thenReturn(
                 new BpmApprovalStageService.EngineEffectClaim(
-                        81L, "execution-92", "process-91", "execution-92", "REJECTED"
+                        81L, 8L, "execution-92", "process-91", "execution-92", "REJECTED"
                 )
         );
         IllegalStateException cancellationFailure = new IllegalStateException("engine unavailable");
@@ -123,12 +128,15 @@ class HunyuanApprovalStageControlTest {
     void completeOnceShouldKeepTheClaimForReconciliationWhenCompletionMarkFails() {
         BpmApprovalStageService stageService = Mockito.mock(BpmApprovalStageService.class);
         FlowableProcessInstanceGateway processGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
+        BpmApprovalStageInstanceProjectionService projectionService =
+                Mockito.mock(BpmApprovalStageInstanceProjectionService.class);
         HunyuanApprovalStageControl control = new HunyuanApprovalStageControl();
         setField(control, "bpmApprovalStageService", stageService);
         setField(control, "flowableProcessInstanceGateway", processGateway);
+        setField(control, "bpmApprovalStageInstanceProjectionService", projectionService);
         when(stageService.claimEngineEffect("execution-92", "APPROVED")).thenReturn(
                 new BpmApprovalStageService.EngineEffectClaim(
-                        81L, "execution-92", "process-91", "execution-92", "APPROVED"
+                        81L, 8L, "execution-92", "process-91", "execution-92", "APPROVED"
                 )
         );
         IllegalStateException persistenceFailure = new IllegalStateException("stage store unavailable");
@@ -142,6 +150,7 @@ class HunyuanApprovalStageControlTest {
                 FlowableProcessInstanceGateway.approvalStageCompletionMarker("execution-92"),
                 true
         );
+        verify(projectionService).reconcileApprovedCompletion(8L, "process-91");
         verify(stageService, never()).markEngineEffectFailed(81L, "stage store unavailable");
     }
 
@@ -154,7 +163,7 @@ class HunyuanApprovalStageControlTest {
         setField(control, "flowableProcessInstanceGateway", processGateway);
         when(stageService.claimEngineEffect("execution-92", "REJECTED")).thenReturn(
                 new BpmApprovalStageService.EngineEffectClaim(
-                        81L, "execution-92", "process-91", "execution-92", "REJECTED"
+                        81L, 8L, "execution-92", "process-91", "execution-92", "REJECTED"
                 )
         );
         IllegalStateException persistenceFailure = new IllegalStateException("stage store unavailable");

@@ -26,11 +26,13 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.MemberUpdate;
 import com.hunyuan.sa.bpm.module.candidate.service.ApprovalCompletionService;
 import com.hunyuan.sa.bpm.module.candidate.service.ParticipantAuthorizationService;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalCommandReceiptDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageMemberDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalCommandReceiptEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageMemberEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
@@ -38,10 +40,14 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectRequestedEvent;
 import jakarta.annotation.Resource;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,8 +91,16 @@ public class BpmApprovalStageCommandService {
     @Resource
     private BpmTaskActionLogDao bpmTaskActionLogDao;
 
+    @Resource
+    private BpmApprovalCommandReceiptDao bpmApprovalCommandReceiptDao;
+
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> execute(Long taskId, String action, String commentText) {
+        return execute(taskId, action, commentText, "legacy-" + java.util.UUID.randomUUID());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ResponseDTO<String> execute(Long taskId, String action, String commentText, String requestId) {
         BpmTaskEntity lookup = bpmTaskDao.selectById(taskId);
         if (lookup == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
@@ -103,6 +117,16 @@ public class BpmApprovalStageCommandService {
         if (stage == null || !lookup.getInstanceId().equals(stage.getInstanceId())) {
             return ResponseDTO.userErrorParam("审批阶段与任务实例不一致");
         }
+        Long actorEmployeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
+        BpmEmployeeSnapshot actor = bpmOrgIdentityGateway.requireEmployee(actorEmployeeId);
+        String normalizedRequestId = normalizeRequestId(requestId);
+        String commandFingerprint = commandFingerprint(taskId, action, actorEmployeeId, commentText);
+        BpmApprovalCommandReceiptEntity existingReceipt = bpmApprovalCommandReceiptDao.selectForUpdate(
+                stage.getTenantId(), instance.getInstanceId(), normalizedRequestId
+        );
+        if (existingReceipt != null) {
+            return replay(existingReceipt, commandFingerprint);
+        }
         BpmTaskEntity task = bpmTaskDao.selectByIdForUpdate(taskId);
         if (task == null || !BpmTaskStateEnum.PENDING.equalsValue(task.getTaskState())) {
             return ResponseDTO.userErrorParam("审批任务已处理");
@@ -117,8 +141,6 @@ public class BpmApprovalStageCommandService {
             return ResponseDTO.userErrorParam("审批成员不存在或不属于当前阶段");
         }
 
-        Long actorEmployeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
-        BpmEmployeeSnapshot actor = bpmOrgIdentityGateway.requireEmployee(actorEmployeeId);
         ApprovalPolicyDocument policy = parsePolicy(stage);
         if (!participantAuthorizationService.authorize(
                 new ActorSnapshot(stage.getTenantId(), actor.employeeId(), true),
@@ -128,6 +150,13 @@ public class BpmApprovalStageCommandService {
                 action
         )) {
             return ResponseDTO.error(UserErrorCode.NO_PERMISSION);
+        }
+        ReceiptClaim receiptClaim = claimReceipt(
+                stage, task, normalizedRequestId, commandFingerprint, action, actorEmployeeId
+        );
+        BpmApprovalCommandReceiptEntity receipt = receiptClaim.receipt();
+        if (!receiptClaim.newlyClaimed()) {
+            return replay(receipt, commandFingerprint);
         }
 
         ApprovalCompletionDecision decision = approvalCompletionService.decide(
@@ -161,9 +190,16 @@ public class BpmApprovalStageCommandService {
             stage.setTerminalReason(decision.stageState().name());
             stage.setClosedAt(now);
         }
-        if (bpmApprovalStageDao.updateById(stage) != 1) {
+        if (bpmApprovalStageDao.updateState(
+                stage.getApprovalStageId(),
+                stage.getRevision(),
+                stage.getStageState(),
+                stage.getTerminalReason(),
+                stage.getClosedAt()
+        ) != 1) {
             throw new IllegalStateException("审批阶段版本已变更，请刷新后重试");
         }
+        stage.setRevision(stage.getRevision() + 1);
         recordAction(task, actor, action, commentText, now);
 
         if (decision.engineEffect() == EngineEffect.CLOSE_ONCE) {
@@ -179,7 +215,100 @@ public class BpmApprovalStageCommandService {
         } else {
             bpmTaskProjectionService.projectActiveApprovalStageMembers(stage);
         }
-        return ResponseDTO.ok();
+        ResponseDTO<String> response = ResponseDTO.ok();
+        completeReceipt(receipt, response);
+        return response;
+    }
+
+    private ReceiptClaim claimReceipt(
+            BpmApprovalStageEntity stage,
+            BpmTaskEntity task,
+            String requestId,
+            String fingerprint,
+            String action,
+            Long actorEmployeeId
+    ) {
+        BpmApprovalCommandReceiptEntity receipt = new BpmApprovalCommandReceiptEntity();
+        receipt.setTenantId(stage.getTenantId());
+        receipt.setInstanceId(stage.getInstanceId());
+        receipt.setTaskId(task.getTaskId());
+        receipt.setRequestId(requestId);
+        receipt.setCommandFingerprint(fingerprint);
+        receipt.setActionType(action);
+        receipt.setActorEmployeeId(actorEmployeeId);
+        receipt.setReceiptState("PROCESSING");
+        try {
+            bpmApprovalCommandReceiptDao.insert(receipt);
+            return new ReceiptClaim(receipt, true);
+        } catch (DuplicateKeyException ex) {
+            BpmApprovalCommandReceiptEntity concurrent = bpmApprovalCommandReceiptDao.selectForUpdate(
+                    stage.getTenantId(), stage.getInstanceId(), requestId
+            );
+            if (concurrent == null) {
+                throw ex;
+            }
+            return new ReceiptClaim(concurrent, false);
+        }
+    }
+
+    private record ReceiptClaim(BpmApprovalCommandReceiptEntity receipt, boolean newlyClaimed) {
+    }
+
+    private ResponseDTO<String> replay(
+            BpmApprovalCommandReceiptEntity receipt,
+            String expectedFingerprint
+    ) {
+        if (!expectedFingerprint.equals(receipt.getCommandFingerprint())) {
+            return ResponseDTO.userErrorParam("requestId 已被不同审批命令占用");
+        }
+        if (!"COMPLETED".equals(receipt.getReceiptState())) {
+            throw new IllegalStateException("审批命令回执尚未完成，请稍后重试");
+        }
+        if (Boolean.TRUE.equals(receipt.getResponseOk())) {
+            return ResponseDTO.okMsg(receipt.getResponseMessage());
+        }
+        return new ResponseDTO<>(
+                receipt.getResponseCode(), null, false, receipt.getResponseMessage(), null
+        );
+    }
+
+    private void completeReceipt(
+            BpmApprovalCommandReceiptEntity receipt,
+            ResponseDTO<String> response
+    ) {
+        receipt.setReceiptState("COMPLETED");
+        receipt.setResponseOk(response.getOk());
+        receipt.setResponseCode(response.getCode());
+        receipt.setResponseMessage(response.getMsg());
+        receipt.setCompletedAt(LocalDateTime.now());
+        if (bpmApprovalCommandReceiptDao.updateById(receipt) != 1) {
+            throw new IllegalStateException("审批命令回执更新失败");
+        }
+    }
+
+    private String normalizeRequestId(String requestId) {
+        String normalized = requestId == null ? null : requestId.trim();
+        if (normalized == null || normalized.isEmpty() || normalized.length() > 128) {
+            throw new IllegalArgumentException("M2 审批命令 requestId 必须为 1 到 128 个字符");
+        }
+        return normalized;
+    }
+
+    private String commandFingerprint(
+            Long taskId,
+            String action,
+            Long actorEmployeeId,
+            String commentText
+    ) {
+        String canonical = taskId + "\n" + action + "\n" + actorEmployeeId + "\n"
+                + (commentText == null ? "" : commentText.trim());
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8))
+            );
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("运行环境缺少 SHA-256", ex);
+        }
     }
 
     private ApprovalStageFact toStageFact(BpmApprovalStageEntity stage) {
@@ -323,6 +452,8 @@ public class BpmApprovalStageCommandService {
         log.setInstanceId(task.getInstanceId());
         log.setTaskId(task.getTaskId());
         log.setDefinitionId(task.getDefinitionId());
+        log.setGraphDefinitionVersionId(task.getGraphDefinitionVersionId());
+        log.setDefinitionSource(task.getDefinitionSource());
         log.setDefinitionNodeId(task.getDefinitionNodeId());
         log.setEngineTaskId(task.getEngineTaskId());
         log.setActionType("M2_" + action);

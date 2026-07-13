@@ -3,6 +3,7 @@ package com.hunyuan.sa.bpm.candidate;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateResolutionContext;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateAutomaticOutcome;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyPublicationLease;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
@@ -111,7 +112,97 @@ class CandidateResolutionServiceTest {
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> resolver.resolve(userGroupPolicy(8L), context()))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("USER_GROUP");
+                .hasMessageContaining("失败关闭");
+    }
+
+    @Test
+    void userGroupResolutionShouldUseRegisteredOrganizationGroupMembers() {
+        BpmOrgIdentityGateway identityGateway = mock(BpmOrgIdentityGateway.class);
+        when(identityGateway.listActiveEmployeeIdsByUserGroupId(8L)).thenReturn(List.of(30L, 20L, 30L));
+        when(identityGateway.requireEmployee(20L)).thenReturn(employee(20L));
+        when(identityGateway.requireEmployee(30L)).thenReturn(employee(30L));
+        CandidateResolutionService resolver = new CandidateResolutionService(identityGateway);
+
+        ResolvedCandidateSnapshot snapshot = resolver.resolve(userGroupPolicy(8L), context());
+
+        assertThat(snapshot.members())
+                .extracting(ResolvedCandidateMember::sourceEmployeeId)
+                .containsExactly(20L, 30L);
+    }
+
+    @Test
+    void departmentManagementChainShouldUseRegisteredNearestToFarthestManagers() {
+        BpmOrgIdentityGateway identityGateway = mock(BpmOrgIdentityGateway.class);
+        when(identityGateway.listDepartmentManagerChain(8L, 3)).thenReturn(List.of(47L, 44L, 1L));
+        when(identityGateway.requireEmployee(1L)).thenReturn(employee(1L));
+        when(identityGateway.requireEmployee(44L)).thenReturn(employee(44L));
+        when(identityGateway.requireEmployee(47L)).thenReturn(employee(47L));
+        CandidateResolutionService resolver = new CandidateResolutionService(identityGateway);
+
+        ResolvedCandidateSnapshot snapshot = resolver.resolve(departmentManagementChainPolicy(8L, 3), context());
+
+        assertThat(snapshot.members())
+                .extracting(ResolvedCandidateMember::sourceEmployeeId)
+                .containsExactly(47L, 44L, 1L);
+    }
+
+    @Test
+    void employeeReportingChainShouldUseRegisteredManagerRelations() {
+        BpmOrgIdentityGateway identityGateway = mock(BpmOrgIdentityGateway.class);
+        when(identityGateway.listEmployeeReportingManagerChain(20L, 2)).thenReturn(List.of(30L, 40L));
+        when(identityGateway.requireEmployee(30L)).thenReturn(employee(30L));
+        when(identityGateway.requireEmployee(40L)).thenReturn(employee(40L));
+        CandidateResolutionService resolver = new CandidateResolutionService(identityGateway);
+
+        ResolvedCandidateSnapshot snapshot = resolver.resolve(employeeReportingChainPolicy(20L, 2), context());
+
+        assertThat(snapshot.members())
+                .extracting(ResolvedCandidateMember::sourceEmployeeId)
+                .containsExactly(30L, 40L);
+    }
+
+    @Test
+    void selfApprovalBlockShouldFailBeforeOpeningAStage() {
+        BpmOrgIdentityGateway identityGateway = mock(BpmOrgIdentityGateway.class);
+        when(identityGateway.requireEmployee(10L)).thenReturn(employee(10L));
+        CandidateResolutionService resolver = new CandidateResolutionService(identityGateway);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> resolver.resolve(
+                        candidatePolicy("EMPLOYEE", "{\"employeeIds\":[10]}", "BLOCK", "BLOCK"),
+                        context()
+                ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("自审");
+    }
+
+    @Test
+    void skipSelfShouldRemoveStarterAndKeepOtherFrozenMembers() {
+        BpmOrgIdentityGateway identityGateway = mock(BpmOrgIdentityGateway.class);
+        when(identityGateway.requireEmployee(10L)).thenReturn(employee(10L));
+        when(identityGateway.requireEmployee(20L)).thenReturn(employee(20L));
+        CandidateResolutionService resolver = new CandidateResolutionService(identityGateway);
+
+        ResolvedCandidateSnapshot snapshot = resolver.resolve(
+                candidatePolicy("EMPLOYEE", "{\"employeeIds\":[10,20]}", "BLOCK", "SKIP_SELF"),
+                context()
+        );
+
+        assertThat(snapshot.members())
+                .extracting(ResolvedCandidateMember::sourceEmployeeId)
+                .containsExactly(20L);
+    }
+
+    @Test
+    void emptyCandidateAutoApproveShouldReturnExplicitAutomaticOutcomeWithoutMembers() {
+        CandidateResolutionService resolver = new CandidateResolutionService(mock(BpmOrgIdentityGateway.class));
+
+        ResolvedCandidateSnapshot snapshot = resolver.resolve(
+                candidatePolicy("EMPLOYEE", "{\"employeeIds\":[999]}", "AUTO_APPROVE", "BLOCK"),
+                context()
+        );
+
+        assertThat(snapshot.members()).isEmpty();
+        assertThat(snapshot.automaticOutcome()).isEqualTo(CandidateAutomaticOutcome.AUTO_APPROVE);
     }
 
     private PolicyPublicationLease rolePolicy(long roleId) {
@@ -147,6 +238,31 @@ class CandidateResolutionServiceTest {
 
     private PolicyPublicationLease userGroupPolicy(long userGroupId) {
         return policy("{\"resolverType\":\"USER_GROUP\",\"resolverParameters\":{\"userGroupId\":" + userGroupId + "}}");
+    }
+
+    private PolicyPublicationLease departmentManagementChainPolicy(long departmentId, int maxDepth) {
+        return policy("{\"resolverType\":\"MANAGEMENT_CHAIN\",\"resolverParameters\":{" +
+                "\"chainType\":\"DEPARTMENT_MANAGER_CHAIN\"," +
+                "\"seedIdentityReference\":{\"kind\":\"DEPARTMENT\",\"stableId\":" + departmentId + "}," +
+                "\"maxDepth\":" + maxDepth + "}}");
+    }
+
+    private PolicyPublicationLease employeeReportingChainPolicy(long employeeId, int maxDepth) {
+        return policy("{\"resolverType\":\"MANAGEMENT_CHAIN\",\"resolverParameters\":{" +
+                "\"chainType\":\"EMPLOYEE_REPORTING_CHAIN\"," +
+                "\"seedIdentityReference\":{\"kind\":\"EMPLOYEE\",\"stableId\":" + employeeId + "}," +
+                "\"maxDepth\":" + maxDepth + "}}");
+    }
+
+    private PolicyPublicationLease candidatePolicy(
+            String resolverType,
+            String resolverParameters,
+            String emptyCandidatePolicy,
+            String selfApprovalPolicy
+    ) {
+        return policy("{\"resolverType\":\"" + resolverType + "\",\"resolverParameters\":"
+                + resolverParameters + ",\"emptyCandidatePolicy\":\"" + emptyCandidatePolicy
+                + "\",\"selfApprovalPolicy\":\"" + selfApprovalPolicy + "\"}");
     }
 
     private PolicyPublicationLease policy(String payload) {

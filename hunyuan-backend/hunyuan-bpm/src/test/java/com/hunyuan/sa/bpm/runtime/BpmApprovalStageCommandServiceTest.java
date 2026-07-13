@@ -8,11 +8,13 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.EngineEffect;
 import com.hunyuan.sa.bpm.module.candidate.service.ApprovalCompletionService;
 import com.hunyuan.sa.bpm.module.candidate.service.ParticipantAuthorizationService;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalCommandReceiptDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageMemberDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalCommandReceiptEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageMemberEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
@@ -43,6 +45,8 @@ class BpmApprovalStageCommandServiceTest {
     private BpmTaskProjectionService projectionService;
     private ApplicationEventPublisher eventPublisher;
 
+    private BpmApprovalCommandReceiptDao receiptDao;
+
     @BeforeEach
     void setUp() {
         service = new BpmApprovalStageCommandService();
@@ -50,6 +54,8 @@ class BpmApprovalStageCommandServiceTest {
         memberDao = Mockito.mock(BpmApprovalStageMemberDao.class);
         projectionService = Mockito.mock(BpmTaskProjectionService.class);
         eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        receiptDao = Mockito.mock(BpmApprovalCommandReceiptDao.class);
+        when(receiptDao.updateById(any(BpmApprovalCommandReceiptEntity.class))).thenReturn(1);
         setField(service, "bpmTaskDao", taskDao);
         setField(service, "bpmInstanceDao", instanceDao());
         setField(service, "bpmApprovalStageDao", Mockito.mock(BpmApprovalStageDao.class));
@@ -61,6 +67,7 @@ class BpmApprovalStageCommandServiceTest {
         setField(service, "applicationEventPublisher", eventPublisher);
         setField(service, "bpmTaskProjectionService", projectionService);
         setField(service, "bpmTaskActionLogDao", Mockito.mock(BpmTaskActionLogDao.class));
+        setField(service, "bpmApprovalCommandReceiptDao", receiptDao);
     }
 
     @Test
@@ -102,6 +109,12 @@ class BpmApprovalStageCommandServiceTest {
         assertThat(eventCaptor.getValue().stageInvocationId()).isEqualTo("execution-1");
         assertThat(eventCaptor.getValue().engineEffect()).isEqualTo(EngineEffect.COMPLETE_ONCE);
         assertThat(eventCaptor.getValue().terminalReason()).isEqualTo("APPROVED");
+        ArgumentCaptor<com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity> actionLogCaptor =
+                ArgumentCaptor.forClass(com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity.class);
+        verify(getField(service, "bpmTaskActionLogDao", BpmTaskActionLogDao.class)).insert(actionLogCaptor.capture());
+        assertThat(actionLogCaptor.getValue().getDefinitionId()).isNull();
+        assertThat(actionLogCaptor.getValue().getGraphDefinitionVersionId()).isEqualTo(41L);
+        assertThat(actionLogCaptor.getValue().getDefinitionSource()).isEqualTo("GRAPH");
         verify(taskDao).updateById(org.mockito.ArgumentMatchers.argThat((BpmTaskEntity updated) ->
                 updated.getTaskId().equals(102L) && updated.getCancelledAt() != null
         ));
@@ -122,7 +135,7 @@ class BpmApprovalStageCommandServiceTest {
                 ArgumentCaptor.forClass(BpmApprovalStageEngineEffectRequestedEvent.class);
         InOrder order = Mockito.inOrder(getField(service, "bpmApprovalStageDao", BpmApprovalStageDao.class), eventPublisher);
         order.verify(getField(service, "bpmApprovalStageDao", BpmApprovalStageDao.class))
-                .updateById(any(BpmApprovalStageEntity.class));
+                .updateState(any(), any(), any(), any(), any());
         order.verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().engineEffect()).isEqualTo(EngineEffect.CLOSE_ONCE);
         assertThat(eventCaptor.getValue().terminalReason()).isEqualTo("REJECTED");
@@ -145,6 +158,62 @@ class BpmApprovalStageCommandServiceTest {
         verify(eventPublisher, never()).publishEvent(any());
     }
 
+    @Test
+    void duplicateRequestShouldReturnStoredSuccessWithoutApplyingTheActionTwice() {
+        BpmTaskEntity task = task(101L, 11L);
+        BpmApprovalStageEntity stage = stage("ANY");
+        BpmApprovalStageMemberEntity first = member(11L, 1, "ACTIVE", 20L);
+        BpmApprovalStageMemberEntity second = member(12L, 2, "ACTIVE", 30L);
+        arrange(task, stage, List.of(first, second));
+        when(taskDao.selectByApprovalStageMemberId(12L)).thenReturn(task(102L, 12L));
+        java.util.concurrent.atomic.AtomicReference<BpmApprovalCommandReceiptEntity> stored =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(receiptDao.selectForUpdate(1L, 8L, "request-1"))
+                .thenAnswer(invocation -> stored.get());
+        org.mockito.Mockito.doAnswer(invocation -> {
+            BpmApprovalCommandReceiptEntity receipt = invocation.getArgument(0);
+            receipt.setApprovalCommandReceiptId(91L);
+            stored.set(receipt);
+            return 1;
+        }).when(receiptDao).insert(any(BpmApprovalCommandReceiptEntity.class));
+        when(receiptDao.updateById(any(BpmApprovalCommandReceiptEntity.class))).thenReturn(1);
+
+        ResponseDTO<String> firstResponse = service.execute(101L, "APPROVE", "同意", "request-1");
+        ResponseDTO<String> replayResponse = service.execute(101L, "APPROVE", "同意", "request-1");
+
+        assertThat(firstResponse.getOk()).isTrue();
+        assertThat(replayResponse.getOk()).isTrue();
+        verify(eventPublisher, Mockito.times(1)).publishEvent(
+                any(BpmApprovalStageEngineEffectRequestedEvent.class)
+        );
+        verify(memberDao, Mockito.times(2)).updateById(any(BpmApprovalStageMemberEntity.class));
+    }
+
+    @Test
+    void concurrentReceiptOwnerShouldBeTheOnlyCallerAllowedToApplyTheAction() {
+        BpmTaskEntity task = task(101L, 11L);
+        BpmApprovalStageEntity stage = stage("SINGLE");
+        BpmApprovalStageMemberEntity member = member(11L, 1, "ACTIVE", 20L);
+        arrange(task, stage, List.of(member));
+        java.util.concurrent.atomic.AtomicReference<BpmApprovalCommandReceiptEntity> concurrent =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(receiptDao.selectForUpdate(1L, 8L, "request-race"))
+                .thenAnswer(invocation -> concurrent.get());
+        org.mockito.Mockito.doAnswer(invocation -> {
+            concurrent.set(invocation.getArgument(0));
+            throw new org.springframework.dao.DuplicateKeyException("concurrent request");
+        }).when(receiptDao).insert(any(BpmApprovalCommandReceiptEntity.class));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> service.execute(101L, "APPROVE", "同意", "request-race")
+                )
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("尚未完成");
+
+        verify(memberDao, never()).updateById(any(BpmApprovalStageMemberEntity.class));
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
     private void arrange(
             BpmTaskEntity task,
             BpmApprovalStageEntity stage,
@@ -154,7 +223,7 @@ class BpmApprovalStageCommandServiceTest {
         when(taskDao.selectById(101L)).thenReturn(task);
         when(taskDao.selectByIdForUpdate(101L)).thenReturn(task);
         when(stageDao.selectByIdForUpdate(1L)).thenReturn(stage);
-        when(stageDao.updateById(any(BpmApprovalStageEntity.class))).thenReturn(1);
+        when(stageDao.updateState(any(), any(), any(), any(), any())).thenReturn(1);
         when(memberDao.selectByApprovalStageIdForUpdate(1L)).thenReturn(members);
         when(memberDao.updateById(any(BpmApprovalStageMemberEntity.class))).thenReturn(1);
     }

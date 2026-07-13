@@ -26,4 +26,25 @@ public interface BpmOrgIdentityGateway {
      * 解析岗位下仍有效的员工 id 列表。
      */
     List<Long> listActiveEmployeeIdsByPositionId(Long positionId);
+
+    /**
+     * 解析组织域登记的用户组有效成员。
+     */
+    default List<Long> listActiveEmployeeIdsByUserGroupId(Long userGroupId) {
+        throw new IllegalStateException("组织域未登记 USER_GROUP 能力");
+    }
+
+    /**
+     * 按最近到最远顺序解析部门负责人链。
+     */
+    default List<Long> listDepartmentManagerChain(Long departmentId, int maxDepth) {
+        throw new IllegalStateException("组织域未登记 DEPARTMENT_MANAGER_CHAIN 能力");
+    }
+
+    /**
+     * 按最近到最远顺序解析员工汇报主管链。
+     */
+    default List<Long> listEmployeeReportingManagerChain(Long employeeId, int maxDepth) {
+        throw new IllegalStateException("组织域未登记 EMPLOYEE_REPORTING_CHAIN 能力");
+    }
 }

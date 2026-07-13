@@ -13,6 +13,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskQueryForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskDetailVO;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmTaskVO;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageGovernanceService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +29,9 @@ public class AdminBpmTaskController {
 
     @Resource
     private BpmTaskService bpmTaskService;
+
+    @Resource
+    private BpmApprovalStageGovernanceService bpmApprovalStageGovernanceService;
 
     @Operation(summary = "分页查询流程任务")
     @PostMapping("/bpm/task/query")
@@ -48,6 +52,15 @@ public class AdminBpmTaskController {
     @SaCheckPermission("bpm:task:update")
     public ResponseDTO<String> adminTransfer(@RequestBody @Valid BpmAdminTaskTransferForm form) {
         return bpmTaskService.adminTransfer(form);
+    }
+
+    @Operation(summary = "受控转办 M2 审批阶段成员")
+    @PostMapping("/bpm/task/m2MemberTransfer")
+    @SaCheckPermission("bpm:task:m2-member-transfer")
+    public ResponseDTO<String> m2MemberTransfer(@RequestBody @Valid BpmAdminTaskTransferForm form) {
+        return bpmApprovalStageGovernanceService.transfer(
+                form.getTaskId(), form.getTargetEmployeeId(), form.getReason()
+        );
     }
 
     @Operation(summary = "管理员委派流程任务")

@@ -9,6 +9,32 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PolicyDocumentValidatorTest {
 
     @Test
+    void managementChainShouldRequireTypeSeedAndDepthBeforeActivation() {
+        PolicyDocumentValidator validator = new PolicyDocumentValidator();
+
+        assertThatThrownBy(() -> validator.validate(
+                PolicyType.CANDIDATE,
+                1,
+                "{\"resolverType\":\"MANAGEMENT_CHAIN\",\"resolverParameters\":{},"
+                        + "\"emptyCandidatePolicy\":\"BLOCK\",\"selfApprovalPolicy\":\"BLOCK\"}"
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("chainType");
+    }
+
+    @Test
+    void namedFallbackShouldRequireMatchingTypedIdentityReference() {
+        PolicyDocumentValidator validator = new PolicyDocumentValidator();
+
+        assertThatThrownBy(() -> validator.validate(
+                PolicyType.CANDIDATE,
+                1,
+                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[1]},"
+                        + "\"emptyCandidatePolicy\":\"ASSIGN_NAMED_EMPLOYEE\",\"selfApprovalPolicy\":\"BLOCK\"}"
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("fallbackIdentityReference");
+    }
+
+    @Test
     void approvalRatioShouldRejectOutOfRangeThreshold() {
         PolicyDocumentValidator validator = new PolicyDocumentValidator();
 

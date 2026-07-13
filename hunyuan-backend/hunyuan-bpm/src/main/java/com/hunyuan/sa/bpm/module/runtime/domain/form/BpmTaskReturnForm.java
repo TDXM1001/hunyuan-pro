@@ -2,6 +2,7 @@ package com.hunyuan.sa.bpm.module.runtime.domain.form;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -15,6 +16,10 @@ public class BpmTaskReturnForm {
     @Schema(description = "任务ID")
     @NotNull(message = "任务ID不能为空")
     private Long taskId;
+
+    @Schema(description = "客户端审批命令幂等标识")
+    @Size(max = 128, message = "requestId 最多 128 个字符")
+    private String requestId;
 
     @Schema(description = "退回意见")
     private String commentText;

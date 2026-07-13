@@ -26,6 +26,9 @@ public class BpmApprovalStageEngineEffectRecoveryService {
     @Resource
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Resource
+    private BpmApprovalStageInstanceProjectionService bpmApprovalStageInstanceProjectionService;
+
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public RecoveryResult recover(String stageInvocationId) {
         if (stageInvocationId == null || stageInvocationId.isBlank()) {
@@ -36,6 +39,7 @@ public class BpmApprovalStageEngineEffectRecoveryService {
             return new RecoveryResult(RecoveryOutcome.NOT_FOUND, "审批阶段不存在");
         }
         if ("COMPLETED".equals(stage.getEngineEffectState())) {
+            reconcileApprovedInstance(stage);
             return new RecoveryResult(RecoveryOutcome.ALREADY_COMPLETED, "引擎副作用已完成");
         }
 
@@ -66,6 +70,7 @@ public class BpmApprovalStageEngineEffectRecoveryService {
             return markExceptionPending(stage, "Flowable 对账查询失败：" + detail(ex.getMessage()));
         }
         if (observation.confirmed()) {
+            reconcileApprovedInstance(stage);
             if (bpmApprovalStageDao.markEngineEffectReconciledCompleted(stage.getApprovalStageId()) == 1) {
                 return new RecoveryResult(RecoveryOutcome.RECONCILED_COMPLETED, observation.reason());
             }
@@ -79,6 +84,15 @@ public class BpmApprovalStageEngineEffectRecoveryService {
             return new RecoveryResult(RecoveryOutcome.EXCEPTION_PENDING, reason);
         }
         return new RecoveryResult(RecoveryOutcome.CONCURRENT_STATE_CHANGED, "阶段副作用状态已被其他恢复操作更新");
+    }
+
+    private void reconcileApprovedInstance(BpmApprovalStageEntity stage) {
+        if ("APPROVED".equals(stage.getTerminalReason())) {
+            bpmApprovalStageInstanceProjectionService.reconcileApprovedCompletion(
+                    stage.getInstanceId(),
+                    stage.getEngineProcessInstanceId()
+            );
+        }
     }
 
     private EngineEffect resolveEngineEffect(BpmApprovalStageEntity stage) {

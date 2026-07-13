@@ -194,7 +194,35 @@ class BpmSchemaSourceTest {
         assertThat(sql).contains("`approval_stage_member_id` bigint NULL");
         assertThat(sql).contains("UNIQUE KEY `uk_bpm_task_approval_stage_member` (`approval_stage_member_id`)");
         assertThat(sql).contains("KEY `idx_bpm_task_approval_stage_state` (`approval_stage_id`, `task_state`)");
+        assertThat(sql).contains("ALTER TABLE `t_bpm_task_action_log`");
+        assertThat(sql).contains("MODIFY COLUMN `definition_id` bigint NULL");
+        assertThat(sql).contains("`graph_definition_version_id` bigint NULL");
+        assertThat(sql).contains("KEY `idx_bpm_task_action_log_graph_definition` (`graph_definition_version_id`)");
         assertThat(originalTaskSql).contains("UNIQUE KEY `uk_engine_task` (`engine_task_id`)");
         assertThat(sql).doesNotContain("DROP INDEX `uk_engine_task`");
+    }
+
+    @Test
+    void definesM2OrganizationRelationsAndCommandReceiptIdempotency() throws IOException {
+        String sql = Files.readString(Path.of("../../数据库SQL脚本/mysql/sql-update-log/v3.54.0.sql"));
+
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_user_group`");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_user_group_employee`");
+        assertThat(sql).contains("UNIQUE KEY `uk_user_group_employee` (`user_group_id`, `employee_id`)");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_employee_reporting_relation`");
+        assertThat(sql).contains("PRIMARY KEY (`employee_id`)");
+        assertThat(sql).contains("CREATE TABLE IF NOT EXISTS `t_bpm_approval_command_receipt`");
+        assertThat(sql).contains("UNIQUE KEY `uk_bpm_approval_command_request` (`tenant_id`, `instance_id`, `request_id`)");
+        assertThat(sql).contains("`command_fingerprint` char(64) NOT NULL");
+        assertThat(sql).contains("`receipt_state` varchar(16) NOT NULL");
+    }
+
+    @Test
+    void definesM2ReleaseAndIneligibleMemberDictionaryValues() throws IOException {
+        String sql = Files.readString(Path.of("../../数据库SQL脚本/mysql/sql-update-log/v3.54.0.sql"));
+
+        assertThat(sql).contains("BPM_MODULE_RELEASE_STATUS");
+        assertThat(sql).contains("'RELEASABLE'", "'NOT_RELEASABLE'");
+        assertThat(sql).contains("'BPM_APPROVAL_STAGE_MEMBER_STATE', 'INELIGIBLE', '成员失效'");
     }
 }

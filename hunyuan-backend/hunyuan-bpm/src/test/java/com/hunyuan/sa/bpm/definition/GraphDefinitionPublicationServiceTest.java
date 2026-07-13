@@ -10,6 +10,8 @@ import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionElementMappingEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.form.GraphDefinitionPublishCommand;
+import com.hunyuan.sa.bpm.module.category.dao.BpmCategoryDao;
+import com.hunyuan.sa.bpm.module.category.domain.entity.BpmCategoryEntity;
 import com.hunyuan.sa.bpm.module.model.dao.BpmProcessDraftDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmProcessDraftEntity;
 import com.hunyuan.sa.bpm.module.definition.service.GraphPublicationDependencyResolver;
@@ -35,6 +37,7 @@ class GraphDefinitionPublicationServiceTest {
     private GraphDefinitionVersionDao versionDao;
     private GraphDefinitionElementMappingDao mappingDao;
     private GraphFlowableDeploymentGateway deploymentGateway;
+    private BpmCategoryDao categoryDao;
 
     @BeforeEach
     void setUp() {
@@ -43,10 +46,16 @@ class GraphDefinitionPublicationServiceTest {
         versionDao = Mockito.mock(GraphDefinitionVersionDao.class);
         mappingDao = Mockito.mock(GraphDefinitionElementMappingDao.class);
         deploymentGateway = Mockito.mock(GraphFlowableDeploymentGateway.class);
+        categoryDao = Mockito.mock(BpmCategoryDao.class);
         setField(service, "bpmProcessDraftDao", draftDao);
         setField(service, "graphDefinitionVersionDao", versionDao);
         setField(service, "graphDefinitionElementMappingDao", mappingDao);
         setField(service, "graphFlowableDeploymentGateway", deploymentGateway);
+        setField(service, "bpmCategoryDao", categoryDao);
+        BpmCategoryEntity category = new BpmCategoryEntity();
+        category.setCategoryId(7L);
+        category.setCategoryName("通用流程");
+        when(categoryDao.selectById(7L)).thenReturn(category);
         setField(
                 service,
                 "graphPublicationDependencyResolver",
@@ -85,6 +94,19 @@ class GraphDefinitionPublicationServiceTest {
         assertThatThrownBy(() -> service.publish(new GraphDefinitionPublishCommand(1L, 7L)))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("db failed");
         verify(deploymentGateway).delete(deployment);
+    }
+
+    @Test
+    void publishShouldRejectDraftWithoutCategoryBeforeDeployingFlowable() {
+        BpmProcessDraftEntity draft = draft();
+        draft.setCategoryId(null);
+        when(draftDao.selectById(1L)).thenReturn(draft);
+
+        assertThatThrownBy(() -> service.publish(new GraphDefinitionPublishCommand(1L, 7L)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("流程分类");
+
+        verify(deploymentGateway, never()).deploy(any(), any(), any());
     }
 
     @Test
@@ -169,7 +191,7 @@ class GraphDefinitionPublicationServiceTest {
                 new GraphNode("review", "scope", GraphNodeType.APPROVAL, "审批", Map.of(), Map.of()),
                 new GraphNode("end", "scope", GraphNodeType.END, "结束", Map.of(), Map.of())
         ), List.of(new GraphEdge("a", "scope", "start", "review", "default", Map.of()), new GraphEdge("b", "scope", "review", "end", "default", Map.of())), Map.of());
-        BpmProcessDraftEntity entity = new BpmProcessDraftEntity(); entity.setDraftId(1L); entity.setProcessKey("expense"); entity.setProcessName("报销");
+        BpmProcessDraftEntity entity = new BpmProcessDraftEntity(); entity.setDraftId(1L); entity.setProcessKey("expense"); entity.setProcessName("报销"); entity.setCategoryId(7L);
         entity.setGraphJson(new GraphCanonicalizer().canonicalize(graph)); entity.setLayoutJson("{}"); entity.setSemanticHash(new GraphCanonicalizer().semanticHash(graph)); return entity;
     }
 

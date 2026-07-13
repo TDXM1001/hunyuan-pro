@@ -15,6 +15,7 @@ import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyCatalogService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -24,6 +25,15 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
 class BpmPolicyCatalogServiceTest {
+
+    @Test
+    void springConstructorShouldDeclareInjectionPointWhenClassHasMultipleConstructors() throws Exception {
+        assertThat(BpmPolicyCatalogService.class.getConstructor(
+                BpmCandidatePolicyVersionDao.class,
+                BpmApprovalPolicyVersionDao.class,
+                BpmStartVisibilityPolicyVersionDao.class
+        ).isAnnotationPresent(Autowired.class)).isTrue();
+    }
 
     @Test
     void freezeShouldReturnCanonicalPayloadForActiveCandidatePolicy() {
@@ -112,6 +122,88 @@ class BpmPolicyCatalogServiceTest {
     }
 
     @Test
+    void ordinaryActivationShouldRejectHighRiskCandidatePolicy() {
+        BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
+        BpmCandidatePolicyVersionEntity draft = candidatePolicy(
+                "DRAFT",
+                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[20]},"
+                        + "\"resolutionPhase\":\"ACTIVATE\",\"emptyCandidatePolicy\":\"AUTO_APPROVE\","
+                        + "\"selfApprovalPolicy\":\"BLOCK\",\"riskLevel\":\"HIGH\"}"
+        );
+        draft.setCatalogRevision(0L);
+        draft.setCreatedByEmployeeId(90L);
+        when(candidateDao.selectByPolicyKeyAndVersionForUpdate("finance-manager", 2)).thenReturn(draft);
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                candidateDao,
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                Mockito.mock(BpmStartVisibilityPolicyVersionDao.class)
+        );
+
+        assertThatThrownBy(() -> service.activate(new PolicyLifecycleCommand(
+                new PolicyReference(PolicyType.CANDIDATE, "finance-manager", 2),
+                0L,
+                99L
+        ))).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("高风险");
+
+        verify(candidateDao, Mockito.never()).update(ArgumentMatchers.isNull(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void highRiskActivationShouldRequireAConfirmerDifferentFromTheCreator() {
+        BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
+        BpmCandidatePolicyVersionEntity draft = candidatePolicy(
+                "DRAFT",
+                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[20]},"
+                        + "\"resolutionPhase\":\"ACTIVATE\",\"emptyCandidatePolicy\":\"AUTO_APPROVE\","
+                        + "\"selfApprovalPolicy\":\"BLOCK\",\"riskLevel\":\"HIGH\"}"
+        );
+        draft.setCatalogRevision(0L);
+        draft.setCreatedByEmployeeId(99L);
+        when(candidateDao.selectByPolicyKeyAndVersionForUpdate("finance-manager", 2)).thenReturn(draft);
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                candidateDao,
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                Mockito.mock(BpmStartVisibilityPolicyVersionDao.class)
+        );
+
+        assertThatThrownBy(() -> service.activateHighRisk(new PolicyLifecycleCommand(
+                new PolicyReference(PolicyType.CANDIDATE, "finance-manager", 2), 0L, 99L
+        ), "确认自动终态风险"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("创建人");
+
+        verify(candidateDao, Mockito.never()).update(ArgumentMatchers.isNull(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void highRiskActivationShouldPersistAnIndependentConfirmation() {
+        BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
+        BpmCandidatePolicyVersionEntity draft = candidatePolicy(
+                "DRAFT",
+                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[20]},"
+                        + "\"resolutionPhase\":\"ACTIVATE\",\"emptyCandidatePolicy\":\"AUTO_REJECT\","
+                        + "\"selfApprovalPolicy\":\"BLOCK\",\"riskLevel\":\"HIGH\"}"
+        );
+        draft.setCatalogRevision(2L);
+        draft.setCreatedByEmployeeId(90L);
+        when(candidateDao.selectByPolicyKeyAndVersionForUpdate("finance-manager", 2)).thenReturn(draft);
+        when(candidateDao.update(ArgumentMatchers.isNull(), ArgumentMatchers.any())).thenReturn(1);
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                candidateDao,
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                Mockito.mock(BpmStartVisibilityPolicyVersionDao.class)
+        );
+
+        PolicyCatalogVersion activated = service.activateHighRisk(new PolicyLifecycleCommand(
+                new PolicyReference(PolicyType.CANDIDATE, "finance-manager", 2), 2L, 99L
+        ), "已核对无候选自动拒绝影响");
+
+        assertThat(activated.lifecycleState()).isEqualTo("ACTIVE");
+        assertThat(activated.catalogRevision()).isEqualTo(3L);
+    }
+
+    @Test
     void retireShouldRejectWhenCatalogRevisionHasMoved() {
         BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
         BpmCandidatePolicyVersionEntity active = candidatePolicy(
@@ -187,6 +279,37 @@ class BpmPolicyCatalogServiceTest {
             assertThat(version.catalogRevision()).isEqualTo(6L);
             assertThat(version.canonicalPayload()).contains("resolverType");
         });
+    }
+
+    @Test
+    void listShouldIsolateInvalidLegacyVersionsWithoutExposingThemAsBindablePolicies() {
+        BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
+        BpmCandidatePolicyVersionEntity legacy = candidatePolicy(
+                "ACTIVE",
+                "{\"resolverType\":\"EMPLOYEE\",\"employeeId\":1,\"purpose\":\"M1 local acceptance\"}"
+        );
+        legacy.setPolicyKey("m1_acceptance_policy");
+        legacy.setPolicyVersion(1);
+        legacy.setSchemaVersion(1);
+        BpmCandidatePolicyVersionEntity valid = candidatePolicy(
+                "ACTIVE",
+                "{\"resolverType\":\"EMPLOYEE\",\"resolverParameters\":{\"employeeIds\":[1]},\"resolutionPhase\":\"ACTIVATE\",\"emptyCandidatePolicy\":\"BLOCK\",\"selfApprovalPolicy\":\"BLOCK\"}"
+        );
+        valid.setPolicyKey("employee-one");
+        valid.setPolicyVersion(1);
+        valid.setSchemaVersion(1);
+        when(candidateDao.selectList(ArgumentMatchers.any())).thenReturn(List.of(legacy, valid));
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                candidateDao,
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                Mockito.mock(BpmStartVisibilityPolicyVersionDao.class)
+        );
+
+        List<PolicyCatalogVersion> versions = service.list(PolicyType.CANDIDATE, null, null);
+
+        assertThat(versions).singleElement().satisfies(version ->
+                assertThat(version.reference()).isEqualTo(new PolicyReference(PolicyType.CANDIDATE, "employee-one", 1))
+        );
     }
 
     @Test

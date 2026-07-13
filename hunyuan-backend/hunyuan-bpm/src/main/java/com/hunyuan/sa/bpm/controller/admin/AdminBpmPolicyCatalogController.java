@@ -5,6 +5,7 @@ import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyCatalogDraftForm;
 import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyCatalogLifecycleForm;
+import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyCatalogHighRiskActivationForm;
 import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyCatalogReferenceForm;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyCatalogVersion;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyDraftCommand;
@@ -97,6 +98,17 @@ public class AdminBpmPolicyCatalogController {
     @SaCheckPermission("bpm:policy-catalog:activate")
     public ResponseDTO<PolicyCatalogVersion> activate(@RequestBody @Valid BpmPolicyCatalogLifecycleForm form) {
         return ResponseDTO.ok(bpmPolicyCatalogService.activate(lifecycleCommand(form)));
+    }
+
+    @Operation(summary = "独立确认并启用高风险策略版本")
+    @PostMapping("/bpm/policy-catalog/activate-high-risk")
+    @SaCheckPermission("bpm:policy-catalog:activate-high-risk")
+    public ResponseDTO<PolicyCatalogVersion> activateHighRisk(
+            @RequestBody @Valid BpmPolicyCatalogHighRiskActivationForm form
+    ) {
+        return ResponseDTO.ok(bpmPolicyCatalogService.activateHighRisk(
+                lifecycleCommand(form), form.getConfirmationReason()
+        ));
     }
 
     @Operation(summary = "退休已启用策略版本")

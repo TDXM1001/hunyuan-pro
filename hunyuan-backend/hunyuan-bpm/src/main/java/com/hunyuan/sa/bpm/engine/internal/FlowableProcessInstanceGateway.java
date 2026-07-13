@@ -124,6 +124,16 @@ public class FlowableProcessInstanceGateway {
         return EngineEffectObservation.unconfirmed("未找到匹配的流程取消历史原因");
     }
 
+    public boolean isProcessFinished(String engineProcessInstanceId) {
+        if (isBlank(engineProcessInstanceId)) {
+            throw new IllegalArgumentException("Flowable 流程实例ID不能为空");
+        }
+        return historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(engineProcessInstanceId)
+                .finished()
+                .singleResult() != null;
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }

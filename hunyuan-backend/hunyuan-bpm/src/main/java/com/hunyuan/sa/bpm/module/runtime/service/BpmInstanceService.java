@@ -114,6 +114,9 @@ public class BpmInstanceService {
     private BpmTaskProjectionService bpmTaskProjectionService;
 
     @Resource
+    private BpmApprovalStageInstanceProjectionService bpmApprovalStageInstanceProjectionService;
+
+    @Resource
     private BpmApprovalGroupService bpmApprovalGroupService;
 
     @Resource
@@ -385,6 +388,13 @@ public class BpmInstanceService {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
         bpmTaskProjectionService.syncActiveTasksForInstance(instanceId);
+        if (instanceEntity.getGraphDefinitionVersionId() != null
+                && BpmInstanceRunStateEnum.RUNNING.equalsValue(instanceEntity.getRunState())) {
+            bpmApprovalStageInstanceProjectionService.reconcileApprovedCompletion(
+                    instanceId,
+                    instanceEntity.getEngineProcessInstanceId()
+            );
+        }
         return ResponseDTO.ok();
     }
 

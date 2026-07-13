@@ -6,11 +6,14 @@ import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalCompletionMode;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ApprovalPolicyDocument;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateAutomaticOutcome;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.EngineEffect;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.CandidateResolutionContext;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyPublicationLease;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.ResolvedCandidateSnapshot;
+import com.hunyuan.sa.bpm.module.candidate.domain.model.RoutingFactView;
 import com.hunyuan.sa.bpm.module.candidate.service.CandidateResolutionService;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionElementMappingDao;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
@@ -20,13 +23,22 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectRequestedEvent;
+import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
+import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Graph receive task 到 M4 冻结阶段的唯一激活入口。
@@ -46,6 +58,8 @@ public class BpmApprovalStageActivationService {
     private final BpmApprovalStageService bpmApprovalStageService;
     private final BpmTaskProjectionService bpmTaskProjectionService;
 
+    private final ApplicationEventPublisher applicationEventPublisher;
+
     public BpmApprovalStageActivationService(
             BpmInstanceDao bpmInstanceDao,
             GraphDefinitionVersionDao graphDefinitionVersionDao,
@@ -55,6 +69,29 @@ public class BpmApprovalStageActivationService {
             BpmApprovalStageService bpmApprovalStageService,
             BpmTaskProjectionService bpmTaskProjectionService
     ) {
+        this(
+                bpmInstanceDao,
+                graphDefinitionVersionDao,
+                graphDefinitionElementMappingDao,
+                bpmApprovalStageDao,
+                candidateResolutionService,
+                bpmApprovalStageService,
+                bpmTaskProjectionService,
+                event -> { }
+        );
+    }
+
+    @Autowired
+    public BpmApprovalStageActivationService(
+            BpmInstanceDao bpmInstanceDao,
+            GraphDefinitionVersionDao graphDefinitionVersionDao,
+            GraphDefinitionElementMappingDao graphDefinitionElementMappingDao,
+            BpmApprovalStageDao bpmApprovalStageDao,
+            CandidateResolutionService candidateResolutionService,
+            BpmApprovalStageService bpmApprovalStageService,
+            BpmTaskProjectionService bpmTaskProjectionService,
+            ApplicationEventPublisher applicationEventPublisher
+    ) {
         this.bpmInstanceDao = bpmInstanceDao;
         this.graphDefinitionVersionDao = graphDefinitionVersionDao;
         this.graphDefinitionElementMappingDao = graphDefinitionElementMappingDao;
@@ -62,22 +99,16 @@ public class BpmApprovalStageActivationService {
         this.candidateResolutionService = candidateResolutionService;
         this.bpmApprovalStageService = bpmApprovalStageService;
         this.bpmTaskProjectionService = bpmTaskProjectionService;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public BpmApprovalStageEntity activate(ActivateApprovalStageCommand command) {
         validate(command);
-        // 同一实例内的等待点激活串行化，确保不同 execution 取得不同 generation，
-        // 同一 execution 的重试则在锁内看到既有阶段。
+        // 同一实例内的等待点激活串行化，确保跨节点复用 execution 时仍取得独立 generation。
         BpmInstanceEntity instance = bpmInstanceDao.selectByIdForUpdate(command.instanceId());
         if (instance == null) {
             throw new IllegalStateException("Graph 审批等待点对应的 Hunyuan 实例不存在");
-        }
-        BpmApprovalStageEntity existing = bpmApprovalStageDao.selectByStageInvocationId(command.engineExecutionId());
-        if (existing != null) {
-            verifyExistingBinding(existing, command);
-            bpmTaskProjectionService.projectActiveApprovalStageMembers(existing);
-            return existing;
         }
         GraphDefinitionVersionEntity version = graphDefinitionVersionDao.selectById(command.graphDefinitionVersionId());
         if (version == null) {
@@ -89,6 +120,21 @@ public class BpmApprovalStageActivationService {
                         command.compiledActivityId()
                 );
         validateApprovalMapping(mapping, command);
+        BpmApprovalStageEntity existing = bpmApprovalStageDao.selectLatestByEngineBinding(
+                command.instanceId(), mapping.getAuthoredElementId(), command.engineExecutionId()
+        );
+        if (existing != null) {
+            verifyExistingBinding(existing, command);
+            if (!isCompletedInvocation(existing)) {
+                dispatchStage(existing);
+            }
+            return existing;
+        }
+        Integer nextGeneration = bpmApprovalStageDao.selectNextGeneration(
+                command.instanceId(),
+                mapping.getAuthoredElementId()
+        );
+        int generation = nextGeneration == null ? 0 : nextGeneration;
 
         JSONObject dependencies = parseDependencies(version);
         JSONObject candidatePolicy = requiredNodePolicy(
@@ -101,7 +147,7 @@ public class BpmApprovalStageActivationService {
                 "approvalPolicies",
                 mapping.getAuthoredElementId()
         );
-        String stageInvocationId = command.engineExecutionId();
+        String stageInvocationId = stageInvocationId(command, mapping.getAuthoredElementId(), generation);
         PolicyPublicationLease candidateLease = frozenPolicy(
                 candidatePolicy,
                 PolicyType.CANDIDATE,
@@ -121,12 +167,9 @@ public class BpmApprovalStageActivationService {
                         mapping.getAuthoredElementId(),
                         stageInvocationId,
                         startEmployee(instance),
+                        routingFactView(dependencies, instance),
                         LocalDateTime.now()
                 )
-        );
-        Integer nextGeneration = bpmApprovalStageDao.selectNextGeneration(
-                command.instanceId(),
-                mapping.getAuthoredElementId()
         );
         BpmApprovalStageEntity stage = bpmApprovalStageService.open(
                 new BpmApprovalStageService.OpenApprovalStageCommand(
@@ -134,7 +177,7 @@ public class BpmApprovalStageActivationService {
                         CURRENT_TENANT_ID,
                         command.graphDefinitionVersionId(),
                         mapping.getAuthoredElementId(),
-                        nextGeneration == null ? 0 : nextGeneration,
+                        generation,
                         stageInvocationId,
                         candidateLease.policyVersionId(),
                         candidateLease.digest(),
@@ -146,8 +189,96 @@ public class BpmApprovalStageActivationService {
                         command.engineExecutionId()
                 )
         );
-        bpmTaskProjectionService.projectActiveApprovalStageMembers(stage);
+        applyAutomaticInstanceTerminal(instance, candidates.automaticOutcome());
+        dispatchStage(stage);
         return stage;
+    }
+
+    private RoutingFactView routingFactView(JSONObject dependencies, BpmInstanceEntity instance) {
+        JSONObject contractSnapshot = dependencies.getJSONObject("businessContract");
+        if (contractSnapshot == null) {
+            return new RoutingFactView("unknown", routeFactVersion(instance), Set.of(), Map.of());
+        }
+        JSONObject contract = JSON.parseObject(contractSnapshot.getString("canonicalPayload"));
+        JSONObject declarations = contract == null ? null : contract.getJSONObject("routingFacts");
+        if (declarations == null || declarations.isEmpty()) {
+            return new RoutingFactView(businessContractVersion(contractSnapshot), routeFactVersion(instance), Set.of(), Map.of());
+        }
+        JSONObject formData = JSON.parseObject(instance.getCurrentFormDataSnapshotJson());
+        Set<String> allowedKeys = new HashSet<>();
+        Map<String, Long> employeeFacts = new LinkedHashMap<>();
+        for (String factKey : declarations.keySet()) {
+            JSONObject declaration = declarations.getJSONObject(factKey);
+            if (declaration == null || !declaration.getBooleanValue("candidateAllowed")
+                    || !"EMPLOYEE_ID".equals(declaration.getString("type"))) {
+                continue;
+            }
+            allowedKeys.add(factKey);
+            String sourceField = declaration.getString("sourceField");
+            Object rawValue = formData == null || sourceField == null ? null : formData.get(sourceField);
+            Long employeeId = toPositiveLong(rawValue, factKey);
+            if (employeeId != null) {
+                employeeFacts.put(factKey, employeeId);
+            }
+        }
+        return new RoutingFactView(
+                businessContractVersion(contractSnapshot), routeFactVersion(instance), allowedKeys, employeeFacts
+        );
+    }
+
+    private Long toPositiveLong(Object rawValue, String factKey) {
+        if (rawValue == null) {
+            return null;
+        }
+        try {
+            long value = rawValue instanceof Number number
+                    ? number.longValue()
+                    : Long.parseLong(String.valueOf(rawValue));
+            if (value <= 0) {
+                throw new IllegalArgumentException("人员路由事实必须为正整数：" + factKey);
+            }
+            return value;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("人员路由事实类型错误：" + factKey, ex);
+        }
+    }
+
+    private String businessContractVersion(JSONObject snapshot) {
+        return snapshot.getString("contractKey") + "@" + snapshot.getInteger("contractVersion");
+    }
+
+    private String routeFactVersion(BpmInstanceEntity instance) {
+        return "form-data@" + (instance.getFormDataVersion() == null ? 1L : instance.getFormDataVersion());
+    }
+
+    private void dispatchStage(BpmApprovalStageEntity stage) {
+        if ("APPROVED".equals(stage.getStageState()) || "REJECTED".equals(stage.getStageState())) {
+            applicationEventPublisher.publishEvent(new BpmApprovalStageEngineEffectRequestedEvent(
+                    stage.getStageInvocationId(),
+                    "APPROVED".equals(stage.getStageState()) ? EngineEffect.COMPLETE_ONCE : EngineEffect.CLOSE_ONCE,
+                    stage.getTerminalReason()
+            ));
+            return;
+        }
+        bpmTaskProjectionService.projectActiveApprovalStageMembers(stage);
+    }
+
+    private void applyAutomaticInstanceTerminal(
+            BpmInstanceEntity instance,
+            CandidateAutomaticOutcome automaticOutcome
+    ) {
+        if (automaticOutcome != CandidateAutomaticOutcome.AUTO_REJECT) {
+            return;
+        }
+        BpmInstanceEntity update = new BpmInstanceEntity();
+        update.setInstanceId(instance.getInstanceId());
+        update.setRunState(BpmInstanceRunStateEnum.FINISHED.getValue());
+        update.setResultState(BpmInstanceResultStateEnum.REJECTED.getValue());
+        update.setActiveTaskCount(0);
+        update.setCurrentNodeSummaryJson(null);
+        update.setLastActionAt(LocalDateTime.now());
+        update.setFinishedAt(LocalDateTime.now());
+        bpmInstanceDao.updateById(update);
     }
 
     private void validate(ActivateApprovalStageCommand command) {
@@ -167,6 +298,22 @@ public class BpmApprovalStageActivationService {
                 || !command.graphDefinitionVersionId().equals(stage.getDefinitionVersionId())) {
             throw new IllegalStateException("Graph 审批等待点的引擎绑定与已冻结阶段不一致");
         }
+    }
+
+    private boolean isCompletedInvocation(BpmApprovalStageEntity stage) {
+        return Set.of("APPROVED", "REJECTED", "RETURNED", "CANCELLED").contains(stage.getStageState())
+                && "COMPLETED".equals(stage.getEngineEffectState());
+    }
+
+    private String stageInvocationId(
+            ActivateApprovalStageCommand command,
+            String authoredNodeId,
+            int generation
+    ) {
+        String binding = command.instanceId() + "|" + command.graphDefinitionVersionId()
+                + "|" + authoredNodeId + "|" + generation
+                + "|" + command.engineProcessInstanceId() + "|" + command.engineExecutionId();
+        return "stage-" + UUID.nameUUIDFromBytes(binding.getBytes(StandardCharsets.UTF_8));
     }
 
     private void validateApprovalMapping(
@@ -240,8 +387,14 @@ public class BpmApprovalStageActivationService {
         String rawMode = payload.getString("completionMode");
         Integer ratioPercent = payload.getInteger("ratioPercent");
         String rejectionRule = payload.getString("rejectionRule");
-        if (isBlank(rawMode) || ratioPercent == null) {
+        if (isBlank(rawMode)) {
             throw new IllegalStateException("冻结审批策略内容不完整");
+        }
+        if (ratioPercent == null) {
+            if ("RATIO".equalsIgnoreCase(rawMode)) {
+                throw new IllegalStateException("RATIO 冻结审批策略 ratioPercent 不能为空");
+            }
+            ratioPercent = 100;
         }
         if (isBlank(rejectionRule)) {
             throw new IllegalStateException("冻结审批策略 rejectionRule 不能为空");

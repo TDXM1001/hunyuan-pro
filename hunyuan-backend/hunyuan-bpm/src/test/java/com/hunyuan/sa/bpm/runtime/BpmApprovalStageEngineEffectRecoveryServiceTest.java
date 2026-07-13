@@ -6,6 +6,7 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
 import com.hunyuan.sa.bpm.module.runtime.event.BpmApprovalStageEngineEffectRequestedEvent;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageEngineEffectRecoveryService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalStageInstanceProjectionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +26,7 @@ class BpmApprovalStageEngineEffectRecoveryServiceTest {
     private BpmApprovalStageDao stageDao;
     private FlowableProcessInstanceGateway processGateway;
     private ApplicationEventPublisher eventPublisher;
+    private BpmApprovalStageInstanceProjectionService projectionService;
 
     @BeforeEach
     void setUp() {
@@ -32,9 +34,11 @@ class BpmApprovalStageEngineEffectRecoveryServiceTest {
         stageDao = Mockito.mock(BpmApprovalStageDao.class);
         processGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
         eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        projectionService = Mockito.mock(BpmApprovalStageInstanceProjectionService.class);
         setField(service, "bpmApprovalStageDao", stageDao);
         setField(service, "flowableProcessInstanceGateway", processGateway);
         setField(service, "applicationEventPublisher", eventPublisher);
+        setField(service, "bpmApprovalStageInstanceProjectionService", projectionService);
     }
 
     @Test
@@ -67,7 +71,23 @@ class BpmApprovalStageEngineEffectRecoveryServiceTest {
         assertThat(result.outcome()).isEqualTo(
                 BpmApprovalStageEngineEffectRecoveryService.RecoveryOutcome.RECONCILED_COMPLETED
         );
+        verify(projectionService).reconcileApprovedCompletion(8L, "process-91");
         verify(stageDao).markEngineEffectReconciledCompleted(81L);
+        verify(eventPublisher, never()).publishEvent(Mockito.any());
+    }
+
+    @Test
+    void completedApprovedStageShouldReconcileTheInstanceWithoutReplayingFlowable() {
+        BpmApprovalStageEntity stage = stage("COMPLETED", "APPROVED", "APPROVED");
+        when(stageDao.selectByStageInvocationIdForUpdate("execution-92")).thenReturn(stage);
+
+        BpmApprovalStageEngineEffectRecoveryService.RecoveryResult result = service.recover("execution-92");
+
+        assertThat(result.outcome()).isEqualTo(
+                BpmApprovalStageEngineEffectRecoveryService.RecoveryOutcome.ALREADY_COMPLETED
+        );
+        verify(projectionService).reconcileApprovedCompletion(8L, "process-91");
+        verify(processGateway, never()).inspectApprovalStageEffect(Mockito.any(), Mockito.any(), Mockito.any());
         verify(eventPublisher, never()).publishEvent(Mockito.any());
     }
 
@@ -106,6 +126,7 @@ class BpmApprovalStageEngineEffectRecoveryServiceTest {
     private BpmApprovalStageEntity stage(String effectState, String stageState, String terminalReason) {
         BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
         stage.setApprovalStageId(81L);
+        stage.setInstanceId(8L);
         stage.setStageInvocationId("execution-92");
         stage.setEngineProcessInstanceId("process-91");
         stage.setEngineExecutionId("execution-92");

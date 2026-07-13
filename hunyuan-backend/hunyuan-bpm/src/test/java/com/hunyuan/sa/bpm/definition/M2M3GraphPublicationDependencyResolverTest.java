@@ -87,7 +87,8 @@ class M2M3GraphPublicationDependencyResolverTest {
         assertThat(snapshot.toSnapshotMap()).containsEntry("businessContract", Map.of(
                 "contractKey", "expense",
                 "contractVersion", 2,
-                "contractVersionId", 22L
+                "contractVersionId", 22L,
+                "canonicalPayload", "{}"
         ));
         Map<String, Object> candidatePolicies = (Map<String, Object>) snapshot.toSnapshotMap().get("candidatePolicies");
         Map<String, Object> candidatePolicy = (Map<String, Object>) candidatePolicies.get("review");

@@ -7,6 +7,7 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartVisibilityEvaluationContext;
 import com.hunyuan.sa.bpm.module.candidate.service.StartVisibilityPolicyEvaluator;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Set;
 
@@ -15,6 +16,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class StartVisibilityPolicyEvaluatorTest {
+
+    @Test
+    void springConstructorShouldDeclareInjectionPointWhenClassHasMultipleConstructors() throws Exception {
+        assertThat(StartVisibilityPolicyEvaluator.class
+                .getConstructor(BpmOrgIdentityGateway.class)
+                .isAnnotationPresent(Autowired.class)).isTrue();
+    }
 
     @Test
     void startShouldDefaultDenyWhenFrozenScopeDoesNotMatchActor() {

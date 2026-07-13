@@ -83,7 +83,8 @@ public class M2M3GraphPublicationDependencyResolver implements GraphPublicationD
         return Map.of(
                 "contractKey", entity.getContractKey(),
                 "contractVersion", entity.getContractVersion(),
-                "contractVersionId", entity.getBusinessContractVersionId()
+                "contractVersionId", entity.getBusinessContractVersionId(),
+                "canonicalPayload", StringUtils.defaultIfBlank(entity.getContractJson(), "{}")
         );
     }
 
