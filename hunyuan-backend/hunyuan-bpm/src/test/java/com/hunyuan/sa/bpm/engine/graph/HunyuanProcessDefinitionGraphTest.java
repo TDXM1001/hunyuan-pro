@@ -63,19 +63,22 @@ class HunyuanProcessDefinitionGraphTest {
     }
 
     @Test
-    void m5NodeShouldBeRejectedFromM1Graph() {
+    void m5NodeShouldParticipateInCanonicalGraphSemantics() {
         HunyuanProcessDefinitionGraph graph = new HunyuanProcessDefinitionGraph(
                 1,
                 "scope_root",
                 List.of(new GraphScope("scope_root", null, "主流程")),
-                List.of(new GraphNode("node_delay", "scope_root", GraphNodeType.DELAY, "等待", Map.of(), Map.of())),
+                List.of(new GraphNode("node_delay", "scope_root", GraphNodeType.DELAY, "等待", Map.of("mode", "DURATION", "value", "PT1H"), Map.of())),
                 List.of(),
                 Map.of()
         );
 
-        assertThatThrownBy(() -> canonicalizer.canonicalize(graph))
-                .isInstanceOf(GraphValidationException.class)
-                .hasMessageContaining("不支持的 M1 节点类型");
+        assertThat(canonicalizer.canonicalize(graph)).contains("DELAY", "PT1H");
+        HunyuanProcessDefinitionGraph changed = new HunyuanProcessDefinitionGraph(
+                1, "scope_root", graph.scopes(),
+                List.of(new GraphNode("node_delay", "scope_root", GraphNodeType.DELAY, "等待", Map.of("mode", "DURATION", "value", "PT2H"), Map.of())),
+                List.of(), Map.of());
+        assertThat(canonicalizer.semanticHash(changed)).isNotEqualTo(canonicalizer.semanticHash(graph));
     }
 
     @Test

@@ -5,6 +5,11 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmTaskKind;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import org.springframework.stereotype.Service;
 
@@ -18,9 +23,22 @@ import java.util.List;
 public class BpmTaskActionPolicy {
 
     private final BpmDefinitionNodeDao bpmDefinitionNodeDao;
+    private final BpmApprovalStageDao bpmApprovalStageDao;
+    private final BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService;
 
     public BpmTaskActionPolicy(BpmDefinitionNodeDao bpmDefinitionNodeDao) {
+        this(bpmDefinitionNodeDao, null, null);
+    }
+
+    @Autowired
+    public BpmTaskActionPolicy(
+            BpmDefinitionNodeDao bpmDefinitionNodeDao,
+            BpmApprovalStageDao bpmApprovalStageDao,
+            BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService
+    ) {
         this.bpmDefinitionNodeDao = bpmDefinitionNodeDao;
+        this.bpmApprovalStageDao = bpmApprovalStageDao;
+        this.bpmGraphRuntimeMetadataService = bpmGraphRuntimeMetadataService;
     }
 
     public TaskActions describe(BpmTaskEntity task) {
@@ -29,12 +47,7 @@ public class BpmTaskActionPolicy {
             return new TaskActions(taskKind, List.of());
         }
         if (task.getApprovalStageId() != null || task.getApprovalStageMemberId() != null) {
-            // M2 stage members must go through the frozen-stage command boundary.
-            return new TaskActions(BpmTaskKind.APPROVAL, List.of(
-                    BpmTaskAction.APPROVE,
-                    BpmTaskAction.REJECT,
-                    BpmTaskAction.RETURN
-            ));
+            return new TaskActions(BpmTaskKind.APPROVAL, frozenStageActions(task));
         }
         if (BpmTaskKind.HANDLE.equals(taskKind)) {
             return new TaskActions(taskKind, List.of(
@@ -69,6 +82,14 @@ public class BpmTaskActionPolicy {
     }
 
     private BpmTaskKind resolveTaskKind(BpmTaskEntity task) {
+        if ("GRAPH".equals(task.getDefinitionSource())
+                && task.getGraphDefinitionVersionId() != null
+                && bpmGraphRuntimeMetadataService != null) {
+            return bpmGraphRuntimeMetadataService
+                    .requireNode(task.getGraphDefinitionVersionId(), task.getTaskKey())
+                    .nodeType() == com.hunyuan.sa.bpm.engine.graph.GraphNodeType.HANDLE
+                    ? BpmTaskKind.HANDLE : BpmTaskKind.APPROVAL;
+        }
         if (task.getDefinitionNodeId() == null) {
             return BpmTaskKind.APPROVAL;
         }
@@ -76,6 +97,24 @@ public class BpmTaskActionPolicy {
         return node != null && "HANDLE_TASK".equals(node.getNodeType())
                 ? BpmTaskKind.HANDLE
                 : BpmTaskKind.APPROVAL;
+    }
+
+    private List<BpmTaskAction> frozenStageActions(BpmTaskEntity task) {
+        if (bpmApprovalStageDao == null || task.getApprovalStageId() == null) {
+            return List.of(BpmTaskAction.APPROVE, BpmTaskAction.REJECT, BpmTaskAction.RETURN);
+        }
+        BpmApprovalStageEntity stage = bpmApprovalStageDao.selectById(task.getApprovalStageId());
+        if (stage == null || stage.getApprovalPolicySnapshotJson() == null) {
+            return List.of();
+        }
+        JSONArray raw = JSON.parseObject(stage.getApprovalPolicySnapshotJson()).getJSONArray("allowedActions");
+        if (raw == null) {
+            return List.of();
+        }
+        return raw.stream()
+                .map(String::valueOf)
+                .map(BpmTaskAction::valueOf)
+                .toList();
     }
 
     public record TaskActions(BpmTaskKind taskKind, List<BpmTaskAction> availableActions) {

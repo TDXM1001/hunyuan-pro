@@ -17,6 +17,7 @@ import com.hunyuan.sa.bpm.module.model.domain.entity.BpmProcessDraftEntity;
 import com.hunyuan.sa.bpm.module.definition.service.GraphPublicationDependencyResolver;
 import com.hunyuan.sa.bpm.module.definition.service.GraphPublicationDependencySnapshot;
 import com.hunyuan.sa.bpm.module.definition.service.GraphDefinitionPublicationService;
+import com.hunyuan.sa.bpm.module.definition.service.M5GraphPublicationResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -61,6 +62,10 @@ class GraphDefinitionPublicationServiceTest {
                 "graphPublicationDependencyResolver",
                 (GraphPublicationDependencyResolver) graph -> new GraphPublicationDependencySnapshot(Map.of())
         );
+        M5GraphPublicationResolver m5Resolver = Mockito.mock(M5GraphPublicationResolver.class);
+        when(m5Resolver.resolve(any())).thenAnswer(invocation ->
+                new M5GraphPublicationResolver.ResolvedGraph(invocation.getArgument(0), Map.of()));
+        setField(service, "m5GraphPublicationResolver", m5Resolver);
     }
 
     @Test

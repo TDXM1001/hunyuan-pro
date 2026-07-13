@@ -5,6 +5,8 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmTaskKind;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskActionPolicy;
 import org.junit.jupiter.api.Test;
@@ -55,17 +57,20 @@ class BpmTaskActionPolicyTest {
     @Test
     void describeShouldHideGenericAdvancedActionsForFrozenApprovalStageMember() {
         BpmDefinitionNodeDao nodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
-        BpmTaskActionPolicy policy = new BpmTaskActionPolicy(nodeDao);
+        BpmApprovalStageDao stageDao = Mockito.mock(BpmApprovalStageDao.class);
+        BpmTaskActionPolicy policy = new BpmTaskActionPolicy(nodeDao, stageDao, null);
         BpmTaskEntity task = pendingTask();
         task.setApprovalStageId(71L);
         task.setApprovalStageMemberId(701L);
+        BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
+        stage.setApprovalPolicySnapshotJson("{\"allowedActions\":[\"APPROVE\",\"RETURN\"]}");
+        when(stageDao.selectById(71L)).thenReturn(stage);
 
         BpmTaskActionPolicy.TaskActions actions = policy.describe(task);
 
         assertThat(actions.taskKind()).isEqualTo(BpmTaskKind.APPROVAL);
         assertThat(actions.availableActions()).containsExactly(
                 BpmTaskAction.APPROVE,
-                BpmTaskAction.REJECT,
                 BpmTaskAction.RETURN
         );
     }

@@ -20,8 +20,10 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmExternalWaitDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageMemberDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmSubProcessLinkDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTimeEventEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmExternalWaitEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmSubProcessLinkEntity;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,9 @@ public class BpmInstanceTraceService {
 
     @Resource
     private BpmTaskDao bpmTaskDao;
+
+    @Resource
+    private BpmSubProcessLinkDao bpmSubProcessLinkDao;
 
     public ResponseDTO<BpmInstanceTraceVO> getTrace(Long instanceId) {
         return getTrace(instanceId, false);
@@ -110,6 +115,21 @@ public class BpmInstanceTraceService {
         }
         trace.setTimeEvents(timeEvents);
         trace.setExternalWaits(externalWaits);
+        List<BpmSubProcessLinkEntity> subProcesses = bpmSubProcessLinkDao.selectList(
+                Wrappers.<BpmSubProcessLinkEntity>lambdaQuery()
+                        .eq(BpmSubProcessLinkEntity::getParentInstanceId, instanceId)
+                        .orderByAsc(BpmSubProcessLinkEntity::getCreateTime));
+        if (employeeSafe) {
+            subProcesses.forEach(link -> {
+                link.setInputSnapshotJson(null);
+                link.setOutputSnapshotJson(null);
+                link.setParentEngineExecutionId(null);
+                link.setChildEngineProcessInstanceId(null);
+                link.setFailurePolicy(null);
+                link.setCancelPropagation(null);
+            });
+        }
+        trace.setSubProcesses(subProcesses);
         trace.setApprovalGroups(detail.getApprovalGroups() == null ? List.of() : detail.getApprovalGroups());
         trace.setApprovalStages(bpmApprovalStageDao.selectList(
                 Wrappers.<BpmApprovalStageEntity>lambdaQuery()

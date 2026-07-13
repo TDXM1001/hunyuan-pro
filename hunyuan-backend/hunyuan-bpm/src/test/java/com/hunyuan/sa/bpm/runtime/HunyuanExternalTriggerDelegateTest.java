@@ -57,7 +57,9 @@ class HunyuanExternalTriggerDelegateTest {
         when(nodeDao.selectOne(any())).thenReturn(node);
         when(waitService.prepareWait(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new BpmExternalWaitService.PreparedWait("callback-token", "31:finance_sync:1", 3));
-        when(invocationService.invoke(eq("finance"), eq(3), eq("createExpense"), any()))
+        when(invocationService.invokePersistent(
+                eq("M5:CONNECTOR:31:finance_sync:execution-71"), eq(31L),
+                eq("finance"), eq(3), eq("createExpense"), any()))
                 .thenReturn(JSONObject.parseObject("{\"externalNo\":\"FIN-1001\"}"));
         HunyuanExternalTriggerDelegate delegate = new HunyuanExternalTriggerDelegate();
         setField(delegate, "bpmInstanceDao", instanceDao);
@@ -72,7 +74,9 @@ class HunyuanExternalTriggerDelegateTest {
         delegate.execute(execution);
 
         ArgumentCaptor<JSONObject> requestCaptor = ArgumentCaptor.forClass(JSONObject.class);
-        verify(invocationService).invoke(eq("finance"), eq(3), eq("createExpense"), requestCaptor.capture());
+        verify(invocationService).invokePersistent(
+                eq("M5:CONNECTOR:31:finance_sync:execution-71"), eq(31L),
+                eq("finance"), eq(3), eq("createExpense"), requestCaptor.capture());
         assertThat(requestCaptor.getValue().getBigDecimal("amount")).isEqualByComparingTo("1000");
         assertThat(requestCaptor.getValue().getString("callbackToken")).isEqualTo("callback-token");
         assertThat(requestCaptor.getValue().getString("correlationKey")).isEqualTo("31:finance_sync:1");

@@ -3,6 +3,7 @@ package com.hunyuan.sa.bpm.module.integration.service;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.module.integration.domain.entity.BpmConnectorDefinitionEntity;
+import com.hunyuan.sa.bpm.module.integration.domain.entity.BpmCommandRecordEntity;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,31 @@ public class BpmConnectorInvocationService {
 
     @Resource
     private BpmConnectorTransport bpmConnectorTransport;
+
+    @Resource
+    private BpmConnectorCommandStore bpmConnectorCommandStore;
+
+    public JSONObject invokePersistent(String commandKey, Long instanceId, String connectorKey,
+                                       Integer connectorVersion, String operationKey, JSONObject payload) {
+        JSONObject request = new JSONObject(true);
+        request.putAll(payload);
+        request.put("idempotencyKey", commandKey);
+        BpmCommandRecordEntity existing = bpmConnectorCommandStore.loadOrCreate(
+                commandKey, instanceId, request.toJSONString());
+        if (existing != null && Integer.valueOf(1).equals(existing.getCommandStatus())) {
+            return JSON.parseObject(existing.getResponsePayloadJson());
+        }
+        BpmCommandRecordEntity command = existing;
+        int attempt = (command.getAttemptCount() == null ? 0 : command.getAttemptCount()) + 1;
+        try {
+            JSONObject response = invoke(connectorKey, connectorVersion, operationKey, request);
+            bpmConnectorCommandStore.markSucceeded(command.getCommandRecordId(), attempt, response.toJSONString());
+            return response;
+        } catch (RuntimeException ex) {
+            bpmConnectorCommandStore.markFailed(command.getCommandRecordId(), attempt, limit(ex.getMessage()));
+            throw ex;
+        }
+    }
 
     public JSONObject invoke(
             String connectorKey,
@@ -67,5 +93,10 @@ public class BpmConnectorInvocationService {
         } catch (Exception ex) {
             return 1;
         }
+    }
+
+    private String limit(String value) {
+        if (value == null) return "连接器调用失败";
+        return value.length() <= 1000 ? value : value.substring(0, 1000);
     }
 }

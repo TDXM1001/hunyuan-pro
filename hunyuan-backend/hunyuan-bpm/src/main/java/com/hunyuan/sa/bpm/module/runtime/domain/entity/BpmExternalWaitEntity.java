@@ -22,6 +22,7 @@ public class BpmExternalWaitEntity {
     private String callbackTokenHash;
     private Long instanceId;
     private Long definitionId;
+    private Long graphDefinitionVersionId;
     private Long definitionNodeId;
     private String engineProcessInstanceId;
     private String engineExecutionId;

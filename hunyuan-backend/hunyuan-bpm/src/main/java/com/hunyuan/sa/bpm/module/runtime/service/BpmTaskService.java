@@ -111,6 +111,9 @@ public class BpmTaskService {
     @Resource
     private BpmApprovalSubjectViewService bpmApprovalSubjectViewService;
 
+    @Resource
+    private BpmSubProcessService bpmSubProcessService;
+
     public ResponseDTO<PageResult<BpmTaskVO>> queryAdminPage(BpmTaskQueryForm queryForm) {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<BpmTaskVO> list = bpmTaskDao.queryPage(page, queryForm);
@@ -166,6 +169,7 @@ public class BpmTaskService {
         detailVO.setRuntimeAssignmentSnapshotJson(taskEntity.getRuntimeAssignmentSnapshotJson());
         detailVO.setTaskState(taskEntity.getTaskState());
         detailVO.setTaskResult(taskEntity.getTaskResult());
+        detailVO.setTaskVersion(taskEntity.getTaskVersion());
         if (bpmTaskActionPolicy != null) {
             BpmTaskActionPolicy.TaskActions actions = bpmTaskActionPolicy.describe(taskEntity);
             detailVO.setTaskKind(actions.taskKind());
@@ -237,6 +241,10 @@ public class BpmTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> approve(BpmTaskApproveForm approveForm) {
+        ResponseDTO<String> versionResponse = requireTaskVersion(approveForm.getTaskId(), approveForm.getTaskVersion());
+        if (versionResponse != null) {
+            return versionResponse;
+        }
         ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
                 approveForm.getTaskId(),
                 "APPROVE",
@@ -274,6 +282,10 @@ public class BpmTaskService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<String> reject(BpmTaskRejectForm rejectForm) {
+        ResponseDTO<String> versionResponse = requireTaskVersion(rejectForm.getTaskId(), rejectForm.getTaskVersion());
+        if (versionResponse != null) {
+            return versionResponse;
+        }
         ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
                 rejectForm.getTaskId(),
                 "REJECT",
@@ -314,6 +326,10 @@ public class BpmTaskService {
         BpmTaskEntity taskEntity = bpmTaskDao.selectById(returnForm.getTaskId());
         if (taskEntity == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> versionResponse = requireTaskVersion(taskEntity, returnForm.getTaskVersion());
+        if (versionResponse != null) {
+            return versionResponse;
         }
         ResponseDTO<String> approvalStageResponse = executeApprovalStageMemberActionIfPresent(
                 returnForm.getTaskId(),
@@ -361,6 +377,7 @@ public class BpmTaskService {
         updateTaskEntity.setTaskResult(BpmTaskResultEnum.RETURNED.getValue());
         updateTaskEntity.setCompletedAt(now);
         updateTaskEntity.setLastActionAt(now);
+        updateTaskEntity.setTaskVersion(nextTaskVersion(taskEntity));
         bpmTaskDao.updateById(updateTaskEntity);
         closeOtherPendingTasks(
                 taskEntity.getInstanceId(),
@@ -756,6 +773,7 @@ public class BpmTaskService {
         updateTaskEntity.setTaskResult(resultEnum.getValue());
         updateTaskEntity.setCompletedAt(now);
         updateTaskEntity.setLastActionAt(now);
+        updateTaskEntity.setTaskVersion(nextTaskVersion(taskEntity));
         bpmTaskDao.updateById(updateTaskEntity);
         if (BpmTaskResultEnum.REJECTED.equals(resultEnum)) {
             closeOtherPendingTasks(
@@ -798,6 +816,10 @@ public class BpmTaskService {
         BpmTaskEntity task = bpmTaskDao.selectById(completeForm.getTaskId());
         if (task == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        ResponseDTO<String> versionResponse = requireTaskVersion(task, completeForm.getTaskVersion());
+        if (versionResponse != null) {
+            return versionResponse;
         }
         ResponseDTO<String> policyResponse = requireAllowed(task, BpmTaskAction.COMPLETE);
         if (policyResponse != null) {
@@ -976,6 +998,28 @@ public class BpmTaskService {
         return requireAllowed(task, action);
     }
 
+    private ResponseDTO<String> requireTaskVersion(Long taskId, Long expectedTaskVersion) {
+        BpmTaskEntity task = bpmTaskDao.selectById(taskId);
+        if (task == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        return requireTaskVersion(task, expectedTaskVersion);
+    }
+
+    private ResponseDTO<String> requireTaskVersion(BpmTaskEntity task, Long expectedTaskVersion) {
+        if (expectedTaskVersion == null) {
+            return null;
+        }
+        long actual = task.getTaskVersion() == null ? 1L : task.getTaskVersion();
+        return expectedTaskVersion.longValue() == actual
+                ? null
+                : ResponseDTO.userErrorParam("TASK_VERSION_CONFLICT：任务已被其他动作更新，请刷新后重试");
+    }
+
+    private Long nextTaskVersion(BpmTaskEntity task) {
+        return (task.getTaskVersion() == null ? 1L : task.getTaskVersion()) + 1L;
+    }
+
     private ResponseDTO<String> requireAllowed(BpmTaskEntity task, BpmTaskAction action) {
         if (bpmTaskActionPolicy == null) {
             return null;
@@ -1130,6 +1174,9 @@ public class BpmTaskService {
         updateInstanceEntity.setFinishedAt(now);
         updateInstanceEntity.setLastActionAt(now);
         bpmInstanceDao.updateById(updateInstanceEntity);
+        if (BpmInstanceResultStateEnum.REJECTED == resultStateEnum) {
+            bpmSubProcessService.propagateChildRejection(instanceId, "子流程审批拒绝");
+        }
         publishBusinessResultEventIfNeeded(instanceEntity, resultStateEnum, now);
     }
 

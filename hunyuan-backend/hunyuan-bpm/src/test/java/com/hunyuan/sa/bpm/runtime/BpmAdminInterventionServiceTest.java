@@ -25,6 +25,7 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmSubProcessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -68,6 +69,7 @@ class BpmAdminInterventionServiceTest {
         setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
         setField(bpmInstanceService, "bpmTimeEventService", Mockito.mock(BpmTimeEventService.class));
         setField(bpmInstanceService, "bpmExternalWaitService", Mockito.mock(BpmExternalWaitService.class));
+        setField(bpmInstanceService, "bpmSubProcessService", Mockito.mock(BpmSubProcessService.class));
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
@@ -103,6 +105,7 @@ class BpmAdminInterventionServiceTest {
         ResponseDTO<String> response = bpmInstanceService.adminCancel(form);
 
         assertThat(response.getOk()).isTrue();
+        verify(subProcessService()).cancelChildren(8L, "录入错误");
         verify(processInstanceGateway()).cancel("process-8", "录入错误");
 
         ArgumentCaptor<BpmTaskEntity> taskCaptor = ArgumentCaptor.forClass(BpmTaskEntity.class);
@@ -221,6 +224,10 @@ class BpmAdminInterventionServiceTest {
 
     private BpmTaskProjectionService taskProjectionService() {
         return (BpmTaskProjectionService) getFieldValue(bpmInstanceService, "bpmTaskProjectionService");
+    }
+
+    private BpmSubProcessService subProcessService() {
+        return (BpmSubProcessService) getFieldValue(bpmInstanceService, "bpmSubProcessService");
     }
 
     private BpmCurrentActorProvider instanceCurrentActorProvider() {

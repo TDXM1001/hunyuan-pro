@@ -14,6 +14,9 @@ public class BpmTaskCompleteForm {
     @NotNull(message = "任务ID不能为空")
     private Long taskId;
 
+    @Schema(description = "客户端加载的任务版本")
+    private Long taskVersion;
+
     @Schema(description = "办理说明")
     private String commentText;
 }

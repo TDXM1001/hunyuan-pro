@@ -45,6 +45,9 @@ public class BpmTaskVO {
     @Schema(description = "任务结果")
     private Integer taskResult;
 
+    @Schema(description = "任务并发版本")
+    private Long taskVersion;
+
     @Schema(description = "任务业务类型")
     private BpmTaskKind taskKind;
 

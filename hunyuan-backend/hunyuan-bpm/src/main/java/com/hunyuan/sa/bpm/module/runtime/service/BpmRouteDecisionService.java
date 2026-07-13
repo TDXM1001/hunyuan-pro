@@ -11,7 +11,9 @@ import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionContext;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.RoutingDataSnapshot;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmRouteDecisionDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
@@ -41,6 +43,9 @@ public class BpmRouteDecisionService {
     private BpmDefinitionNodeDao bpmDefinitionNodeDao;
 
     @Resource
+    private GraphDefinitionVersionDao graphDefinitionVersionDao;
+
+    @Resource
     private BpmRouteDecisionDao bpmRouteDecisionDao;
 
     @Resource
@@ -65,18 +70,9 @@ public class BpmRouteDecisionService {
             return toResult(existing);
         }
 
-        BpmDefinitionNodeEntity routeNode = bpmDefinitionNodeDao.selectOne(
-                Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
-                        .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
-                        .eq(BpmDefinitionNodeEntity::getNodeKey, command.routeNodeKey())
-        );
-        if (routeNode == null || routeNode.getCompiledNodeSnapshotJson() == null) {
-            throw new IllegalArgumentException("ROUTE_SNAPSHOT_NOT_FOUND：路由节点冻结快照不存在");
-        }
-
-        JSONObject snapshot = JSON.parseObject(routeNode.getCompiledNodeSnapshotJson());
+        RouteNodeSnapshot routeNode = resolveRouteNode(instance, command.routeNodeKey());
         RouteInput routeInput = routeInput(instance);
-        Evaluation evaluation = evaluateBranches(snapshot, instance, routeInput.data());
+        Evaluation evaluation = evaluateBranches(routeNode.snapshot(), instance, routeInput.data());
         BpmRouteDecisionEntity entity = buildEntity(
                 command, instance, routeNode, evaluation, routeInput.version()
         );
@@ -100,6 +96,66 @@ public class BpmRouteDecisionService {
         for (String branchKey : matchedBranchKeys) {
             execution.setVariable("route_" + routeNodeKey + "_" + branchKey, true);
         }
+    }
+
+    public void writeGraphBranchVariables(
+            DelegateExecution execution,
+            String routeNodeKey,
+            List<String> matchedBranchKeys
+    ) {
+        for (String branchKey : matchedBranchKeys) {
+            execution.setVariable("hunyuan_graph_route_" + safeId(routeNodeKey) + "_" + safeId(branchKey), true);
+        }
+    }
+
+    private RouteNodeSnapshot resolveRouteNode(BpmInstanceEntity instance, String routeNodeKey) {
+        if ("GRAPH".equals(instance.getDefinitionSource())) {
+            GraphDefinitionVersionEntity version = graphDefinitionVersionDao.selectById(
+                    instance.getGraphDefinitionVersionId()
+            );
+            if (version == null || version.getGraphSnapshotJson() == null) {
+                throw new IllegalArgumentException("ROUTE_SNAPSHOT_NOT_FOUND：Graph 路由快照不存在");
+            }
+            JSONObject graph = JSON.parseObject(version.getGraphSnapshotJson());
+            JSONObject node = graph.getJSONArray("nodes").stream()
+                    .filter(JSONObject.class::isInstance)
+                    .map(JSONObject.class::cast)
+                    .filter(item -> routeNodeKey.equals(item.getString("nodeId")))
+                    .findFirst()
+                    .orElse(null);
+            if (node == null) {
+                throw new IllegalArgumentException("ROUTE_SNAPSHOT_NOT_FOUND：Graph 路由节点不存在");
+            }
+            JSONArray branches = new JSONArray();
+            for (Object raw : graph.getJSONArray("edges")) {
+                if (!(raw instanceof JSONObject edge) || !routeNodeKey.equals(edge.getString("sourceNodeId"))) {
+                    continue;
+                }
+                JSONObject branch = new JSONObject(true);
+                String branchKey = edge.getString("sourcePort");
+                branch.put("branchKey", branchKey);
+                branch.put("isDefault", "default".equals(branchKey));
+                JSONObject properties = edge.getJSONObject("properties");
+                if (properties != null) {
+                    branch.put("condition", properties.getJSONObject("routeCondition"));
+                }
+                branches.add(branch);
+            }
+            JSONObject snapshot = new JSONObject(true);
+            snapshot.put("type", "INCLUSIVE_GATEWAY".equals(node.getString("type"))
+                    ? "INCLUSIVE_BRANCH" : "EXCLUSIVE_BRANCH");
+            snapshot.put("branches", branches);
+            return new RouteNodeSnapshot(null, snapshot);
+        }
+        BpmDefinitionNodeEntity routeNode = bpmDefinitionNodeDao.selectOne(
+                Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
+                        .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
+                        .eq(BpmDefinitionNodeEntity::getNodeKey, routeNodeKey)
+        );
+        if (routeNode == null || routeNode.getCompiledNodeSnapshotJson() == null) {
+            throw new IllegalArgumentException("ROUTE_SNAPSHOT_NOT_FOUND：路由节点冻结快照不存在");
+        }
+        return new RouteNodeSnapshot(routeNode, JSON.parseObject(routeNode.getCompiledNodeSnapshotJson()));
     }
 
     private Evaluation evaluateBranches(JSONObject snapshot, BpmInstanceEntity instance, JSONObject formData) {
@@ -203,7 +259,7 @@ public class BpmRouteDecisionService {
     private BpmRouteDecisionEntity buildEntity(
             BpmRouteDecisionCommand command,
             BpmInstanceEntity instance,
-            BpmDefinitionNodeEntity routeNode,
+            RouteNodeSnapshot routeNode,
             Evaluation evaluation,
             Long inputVersion
     ) {
@@ -211,7 +267,8 @@ public class BpmRouteDecisionService {
         BpmRouteDecisionEntity entity = new BpmRouteDecisionEntity();
         entity.setInstanceId(instance.getInstanceId());
         entity.setDefinitionId(instance.getDefinitionId());
-        entity.setDefinitionNodeId(routeNode.getDefinitionNodeId());
+        entity.setGraphDefinitionVersionId(instance.getGraphDefinitionVersionId());
+        entity.setDefinitionNodeId(routeNode.legacyNode() == null ? null : routeNode.legacyNode().getDefinitionNodeId());
         entity.setEngineProcessInstanceId(command.engineProcessInstanceId());
         entity.setRouteNodeKey(command.routeNodeKey());
         entity.setInputFormDataVersion(inputVersion);
@@ -246,6 +303,13 @@ public class BpmRouteDecisionService {
             boolean defaultBranchUsed,
             String reasonSnapshotJson
     ) {
+    }
+
+    private String safeId(String value) {
+        return value.replaceAll("[^A-Za-z0-9_]", "_");
+    }
+
+    private record RouteNodeSnapshot(BpmDefinitionNodeEntity legacyNode, JSONObject snapshot) {
     }
 
     private record RouteInput(JSONObject data, Long version) {

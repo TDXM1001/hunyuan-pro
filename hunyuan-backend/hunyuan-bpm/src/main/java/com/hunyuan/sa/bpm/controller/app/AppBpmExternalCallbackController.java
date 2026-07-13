@@ -23,10 +23,13 @@ public class AppBpmExternalCallbackController {
     @PostMapping("/app/bpm/external/callback/{callbackToken}")
     public ResponseDTO<String> callback(
             @PathVariable String callbackToken,
+            @RequestHeader("X-Bpm-App-Key") String appKey,
+            @RequestHeader("X-Bpm-Correlation-Key") String correlationKey,
+            @RequestHeader("X-Bpm-Wait-Version") Integer waitVersion,
             @RequestHeader("X-Bpm-Signature") String signature,
             @RequestBody String payload
     ) {
-        bpmExternalWaitService.resume(callbackToken, signature, payload);
+        bpmExternalWaitService.resume(callbackToken, appKey, correlationKey, waitVersion, signature, payload);
         return ResponseDTO.ok();
     }
 }

@@ -49,6 +49,7 @@ const commandRecords = computed(() => trace.value?.commandRecords ?? []);
 const notificationRecords = computed(() => trace.value?.notificationRecords ?? []);
 const timeEvents = computed(() => trace.value?.timeEvents ?? []);
 const externalWaits = computed(() => trace.value?.externalWaits ?? []);
+const subProcesses = computed(() => trace.value?.subProcesses ?? []);
 const formDataChanges = computed(() => trace.value?.formDataChanges ?? []);
 const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
 const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
@@ -294,6 +295,7 @@ defineExpose({ open });
           </div>
           <div class="bpm-instance-detail__trace-item"><span>时间事件</span><strong>{{ timeEvents.length }}</strong></div>
           <div class="bpm-instance-detail__trace-item"><span>外部等待</span><strong>{{ externalWaits.length }}</strong></div>
+          <div class="bpm-instance-detail__trace-item"><span>子流程</span><strong>{{ subProcesses.length }}</strong></div>
         </div>
 
         <div class="bpm-instance-detail__sub-title">时间事件</div>
@@ -315,6 +317,16 @@ defineExpose({ open });
           <ElTableColumn label="超时时间" prop="timeoutAt" min-width="170" />
         </ElTable>
         <ElEmpty v-else description="暂无外部等待" />
+
+        <div class="bpm-instance-detail__sub-title">子流程</div>
+        <ElTable v-if="subProcesses.length" :data="subProcesses" border size="small">
+          <ElTableColumn label="节点" prop="parentNodeId" min-width="120" />
+          <ElTableColumn label="流程" prop="calledProcessKey" min-width="140" />
+          <ElTableColumn label="版本" prop="calledDefinitionVersionId" width="80" />
+          <ElTableColumn label="状态" prop="linkStatus" min-width="120" />
+          <ElTableColumn v-if="detailSource === 'admin'" label="失败策略" prop="failurePolicy" min-width="130" />
+        </ElTable>
+        <ElEmpty v-else description="暂无子流程" />
 
         <div class="bpm-instance-detail__sub-title">回调记录</div>
         <ElTable

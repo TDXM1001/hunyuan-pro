@@ -1,5 +1,6 @@
 package com.hunyuan.sa.bpm.runtime;
 
+import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTimeEventDao;
@@ -10,6 +11,7 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeCommandCoordinator;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmGraphRuntimeMetadataService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -132,6 +134,39 @@ class BpmTimeEventServiceTest {
                         && "DELAY".equals(event.getEventKind())
                         && "cooling".equals(event.getNodeKey())
                         && event.getScheduledAt().isAfter(LocalDateTime.now().plusMinutes(29))
+        ));
+    }
+
+    @Test
+    void scheduleDelayShouldReadGraphSnapshotAndPersistGraphVersion() {
+        BpmTimeEventService service = new BpmTimeEventService();
+        BpmTimeEventDao eventDao = Mockito.mock(BpmTimeEventDao.class);
+        BpmInstanceDao instanceDao = Mockito.mock(BpmInstanceDao.class);
+        BpmGraphRuntimeMetadataService metadata = Mockito.mock(BpmGraphRuntimeMetadataService.class);
+        setField(service, "bpmTimeEventDao", eventDao);
+        setField(service, "bpmInstanceDao", instanceDao);
+        setField(service, "bpmGraphRuntimeMetadataService", metadata);
+        when(eventDao.selectCount(any())).thenReturn(0L);
+        BpmInstanceEntity instance = new BpmInstanceEntity();
+        instance.setInstanceId(31L);
+        instance.setDefinitionSource("GRAPH");
+        instance.setGraphDefinitionVersionId(91L);
+        instance.setEngineProcessInstanceId("process-31");
+        when(instanceDao.selectById(31L)).thenReturn(instance);
+        when(metadata.requireNode(91L, "cooling")).thenReturn(
+                new BpmGraphRuntimeMetadataService.GraphNodeMetadata(
+                        "cooling", "scope_root", "冷静期",
+                        com.hunyuan.sa.bpm.engine.graph.GraphNodeType.DELAY,
+                        JSONObject.parseObject("{\"mode\":\"DURATION\",\"value\":\"PT30M\"}")
+                )
+        );
+
+        service.scheduleDelay(31L, "process-31", "execution-81", "cooling");
+
+        verify(eventDao).insert(Mockito.argThat((BpmTimeEventEntity event) ->
+                Long.valueOf(91L).equals(event.getGraphDefinitionVersionId())
+                        && event.getDefinitionId() == null
+                        && "cooling".equals(event.getNodeKey())
         ));
     }
 

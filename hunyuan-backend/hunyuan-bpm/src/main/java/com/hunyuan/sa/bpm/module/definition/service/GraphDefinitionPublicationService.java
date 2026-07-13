@@ -9,6 +9,7 @@ import com.hunyuan.sa.bpm.engine.compiler.graph.GraphCompiledArtifact;
 import com.hunyuan.sa.bpm.engine.compiler.graph.GraphCompiledElementMapping;
 import com.hunyuan.sa.bpm.engine.graph.GraphDocumentCodec;
 import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
+import com.hunyuan.sa.bpm.engine.graph.GraphCanonicalizer;
 import com.hunyuan.sa.bpm.engine.internal.GraphFlowableDeployment;
 import com.hunyuan.sa.bpm.engine.internal.GraphFlowableDeploymentGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionElementMappingDao;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 新 Graph 定义版本发布的服务边界。
@@ -36,7 +38,9 @@ public class GraphDefinitionPublicationService {
     @Resource private BpmProcessDraftDao bpmProcessDraftDao; @Resource private GraphDefinitionVersionDao graphDefinitionVersionDao; @Resource private GraphDefinitionElementMappingDao graphDefinitionElementMappingDao; @Resource private GraphFlowableDeploymentGateway graphFlowableDeploymentGateway;
     @Resource private GraphPublicationDependencyResolver graphPublicationDependencyResolver;
     @Resource private BpmCategoryDao bpmCategoryDao;
+    @Resource private M5GraphPublicationResolver m5GraphPublicationResolver;
     private final GraphDocumentCodec codec = new GraphDocumentCodec(); private final GraphBpmnCompiler compiler = new GraphBpmnCompiler();
+    private final GraphCanonicalizer canonicalizer = new GraphCanonicalizer();
 
     public String compilerVersion() {
         return "graph-v1";
@@ -46,8 +50,8 @@ public class GraphDefinitionPublicationService {
       BpmProcessDraftEntity draft=bpmProcessDraftDao.selectById(command.draftId()); if(draft==null) throw new IllegalArgumentException("Graph 草稿不存在");
       if (draft.getCategoryId() == null) throw new IllegalArgumentException("Graph 草稿必须选择流程分类");
       BpmCategoryEntity category = bpmCategoryDao.selectById(draft.getCategoryId()); if (category == null || Boolean.TRUE.equals(category.getDeletedFlag())) throw new IllegalArgumentException("Graph 草稿引用的流程分类不存在");
-      HunyuanProcessDefinitionGraph graph=codec.restoreStored(draft.getGraphJson(),draft.getLayoutJson()); GraphPublicationDependencySnapshot dependencies=graphPublicationDependencyResolver.resolve(graph); GraphCompiledArtifact artifact=compiler.compile(draft.getProcessKey(),draft.getProcessName(),graph); GraphFlowableDeployment deployment=graphFlowableDeploymentGateway.deploy(draft.getProcessKey(),draft.getProcessName(),artifact.compiledBpmnXml());
-      try { GraphDefinitionVersionEntity version=new GraphDefinitionVersionEntity(); version.setDraftId(draft.getDraftId()); version.setProcessKey(draft.getProcessKey()); version.setProcessNameSnapshot(draft.getProcessName()); version.setCategoryIdSnapshot(category == null ? null : category.getCategoryId()); version.setCategoryNameSnapshot(category == null ? null : category.getCategoryName()); Integer max=graphDefinitionVersionDao.selectMaxVersionByProcessKey(draft.getProcessKey()); version.setDefinitionVersion(max==null?1:max+1); version.setLifecycleState("ACTIVE"); version.setGraphSnapshotJson(draft.getGraphJson()); version.setLayoutSnapshotJson(draft.getLayoutJson()); version.setSemanticHash(draft.getSemanticHash()); version.setDependencyVersionsJson(JSON.toJSONString(dependencies.toSnapshotMap())); version.setCompilerVersion(compilerVersion()); version.setCompiledBpmnXml(artifact.compiledBpmnXml()); version.setDeploymentId(deployment.deploymentId()); version.setEngineProcessDefinitionId(deployment.processDefinitionId()); version.setPublishedByEmployeeId(command.publishedByEmployeeId()); graphDefinitionVersionDao.insert(version);
+      HunyuanProcessDefinitionGraph authoredGraph=codec.restoreStored(draft.getGraphJson(),draft.getLayoutJson()); GraphPublicationDependencySnapshot dependencies=graphPublicationDependencyResolver.resolve(authoredGraph); M5GraphPublicationResolver.ResolvedGraph resolved=m5GraphPublicationResolver.resolve(authoredGraph); Map<String,Object> dependencyValues=new java.util.LinkedHashMap<>(dependencies.toSnapshotMap()); dependencyValues.put("advancedRuntime", resolved.dependencies()); GraphCompiledArtifact artifact=compiler.compile(draft.getProcessKey(),draft.getProcessName(),resolved.graph()); GraphFlowableDeployment deployment=graphFlowableDeploymentGateway.deploy(draft.getProcessKey(),draft.getProcessName(),artifact.compiledBpmnXml());
+      try { GraphDefinitionVersionEntity version=new GraphDefinitionVersionEntity(); version.setDraftId(draft.getDraftId()); version.setProcessKey(draft.getProcessKey()); version.setProcessNameSnapshot(draft.getProcessName()); version.setCategoryIdSnapshot(category == null ? null : category.getCategoryId()); version.setCategoryNameSnapshot(category == null ? null : category.getCategoryName()); Integer max=graphDefinitionVersionDao.selectMaxVersionByProcessKey(draft.getProcessKey()); version.setDefinitionVersion(max==null?1:max+1); version.setLifecycleState("ACTIVE"); version.setGraphSnapshotJson(canonicalizer.canonicalize(resolved.graph())); version.setLayoutSnapshotJson(draft.getLayoutJson()); version.setSemanticHash(draft.getSemanticHash()); version.setDependencyVersionsJson(JSON.toJSONString(dependencyValues)); version.setCompilerVersion(compilerVersion()); version.setCompiledBpmnXml(artifact.compiledBpmnXml()); version.setDeploymentId(deployment.deploymentId()); version.setEngineProcessDefinitionId(deployment.processDefinitionId()); version.setPublishedByEmployeeId(command.publishedByEmployeeId()); graphDefinitionVersionDao.insert(version);
         for(GraphCompiledElementMapping mapping:artifact.mappings()){ GraphDefinitionElementMappingEntity e=new GraphDefinitionElementMappingEntity(); e.setGraphDefinitionVersionId(version.getGraphDefinitionVersionId()); e.setAuthoredElementId(mapping.authoredElementId()); e.setAuthoredElementKind(mapping.authoredElementKind()); e.setCompiledElementId(mapping.compiledElementId()); e.setCompiledElementType(mapping.compiledElementType()); graphDefinitionElementMappingDao.insert(e); } return version.getGraphDefinitionVersionId();
       } catch(RuntimeException ex){ graphFlowableDeploymentGateway.delete(deployment); throw ex; }
     }

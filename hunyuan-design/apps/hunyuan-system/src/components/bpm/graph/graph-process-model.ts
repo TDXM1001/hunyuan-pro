@@ -2,10 +2,13 @@ export type GraphNodeType =
   | 'APPROVAL'
   | 'CONDITION'
   | 'COPY'
+  | 'DELAY'
   | 'END'
   | 'HANDLE'
   | 'INCLUSIVE_GATEWAY'
   | 'PARALLEL_GATEWAY'
+  | 'EXTERNAL_TRIGGER'
+  | 'SUB_PROCESS'
   | 'START';
 
 export interface GraphScope {
@@ -140,6 +143,19 @@ export function updateGraphApprovalPolicy(
   };
 }
 
+export function updateGraphNodeProperties(
+  graph: ProcessDefinitionGraph,
+  nodeId: string,
+  patch: Record<string, unknown>,
+): ProcessDefinitionGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => node.nodeId === nodeId
+      ? { ...node, properties: { ...node.properties, ...patch } }
+      : node),
+  };
+}
+
 export function updateGraphStartVisibilityPolicy(
   graph: ProcessDefinitionGraph,
   patch: Record<string, unknown>,
@@ -193,6 +209,7 @@ export function autoLayoutGraph(graph: ProcessDefinitionGraph): ProcessDefinitio
     outgoing.set(node.nodeId, []);
     incomingCount.set(node.nodeId, 0);
   }
+
   for (const edge of graph.edges) {
     if (!nodesById.has(edge.sourceNodeId) || !nodesById.has(edge.targetNodeId)) {
       continue;
@@ -251,6 +268,7 @@ export function semanticFingerprint(graph: ProcessDefinitionGraph): string {
 
 export function simulateGraph(graph: ProcessDefinitionGraph): GraphSimulationResult {
   const findings: GraphDiagnostic[] = [];
+  validateAdvancedNodes(graph, findings);
   const outgoing = new Map<string, GraphEdge[]>();
   const nodesById = new Map(graph.nodes.map((node) => [node.nodeId, node]));
   for (const node of graph.nodes) {
@@ -358,6 +376,62 @@ export function simulateGraph(graph: ProcessDefinitionGraph): GraphSimulationRes
     });
   }
   return { findings, pass: findings.every((finding) => finding.severity !== 'BLOCKING') };
+}
+
+function validateAdvancedNodes(graph: ProcessDefinitionGraph, findings: GraphDiagnostic[]) {
+  for (const node of graph.nodes) {
+    const properties = node.properties || {};
+    const sla = asRecord(properties.taskSlaPolicy);
+    if (sla) {
+      const dueAfter = asText(sla.dueAfter);
+      const action = asText(sla.timeoutAction);
+      if (!dueAfter || !/^P(?!$).+/.test(dueAfter)) {
+        findings.push(graphFinding(node.nodeId, 'taskSlaPolicy.dueAfter', 'SLA 到期时长必须是正 ISO-8601 duration'));
+      }
+      if (!['ASSIGN_ADMIN', 'AUTO_APPROVE', 'AUTO_REJECT', 'NONE', 'REMIND_ONLY'].includes(action || '')) {
+        findings.push(graphFinding(node.nodeId, 'taskSlaPolicy.timeoutAction', 'SLA 超时动作不受支持'));
+      }
+      if (['AUTO_APPROVE', 'AUTO_REJECT'].includes(action || '') && graph.policies.riskLevel !== 'LOW') {
+        findings.push(graphFinding(node.nodeId, 'taskSlaPolicy.timeoutAction', '只有低风险流程可配置 SLA 自动终态'));
+      }
+    }
+    if (node.type === 'DELAY') {
+      const mode = asText(properties.mode);
+      const value = asText(properties.value);
+      if (!mode || !value || (mode === 'DURATION' && !/^P(?!$).+/.test(value))) {
+        findings.push(graphFinding(node.nodeId, 'delayValue', '延迟节点必须配置受控时间值'));
+      }
+    }
+    if (node.type === 'EXTERNAL_TRIGGER') {
+      if (!asText(properties.connectorKey) || !asText(properties.operationKey)) {
+        findings.push(graphFinding(node.nodeId, 'connectorReference', '外部节点必须引用登记连接器与操作'));
+      }
+      if (!positiveInteger(properties.connectorVersion)) {
+        findings.push(graphFinding(node.nodeId, 'connectorVersion', '外部节点必须冻结连接器版本'));
+      }
+      if ('url' in properties || 'endpoint' in properties || 'credential' in properties || 'secret' in properties) {
+        findings.push(graphFinding(node.nodeId, 'connectorReference', '流程定义不得保存端点或凭据'));
+      }
+      const waitMode = asText(properties.waitMode);
+      if (waitMode !== 'NO_WAIT' && waitMode !== 'WAIT_CALLBACK') {
+        findings.push(graphFinding(node.nodeId, 'waitMode', '外部节点等待模式不受支持'));
+      }
+      if (waitMode === 'WAIT_CALLBACK' && !asText(asRecord(properties.timeoutPolicy)?.timeoutAfter)) {
+        findings.push(graphFinding(node.nodeId, 'timeoutPolicy', '回调等待必须配置超时策略'));
+      }
+    }
+    if (node.type === 'SUB_PROCESS') {
+      if (!asText(properties.calledProcessKey) || !positiveInteger(properties.calledDefinitionVersionId)) {
+        findings.push(graphFinding(node.nodeId, 'calledDefinition', '子流程必须冻结已发布定义版本'));
+      }
+      if (!['MANUAL_INTERVENTION', 'PAUSE_PARENT', 'REJECT_PARENT'].includes(asText(properties.failurePolicy) || '')) {
+        findings.push(graphFinding(node.nodeId, 'failurePolicy', '子流程必须配置失败传播策略'));
+      }
+      if (!['CANCEL_CHILD', 'KEEP_CHILD'].includes(asText(properties.cancelPropagation) || '')) {
+        findings.push(graphFinding(node.nodeId, 'cancelPropagation', '子流程必须配置取消传播策略'));
+      }
+    }
+  }
 }
 
 export function diffGraphSemantics(

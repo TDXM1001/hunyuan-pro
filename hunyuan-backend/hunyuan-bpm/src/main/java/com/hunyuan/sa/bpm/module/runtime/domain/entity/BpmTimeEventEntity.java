@@ -23,6 +23,7 @@ public class BpmTimeEventEntity {
     private Long instanceId;
     private Long taskId;
     private Long definitionId;
+    private Long graphDefinitionVersionId;
     private Long definitionNodeId;
     private String nodeKey;
     private String engineProcessInstanceId;

@@ -10,6 +10,8 @@ import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTimeEventEntity;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTimeEventStatusEnum;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.integration.service.BpmConnectorRegistryService;
+import com.hunyuan.sa.bpm.module.integration.service.BpmConnectorReferenceResolver;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.Resource;
@@ -46,6 +48,12 @@ public class BpmExternalWaitService {
     @Resource
     private FlowableProcessInstanceGateway flowableProcessInstanceGateway;
 
+    @Resource
+    private BpmConnectorRegistryService bpmConnectorRegistryService;
+
+    @Resource
+    private BpmConnectorReferenceResolver bpmConnectorReferenceResolver;
+
     @Transactional(rollbackFor = Exception.class)
     public PreparedWait prepareWait(
             BpmInstanceEntity instance,
@@ -71,6 +79,7 @@ public class BpmExternalWaitService {
         wait.setCallbackTokenHash(sha256(token));
         wait.setInstanceId(instance.getInstanceId());
         wait.setDefinitionId(instance.getDefinitionId());
+        wait.setGraphDefinitionVersionId(instance.getGraphDefinitionVersionId());
         wait.setDefinitionNodeId(node.getDefinitionNodeId());
         wait.setEngineProcessInstanceId(engineProcessInstanceId);
         wait.setEngineExecutionId(engineExecutionId);
@@ -89,6 +98,7 @@ public class BpmExternalWaitService {
         timeoutEvent.setIdempotencyKey(timeoutEvent.getEventKey());
         timeoutEvent.setInstanceId(instance.getInstanceId());
         timeoutEvent.setDefinitionId(instance.getDefinitionId());
+        timeoutEvent.setGraphDefinitionVersionId(instance.getGraphDefinitionVersionId());
         timeoutEvent.setDefinitionNodeId(node.getDefinitionNodeId());
         timeoutEvent.setNodeKey(nodeKey);
         timeoutEvent.setEngineProcessInstanceId(engineProcessInstanceId);
@@ -119,7 +129,8 @@ public class BpmExternalWaitService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public boolean resume(String callbackToken, String signature, String payload) {
+    public boolean resume(String callbackToken, String appKey, String correlationKey, Integer waitVersion,
+                          String signature, String payload) {
         requireCallbackInput(callbackToken, signature, payload);
         String tokenHash = sha256(callbackToken);
         BpmExternalWaitEntity wait = bpmExternalWaitDao.selectOne(
@@ -130,12 +141,24 @@ public class BpmExternalWaitService {
         if (wait == null) {
             throw new IllegalArgumentException("回调令牌无效");
         }
+        if (!MessageDigest.isEqual(wait.getConnectorKey().getBytes(StandardCharsets.UTF_8), appKey.getBytes(StandardCharsets.UTF_8))
+                || !MessageDigest.isEqual(wait.getCorrelationKey().getBytes(StandardCharsets.UTF_8), correlationKey.getBytes(StandardCharsets.UTF_8))
+                || !wait.getAttemptNo().equals(waitVersion)) {
+            throw new IllegalArgumentException("回调应用、相关键或等待版本不匹配");
+        }
         if (!MessageDigest.isEqual(
                 wait.getCallbackTokenHash().getBytes(StandardCharsets.US_ASCII),
                 tokenHash.getBytes(StandardCharsets.US_ASCII))) {
             throw new IllegalArgumentException("回调令牌无效");
         }
-        String expectedSignature = sign(callbackToken, payload);
+        var connector = bpmConnectorRegistryService.requireOperation(
+                wait.getConnectorKey(), wait.getConnectorVersion(), wait.getOperationKey());
+        String credentialRef = connector.definition().getCredentialRef();
+        if (credentialRef == null || credentialRef.isBlank()) {
+            throw new IllegalStateException("回调连接器缺少签名凭据引用");
+        }
+        String callbackSecret = bpmConnectorReferenceResolver.resolve(credentialRef);
+        String expectedSignature = sign(callbackSecret, appKey, correlationKey, waitVersion, payload);
         if (!MessageDigest.isEqual(
                 expectedSignature.getBytes(StandardCharsets.US_ASCII),
                 signature.getBytes(StandardCharsets.US_ASCII))) {
@@ -152,6 +175,7 @@ public class BpmExternalWaitService {
         if (claimed != 1) {
             return false;
         }
+        cancelTimeoutFact(wait.getExternalWaitId(), now);
         try {
             flowableProcessInstanceGateway.trigger(
                     wait.getEngineExecutionId(),
@@ -176,6 +200,17 @@ public class BpmExternalWaitService {
         return bpmExternalWaitDao.update(timeout, Wrappers.<BpmExternalWaitEntity>lambdaUpdate()
                 .eq(BpmExternalWaitEntity::getExternalWaitId, externalWaitId)
                 .eq(BpmExternalWaitEntity::getWaitStatus, BpmExternalWaitStatusEnum.WAITING.name())) == 1;
+    }
+
+    private void cancelTimeoutFact(Long externalWaitId, LocalDateTime completedAt) {
+        BpmTimeEventEntity cancelled = new BpmTimeEventEntity();
+        cancelled.setEventStatus(BpmTimeEventStatusEnum.CANCELLED.name());
+        cancelled.setCompletedAt(completedAt);
+        bpmTimeEventDao.update(cancelled, Wrappers.<BpmTimeEventEntity>lambdaUpdate()
+                .eq(BpmTimeEventEntity::getEventKey, "WAIT:" + externalWaitId + ":EXTERNAL_TIMEOUT")
+                .in(BpmTimeEventEntity::getEventStatus,
+                        BpmTimeEventStatusEnum.SCHEDULED.name(),
+                        BpmTimeEventStatusEnum.FAILED_RETRYABLE.name()));
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -211,11 +246,12 @@ public class BpmExternalWaitService {
         }
     }
 
-    public static String sign(String token, String payload) {
+    public static String sign(String secret, String appKey, String correlationKey, Integer waitVersion, String payload) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(token.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            String canonical = appKey + "\n" + correlationKey + "\n" + waitVersion + "\n" + payload;
+            return HexFormat.of().formatHex(mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception ex) {
             throw new IllegalStateException("生成回调签名失败", ex);
         }

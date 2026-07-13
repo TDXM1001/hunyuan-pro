@@ -81,6 +81,8 @@ public class BpmInstanceEntity {
 
     private Integer activeTaskCount;
 
+    private Integer currentGeneration;
+
     private String currentNodeSummaryJson;
 
     private Long cancelByEmployeeId;

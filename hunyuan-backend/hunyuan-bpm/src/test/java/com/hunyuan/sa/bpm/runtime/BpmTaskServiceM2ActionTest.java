@@ -29,6 +29,7 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskActionPolicy;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmSubProcessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -79,6 +80,7 @@ class BpmTaskServiceM2ActionTest {
         setField(service, "bpmInstanceCopyService", instanceCopyService);
         setField(service, "bpmApprovalGroupService", approvalGroupService);
         setField(service, "bpmApprovalStageCommandService", approvalStageCommandService);
+        setField(service, "bpmSubProcessService", Mockito.mock(BpmSubProcessService.class));
         setField(service, "bpmTaskActionPolicy", new BpmTaskActionPolicy(definitionNodeDao));
 
         when(currentActorProvider.requireCurrentEmployeeId()).thenReturn(20L);
@@ -116,6 +118,23 @@ class BpmTaskServiceM2ActionTest {
         assertThat(response.getOk()).isTrue();
         verify(approvalStageCommandService).execute(101L, "APPROVE", "approved", "request-approve", null, null, null);
         verifyNoInteractions(flowableTaskGateway, flowableProcessInstanceGateway);
+    }
+
+    @Test
+    void approveShouldRejectStaleTaskVersionBeforeStageCommand() {
+        BpmTaskEntity task = m2MemberTask();
+        task.setTaskVersion(2L);
+        when(taskDao.selectById(101L)).thenReturn(task);
+        BpmTaskApproveForm form = new BpmTaskApproveForm();
+        form.setTaskId(101L);
+        form.setTaskVersion(1L);
+        form.setRequestId("request-stale");
+
+        ResponseDTO<String> response = service.approve(form);
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("TASK_VERSION_CONFLICT");
+        verifyNoInteractions(approvalStageCommandService, flowableTaskGateway, flowableProcessInstanceGateway);
     }
 
     @Test
@@ -375,6 +394,7 @@ class BpmTaskServiceM2ActionTest {
         task.setApprovalStageMemberId(700L);
         task.setAssigneeEmployeeId(20L);
         task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        task.setTaskVersion(1L);
         return task;
     }
 

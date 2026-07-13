@@ -119,6 +119,9 @@ public class BpmInstanceService {
     private BpmTaskProjectionService bpmTaskProjectionService;
 
     @Resource
+    private BpmSubProcessService bpmSubProcessService;
+
+    @Resource
     private BpmApprovalStageInstanceProjectionService bpmApprovalStageInstanceProjectionService;
 
     @Resource
@@ -310,6 +313,7 @@ public class BpmInstanceService {
 
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
         if (BpmInstanceRunStateEnum.RUNNING.equalsValue(instanceEntity.getRunState())) {
+            bpmSubProcessService.cancelChildren(instanceEntity.getInstanceId(), cancelForm.getCancelReason());
             flowableProcessInstanceGateway.cancel(instanceEntity.getEngineProcessInstanceId(), cancelForm.getCancelReason());
         }
 
@@ -356,6 +360,7 @@ public class BpmInstanceService {
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot actorSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
         if (BpmInstanceRunStateEnum.RUNNING.equalsValue(instanceEntity.getRunState())) {
+            bpmSubProcessService.cancelChildren(instanceEntity.getInstanceId(), cancelForm.getCancelReason());
             flowableProcessInstanceGateway.cancel(instanceEntity.getEngineProcessInstanceId(), cancelForm.getCancelReason());
         }
 
@@ -526,6 +531,9 @@ public class BpmInstanceService {
         updateInstanceEntity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
         updateInstanceEntity.setResultState(null);
         updateInstanceEntity.setActiveTaskCount(0);
+        updateInstanceEntity.setCurrentGeneration(
+                (instanceEntity.getCurrentGeneration() == null ? 1 : instanceEntity.getCurrentGeneration()) + 1
+        );
         updateInstanceEntity.setCurrentNodeSummaryJson(null);
         updateInstanceEntity.setLastActionAt(now);
         bpmInstanceDao.updateById(updateInstanceEntity);
@@ -641,6 +649,7 @@ public class BpmInstanceService {
         entity.setStartVisibilityDecisionJson(buildStartVisibilityDecisionJson(startDecision, now));
         entity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
         entity.setActiveTaskCount(0);
+        entity.setCurrentGeneration(1);
         entity.setStartedAt(now);
         entity.setLastActionAt(now);
         bpmInstanceDao.insert(entity);
@@ -813,6 +822,7 @@ public class BpmInstanceService {
         entity.setFormDataVersion(1L);
         entity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
         entity.setActiveTaskCount(0);
+        entity.setCurrentGeneration(1);
         entity.setStartedAt(now);
         entity.setLastActionAt(now);
         bpmInstanceDao.insert(entity);

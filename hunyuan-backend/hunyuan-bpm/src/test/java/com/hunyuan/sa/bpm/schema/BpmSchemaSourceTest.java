@@ -130,6 +130,21 @@ class BpmSchemaSourceTest {
     }
 
     @Test
+    void upgradesAdvancedRuntimeFactsForGraphAndSubProcess() throws IOException {
+        String sql = Files.readString(Path.of("../../数据库SQL脚本/mysql/sql-update-log/v3.57.0.sql"));
+
+        assertThat(sql).contains(
+                "ALTER TABLE `t_bpm_time_event`",
+                "ADD COLUMN `graph_definition_version_id`",
+                "ALTER TABLE `t_bpm_external_wait`",
+                "CREATE TABLE IF NOT EXISTS `t_bpm_sub_process_link`",
+                "UNIQUE KEY `uk_bpm_sub_process_event` (`event_key`)",
+                "`called_definition_version_id` bigint NOT NULL",
+                "'SUB_PROCESS'"
+        );
+    }
+
+    @Test
     void definesM1GraphDraftAndTemplateStorageWithRevisionGuard() throws IOException {
         String sql = Files.readString(Path.of("../../数据库SQL脚本/mysql/sql-update-log/v3.50.0.sql"));
         String draftDao = Files.readString(Path.of("src/main/java/com/hunyuan/sa/bpm/module/model/dao/BpmProcessDraftDao.java"));

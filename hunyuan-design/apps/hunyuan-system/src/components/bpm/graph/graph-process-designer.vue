@@ -15,6 +15,7 @@ import {
   updateGraphBusinessContract,
   updateGraphCandidatePolicy,
   updateGraphEdgeRouteCondition,
+  updateGraphNodeProperties,
   updateGraphStartVisibilityPolicy,
   type GraphDiagnostic,
   type GraphNode,
@@ -73,6 +74,9 @@ const palette: Array<{ label: string; type: GraphNodeType }> = [
   { label: '条件', type: 'CONDITION' },
   { label: '并行', type: 'PARALLEL_GATEWAY' },
   { label: '包容', type: 'INCLUSIVE_GATEWAY' },
+  { label: '延迟', type: 'DELAY' },
+  { label: '外部调用', type: 'EXTERNAL_TRIGGER' },
+  { label: '子流程', type: 'SUB_PROCESS' },
 ];
 
 watch(
@@ -204,6 +208,17 @@ function updateGatewayProperty(field: 'gatewayMode' | 'pairedGatewayId', value: 
   });
 }
 
+function updateAdvancedProperty(field: string, value: unknown) {
+  if (!selectedNode.value) return;
+  updateGraph(updateGraphNodeProperties(graph.value, selectedNode.value.nodeId, { [field]: value }));
+}
+
+function updateNestedAdvancedProperty(container: string, field: string, value: unknown) {
+  if (!selectedNode.value) return;
+  const current = asRecord(selectedNode.value.properties?.[container]) || {};
+  updateAdvancedProperty(container, { ...current, [field]: value });
+}
+
 function updateSelectedEdge(patch: Partial<GraphEdge>) {
   if (!selectedEdge.value) {
     return;
@@ -282,6 +297,15 @@ function initialNodeProperties(type: GraphNodeType): Record<string, unknown> {
   }
   if (isGateway(type)) {
     return { gatewayMode: 'SPLIT', pairedGatewayId: '' };
+  }
+  if (type === 'DELAY') {
+    return { mode: 'DURATION', value: 'PT30M' };
+  }
+  if (type === 'EXTERNAL_TRIGGER') {
+    return { connectorKey: '', connectorVersion: 1, operationKey: '', waitMode: 'NO_WAIT' };
+  }
+  if (type === 'SUB_PROCESS') {
+    return { calledProcessKey: '', calledDefinitionVersionId: 1, failurePolicy: 'PAUSE_PARENT', cancelPropagation: 'CANCEL_CHILD' };
   }
   return {};
 }
@@ -432,6 +456,12 @@ function positiveInteger(value: unknown): value is number {
               />
             </ElSelect>
           </label>
+          <label class="graph-designer__field"><span>SLA 到期时长</span><ElInput :disabled="disabled" :model-value="String(asRecord(selectedNode.properties?.taskSlaPolicy)?.dueAfter || '')" placeholder="PT2H" @update:model-value="updateNestedAdvancedProperty('taskSlaPolicy', 'dueAfter', $event)" /></label>
+          <label class="graph-designer__field"><span>超时动作</span>
+            <ElSelect :disabled="disabled" :model-value="String(asRecord(selectedNode.properties?.taskSlaPolicy)?.timeoutAction || 'REMIND_ONLY')" @update:model-value="updateNestedAdvancedProperty('taskSlaPolicy', 'timeoutAction', $event)">
+              <ElOption label="仅提醒" value="REMIND_ONLY" /><ElOption label="转管理员" value="ASSIGN_ADMIN" /><ElOption label="自动通过（低风险）" value="AUTO_APPROVE" /><ElOption label="自动拒绝（低风险）" value="AUTO_REJECT" />
+            </ElSelect>
+          </label>
           <label v-if="selectedNode.type === 'APPROVAL'" class="graph-designer__field">
             <span>审批策略</span>
             <ElSelect
@@ -475,6 +505,40 @@ function positiveInteger(value: unknown): value is number {
                 :label="candidate.name"
                 :value="candidate.nodeId"
               />
+            </ElSelect>
+          </label>
+        </template>
+        <template v-if="selectedNode.type === 'DELAY'">
+          <label class="graph-designer__field"><span>时间模式</span>
+            <ElSelect :disabled="disabled" :model-value="String(selectedNode.properties?.mode || 'DURATION')" @update:model-value="updateAdvancedProperty('mode', $event)">
+              <ElOption label="固定时长" value="DURATION" /><ElOption label="固定时间" value="FIXED_DATETIME" /><ElOption label="表单时间" value="FORM_DATETIME" />
+            </ElSelect>
+          </label>
+          <label class="graph-designer__field"><span>时间值</span><ElInput :disabled="disabled" :model-value="String(selectedNode.properties?.value || '')" @update:model-value="updateAdvancedProperty('value', $event)" /></label>
+          <label v-if="selectedNode.properties?.mode === 'FORM_DATETIME'" class="graph-designer__field"><span>时区</span><ElInput :disabled="disabled" :model-value="String(selectedNode.properties?.timezone || '')" @update:model-value="updateAdvancedProperty('timezone', $event)" /></label>
+        </template>
+        <template v-if="selectedNode.type === 'EXTERNAL_TRIGGER'">
+          <label class="graph-designer__field"><span>连接器 Key</span><ElInput :disabled="disabled" :model-value="String(selectedNode.properties?.connectorKey || '')" @update:model-value="updateAdvancedProperty('connectorKey', $event)" /></label>
+          <label class="graph-designer__field"><span>连接器版本</span><ElInputNumber :disabled="disabled" :min="1" :model-value="Number(selectedNode.properties?.connectorVersion || 1)" @update:model-value="updateAdvancedProperty('connectorVersion', $event)" /></label>
+          <label class="graph-designer__field"><span>操作 Key</span><ElInput :disabled="disabled" :model-value="String(selectedNode.properties?.operationKey || '')" @update:model-value="updateAdvancedProperty('operationKey', $event)" /></label>
+          <label class="graph-designer__field"><span>等待模式</span>
+            <ElSelect :disabled="disabled" :model-value="String(selectedNode.properties?.waitMode || 'NO_WAIT')" @update:model-value="updateAdvancedProperty('waitMode', $event)">
+              <ElOption label="调用后继续" value="NO_WAIT" /><ElOption label="等待回调" value="WAIT_CALLBACK" />
+            </ElSelect>
+          </label>
+          <label v-if="selectedNode.properties?.waitMode === 'WAIT_CALLBACK'" class="graph-designer__field"><span>超时时长</span><ElInput :disabled="disabled" :model-value="String(asRecord(selectedNode.properties?.timeoutPolicy)?.timeoutAfter || '')" @update:model-value="updateNestedAdvancedProperty('timeoutPolicy', 'timeoutAfter', $event)" /></label>
+        </template>
+        <template v-if="selectedNode.type === 'SUB_PROCESS'">
+          <label class="graph-designer__field"><span>子流程 Key</span><ElInput :disabled="disabled" :model-value="String(selectedNode.properties?.calledProcessKey || '')" @update:model-value="updateAdvancedProperty('calledProcessKey', $event)" /></label>
+          <label class="graph-designer__field"><span>冻结版本 ID</span><ElInputNumber :disabled="disabled" :min="1" :model-value="Number(selectedNode.properties?.calledDefinitionVersionId || 1)" @update:model-value="updateAdvancedProperty('calledDefinitionVersionId', $event)" /></label>
+          <label class="graph-designer__field"><span>失败传播</span>
+            <ElSelect :disabled="disabled" :model-value="String(selectedNode.properties?.failurePolicy || 'PAUSE_PARENT')" @update:model-value="updateAdvancedProperty('failurePolicy', $event)">
+              <ElOption label="暂停父流程" value="PAUSE_PARENT" /><ElOption label="拒绝父流程" value="REJECT_PARENT" /><ElOption label="人工处置" value="MANUAL_INTERVENTION" />
+            </ElSelect>
+          </label>
+          <label class="graph-designer__field"><span>父取消传播</span>
+            <ElSelect :disabled="disabled" :model-value="String(selectedNode.properties?.cancelPropagation || 'CANCEL_CHILD')" @update:model-value="updateAdvancedProperty('cancelPropagation', $event)">
+              <ElOption label="取消子流程" value="CANCEL_CHILD" /><ElOption label="保留子流程" value="KEEP_CHILD" />
             </ElSelect>
           </label>
         </template>
@@ -623,4 +687,14 @@ function positiveInteger(value: unknown): value is number {
 .graph-designer__finding { display: flex; gap: 6px; align-items: flex-start; border: 0; background: transparent; color: var(--el-text-color-regular); cursor: pointer; text-align: left; }
 .graph-designer__diff-item { display: flex; gap: 4px; align-items: center; color: var(--el-text-color-secondary); font-size: 12px; }
 @media (max-width: 1100px) { .graph-designer { grid-template-columns: 132px minmax(460px, 1fr); } .graph-designer__properties { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--el-border-color); border-left: 0; } }
+@media (max-width: 700px) {
+  .graph-designer { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .graph-designer__palette { flex-direction: row; grid-column: 1; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--el-border-color); }
+  .graph-designer__palette-item { flex: 0 0 auto; }
+  .graph-designer__canvas { grid-column: 1; min-height: 420px; }
+  .graph-designer__properties { grid-column: 1; grid-template-columns: minmax(0, 1fr); max-height: none; }
+  .graph-designer__field, .graph-designer__field :deep(.el-input), .graph-designer__field :deep(.el-select), .graph-designer__field :deep(.el-input-number) { min-width: 0; width: 100%; }
+  .graph-designer__connection-actions { flex-wrap: wrap; }
+  .graph-designer__finding { width: 100%; }
+}
 </style>

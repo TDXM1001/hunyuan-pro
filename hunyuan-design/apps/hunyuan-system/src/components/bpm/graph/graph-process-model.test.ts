@@ -12,6 +12,7 @@ import {
   updateGraphCandidatePolicy,
   updateGraphEdgeRouteCondition,
   updateGraphStartVisibilityPolicy,
+  updateGraphNodeProperties,
   type ProcessDefinitionGraph,
 } from './graph-process-model';
 
@@ -200,5 +201,37 @@ describe('graph process model', () => {
     expect(diffGraphSemantics(baseline, changed).changedElements).toEqual([
       expect.objectContaining({ elementId: 'review', kind: 'NODE' }),
     ]);
+  });
+
+  it('updates advanced node properties and validates the controlled configuration', () => {
+    const source = graph();
+    source.nodes.splice(2, 0,
+      { nodeId: 'delay', scopeId: 'scope_root', type: 'DELAY', name: 'Delay', properties: {} },
+      { nodeId: 'external', scopeId: 'scope_root', type: 'EXTERNAL_TRIGGER', name: 'External', properties: {} },
+      { nodeId: 'child', scopeId: 'scope_root', type: 'SUB_PROCESS', name: 'Child', properties: {} },
+    );
+    source.edges = [
+      { edgeId: 'a', scopeId: 'scope_root', sourceNodeId: 'start', targetNodeId: 'review' },
+      { edgeId: 'b', scopeId: 'scope_root', sourceNodeId: 'review', targetNodeId: 'delay' },
+      { edgeId: 'c', scopeId: 'scope_root', sourceNodeId: 'delay', targetNodeId: 'external' },
+      { edgeId: 'd', scopeId: 'scope_root', sourceNodeId: 'external', targetNodeId: 'child' },
+      { edgeId: 'e', scopeId: 'scope_root', sourceNodeId: 'child', targetNodeId: 'end' },
+    ];
+    let configured = updateGraphNodeProperties(source, 'delay', { mode: 'DURATION', value: 'PT30M' });
+    configured = updateGraphNodeProperties(configured, 'external', {
+      connectorKey: 'finance', connectorVersion: 3, operationKey: 'createExpense', waitMode: 'WAIT_CALLBACK',
+      timeoutPolicy: { timeoutAfter: 'PT30M' },
+    });
+    configured = updateGraphNodeProperties(configured, 'child', {
+      calledProcessKey: 'expense_archive', calledDefinitionVersionId: 42,
+      failurePolicy: 'PAUSE_PARENT', cancelPropagation: 'CANCEL_CHILD',
+    });
+
+    expect(simulateGraph(configured).pass).toBe(true);
+    const unsafe = updateGraphNodeProperties(configured, 'external', { connectorVersion: 0, url: 'http://127.0.0.1' });
+    expect(simulateGraph(unsafe).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ elementId: 'external', path: 'connectorVersion' }),
+      expect.objectContaining({ elementId: 'external', path: 'connectorReference' }),
+    ]));
   });
 });

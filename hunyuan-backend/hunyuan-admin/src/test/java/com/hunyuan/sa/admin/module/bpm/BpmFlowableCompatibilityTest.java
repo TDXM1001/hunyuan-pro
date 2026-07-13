@@ -20,10 +20,27 @@ import com.hunyuan.sa.bpm.engine.graph.GraphScope;
 import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
 import com.hunyuan.sa.bpm.engine.internal.HunyuanDelayEndListener;
 import com.hunyuan.sa.bpm.engine.internal.HunyuanDelayStartListener;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanGraphRouteDecisionListener;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanExternalTriggerDelegate;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanExternalWaitListener;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanTimeEventDelegate;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanSubProcessLifecycleListener;
+import com.hunyuan.sa.bpm.engine.internal.HunyuanSubProcessInstanceStartListener;
+import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.integration.service.BpmConnectorInvocationService;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmGraphRuntimeMetadataService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmRouteDecisionResult;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmRouteDecisionService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmSubProcessService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
 import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.ProcessEngineConfiguration;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
+import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +61,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * 验证 BPM 模块可以把 Flowable 作为隐藏内核接入，
@@ -101,6 +122,12 @@ class BpmFlowableCompatibilityTest {
             SimpleModelBpmnCompiler.class,
             HunyuanDelayStartListener.class,
             HunyuanDelayEndListener.class,
+            HunyuanGraphRouteDecisionListener.class,
+            HunyuanExternalTriggerDelegate.class,
+            HunyuanExternalWaitListener.class,
+            HunyuanTimeEventDelegate.class,
+            HunyuanSubProcessLifecycleListener.class,
+            HunyuanSubProcessInstanceStartListener.class,
             AdminBpmOrgIdentityGateway.class,
             AdminBpmCurrentActorProvider.class
     })
@@ -124,6 +151,27 @@ class BpmFlowableCompatibilityTest {
 
     @MockBean
     private BpmTimeEventService bpmTimeEventService;
+
+    @MockBean
+    private BpmRouteDecisionService bpmRouteDecisionService;
+
+    @MockBean
+    private BpmInstanceDao bpmInstanceDao;
+
+    @MockBean
+    private BpmDefinitionNodeDao bpmDefinitionNodeDao;
+
+    @MockBean
+    private BpmConnectorInvocationService bpmConnectorInvocationService;
+
+    @MockBean
+    private BpmExternalWaitService bpmExternalWaitService;
+
+    @MockBean
+    private BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService;
+
+    @MockBean
+    private BpmSubProcessService bpmSubProcessService;
 
     @DynamicPropertySource
     static void registerDatasourceProperties(DynamicPropertyRegistry registry) {
@@ -245,6 +293,102 @@ class BpmFlowableCompatibilityTest {
         ).getMainProcess().getFlowElement("graph_edge_route_large")).isNotNull();
     }
 
+    @Test
+    void deploysControlledGraphAdvancedRuntimeNodes() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_m5",
+                "Graph M5 兼容",
+                new HunyuanProcessDefinitionGraph(
+                        1, "scope_root", List.of(new GraphScope("scope_root", null, "主流程")),
+                        List.of(
+                                node("start", GraphNodeType.START, "开始"),
+                                new GraphNode("delay", "scope_root", GraphNodeType.DELAY, "短暂等待",
+                                        Map.of("mode", "DURATION", "value", "PT1M"), Map.of()),
+                                new GraphNode("external", "scope_root", GraphNodeType.EXTERNAL_TRIGGER, "外部等待",
+                                        Map.of("connectorKey", "finance", "connectorVersion", 1,
+                                                "operationKey", "createExpense", "waitMode", "WAIT_CALLBACK",
+                                                "timeoutPolicy", Map.of("timeoutAfter", "PT5M")), Map.of()),
+                                new GraphNode("child", "scope_root", GraphNodeType.SUB_PROCESS, "子流程",
+                                        Map.of("calledProcessKey", "compat_graph_child", "calledDefinitionVersionId", 1,
+                                                "calledEngineProcessDefinitionId", "compat_graph_child:1:test",
+                                                "failurePolicy", "PAUSE_PARENT", "cancelPropagation", "CANCEL_CHILD"), Map.of()),
+                                node("end", GraphNodeType.END, "结束")
+                        ),
+                        List.of(
+                                edge("start_delay", "start", "delay", "default", Map.of()),
+                                edge("delay_external", "delay", "external", "default", Map.of()),
+                                edge("external_child", "external", "child", "default", Map.of()),
+                                edge("child_end", "child", "end", "default", Map.of())
+                        ), Map.of()
+                )
+        );
+
+        var deployment = repositoryService.createDeployment()
+                .name("Graph M5 兼容")
+                .addBytes("compat-graph-m5.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+
+        assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void executesGraphConditionListenerAndReachesAuthoredHandleTask() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_route_runtime",
+                "Graph 路由运行兼容",
+                routeRuntimeGraph()
+        );
+        var deployment = repositoryService.createDeployment()
+                .name("Graph 路由运行兼容")
+                .addBytes("compat-graph-route-runtime.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+        when(bpmRouteDecisionService.evaluateAndRecord(any()))
+                .thenReturn(new BpmRouteDecisionResult(1L, List.of("large"), false, 1L));
+        doAnswer(invocation -> {
+            var execution = invocation.getArgument(0, org.flowable.engine.delegate.DelegateExecution.class);
+            execution.setVariable("hunyuan_graph_route_route_split_large", true);
+            return null;
+        }).when(bpmRouteDecisionService).writeGraphBranchVariables(any(), any(), any());
+
+        var definition = repositoryService.createProcessDefinitionQuery()
+                .deploymentId(deployment.getId()).singleResult();
+        var instance = runtimeService.startProcessInstanceById(
+                definition.getId(), Map.of("hunyuanInstanceId", 901L)
+        );
+
+        assertThat(processEngine.getTaskService().createTaskQuery()
+                .processInstanceId(instance.getId()).singleResult().getTaskDefinitionKey())
+                .isEqualTo("graph_node_large_handle");
+    }
+
+    private HunyuanProcessDefinitionGraph routeRuntimeGraph() {
+        return new HunyuanProcessDefinitionGraph(
+                1,
+                "scope_root",
+                List.of(new GraphScope("scope_root", null, "主流程")),
+                List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        gateway("route_split", GraphNodeType.CONDITION, "金额路由", "SPLIT", "route_join"),
+                        node("large_handle", GraphNodeType.HANDLE, "大额办理"),
+                        node("default_handle", GraphNodeType.HANDLE, "默认办理"),
+                        gateway("route_join", GraphNodeType.CONDITION, "金额汇聚", "JOIN", "route_split"),
+                        node("end", GraphNodeType.END, "结束")
+                ),
+                List.of(
+                        edge("start_route", "start", "route_split", "default", Map.of()),
+                        edge("route_large", "route_split", "large_handle", "large", Map.of("routeCondition", Map.of(
+                                "sourceType", "FORM_FIELD", "fieldKey", "amount", "valueType", "NUMBER", "operator", "GT", "compareValue", 5000
+                        ))),
+                        edge("route_default", "route_split", "default_handle", "default", Map.of()),
+                        edge("large_join", "large_handle", "route_join", "default", Map.of()),
+                        edge("default_join", "default_handle", "route_join", "default", Map.of()),
+                        edge("join_end", "route_join", "end", "default", Map.of())
+                ),
+                Map.of()
+        );
+    }
+
     private HunyuanProcessDefinitionGraph fullM1Graph() {
         return new HunyuanProcessDefinitionGraph(
                 1,
@@ -317,6 +461,269 @@ class BpmFlowableCompatibilityTest {
         assertThat(processEngine.getManagementService().createTimerJobQuery()
                 .processInstanceId(processInstance.getId())
                 .count()).isEqualTo(1);
+    }
+
+    @Test
+    void restoresActiveTimerAfterFlowableEngineRestart() throws Exception {
+        String schema = "hunyuan_bpm_restart_" + System.nanoTime();
+        String jdbcUrl = "jdbc:mysql://127.0.0.1:3306/" + schema
+                + "?createDatabaseIfNotExist=true&nullCatalogMeansCurrent=true"
+                + "&useSSL=false&serverTimezone=Asia/Shanghai";
+        ProcessEngine first = null;
+        ProcessEngine second = null;
+        try {
+            first = standaloneEngine(jdbcUrl);
+            String xml = """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" targetNamespace="restart">
+                      <process id="restart_timer" isExecutable="true">
+                        <startEvent id="start"/><intermediateCatchEvent id="wait">
+                          <timerEventDefinition><timeDuration>PT2H</timeDuration></timerEventDefinition>
+                        </intermediateCatchEvent><endEvent id="end"/>
+                        <sequenceFlow id="f1" sourceRef="start" targetRef="wait"/>
+                        <sequenceFlow id="f2" sourceRef="wait" targetRef="end"/>
+                      </process>
+                    </definitions>
+                    """;
+            first.getRepositoryService().createDeployment()
+                    .addString("restart-timer.bpmn20.xml", xml).deploy();
+            var instance = first.getRuntimeService().startProcessInstanceByKey("restart_timer");
+            String instanceId = instance.getId();
+            assertThat(first.getManagementService().createTimerJobQuery()
+                    .processInstanceId(instanceId).count()).isEqualTo(1);
+            first.close();
+            first = null;
+
+            second = standaloneEngine(jdbcUrl);
+            assertThat(second.getManagementService().createTimerJobQuery()
+                    .processInstanceId(instanceId).count()).isEqualTo(1);
+        } finally {
+            if (first != null) first.close();
+            if (second != null) second.close();
+            try (Connection connection = DriverManager.getConnection(MYSQL_ADMIN_JDBC_URL, "root", "root");
+                 Statement statement = connection.createStatement()) {
+                statement.execute("DROP DATABASE IF EXISTS `" + schema + "`");
+            }
+        }
+    }
+
+    private ProcessEngine standaloneEngine(String jdbcUrl) {
+        ProcessEngineConfiguration configuration = ProcessEngineConfiguration.createStandaloneProcessEngineConfiguration()
+                .setJdbcDriver("com.mysql.cj.jdbc.Driver")
+                .setJdbcUrl(jdbcUrl)
+                .setJdbcUsername("root")
+                .setJdbcPassword("root")
+                .setDatabaseSchemaUpdate(ProcessEngineConfiguration.DB_SCHEMA_UPDATE_TRUE)
+                .setAsyncExecutorActivate(false);
+        ProcessEngineConfigurationImpl configurationImpl = (ProcessEngineConfigurationImpl) configuration;
+        configurationImpl.setDisableIdmEngine(true);
+        configurationImpl.setDisableEventRegistry(true);
+        return configuration.buildProcessEngine();
+    }
+
+    @Test
+    void createsRealFlowableTimerJobForGraphDelayNode() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_delay_runtime",
+                "Graph 延迟运行兼容",
+                linearGraph(List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        new GraphNode("delay", "scope_root", GraphNodeType.DELAY, "短暂等待",
+                                Map.of("mode", "DURATION", "value", "PT1H"), Map.of()),
+                        node("end", GraphNodeType.END, "结束")
+                ))
+        );
+        var deployment = repositoryService.createDeployment()
+                .name("Graph 延迟运行兼容")
+                .addBytes("compat-graph-delay-runtime.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+        var definition = repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).singleResult();
+
+        var instance = runtimeService.startProcessInstanceById(definition.getId(), Map.of("hunyuanInstanceId", 901L));
+
+        assertThat(processEngine.getManagementService().createTimerJobQuery()
+                .processInstanceId(instance.getId()).count()).isEqualTo(1);
+        verify(bpmTimeEventService).scheduleDelay(901L, instance.getId(),
+                runtimeService.createExecutionQuery().processInstanceId(instance.getId()).activityId("graph_node_delay").singleResult().getId(),
+                "delay");
+    }
+
+    @Test
+    void resolvesGraphFormDatetimeIntoARealFlowableTimer() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_form_delay_runtime", "Graph 表单日期延迟兼容",
+                linearGraph(List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        new GraphNode("delay", "scope_root", GraphNodeType.DELAY, "等待业务日期",
+                                Map.of("mode", "FORM_DATETIME", "value", "resumeAt", "timezone", "Asia/Shanghai"), Map.of()),
+                        node("end", GraphNodeType.END, "结束")
+                )));
+        var deployment = repositoryService.createDeployment().name("Graph 表单日期延迟兼容")
+                .addBytes("compat-graph-form-delay-runtime.bpmn20.xml",
+                        artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8)).deploy();
+        var definition = repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).singleResult();
+        when(bpmTimeEventService.scheduleDelay(any(), any(), any(), org.mockito.ArgumentMatchers.eq("delay")))
+                .thenReturn(java.time.LocalDateTime.now().plusHours(2));
+
+        var instance = runtimeService.startProcessInstanceById(definition.getId(), Map.of("hunyuanInstanceId", 906L));
+
+        assertThat(processEngine.getManagementService().createTimerJobQuery()
+                .processInstanceId(instance.getId()).count()).isEqualTo(1);
+    }
+
+    @Test
+    void invokesControlledConnectorAndWaitsOnRealGraphReceiveTask() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_external_runtime",
+                "Graph 外部等待运行兼容",
+                linearGraph(List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        new GraphNode("external", "scope_root", GraphNodeType.EXTERNAL_TRIGGER, "外部等待",
+                                Map.of("connectorKey", "finance", "connectorVersion", 1,
+                                        "operationKey", "createExpense", "waitMode", "WAIT_CALLBACK",
+                                        "timeoutPolicy", Map.of("timeoutAfter", "PT5M")), Map.of()),
+                        node("end", GraphNodeType.END, "结束")
+                ))
+        );
+        var deployment = repositoryService.createDeployment()
+                .name("Graph 外部等待运行兼容")
+                .addBytes("compat-graph-external-runtime.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
+                .deploy();
+        var definition = repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).singleResult();
+        BpmInstanceEntity platformInstance = new BpmInstanceEntity();
+        platformInstance.setInstanceId(902L);
+        platformInstance.setDefinitionSource("GRAPH");
+        platformInstance.setGraphDefinitionVersionId(92L);
+        platformInstance.setCurrentFormDataSnapshotJson("{}");
+        when(bpmInstanceDao.selectById(902L)).thenReturn(platformInstance);
+        when(bpmGraphRuntimeMetadataService.requireNode(92L, "external")).thenReturn(
+                new BpmGraphRuntimeMetadataService.GraphNodeMetadata(
+                        "external", "scope_root", "外部等待", GraphNodeType.EXTERNAL_TRIGGER,
+                        com.alibaba.fastjson.JSONObject.parseObject("""
+                                {"connectorVersion":1,"requestMapping":{},"responseMapping":{},
+                                 "timeoutPolicy":{"timeoutAfter":"PT5M"}}
+                                """)));
+        when(bpmExternalWaitService.prepareWait(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new BpmExternalWaitService.PreparedWait("callback-token", "902:external:1", 1));
+        when(bpmConnectorInvocationService.invokePersistent(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new com.alibaba.fastjson.JSONObject());
+
+        var instance = runtimeService.startProcessInstanceById(definition.getId(), Map.of("hunyuanInstanceId", 902L));
+
+        var waiting = runtimeService.createExecutionQuery().processInstanceId(instance.getId())
+                .activityId("graph_node_external_wait").singleResult();
+        assertThat(waiting).isNotNull();
+        assertThat(processEngine.getManagementService().createTimerJobQuery()
+                .processInstanceId(instance.getId()).count()).isEqualTo(1);
+        verify(bpmExternalWaitService).bindExecution(instance.getId(), "external", waiting.getId());
+        runtimeService.trigger(waiting.getId());
+        assertThat(runtimeService.createProcessInstanceQuery().processInstanceId(instance.getId()).count()).isZero();
+        assertThat(processEngine.getManagementService().createTimerJobQuery()
+                .processInstanceId(instance.getId()).count()).isZero();
+    }
+
+    @Test
+    void executesPersistedGraphExternalTimeoutAndEndsTheWaitingPath() {
+        var artifact = new GraphBpmnCompiler().compile(
+                "compat_graph_external_timeout_runtime",
+                "Graph 外部等待超时兼容",
+                linearGraph(List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        new GraphNode("external", "scope_root", GraphNodeType.EXTERNAL_TRIGGER, "外部等待",
+                                Map.of("connectorKey", "finance", "connectorVersion", 1,
+                                        "operationKey", "createExpense", "waitMode", "WAIT_CALLBACK",
+                                        "timeoutPolicy", Map.of("timeoutAfter", "PT5M")), Map.of()),
+                        node("end", GraphNodeType.END, "结束")
+                ))
+        );
+        var deployment = repositoryService.createDeployment().name("Graph 外部等待超时兼容")
+                .addBytes("compat-graph-external-timeout-runtime.bpmn20.xml",
+                        artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8)).deploy();
+        var definition = repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).singleResult();
+        BpmInstanceEntity platformInstance = new BpmInstanceEntity();
+        platformInstance.setInstanceId(905L);
+        platformInstance.setDefinitionSource("GRAPH");
+        platformInstance.setGraphDefinitionVersionId(95L);
+        platformInstance.setCurrentFormDataSnapshotJson("{}");
+        when(bpmInstanceDao.selectById(905L)).thenReturn(platformInstance);
+        when(bpmGraphRuntimeMetadataService.requireNode(95L, "external")).thenReturn(
+                new BpmGraphRuntimeMetadataService.GraphNodeMetadata(
+                        "external", "scope_root", "外部等待", GraphNodeType.EXTERNAL_TRIGGER,
+                        com.alibaba.fastjson.JSONObject.parseObject("""
+                                {"connectorVersion":1,"requestMapping":{},"responseMapping":{},
+                                 "timeoutPolicy":{"timeoutAfter":"PT5M"}}
+                                """)));
+        when(bpmExternalWaitService.prepareWait(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new BpmExternalWaitService.PreparedWait("callback-token", "905:external:1", 1));
+        when(bpmConnectorInvocationService.invokePersistent(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new com.alibaba.fastjson.JSONObject());
+
+        var instance = runtimeService.startProcessInstanceById(definition.getId(), Map.of("hunyuanInstanceId", 905L));
+        var timer = processEngine.getManagementService().createTimerJobQuery()
+                .processInstanceId(instance.getId()).singleResult();
+
+        assertThat(timer).isNotNull();
+        processEngine.getManagementService().moveTimerToExecutableJob(timer.getId());
+        var executable = processEngine.getManagementService().createJobQuery()
+                .processInstanceId(instance.getId()).singleResult();
+        processEngine.getManagementService().executeJob(executable.getId());
+
+        assertThat(runtimeService.createProcessInstanceQuery().processInstanceId(instance.getId()).count()).isZero();
+        verify(bpmTimeEventService).trigger(any(), org.mockito.ArgumentMatchers.eq("external"),
+                org.mockito.ArgumentMatchers.eq("EXTERNAL_TIMEOUT"), any(), any());
+    }
+
+    @Test
+    void startsWaitsForAndCompletesFrozenGraphSubProcess() {
+        String childXml = new GraphBpmnCompiler().compile(
+                "compat_graph_child_runtime", "Graph 子流程",
+                linearGraph(List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        node("child_task", GraphNodeType.HANDLE, "子流程办理"),
+                        node("end", GraphNodeType.END, "结束")
+                ))).compiledBpmnXml();
+        var childDeployment = repositoryService.createDeployment().name("Graph 子流程")
+                .addBytes("compat-graph-child-runtime.bpmn20.xml", childXml.getBytes(StandardCharsets.UTF_8)).deploy();
+        var childDefinition = repositoryService.createProcessDefinitionQuery().deploymentId(childDeployment.getId()).singleResult();
+        var parentArtifact = new GraphBpmnCompiler().compile(
+                "compat_graph_parent_runtime", "Graph 父流程",
+                linearGraph(List.of(
+                        node("start", GraphNodeType.START, "开始"),
+                        new GraphNode("child", "scope_root", GraphNodeType.SUB_PROCESS, "调用子流程",
+                                Map.of("calledProcessKey", "compat_graph_child_runtime", "calledDefinitionVersionId", 1,
+                                        "calledEngineProcessDefinitionId", childDefinition.getId(),
+                                        "failurePolicy", "PAUSE_PARENT", "cancelPropagation", "CANCEL_CHILD"), Map.of()),
+                        node("end", GraphNodeType.END, "结束")
+                )));
+        var parentDeployment = repositoryService.createDeployment().name("Graph 父流程")
+                .addBytes("compat-graph-parent-runtime.bpmn20.xml", parentArtifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8)).deploy();
+        var parentDefinition = repositoryService.createProcessDefinitionQuery().deploymentId(parentDeployment.getId()).singleResult();
+        when(bpmSubProcessService.prepareChild(any(), any(), any(), any()))
+                .thenReturn(new BpmSubProcessService.PreparedSubProcess(71L, 904L));
+
+        var parent = runtimeService.startProcessInstanceById(parentDefinition.getId(), Map.of("hunyuanInstanceId", 903L));
+        var child = runtimeService.createProcessInstanceQuery().superProcessInstanceId(parent.getId()).singleResult();
+
+        assertThat(child).isNotNull();
+        assertThat(processEngine.getTaskService().createTaskQuery().processInstanceId(child.getId()).count()).isEqualTo(1);
+        assertThat(runtimeService.getVariable(child.getId(), "hunyuanInstanceId")).isEqualTo(904L);
+        assertThat(runtimeService.getVariable(child.getId(), "hunyuanParentInstanceId")).isEqualTo(903L);
+        verify(bpmSubProcessService).bindChildEngineInstance(903L, 904L, child.getId());
+        processEngine.getTaskService().complete(
+                processEngine.getTaskService().createTaskQuery().processInstanceId(child.getId()).singleResult().getId());
+        assertThat(runtimeService.createProcessInstanceQuery().processInstanceId(child.getId()).count()).isZero();
+        assertThat(runtimeService.createProcessInstanceQuery().processInstanceId(parent.getId()).count()).isZero();
+        verify(bpmSubProcessService).prepareChild(any(), any(), any(), any());
+        verify(bpmSubProcessService).complete(any(), any(), any());
+    }
+
+    private HunyuanProcessDefinitionGraph linearGraph(List<GraphNode> nodes) {
+        java.util.ArrayList<GraphEdge> edges = new java.util.ArrayList<>();
+        for (int index = 0; index < nodes.size() - 1; index++) {
+            edges.add(edge("linear_" + index, nodes.get(index).nodeId(), nodes.get(index + 1).nodeId(), "default", Map.of()));
+        }
+        return new HunyuanProcessDefinitionGraph(1, "scope_root",
+                List.of(new GraphScope("scope_root", null, "主流程")), nodes, edges, Map.of());
     }
 
     @Test

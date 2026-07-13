@@ -13,6 +13,7 @@ public class BpmRuntimeGraphVO {
 
     private Long instanceId;
     private Long definitionId;
+    private Long graphDefinitionVersionId;
     private List<Node> nodes;
     private List<RouteDecision> routeDecisions;
 
@@ -32,6 +33,7 @@ public class BpmRuntimeGraphVO {
         private Long routeDecisionId;
         private Long instanceId;
         private Long definitionId;
+        private Long graphDefinitionVersionId;
         private Long definitionNodeId;
         private String routeNodeKey;
         private Long inputFormDataVersion;

@@ -182,8 +182,22 @@ export interface BpmInstanceTraceRecord {
   notificationRecords: BpmNotificationRecordVO[];
   timeEvents: import('./time-event').BpmTimeEventRecord[];
   externalWaits: import('./time-event').BpmExternalWaitRecord[];
+  subProcesses: BpmSubProcessLinkRecord[];
   processGraph?: BpmRuntimeGraphRecord;
   routeDecisions?: BpmRouteDecisionRecord[];
+}
+
+export interface BpmSubProcessLinkRecord {
+  calledDefinitionVersionId: number;
+  calledProcessKey: string;
+  cancelPropagation: string;
+  completedAt?: null | string;
+  failurePolicy: string;
+  lastError?: null | string;
+  linkStatus: string;
+  parentNodeId: string;
+  startedAt?: null | string;
+  subProcessLinkId: number;
 }
 
 export interface BpmRuntimeGraphNodeRecord {
@@ -211,7 +225,8 @@ export interface BpmRouteDecisionRecord {
 }
 
 export interface BpmRuntimeGraphRecord {
-  definitionId: number;
+  definitionId?: null | number;
+  graphDefinitionVersionId?: null | number;
   instanceId: number;
   nodes: BpmRuntimeGraphNodeRecord[];
   routeDecisions: BpmRouteDecisionRecord[];
@@ -270,6 +285,7 @@ export interface BpmTaskRecord {
   runtimeAssignmentSnapshotJson?: null | string;
   taskResult?: null | number;
   taskState?: null | number;
+  taskVersion?: null | number;
 }
 
 export type BpmTaskAction =
@@ -371,6 +387,7 @@ export interface BpmTaskApproveForm {
   formDataVersion?: null | number;
   requestId?: string;
   taskId: number;
+  taskVersion?: null | number;
 }
 
 export interface BpmTaskRejectForm {
@@ -379,6 +396,7 @@ export interface BpmTaskRejectForm {
   copyEmployeeIds?: number[];
   requestId?: string;
   taskId: number;
+  taskVersion?: null | number;
   workingDataPatchJson?: null | string;
   workingDataVersion?: null | number;
 }
@@ -386,6 +404,7 @@ export interface BpmTaskRejectForm {
 export interface BpmTaskCompleteForm {
   commentText?: null | string;
   taskId: number;
+  taskVersion?: null | number;
 }
 
 export interface BpmTaskReturnForm {
@@ -394,6 +413,7 @@ export interface BpmTaskReturnForm {
   copyEmployeeIds?: number[];
   requestId?: string;
   taskId: number;
+  taskVersion?: null | number;
   workingDataPatchJson?: null | string;
   workingDataVersion?: null | number;
 }
@@ -587,6 +607,7 @@ export async function approveBpmTask(params: BpmTaskApproveForm) {
     formDataVersion: params.formDataVersion ?? undefined,
     requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
+    taskVersion: params.taskVersion ?? undefined,
   });
 }
 
@@ -594,6 +615,7 @@ export async function completeBpmTask(params: BpmTaskCompleteForm) {
   return requestClient.post<string>('/app/bpm/task/complete', {
     commentText: params.commentText?.trim() || '',
     taskId: params.taskId,
+    taskVersion: params.taskVersion ?? undefined,
   });
 }
 
@@ -604,6 +626,7 @@ export async function rejectBpmTask(params: BpmTaskRejectForm) {
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
+    taskVersion: params.taskVersion ?? undefined,
     workingDataPatchJson: params.workingDataPatchJson?.trim() || undefined,
     workingDataVersion: params.workingDataVersion ?? undefined,
   });
@@ -616,6 +639,7 @@ export async function returnBpmTaskToInitiator(params: BpmTaskReturnForm) {
     copyEmployeeIds: params.copyEmployeeIds ?? [],
     requestId: params.requestId ?? crypto.randomUUID(),
     taskId: params.taskId,
+    taskVersion: params.taskVersion ?? undefined,
     workingDataPatchJson: params.workingDataPatchJson?.trim() || undefined,
     workingDataVersion: params.workingDataVersion ?? undefined,
   });

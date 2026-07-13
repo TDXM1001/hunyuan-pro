@@ -17,6 +17,9 @@ public class BpmTaskApproveForm {
     @NotNull(message = "任务ID不能为空")
     private Long taskId;
 
+    @Schema(description = "客户端加载的任务版本")
+    private Long taskVersion;
+
     @Schema(description = "客户端审批命令幂等标识")
     @Size(max = 128, message = "requestId 最多 128 个字符")
     private String requestId;

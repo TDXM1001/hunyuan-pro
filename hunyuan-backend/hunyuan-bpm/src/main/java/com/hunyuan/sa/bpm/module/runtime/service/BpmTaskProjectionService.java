@@ -50,6 +50,9 @@ public class BpmTaskProjectionService {
     private BpmDefinitionNodeDao bpmDefinitionNodeDao;
 
     @Resource
+    private BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService;
+
+    @Resource
     private FlowableTaskGateway flowableTaskGateway;
 
     @Resource
@@ -150,6 +153,7 @@ public class BpmTaskProjectionService {
         task.setAssigneeEmployeeId(member.getCurrentEmployeeId());
         fillAssigneeSnapshot(task, assignee);
         task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        task.setTaskVersion(1L);
         task.setAssignedAt(now);
         task.setLastActionAt(now);
         return task;
@@ -168,9 +172,15 @@ public class BpmTaskProjectionService {
     private void insertTaskIfMissing(BpmInstanceEntity instance, FlowableActiveTaskSnapshot activeTask) {
         BpmTaskEntity existing = bpmTaskDao.selectOne(Wrappers.<BpmTaskEntity>lambdaQuery()
                 .eq(BpmTaskEntity::getEngineTaskId, activeTask.engineTaskId()));
-        BpmDefinitionNodeEntity node = bpmDefinitionNodeDao.selectOne(Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
+        BpmDefinitionNodeEntity node = "GRAPH".equals(instance.getDefinitionSource()) ? null
+                : bpmDefinitionNodeDao.selectOne(Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
                 .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
                 .eq(BpmDefinitionNodeEntity::getNodeKey, activeTask.taskKey()));
+        BpmGraphRuntimeMetadataService.GraphNodeMetadata graphNode =
+                "GRAPH".equals(instance.getDefinitionSource()) && bpmGraphRuntimeMetadataService != null
+                        ? bpmGraphRuntimeMetadataService.resolveCompiledNode(
+                                instance.getGraphDefinitionVersionId(), activeTask.taskKey())
+                        : null;
         if (existing != null) {
             attachApprovalGroupIfMissing(instance, node, existing);
             scheduleTaskSla(instance, node, existing);
@@ -190,8 +200,8 @@ public class BpmTaskProjectionService {
         task.setEngineTaskId(activeTask.engineTaskId());
         task.setEngineExecutionId(activeTask.engineExecutionId());
         task.setEngineProcessInstanceId(activeTask.engineProcessInstanceId());
-        task.setTaskKey(activeTask.taskKey());
-        task.setTaskName(activeTask.taskName());
+        task.setTaskKey(graphNode == null ? activeTask.taskKey() : graphNode.authoredNodeId());
+        task.setTaskName(graphNode == null ? activeTask.taskName() : graphNode.nodeName());
         task.setInstanceNo(instance.getInstanceNo());
         task.setInstanceTitle(instance.getTitle());
         task.setStartEmployeeId(instance.getStartEmployeeId());
@@ -201,6 +211,7 @@ public class BpmTaskProjectionService {
         task.setAssigneeEmployeeId(activeTask.assigneeEmployeeId());
         fillAssigneeSnapshot(task, assigneeSnapshot);
         task.setTaskState(BpmTaskStateEnum.PENDING.getValue());
+        task.setTaskVersion(1L);
         task.setAssignedAt(now);
         task.setLastActionAt(now);
         if (isApprovalGroupNode(node)) {

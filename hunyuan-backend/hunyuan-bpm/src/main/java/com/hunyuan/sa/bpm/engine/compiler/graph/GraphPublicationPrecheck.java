@@ -15,6 +15,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
 
 /**
@@ -26,6 +29,7 @@ public class GraphPublicationPrecheck {
     private static final String SPLIT_MODE = "SPLIT";
     private static final String JOIN_MODE = "JOIN";
     private static final Pattern PORT_PATTERN = Pattern.compile("[A-Za-z_][A-Za-z0-9_]{0,63}");
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("[A-Za-z_][A-Za-z0-9_.]{0,127}");
 
     private final GraphCanonicalizer graphCanonicalizer = new GraphCanonicalizer();
 
@@ -54,11 +58,151 @@ public class GraphPublicationPrecheck {
         validateStartAndEnd(graph, incoming, outgoing, findings);
         validateTaskPortCounts(graph, incoming, outgoing, findings);
         validateGateways(graph, nodes, incoming, outgoing, findings);
+        validateAdvancedNodes(graph, findings);
+        validateSlaPolicies(graph, findings);
         validateReachability(graph, outgoing, incoming, findings);
         if (hasCycle(nodes.keySet(), outgoing)) {
             findings.add(finding("GRAPH_CYCLE_FORBIDDEN", "M1 发布图不允许回边或环", null, "移除形成环的连线"));
         }
         return new GraphPublicationPrecheckResult(findings.isEmpty(), List.copyOf(findings));
+    }
+
+    private void validateSlaPolicies(HunyuanProcessDefinitionGraph graph, List<GraphPublicationFinding> findings) {
+        for (GraphNode node : graph.nodes()) {
+            Object raw = node.properties().get("taskSlaPolicy");
+            if (raw == null) continue;
+            if (!(raw instanceof Map<?, ?> policy)) {
+                findings.add(finding("SLA_POLICY_INVALID", "任务 SLA 必须是结构化策略", node.nodeId(), "重新配置 SLA"));
+                continue;
+            }
+            String dueAfter = String.valueOf(policy.get("dueAfter"));
+            try {
+                Duration duration = Duration.parse(dueAfter);
+                if (duration.isNegative() || duration.isZero()) throw new DateTimeParseException("invalid", dueAfter, 0);
+            } catch (DateTimeParseException ex) {
+                findings.add(finding("SLA_DURATION_INVALID", "SLA 到期时长必须是正 ISO-8601 duration", node.nodeId(), "例如 PT2H"));
+            }
+            String action = String.valueOf(policy.get("timeoutAction"));
+            if (!Set.of("NONE", "REMIND_ONLY", "AUTO_APPROVE", "AUTO_REJECT", "ASSIGN_ADMIN").contains(action)) {
+                findings.add(finding("SLA_ACTION_INVALID", "SLA 超时动作不受支持", node.nodeId(), "选择登记动作"));
+            }
+            if (Set.of("AUTO_APPROVE", "AUTO_REJECT").contains(action)
+                    && !"LOW".equals(stringProperty(graph.policies(), "riskLevel"))) {
+                findings.add(finding("SLA_AUTO_TERMINAL_RISK_FORBIDDEN", "只有低风险流程可配置 SLA 自动终态", node.nodeId(), "改为提醒或人工处置"));
+            }
+        }
+    }
+
+    private void validateAdvancedNodes(
+            HunyuanProcessDefinitionGraph graph,
+            List<GraphPublicationFinding> findings
+    ) {
+        for (GraphNode node : graph.nodes()) {
+            switch (node.type()) {
+                case DELAY -> validateDelay(node, findings);
+                case EXTERNAL_TRIGGER -> validateExternalTrigger(node, findings);
+                case SUB_PROCESS -> validateSubProcess(node, findings);
+                default -> {
+                }
+            }
+        }
+    }
+
+    private void validateDelay(GraphNode node, List<GraphPublicationFinding> findings) {
+        String mode = stringProperty(node.properties(), "mode");
+        String value = stringProperty(node.properties(), "value");
+        boolean valid = false;
+        try {
+            if ("DURATION".equals(mode)) {
+                valid = !Duration.parse(value).isNegative() && !Duration.parse(value).isZero();
+            } else if ("FIXED_DATETIME".equals(mode)) {
+                OffsetDateTime.parse(value);
+                valid = true;
+            } else if ("FORM_DATETIME".equals(mode)) {
+                valid = StringUtils.isNotBlank(value) && StringUtils.isNotBlank(stringProperty(node.properties(), "timezone"));
+            }
+        } catch (DateTimeParseException | NullPointerException ignored) {
+            valid = false;
+        }
+        if (!valid) {
+            findings.add(finding("DELAY_VALUE_INVALID", "延迟节点必须使用受控时长、带偏移时间或表单日期字段", node.nodeId(), "修正延迟模式和值"));
+        }
+    }
+
+    private void validateExternalTrigger(GraphNode node, List<GraphPublicationFinding> findings) {
+        Map<String, Object> properties = node.properties();
+        if (StringUtils.isBlank(stringProperty(properties, "connectorKey"))
+                || StringUtils.isBlank(stringProperty(properties, "operationKey"))) {
+            findings.add(finding("EXTERNAL_CONNECTOR_REFERENCE_INVALID", "外部节点必须引用登记连接器和操作", node.nodeId(), "选择登记连接器与操作"));
+        }
+        if (positiveInteger(properties.get("connectorVersion")) == null) {
+            findings.add(finding("EXTERNAL_CONNECTOR_VERSION_REQUIRED", "外部节点必须冻结连接器版本", node.nodeId(), "选择已发布连接器版本"));
+        }
+        if (properties.containsKey("url") || properties.containsKey("endpoint")) {
+            findings.add(finding("EXTERNAL_ENDPOINT_FORBIDDEN", "流程定义不得保存外部端点", node.nodeId(), "仅保存登记连接器引用"));
+        }
+        if (properties.containsKey("credential") || properties.containsKey("secret") || properties.containsKey("token")) {
+            findings.add(finding("EXTERNAL_CREDENTIAL_FORBIDDEN", "流程定义不得保存凭据", node.nodeId(), "由连接器环境引用解析凭据"));
+        }
+        String waitMode = stringProperty(properties, "waitMode");
+        if (!Set.of("NO_WAIT", "WAIT_CALLBACK").contains(waitMode)) {
+            findings.add(finding("EXTERNAL_WAIT_MODE_INVALID", "外部节点等待模式不受支持", node.nodeId(), "选择 NO_WAIT 或 WAIT_CALLBACK"));
+        }
+        if ("WAIT_CALLBACK".equals(waitMode)) {
+            Object rawPolicy = properties.get("timeoutPolicy");
+            String timeoutAfter = rawPolicy instanceof Map<?, ?> policy
+                    ? String.valueOf(policy.get("timeoutAfter")) : null;
+            try {
+                if (StringUtils.isBlank(timeoutAfter) || Duration.parse(timeoutAfter).isNegative()
+                        || Duration.parse(timeoutAfter).isZero()) {
+                    throw new DateTimeParseException("invalid", String.valueOf(timeoutAfter), 0);
+                }
+            } catch (DateTimeParseException ex) {
+                findings.add(finding("EXTERNAL_TIMEOUT_POLICY_REQUIRED", "回调等待必须配置正时长超时策略", node.nodeId(), "配置 timeoutPolicy.timeoutAfter"));
+            }
+        }
+    }
+
+    private void validateSubProcess(GraphNode node, List<GraphPublicationFinding> findings) {
+        Map<String, Object> properties = node.properties();
+        if (StringUtils.isBlank(stringProperty(properties, "calledProcessKey"))) {
+            findings.add(finding("SUB_PROCESS_REFERENCE_REQUIRED", "子流程节点必须引用流程 key", node.nodeId(), "选择已发布子流程"));
+        }
+        if (positiveInteger(properties.get("calledDefinitionVersionId")) == null) {
+            findings.add(finding("SUB_PROCESS_VERSION_REQUIRED", "子流程节点必须冻结定义版本", node.nodeId(), "选择已发布子流程版本"));
+        }
+        if (StringUtils.isBlank(stringProperty(properties, "calledEngineProcessDefinitionId"))) {
+            findings.add(finding("SUB_PROCESS_ENGINE_DEFINITION_REQUIRED", "子流程节点必须冻结引擎定义ID", node.nodeId(), "重新发布以解析子流程定义"));
+        }
+        String failurePolicy = stringProperty(properties, "failurePolicy");
+        if (failurePolicy == null || !Set.of("PAUSE_PARENT", "REJECT_PARENT", "MANUAL_INTERVENTION")
+                .contains(failurePolicy)) {
+            findings.add(finding("SUB_PROCESS_FAILURE_POLICY_REQUIRED", "子流程必须配置失败传播策略", node.nodeId(), "选择暂停、拒绝或人工处置"));
+        }
+        String cancelPropagation = stringProperty(properties, "cancelPropagation");
+        if (cancelPropagation == null || !Set.of("CANCEL_CHILD", "KEEP_CHILD")
+                .contains(cancelPropagation)) {
+            findings.add(finding("SUB_PROCESS_CANCEL_POLICY_REQUIRED", "子流程必须配置父取消传播策略", node.nodeId(), "选择取消子流程或保留子流程"));
+        }
+        validateVariableMapping(node, "inputMapping", findings);
+        validateVariableMapping(node, "outputMapping", findings);
+    }
+
+    private void validateVariableMapping(GraphNode node, String property, List<GraphPublicationFinding> findings) {
+        Object value = node.properties().get(property);
+        if (value == null) return;
+        if (!(value instanceof Map<?, ?> mapping)) {
+            findings.add(finding("SUB_PROCESS_MAPPING_INVALID", "子流程变量映射必须是键值对象", node.nodeId(), "配置结构化变量映射"));
+            return;
+        }
+        for (Map.Entry<?, ?> entry : mapping.entrySet()) {
+            String target = String.valueOf(entry.getKey());
+            String source = String.valueOf(entry.getValue());
+            if (!VARIABLE_PATTERN.matcher(target).matches() || !VARIABLE_PATTERN.matcher(source).matches()) {
+                findings.add(finding("SUB_PROCESS_MAPPING_INVALID", "子流程变量映射只允许稳定变量标识", node.nodeId(), "移除表达式并使用变量名"));
+                return;
+            }
+        }
     }
 
     private void validateStartAndEnd(

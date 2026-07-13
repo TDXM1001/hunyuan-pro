@@ -21,6 +21,8 @@ import com.hunyuan.sa.bpm.module.runtime.dao.BpmExternalWaitDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageMemberDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmSubProcessLinkDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmSubProcessLinkEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageMemberEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
@@ -72,6 +74,7 @@ class BpmInstanceTraceServiceTest {
         setField(traceService, "bpmRuntimeGraphService", runtimeGraphService);
         setField(traceService, "bpmTimeEventDao", Mockito.mock(BpmTimeEventDao.class));
         setField(traceService, "bpmExternalWaitDao", Mockito.mock(BpmExternalWaitDao.class));
+        setField(traceService, "bpmSubProcessLinkDao", Mockito.mock(BpmSubProcessLinkDao.class));
         approvalStageDao = Mockito.mock(BpmApprovalStageDao.class);
         approvalStageMemberDao = Mockito.mock(BpmApprovalStageMemberDao.class);
         bpmTaskDao = Mockito.mock(BpmTaskDao.class);
@@ -135,6 +138,12 @@ class BpmInstanceTraceServiceTest {
         graph.setNodes(List.of());
         graph.setRouteDecisions(List.of());
         when(runtimeGraphService.build(88L, false)).thenReturn(graph);
+        BpmSubProcessLinkEntity subProcess = new BpmSubProcessLinkEntity();
+        subProcess.setParentInstanceId(88L);
+        subProcess.setParentNodeId("archive");
+        subProcess.setLinkStatus("COMPLETED");
+        BpmSubProcessLinkDao subProcessDao = (BpmSubProcessLinkDao) getField(traceService, "bpmSubProcessLinkDao");
+        when(subProcessDao.selectList(Mockito.any())).thenReturn(List.of(subProcess));
 
         ResponseDTO<BpmInstanceTraceVO> response = traceService.getTrace(88L);
 
@@ -159,6 +168,8 @@ class BpmInstanceTraceServiceTest {
             assertThat(change.getChangedFieldsJson()).contains("approvedAmount");
         });
         assertThat(response.getData().getProcessGraph()).isSameAs(graph);
+        assertThat(response.getData().getSubProcesses()).singleElement()
+                .satisfies(link -> assertThat(link.getParentNodeId()).isEqualTo("archive"));
     }
 
     @Test
@@ -245,6 +256,16 @@ class BpmInstanceTraceServiceTest {
             field.set(target, value);
         } catch (ReflectiveOperationException ex) {
             throw new IllegalStateException("设置测试字段失败: " + fieldName, ex);
+        }
+    }
+
+    private Object getField(Object target, String fieldName) {
+        try {
+            Field field = target.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field.get(target);
+        } catch (ReflectiveOperationException ex) {
+            throw new IllegalStateException(ex);
         }
     }
 }

@@ -14,6 +14,9 @@ class BpmExternalCallbackControllerContractTest {
                 "callback",
                 String.class,
                 String.class,
+                String.class,
+                Integer.class,
+                String.class,
                 String.class
         );
 

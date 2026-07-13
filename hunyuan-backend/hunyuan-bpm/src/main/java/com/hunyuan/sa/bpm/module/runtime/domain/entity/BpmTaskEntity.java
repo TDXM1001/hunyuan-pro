@@ -71,6 +71,8 @@ public class BpmTaskEntity {
 
     private Integer taskResult;
 
+    private Long taskVersion;
+
     private LocalDateTime assignedAt;
 
     private LocalDateTime dueAt;

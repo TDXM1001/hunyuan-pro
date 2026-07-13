@@ -369,6 +369,7 @@ async function submitActionDialog() {
       commentText: actionForm.commentText,
       copyEmployeeIds: actionForm.copyEmployeeIds,
       taskId: currentActionRow.value.taskId,
+      taskVersion: actionTaskDetail.value?.taskVersion ?? currentActionRow.value.taskVersion,
     };
     const dataMutation = actionForm.type === 'complete'
       ? undefined
@@ -384,6 +385,7 @@ async function submitActionDialog() {
       await completeBpmTask({
         commentText: actionForm.commentText,
         taskId: currentActionRow.value.taskId,
+        taskVersion: actionTaskDetail.value?.taskVersion ?? currentActionRow.value.taskVersion,
       });
       ElMessage.success('办理已完成');
     } else if (actionForm.type === 'reject') {

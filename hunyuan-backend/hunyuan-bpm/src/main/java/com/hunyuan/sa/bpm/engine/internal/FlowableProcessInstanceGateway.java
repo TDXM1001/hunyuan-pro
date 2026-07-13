@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 /**
  * Flowable 流程实例运行网关，仅在 BPM 模块内部使用。
@@ -73,6 +74,15 @@ public class FlowableProcessInstanceGateway {
      */
     public void cancel(String engineProcessInstanceId, String reason) {
         runtimeService.deleteProcessInstance(engineProcessInstanceId, reason);
+    }
+
+    public List<String> activeChildProcessInstanceIds(String parentEngineProcessInstanceId) {
+        return runtimeService.createProcessInstanceQuery()
+                .superProcessInstanceId(parentEngineProcessInstanceId)
+                .list()
+                .stream()
+                .map(ProcessInstance::getProcessInstanceId)
+                .toList();
     }
 
     /**

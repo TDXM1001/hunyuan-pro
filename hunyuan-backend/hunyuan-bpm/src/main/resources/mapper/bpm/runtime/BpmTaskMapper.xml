@@ -13,6 +13,7 @@
             instance_title as instanceTitle,
             task_state as taskState,
             task_result as taskResult,
+            task_version as taskVersion,
             assignee_name_snapshot as assigneeNameSnapshot,
             assigned_at as assignedAt,
             completed_at as completedAt
@@ -44,6 +45,7 @@
             instance_title as instanceTitle,
             task_state as taskState,
             task_result as taskResult,
+            task_version as taskVersion,
             assignee_name_snapshot as assigneeNameSnapshot,
             assigned_at as assignedAt,
             completed_at as completedAt

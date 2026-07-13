@@ -45,6 +45,7 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeFormDataValidator;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmSubProcessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -111,6 +112,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmApprovalDataMutationService", bpmApprovalDataMutationService);
         setField(bpmInstanceService, "bpmTimeEventService", Mockito.mock(BpmTimeEventService.class));
         setField(bpmInstanceService, "bpmExternalWaitService", Mockito.mock(BpmExternalWaitService.class));
+        setField(bpmInstanceService, "bpmSubProcessService", Mockito.mock(BpmSubProcessService.class));
 
         setField(bpmTaskService, "bpmTaskDao", bpmTaskDao);
         setField(bpmTaskService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
@@ -124,6 +126,7 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmTaskService, "bpmInstanceCopyService", bpmInstanceCopyService);
         setField(bpmTaskService, "bpmBusinessProcessApi", bpmBusinessProcessApi);
         setField(bpmTaskService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
+        setField(bpmTaskService, "bpmSubProcessService", Mockito.mock(BpmSubProcessService.class));
         when(bpmInstanceCopyService.createManualCopies(any(), any(), any(), any())).thenReturn(ResponseDTO.ok());
     }
 
@@ -527,6 +530,8 @@ class BpmRuntimeCommandServiceTest {
         ResponseDTO<String> response = bpmInstanceService.cancelMyInstance(form);
 
         assertThat(response.getOk()).isTrue();
+        verify((BpmSubProcessService) getFieldValue(bpmInstanceService, "bpmSubProcessService"))
+                .cancelChildren(8L, "发起人撤销");
         verify(processInstanceGateway()).cancel("process-8", "发起人撤销");
 
         ArgumentCaptor<BpmTaskEntity> taskCaptor = ArgumentCaptor.forClass(BpmTaskEntity.class);

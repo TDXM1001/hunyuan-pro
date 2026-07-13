@@ -33,6 +33,12 @@ public class BpmCommandRecordEntity {
 
     private String requestPayloadJson;
 
+    private String responsePayloadJson;
+
+    private Integer attemptCount;
+
+    private LocalDateTime nextRetryAt;
+
     private String failureReason;
 
     @TableField(fill = FieldFill.INSERT)

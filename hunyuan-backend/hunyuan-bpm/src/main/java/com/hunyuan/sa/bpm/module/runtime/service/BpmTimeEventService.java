@@ -45,12 +45,16 @@ public class BpmTimeEventService {
     @Resource
     private BpmDefinitionNodeDao bpmDefinitionNodeDao;
 
+    @Resource
+    private BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService;
+
     @Transactional(rollbackFor = Exception.class)
     public int scheduleTaskSla(
             BpmInstanceEntity instance,
             BpmDefinitionNodeEntity node,
             BpmTaskEntity task
     ) {
+        node = runtimeNodeSnapshot(instance, node, task == null ? null : task.getTaskKey());
         JSONObject policy = readTaskSlaPolicy(node);
         if (policy == null || task.getTaskId() == null) {
             return 0;
@@ -111,6 +115,7 @@ public class BpmTimeEventService {
         event.setInstanceId(instance.getInstanceId());
         event.setTaskId(task.getTaskId());
         event.setDefinitionId(instance.getDefinitionId());
+        event.setGraphDefinitionVersionId(instance.getGraphDefinitionVersionId());
         event.setDefinitionNodeId(node == null ? null : node.getDefinitionNodeId());
         event.setNodeKey(resolveAuthoredNodeKey(node, task));
         event.setEngineProcessInstanceId(instance.getEngineProcessInstanceId());
@@ -187,23 +192,20 @@ public class BpmTimeEventService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void scheduleDelay(Long instanceId, String engineProcessInstanceId, String executionId, String nodeKey) {
+    public LocalDateTime scheduleDelay(Long instanceId, String engineProcessInstanceId, String executionId, String nodeKey) {
         String eventKey = "EXEC:" + executionId + ":DELAY";
         Long existing = bpmTimeEventDao.selectCount(Wrappers.<BpmTimeEventEntity>lambdaQuery()
                 .eq(BpmTimeEventEntity::getEventKey, eventKey));
         if (existing != null && existing > 0) {
-            return;
+            BpmTimeEventEntity event = bpmTimeEventDao.selectOne(Wrappers.<BpmTimeEventEntity>lambdaQuery()
+                    .eq(BpmTimeEventEntity::getEventKey, eventKey).last("LIMIT 1"));
+            return event == null ? null : event.getScheduledAt();
         }
         BpmInstanceEntity instance = bpmInstanceDao.selectById(instanceId);
         if (instance == null) {
             throw new IllegalStateException("延迟节点对应的 Hunyuan 实例不存在");
         }
-        BpmDefinitionNodeEntity node = bpmDefinitionNodeDao.selectOne(
-                Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
-                        .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
-                        .eq(BpmDefinitionNodeEntity::getNodeKey, nodeKey)
-                        .last("LIMIT 1")
-        );
+        BpmDefinitionNodeEntity node = runtimeNodeSnapshot(instance, null, nodeKey);
         if (node == null) {
             throw new IllegalStateException("延迟节点冻结快照不存在");
         }
@@ -214,6 +216,7 @@ public class BpmTimeEventService {
         event.setIdempotencyKey(eventKey);
         event.setInstanceId(instanceId);
         event.setDefinitionId(instance.getDefinitionId());
+        event.setGraphDefinitionVersionId(instance.getGraphDefinitionVersionId());
         event.setDefinitionNodeId(node.getDefinitionNodeId());
         event.setNodeKey(nodeKey);
         event.setEngineProcessInstanceId(engineProcessInstanceId);
@@ -224,6 +227,7 @@ public class BpmTimeEventService {
         event.setEventStatus(BpmTimeEventStatusEnum.SCHEDULED.name());
         event.setTriggerCount(0);
         bpmTimeEventDao.insert(event);
+        return scheduledAt;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -288,6 +292,33 @@ public class BpmTimeEventService {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private BpmDefinitionNodeEntity runtimeNodeSnapshot(
+            BpmInstanceEntity instance,
+            BpmDefinitionNodeEntity legacyNode,
+            String authoredNodeId
+    ) {
+        if (!"GRAPH".equals(instance.getDefinitionSource())) {
+            if (legacyNode != null) {
+                return legacyNode;
+            }
+            return bpmDefinitionNodeDao.selectOne(Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
+                    .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
+                    .eq(BpmDefinitionNodeEntity::getNodeKey, authoredNodeId)
+                    .last("LIMIT 1"));
+        }
+        BpmGraphRuntimeMetadataService.GraphNodeMetadata metadata = bpmGraphRuntimeMetadataService
+                .requireNode(instance.getGraphDefinitionVersionId(), authoredNodeId);
+        BpmDefinitionNodeEntity snapshot = new BpmDefinitionNodeEntity();
+        snapshot.setNodeKey(metadata.authoredNodeId());
+        snapshot.setNodeType(metadata.nodeType().name());
+        snapshot.setNodeNameSnapshot(metadata.nodeName());
+        JSONObject properties = new JSONObject(true);
+        properties.putAll(metadata.properties());
+        properties.put("authoredNodeKey", metadata.authoredNodeId());
+        snapshot.setCompiledNodeSnapshotJson(properties.toJSONString());
+        return snapshot;
     }
 
     private String resolveAuthoredNodeKey(BpmDefinitionNodeEntity node, BpmTaskEntity task) {

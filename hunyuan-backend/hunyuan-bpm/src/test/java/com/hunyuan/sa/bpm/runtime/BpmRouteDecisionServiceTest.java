@@ -4,7 +4,9 @@ import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.RoutingDataSnapshot;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
+import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmRouteDecisionDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
@@ -116,6 +118,45 @@ class BpmRouteDecisionServiceTest {
 
         assertThat(result.matchedBranchKeys()).containsExactly("large");
         assertThat(result.inputFormDataVersion()).isEqualTo(7L);
+    }
+
+    @Test
+    void evaluateAndRecordShouldUseFrozenGraphRouteProperties() {
+        BpmInstanceEntity instance = instance();
+        instance.setDefinitionId(null);
+        instance.setDefinitionSource("GRAPH");
+        instance.setGraphDefinitionVersionId(41L);
+        when(instanceDao.selectByIdForUpdate(81L)).thenReturn(instance);
+        when(routeDecisionDao.selectByGenerationAndNode(81L, "engine-1", "amount_route"))
+                .thenReturn(null);
+        when(routeDecisionDao.insert(any(BpmRouteDecisionEntity.class))).thenAnswer(invocation -> {
+            invocation.<BpmRouteDecisionEntity>getArgument(0).setRouteDecisionId(904L);
+            return 1;
+        });
+        GraphDefinitionVersionDao graphVersionDao = Mockito.mock(GraphDefinitionVersionDao.class);
+        GraphDefinitionVersionEntity graphVersion = new GraphDefinitionVersionEntity();
+        graphVersion.setGraphDefinitionVersionId(41L);
+        graphVersion.setGraphSnapshotJson("""
+                {"schemaVersion":1,"rootScopeId":"scope_root","scopes":[],"nodes":[
+                  {"nodeId":"amount_route","scopeId":"scope_root","type":"CONDITION","name":"金额路由","properties":{"gatewayMode":"SPLIT"},"layout":{}}
+                ],"edges":[
+                  {"edgeId":"small","scopeId":"scope_root","sourceNodeId":"amount_route","targetNodeId":"end","sourcePort":"small","properties":{"routeCondition":{"sourceType":"FORM_FIELD","fieldKey":"amount","valueType":"NUMBER","operator":"LTE","compareValue":5000}}},
+                  {"edgeId":"large","scopeId":"scope_root","sourceNodeId":"amount_route","targetNodeId":"end","sourcePort":"large","properties":{"routeCondition":{"sourceType":"FORM_FIELD","fieldKey":"amount","valueType":"NUMBER","operator":"GT","compareValue":5000}}},
+                  {"edgeId":"default","scopeId":"scope_root","sourceNodeId":"amount_route","targetNodeId":"end","sourcePort":"default","properties":{}}
+                ],"metadata":{}}
+                """);
+        when(graphVersionDao.selectById(41L)).thenReturn(graphVersion);
+        setField(service, "graphDefinitionVersionDao", graphVersionDao);
+
+        BpmRouteDecisionResult result = service.evaluateAndRecord(
+                new BpmRouteDecisionCommand(81L, "engine-1", "amount_route")
+        );
+
+        assertThat(result.matchedBranchKeys()).containsExactly("large");
+        ArgumentCaptor<BpmRouteDecisionEntity> captor = ArgumentCaptor.forClass(BpmRouteDecisionEntity.class);
+        verify(routeDecisionDao).insert(captor.capture());
+        assertThat(captor.getValue().getGraphDefinitionVersionId()).isEqualTo(41L);
+        assertThat(captor.getValue().getDefinitionNodeId()).isNull();
     }
 
     private BpmInstanceEntity instance() {

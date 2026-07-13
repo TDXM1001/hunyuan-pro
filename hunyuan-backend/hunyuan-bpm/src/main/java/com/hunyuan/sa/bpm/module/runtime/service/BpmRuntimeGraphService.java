@@ -40,10 +40,14 @@ public class BpmRuntimeGraphService {
     @Resource private BpmTaskDao bpmTaskDao;
     @Resource private BpmInstanceCopyDao bpmInstanceCopyDao;
     @Resource private BpmRouteDecisionDao bpmRouteDecisionDao;
+    @Resource private BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService;
 
     public BpmRuntimeGraphVO build(Long instanceId, boolean employeeSafe) {
         BpmInstanceEntity instance = bpmInstanceDao.selectById(instanceId);
         if (instance == null) throw new BusinessException(UserErrorCode.DATA_NOT_EXIST);
+        if ("GRAPH".equals(instance.getDefinitionSource())) {
+            return buildGraph(instance, employeeSafe);
+        }
         List<BpmDefinitionNodeEntity> definitionNodes = bpmDefinitionNodeDao.selectList(
                 Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
                         .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
@@ -77,6 +81,53 @@ public class BpmRuntimeGraphService {
                 .toList());
         graph.setRouteDecisions(decisions.stream().map(item -> toDecision(item, employeeSafe)).toList());
         return graph;
+    }
+
+    private BpmRuntimeGraphVO buildGraph(BpmInstanceEntity instance, boolean employeeSafe) {
+        List<BpmTaskEntity> tasks = bpmTaskDao.selectList(
+                Wrappers.<BpmTaskEntity>lambdaQuery().eq(BpmTaskEntity::getInstanceId, instance.getInstanceId())
+        );
+        List<BpmRouteDecisionEntity> decisions = bpmRouteDecisionDao.queryByInstanceId(instance.getInstanceId());
+        Map<String, List<BpmTaskEntity>> tasksByAuthoredNode = new HashMap<>();
+        tasks.stream()
+                .filter(task -> StringUtils.isNotBlank(task.getTaskKey()))
+                .forEach(task -> tasksByAuthoredNode
+                        .computeIfAbsent(task.getTaskKey(), key -> new ArrayList<>())
+                        .add(task));
+
+        BpmRuntimeGraphVO graph = new BpmRuntimeGraphVO();
+        graph.setInstanceId(instance.getInstanceId());
+        graph.setGraphDefinitionVersionId(instance.getGraphDefinitionVersionId());
+        graph.setNodes(bpmGraphRuntimeMetadataService.listNodes(instance.getGraphDefinitionVersionId()).stream()
+                .map(node -> toGraphNode(node, tasksByAuthoredNode.get(node.authoredNodeId()), instance))
+                .toList());
+        graph.setRouteDecisions(decisions.stream().map(item -> toDecision(item, employeeSafe)).toList());
+        return graph;
+    }
+
+    private BpmRuntimeGraphVO.Node toGraphNode(
+            BpmGraphRuntimeMetadataService.GraphNodeMetadata metadata,
+            List<BpmTaskEntity> tasks,
+            BpmInstanceEntity instance
+    ) {
+        BpmRuntimeGraphVO.Node node = new BpmRuntimeGraphVO.Node();
+        node.setNodeKey(metadata.authoredNodeId());
+        node.setNodeName(metadata.nodeName());
+        node.setNodeType(metadata.nodeType().name());
+        node.setBranchPath(List.of());
+        if (tasks != null && tasks.stream().anyMatch(task -> Integer.valueOf(1).equals(task.getTaskState()))) {
+            node.setState("ACTIVE");
+        } else if (tasks != null && tasks.stream().anyMatch(task -> Integer.valueOf(2).equals(task.getTaskState()))) {
+            node.setState("COMPLETED");
+        } else if (metadata.nodeType() == com.hunyuan.sa.bpm.engine.graph.GraphNodeType.START) {
+            node.setState("COMPLETED");
+        } else if (metadata.nodeType() == com.hunyuan.sa.bpm.engine.graph.GraphNodeType.END
+                && Integer.valueOf(3).equals(instance.getRunState())) {
+            node.setState("COMPLETED");
+        } else {
+            node.setState("NOT_ENTERED");
+        }
+        return node;
     }
 
     private BpmRuntimeGraphVO.Node toNode(
@@ -138,6 +189,7 @@ public class BpmRuntimeGraphService {
         vo.setRouteDecisionId(entity.getRouteDecisionId());
         vo.setInstanceId(entity.getInstanceId());
         vo.setDefinitionId(entity.getDefinitionId());
+        vo.setGraphDefinitionVersionId(entity.getGraphDefinitionVersionId());
         vo.setDefinitionNodeId(entity.getDefinitionNodeId());
         vo.setRouteNodeKey(entity.getRouteNodeKey());
         vo.setInputFormDataVersion(entity.getInputFormDataVersion());

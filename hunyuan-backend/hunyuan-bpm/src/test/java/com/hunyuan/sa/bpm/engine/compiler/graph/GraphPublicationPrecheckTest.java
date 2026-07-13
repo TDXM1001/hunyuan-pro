@@ -129,6 +129,69 @@ class GraphPublicationPrecheckTest {
                 .contains("parallel_split", "parallel_join", "edge_right");
     }
 
+    @Test
+    void advancedNodesShouldRejectUnsafeOrUnfrozenConfiguration() {
+        HunyuanProcessDefinitionGraph graph = new HunyuanProcessDefinitionGraph(
+                1, "scope_root", List.of(new GraphScope("scope_root", null, "主流程")),
+                List.of(
+                        start(),
+                        new GraphNode("delay", "scope_root", GraphNodeType.DELAY, "延迟",
+                                Map.of("mode", "DURATION", "value", "tomorrow"), Map.of()),
+                        new GraphNode("external", "scope_root", GraphNodeType.EXTERNAL_TRIGGER, "外部调用",
+                                Map.of(
+                                        "connectorKey", "finance",
+                                        "operationKey", "createExpense",
+                                        "waitMode", "WAIT_CALLBACK",
+                                        "url", "http://127.0.0.1/admin",
+                                        "credential", "secret"
+                                ), Map.of()),
+                        new GraphNode("child", "scope_root", GraphNodeType.SUB_PROCESS, "子流程",
+                                Map.of("calledProcessKey", "expense_archive"), Map.of()),
+                        end()
+                ),
+                List.of(
+                        edge("start_delay", "node_start", "delay"),
+                        edge("delay_external", "delay", "external"),
+                        edge("external_child", "external", "child"),
+                        edge("child_end", "child", "node_end")
+                ), Map.of()
+        );
+
+        GraphPublicationPrecheckResult result = precheck.check(graph);
+
+        assertThat(result.pass()).isFalse();
+        assertThat(result.findings()).extracting(GraphPublicationFinding::code).contains(
+                "DELAY_VALUE_INVALID",
+                "EXTERNAL_CONNECTOR_VERSION_REQUIRED",
+                "EXTERNAL_ENDPOINT_FORBIDDEN",
+                "EXTERNAL_CREDENTIAL_FORBIDDEN",
+                "EXTERNAL_TIMEOUT_POLICY_REQUIRED",
+                "SUB_PROCESS_VERSION_REQUIRED",
+                "SUB_PROCESS_FAILURE_POLICY_REQUIRED",
+                "SUB_PROCESS_CANCEL_POLICY_REQUIRED"
+        );
+    }
+
+    @Test
+    void slaAutoTerminalShouldRequireLowRiskAndValidDuration() {
+        HunyuanProcessDefinitionGraph graph = new HunyuanProcessDefinitionGraph(
+                1, "scope_root", List.of(new GraphScope("scope_root", null, "主流程")),
+                List.of(
+                        start(),
+                        new GraphNode("review", "scope_root", GraphNodeType.APPROVAL, "审批",
+                                Map.of("taskSlaPolicy", Map.of("dueAfter", "tomorrow", "timeoutAction", "AUTO_APPROVE")), Map.of()),
+                        end()
+                ),
+                List.of(edge("start_review", "node_start", "review"), edge("review_end", "review", "node_end")),
+                Map.of("riskLevel", "HIGH")
+        );
+
+        GraphPublicationPrecheckResult result = precheck.check(graph);
+
+        assertThat(result.findings()).extracting(GraphPublicationFinding::code)
+                .contains("SLA_DURATION_INVALID", "SLA_AUTO_TERMINAL_RISK_FORBIDDEN");
+    }
+
     private HunyuanProcessDefinitionGraph validGraph() {
         return new HunyuanProcessDefinitionGraph(
                 1, "scope_root", List.of(new GraphScope("scope_root", null, "主流程")),

@@ -16,6 +16,9 @@ import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationCommand;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationListenerService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmGraphRuntimeMetadataService;
+import com.alibaba.fastjson.JSONObject;
+import com.hunyuan.sa.bpm.engine.graph.GraphNodeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -320,6 +323,41 @@ class BpmTaskProjectionServiceTest {
         verify(bpmTaskDao).insert(taskCaptor.capture());
         assertThat(taskCaptor.getValue().getApprovalGroupId()).isNull();
         verify(bpmApprovalGroupService, never()).assignApprovalGroup(any(), any(), any());
+    }
+
+    @Test
+    void syncGraphHandleTaskShouldPersistAuthoredNodeIdentity() {
+        BpmInstanceEntity instance = buildInstance();
+        instance.setDefinitionId(null);
+        instance.setDefinitionSource("GRAPH");
+        instance.setGraphDefinitionVersionId(41L);
+        BpmGraphRuntimeMetadataService metadataService = Mockito.mock(BpmGraphRuntimeMetadataService.class);
+        setField(service, "bpmGraphRuntimeMetadataService", metadataService);
+        when(metadataService.resolveCompiledNode(41L, "graph_node_archive_handle"))
+                .thenReturn(new BpmGraphRuntimeMetadataService.GraphNodeMetadata(
+                        "archive_handle", "scope_root", "归档办理", GraphNodeType.HANDLE, new JSONObject(true)
+                ));
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(flowableTaskGateway.queryActiveTasksByProcessInstanceId("process-1")).thenReturn(List.of(
+                new FlowableActiveTaskSnapshot(
+                        "task-graph-1", "execution-graph-1", "process-1",
+                        "graph_node_archive_handle", "归档办理", 22L
+                )
+        ));
+        when(bpmTaskDao.selectOne(any(Wrapper.class))).thenReturn(null);
+        when(bpmOrgIdentityGateway.requireEmployee(22L)).thenReturn(
+                new BpmEmployeeSnapshot(22L, "李四", 9L, "财务部", null, null)
+        );
+
+        service.syncActiveTasksForInstance(8L);
+
+        ArgumentCaptor<BpmTaskEntity> captor = ArgumentCaptor.forClass(BpmTaskEntity.class);
+        verify(bpmTaskDao).insert(captor.capture());
+        assertThat(captor.getValue().getDefinitionSource()).isEqualTo("GRAPH");
+        assertThat(captor.getValue().getGraphDefinitionVersionId()).isEqualTo(41L);
+        assertThat(captor.getValue().getTaskKey()).isEqualTo("archive_handle");
+        assertThat(captor.getValue().getTaskName()).isEqualTo("归档办理");
+        assertThat(captor.getValue().getDefinitionNodeId()).isNull();
     }
 
     private BpmInstanceEntity buildInstance() {

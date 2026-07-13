@@ -469,6 +469,7 @@ public class BpmApprovalStageCommandService {
             update.setCompletedAt(now);
         }
         update.setLastActionAt(now);
+        update.setTaskVersion(nextTaskVersion(task));
         bpmTaskDao.updateById(update);
     }
 
@@ -482,7 +483,12 @@ public class BpmApprovalStageCommandService {
         update.setTaskState(BpmTaskStateEnum.CANCELLED.getValue());
         update.setCancelledAt(now);
         update.setLastActionAt(now);
+        update.setTaskVersion(nextTaskVersion(task));
         bpmTaskDao.updateById(update);
+    }
+
+    private Long nextTaskVersion(BpmTaskEntity task) {
+        return (task.getTaskVersion() == null ? 1L : task.getTaskVersion()) + 1L;
     }
 
     private Integer taskResult(ApprovalMemberState state) {

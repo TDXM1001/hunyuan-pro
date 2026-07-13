@@ -24,7 +24,7 @@ public class GraphCanonicalizer {
 
     private static final Pattern STABLE_ID_PATTERN = Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,127}");
 
-    private static final Set<GraphNodeType> M1_NODE_TYPES = Set.of(
+    private static final Set<GraphNodeType> PUBLISHED_NODE_TYPES = Set.of(
             GraphNodeType.START,
             GraphNodeType.END,
             GraphNodeType.APPROVAL,
@@ -32,7 +32,10 @@ public class GraphCanonicalizer {
             GraphNodeType.COPY,
             GraphNodeType.CONDITION,
             GraphNodeType.PARALLEL_GATEWAY,
-            GraphNodeType.INCLUSIVE_GATEWAY
+            GraphNodeType.INCLUSIVE_GATEWAY,
+            GraphNodeType.DELAY,
+            GraphNodeType.EXTERNAL_TRIGGER,
+            GraphNodeType.SUB_PROCESS
     );
 
     public String canonicalize(HunyuanProcessDefinitionGraph graph) {
@@ -128,8 +131,8 @@ public class GraphCanonicalizer {
             if (!scopeIds.contains(node.scopeId())) {
                 throw new GraphValidationException("节点作用域不存在：" + node.nodeId());
             }
-            if (node.type() == null || !M1_NODE_TYPES.contains(node.type())) {
-                throw new GraphValidationException("不支持的 M1 节点类型：" + node.nodeId());
+            if (node.type() == null || !PUBLISHED_NODE_TYPES.contains(node.type())) {
+                throw new GraphValidationException("不支持的 Graph 节点类型：" + node.nodeId());
             }
             nodesById.put(node.nodeId(), node);
         }

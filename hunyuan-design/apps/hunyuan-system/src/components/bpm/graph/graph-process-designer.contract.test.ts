@@ -19,4 +19,18 @@ describe('graph process designer contract', () => {
     expect(source).toContain('selectedEdgeId');
     expect(source).toContain('routeCondition');
   });
+
+  it('exposes controlled advanced runtime node configuration without endpoint or credential inputs', () => {
+    const source = readFileSync(componentPath, 'utf8');
+
+    expect(source).toContain("type: 'DELAY'");
+    expect(source).toContain("type: 'EXTERNAL_TRIGGER'");
+    expect(source).toContain("type: 'SUB_PROCESS'");
+    expect(source).toContain('connectorVersion');
+    expect(source).toContain('timeoutPolicy');
+    expect(source).toContain('calledDefinitionVersionId');
+    expect(source).toContain('cancelPropagation');
+    expect(source).not.toContain('baseEndpoint');
+    expect(source).not.toContain('credentialRef');
+  });
 });

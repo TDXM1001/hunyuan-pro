@@ -21,6 +21,7 @@ public class BpmRouteDecisionEntity {
 
     private Long instanceId;
     private Long definitionId;
+    private Long graphDefinitionVersionId;
     private Long definitionNodeId;
     private String engineProcessInstanceId;
     private String routeNodeKey;

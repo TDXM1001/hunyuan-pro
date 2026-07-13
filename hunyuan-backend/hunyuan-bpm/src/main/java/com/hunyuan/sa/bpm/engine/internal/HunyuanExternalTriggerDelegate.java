@@ -9,6 +9,7 @@ import com.hunyuan.sa.bpm.module.integration.service.BpmConnectorInvocationServi
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
+import com.hunyuan.sa.bpm.module.runtime.service.BpmGraphRuntimeMetadataService;
 import jakarta.annotation.Resource;
 import org.flowable.common.engine.api.delegate.Expression;
 import org.flowable.engine.delegate.DelegateExecution;
@@ -35,6 +36,9 @@ public class HunyuanExternalTriggerDelegate implements JavaDelegate {
     @Resource
     private BpmExternalWaitService bpmExternalWaitService;
 
+    @Resource
+    private BpmGraphRuntimeMetadataService bpmGraphRuntimeMetadataService;
+
     private Expression externalNodeKey;
     private Expression connectorKey;
     private Expression operationKey;
@@ -51,12 +55,7 @@ public class HunyuanExternalTriggerDelegate implements JavaDelegate {
         String connector = expressionValue(connectorKey, execution);
         String operation = expressionValue(operationKey, execution);
         String mode = expressionValue(waitMode, execution);
-        BpmDefinitionNodeEntity node = bpmDefinitionNodeDao.selectOne(
-                Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
-                        .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
-                        .eq(BpmDefinitionNodeEntity::getNodeKey, nodeKey)
-                        .last("LIMIT 1")
-        );
+        BpmDefinitionNodeEntity node = runtimeNodeSnapshot(instance, nodeKey);
         if (node == null) {
             throw new IllegalStateException("外部触发节点冻结快照不存在");
         }
@@ -80,9 +79,28 @@ public class HunyuanExternalTriggerDelegate implements JavaDelegate {
             request.put("callbackToken", prepared.callbackToken());
             request.put("correlationKey", prepared.correlationKey());
         }
-        JSONObject response = bpmConnectorInvocationService.invoke(connector, version, operation, request);
+        String commandKey = "M5:CONNECTOR:" + instanceId + ":" + nodeKey + ":" + execution.getId();
+        JSONObject response = bpmConnectorInvocationService.invokePersistent(
+                commandKey, instanceId, connector, version, operation, request);
         mapResponse(execution, response, snapshot.getJSONObject("responseMapping"));
         execution.setVariable("externalResponse_" + nodeKey, response);
+    }
+
+    private BpmDefinitionNodeEntity runtimeNodeSnapshot(BpmInstanceEntity instance, String authoredNodeId) {
+        if (!"GRAPH".equals(instance.getDefinitionSource())) {
+            return bpmDefinitionNodeDao.selectOne(Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
+                    .eq(BpmDefinitionNodeEntity::getDefinitionId, instance.getDefinitionId())
+                    .eq(BpmDefinitionNodeEntity::getNodeKey, authoredNodeId)
+                    .last("LIMIT 1"));
+        }
+        BpmGraphRuntimeMetadataService.GraphNodeMetadata metadata = bpmGraphRuntimeMetadataService
+                .requireNode(instance.getGraphDefinitionVersionId(), authoredNodeId);
+        BpmDefinitionNodeEntity node = new BpmDefinitionNodeEntity();
+        node.setNodeKey(metadata.authoredNodeId());
+        node.setNodeType(metadata.nodeType().name());
+        node.setNodeNameSnapshot(metadata.nodeName());
+        node.setCompiledNodeSnapshotJson(metadata.properties().toJSONString());
+        return node;
     }
 
     private JSONObject mapRequest(String formDataJson, JSONObject mapping) {
