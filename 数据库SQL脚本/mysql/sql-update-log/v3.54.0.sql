@@ -9,7 +9,12 @@ ALTER TABLE `t_bpm_candidate_policy_version`
   ADD COLUMN `activated_by_employee_id` bigint NULL COMMENT '启用人员工ID' AFTER `created_by_employee_id`,
   ADD COLUMN `activated_at` datetime NULL COMMENT '启用时间' AFTER `activated_by_employee_id`,
   ADD COLUMN `retired_by_employee_id` bigint NULL COMMENT '退休人员工ID' AFTER `activated_at`,
-  ADD COLUMN `retired_at` datetime NULL COMMENT '退休时间' AFTER `retired_by_employee_id`;
+  ADD COLUMN `retired_at` datetime NULL COMMENT '退休时间' AFTER `retired_by_employee_id`,
+  ADD COLUMN `effective_risk` varchar(16) NULL COMMENT '服务端推导风险级别' AFTER `retired_at`,
+  ADD COLUMN `high_risk_confirmed_by_employee_id` bigint NULL COMMENT '高风险独立确认人' AFTER `effective_risk`,
+  ADD COLUMN `high_risk_confirmation_reason` varchar(512) NULL COMMENT '高风险确认原因' AFTER `high_risk_confirmed_by_employee_id`,
+  ADD COLUMN `high_risk_confirmed_at` datetime NULL COMMENT '高风险确认时间' AFTER `high_risk_confirmation_reason`,
+  ADD COLUMN `high_risk_confirmed_digest` char(64) NULL COMMENT '高风险确认正文摘要' AFTER `high_risk_confirmed_at`;
 
 CREATE TABLE IF NOT EXISTS `t_bpm_approval_policy_version` (
   `approval_policy_version_id` bigint NOT NULL AUTO_INCREMENT COMMENT '审批策略版本ID',
@@ -25,6 +30,11 @@ CREATE TABLE IF NOT EXISTS `t_bpm_approval_policy_version` (
   `activated_at` datetime NULL COMMENT '启用时间',
   `retired_by_employee_id` bigint NULL COMMENT '退休人员工ID',
   `retired_at` datetime NULL COMMENT '退休时间',
+  `effective_risk` varchar(16) NULL COMMENT '服务端推导风险级别',
+  `high_risk_confirmed_by_employee_id` bigint NULL COMMENT '高风险独立确认人',
+  `high_risk_confirmation_reason` varchar(512) NULL COMMENT '高风险确认原因',
+  `high_risk_confirmed_at` datetime NULL COMMENT '高风险确认时间',
+  `high_risk_confirmed_digest` char(64) NULL COMMENT '高风险确认正文摘要',
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `update_time` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`approval_policy_version_id`),
@@ -46,12 +56,71 @@ CREATE TABLE IF NOT EXISTS `t_bpm_start_visibility_policy_version` (
   `activated_at` datetime NULL COMMENT '启用时间',
   `retired_by_employee_id` bigint NULL COMMENT '退休人员工ID',
   `retired_at` datetime NULL COMMENT '退休时间',
+  `effective_risk` varchar(16) NULL COMMENT '服务端推导风险级别',
+  `high_risk_confirmed_by_employee_id` bigint NULL COMMENT '高风险独立确认人',
+  `high_risk_confirmation_reason` varchar(512) NULL COMMENT '高风险确认原因',
+  `high_risk_confirmed_at` datetime NULL COMMENT '高风险确认时间',
+  `high_risk_confirmed_digest` char(64) NULL COMMENT '高风险确认正文摘要',
   `create_time` datetime NOT NULL COMMENT '创建时间',
   `update_time` datetime NOT NULL COMMENT '更新时间',
   PRIMARY KEY (`start_visibility_policy_version_id`),
   UNIQUE KEY `uk_bpm_start_visibility_policy_version` (`policy_key`, `policy_version`),
   KEY `idx_bpm_start_visibility_policy_lifecycle` (`lifecycle_state`, `policy_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='BPM发起与可见范围策略不可变版本目录';
+
+-- M2 candidate sources: user groups and employee reporting lines.
+CREATE TABLE IF NOT EXISTS `t_user_group` (
+  `user_group_id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户组ID',
+  `group_name` varchar(128) NOT NULL COMMENT '用户组名称',
+  `disabled_flag` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否禁用',
+  `deleted_flag` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否删除',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`user_group_id`),
+  KEY `idx_user_group_active` (`deleted_flag`, `disabled_flag`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='组织用户组';
+
+CREATE TABLE IF NOT EXISTS `t_user_group_employee` (
+  `user_group_employee_id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户组成员关系ID',
+  `user_group_id` bigint NOT NULL COMMENT '用户组ID',
+  `employee_id` bigint NOT NULL COMMENT '员工ID',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  PRIMARY KEY (`user_group_employee_id`),
+  UNIQUE KEY `uk_user_group_employee` (`user_group_id`, `employee_id`),
+  KEY `idx_user_group_employee_employee` (`employee_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户组员工关系';
+
+CREATE TABLE IF NOT EXISTS `t_employee_reporting_relation` (
+  `employee_id` bigint NOT NULL COMMENT '员工ID',
+  `manager_employee_id` bigint NOT NULL COMMENT '直属主管员工ID',
+  `disabled_flag` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否禁用',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`employee_id`),
+  KEY `idx_employee_reporting_manager` (`manager_employee_id`, `disabled_flag`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='员工汇报关系';
+
+-- M2 command receipts make task actions replayable within an instance.
+CREATE TABLE IF NOT EXISTS `t_bpm_approval_command_receipt` (
+  `approval_command_receipt_id` bigint NOT NULL AUTO_INCREMENT COMMENT '审批命令回执ID',
+  `tenant_id` bigint NOT NULL COMMENT '租户ID',
+  `instance_id` bigint NOT NULL COMMENT '流程实例ID',
+  `task_id` bigint NOT NULL COMMENT '任务ID',
+  `request_id` varchar(128) NOT NULL COMMENT '客户端请求ID',
+  `command_fingerprint` char(64) NOT NULL COMMENT '命令SHA-256指纹',
+  `action_type` varchar(32) NOT NULL COMMENT '命令动作',
+  `actor_employee_id` bigint NOT NULL COMMENT '服务端认证操作员工ID',
+  `receipt_state` varchar(16) NOT NULL COMMENT 'PROCESSING/COMPLETED',
+  `response_ok` tinyint(1) NULL COMMENT '响应是否成功',
+  `response_code` int NULL COMMENT '响应编码',
+  `response_message` varchar(512) NULL COMMENT '响应消息',
+  `completed_at` datetime NULL COMMENT '完成时间',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NOT NULL COMMENT '更新时间',
+  PRIMARY KEY (`approval_command_receipt_id`),
+  UNIQUE KEY `uk_bpm_approval_command_request` (`tenant_id`, `instance_id`, `request_id`),
+  KEY `idx_bpm_approval_command_task` (`task_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='BPM审批命令幂等回执';
 
 -- Graph 实例与旧定义实例使用互斥来源；Graph 运行期只引用发布版本，绝不回读可变草稿。
 ALTER TABLE `t_bpm_graph_definition_version`
@@ -73,6 +142,12 @@ ALTER TABLE `t_bpm_task`
   ADD COLUMN `graph_definition_version_id` bigint NULL COMMENT 'Graph定义版本ID' AFTER `definition_id`,
   ADD COLUMN `definition_source` varchar(16) NOT NULL DEFAULT 'LEGACY' COMMENT 'LEGACY/GRAPH' AFTER `graph_definition_version_id`,
   ADD KEY `idx_bpm_task_graph_definition` (`graph_definition_version_id`);
+
+ALTER TABLE `t_bpm_task_action_log`
+  MODIFY COLUMN `definition_id` bigint NULL COMMENT '旧定义ID，Graph动作日志为空',
+  ADD COLUMN `graph_definition_version_id` bigint NULL COMMENT 'Graph定义版本ID' AFTER `definition_id`,
+  ADD COLUMN `definition_source` varchar(16) NOT NULL DEFAULT 'LEGACY' COMMENT 'LEGACY/GRAPH' AFTER `graph_definition_version_id`,
+  ADD KEY `idx_bpm_task_action_log_graph_definition` (`graph_definition_version_id`);
 
 CREATE TABLE IF NOT EXISTS `t_bpm_approval_stage` (
   `approval_stage_id` bigint NOT NULL AUTO_INCREMENT COMMENT '审批阶段ID',
@@ -160,6 +235,7 @@ FROM (
     UNION ALL SELECT 'BPM审批完成模式', 'BPM_APPROVAL_COMPLETION_MODE', '单人、顺序、会签、或签和比例审批模式'
     UNION ALL SELECT 'BPM审批阶段状态', 'BPM_APPROVAL_STAGE_STATE', '冻结审批阶段运行状态'
     UNION ALL SELECT 'BPM审批阶段成员状态', 'BPM_APPROVAL_STAGE_MEMBER_STATE', '冻结审批成员运行状态'
+    UNION ALL SELECT 'BPM模块发布状态', 'BPM_MODULE_RELEASE_STATUS', '模块验收是否满足发布门禁'
 ) source
 WHERE NOT EXISTS (
     SELECT 1 FROM `t_dict` existing WHERE existing.`dict_code` = source.`dict_code`
@@ -194,6 +270,10 @@ FROM (
     UNION ALL SELECT 'BPM_APPROVAL_STAGE_MEMBER_STATE', 'TERMINATED', '已终止', 'TERMINATED', 50
     UNION ALL SELECT 'BPM_APPROVAL_STAGE_MEMBER_STATE', 'INELIGIBLE', '成员失效', 'INELIGIBLE', 40
     UNION ALL SELECT 'BPM_APPROVAL_STAGE_MEMBER_STATE', 'CANCELLED', '已取消', 'CANCELLED', 30
+    UNION ALL SELECT 'BPM_MODULE_RELEASE_STATUS', 'RELEASABLE', '可发布', 'RELEASABLE', 100
+    UNION ALL SELECT 'BPM_MODULE_RELEASE_STATUS', 'NOT_RELEASABLE', '不可发布', 'NOT_RELEASABLE', 90
+    UNION ALL SELECT 'BPM_TASK_ACTION_LOG_TYPE', 'M2_MEMBER_TRANSFERRED', 'M2成员受控转办', 'M2_MEMBER_TRANSFERRED', 45
+    UNION ALL SELECT 'BPM_TASK_ACTION_LOG_TYPE', 'M2_MEMBER_INELIGIBLE', 'M2成员失效', 'M2_MEMBER_INELIGIBLE', 44
 ) source
 JOIN `t_dict` dict ON dict.`dict_code` = source.`dict_code`
 LEFT JOIN `t_dict_data` existing
@@ -210,7 +290,9 @@ VALUES
   (345, '新建审批策略草稿', 3, 342, 3, NULL, NULL, 1, 'bpm:policy-catalog:add', 'bpm:policy-catalog:add', NULL, 342, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now()),
   (346, '复制审批策略版本', 3, 342, 4, NULL, NULL, 1, 'bpm:policy-catalog:copy', 'bpm:policy-catalog:copy', NULL, 342, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now()),
   (347, '启用审批策略版本', 3, 342, 5, NULL, NULL, 1, 'bpm:policy-catalog:activate', 'bpm:policy-catalog:activate', NULL, 342, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now()),
-  (348, '退休审批策略版本', 3, 342, 6, NULL, NULL, 1, 'bpm:policy-catalog:retire', 'bpm:policy-catalog:retire', NULL, 342, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now())
+  (348, '退休审批策略版本', 3, 342, 6, NULL, NULL, 1, 'bpm:policy-catalog:retire', 'bpm:policy-catalog:retire', NULL, 342, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now()),
+  (349, '独立确认高风险策略', 3, 342, 7, NULL, NULL, 1, 'bpm:policy-catalog:activate-high-risk', 'bpm:policy-catalog:activate-high-risk', NULL, 342, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now())
+  ,(350, '受控转办M2审批成员', 3, 314, 1, NULL, NULL, 1, 'bpm:task:m2-member-transfer', 'bpm:task:m2-member-transfer', NULL, 314, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now())
 ON DUPLICATE KEY UPDATE
   `menu_name` = VALUES(`menu_name`), `menu_type` = VALUES(`menu_type`),
   `parent_id` = VALUES(`parent_id`), `sort` = VALUES(`sort`),
@@ -224,7 +306,7 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO `t_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
 SELECT 1, menu.`menu_id`, now(), now()
 FROM `t_menu` menu
-WHERE menu.`menu_id` IN (342, 343, 344, 345, 346, 347, 348)
+WHERE menu.`menu_id` IN (342, 343, 344, 345, 346, 347, 348, 349, 350)
   AND menu.`deleted_flag` = 0
   AND menu.`disabled_flag` = 0
   AND NOT EXISTS (
