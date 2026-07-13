@@ -129,7 +129,7 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 - 当前差距基线：`docs/superpowers/specs/2026-07-11-bpm-enterprise-gap-baseline.md`
 - 模块设计：`2026-07-11-bpm-module-01-modeling-compiler-design.md`、`02-assignment-approval-strategy-design.md`、`03-approval-data-governance-design.md`、`04-core-runtime-workbench-design.md`、`05-advanced-runtime-design.md`、`06-configurable-business-integration-design.md`、`07-operations-governance-design.md`、`08-definition-evolution-migration-design.md`
 
-M1“流程定义中心”、M2“身份组织与审批策略”和 M3“审批对象与数据治理”均已关闭，分别见 `docs/superpowers/specs/2026-07-11-bpm-m1-modeling-compiler-acceptance.md`、`docs/superpowers/specs/2026-07-13-bpm-m2-assignment-approval-strategy-acceptance.md` 和 `docs/superpowers/specs/2026-07-13-bpm-m3-approval-data-governance-acceptance.md`。下一交付块必须以总体蓝图和最新模块验收为准，不按模块编号机械推断；M1-M3 的正式版本目录与真实运行主链已经闭合，M4 仍是首个可交付产品基线的下一前置能力面。
+M1“流程定义中心”、M2“身份组织与审批策略”、M3“审批对象与数据治理”、M4“核心审批运行与工作台”和 M5“高级流程运行”均已关闭。M5 当前为 `RELEASABLE`，持久 timer/等待/命令和父子流程已完成真实运行与重启验收，详见 `docs/superpowers/specs/2026-07-13-bpm-m5-advanced-runtime-acceptance.md`；下一模块为 M6“配置化业务接入”。
 
 M2“身份组织与审批策略”已关闭：策略目录、五种审批模式、自动终态、完整组织来源、高风险独立确认、受控转办、`INELIGIBLE` 恢复、幂等并发、重启恢复、跨节点连续审批、退回发起人和浏览器详情均形成真实证据，当前状态为 `RELEASABLE`，详见 `docs/superpowers/specs/2026-07-13-bpm-m2-assignment-approval-strategy-acceptance.md`。
 
@@ -142,7 +142,7 @@ M2“身份组织与审批策略”已关闭：策略目录、五种审批模式
 - Flowable multi-instance。
 - 未经结构校验的任意 BPMN 网关、自由脚本和不可解释的动态拓扑。
 - 绕过 M5/M6 登记连接器、签名和幂等边界的任意外部触发器。
-- 子流程。
+- 绕过 M5 冻结定义、父子关系和传播策略的任意子流程启动或跳转。
 - 运行中动态增加、删除或替换会签成员。
 - 表达式或脚本候选人。
 - 未登记解析器的动态部门成员等候选人来源。

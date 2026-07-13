@@ -2,7 +2,7 @@
 
 - 日期：2026-07-11
 - 重审日期：2026-07-12
-- 状态：当前模块设计；旧时间事件实现作为状态机与测试资产
+- 状态：已于 2026-07-13 完成实现与真实运行验收并关闭，当前 `RELEASABLE`，证据见 `docs/superpowers/specs/2026-07-13-bpm-m5-advanced-runtime-acceptance.md`
 - 优先级：P2
 - 总体蓝图：`docs/superpowers/specs/2026-07-11-bpm-enterprise-blueprint.md`
 - 前置条件：M4 实例、命令、终态和 Outbox 稳定
