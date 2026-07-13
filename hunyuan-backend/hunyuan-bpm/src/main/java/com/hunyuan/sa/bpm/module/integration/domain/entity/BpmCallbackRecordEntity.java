@@ -21,11 +21,25 @@ public class BpmCallbackRecordEntity {
 
     private String eventId;
 
+    private Long subscriptionVersionId;
+
+    private String connectorKey;
+
+    private Integer connectorVersion;
+
+    private String endpointOperation;
+
+    private String signingSecretRef;
+
+    private String retryPolicyJson;
+
     private Long instanceId;
 
     private String businessType;
 
     private Long businessId;
+
+    private String businessKey;
 
     private Integer callbackStatus;
 

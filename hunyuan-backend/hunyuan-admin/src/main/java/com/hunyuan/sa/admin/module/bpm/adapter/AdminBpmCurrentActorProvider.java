@@ -2,6 +2,7 @@ package com.hunyuan.sa.admin.module.bpm.adapter;
 
 import com.hunyuan.sa.base.common.util.SmartRequestUtil;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
+import com.hunyuan.sa.bpm.api.identity.BpmActorScope;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,7 +13,10 @@ public class AdminBpmCurrentActorProvider implements BpmCurrentActorProvider {
 
     @Override
     public Long requireCurrentEmployeeId() {
-        Long employeeId = SmartRequestUtil.getRequestUserId();
+        Long employeeId = BpmActorScope.currentEmployeeId();
+        if (employeeId == null) {
+            employeeId = SmartRequestUtil.getRequestUserId();
+        }
         if (employeeId == null) {
             throw new IllegalStateException("当前请求未解析到员工身份");
         }

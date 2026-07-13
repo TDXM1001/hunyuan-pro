@@ -13,6 +13,7 @@ import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalSubjectViewService;
+import com.hunyuan.sa.bpm.module.approvaldata.dao.BpmApprovalSubjectSnapshotDao;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmCopyTypeEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
@@ -110,6 +111,9 @@ public class BpmTaskService {
 
     @Resource
     private BpmApprovalSubjectViewService bpmApprovalSubjectViewService;
+
+    @Resource
+    private BpmApprovalSubjectSnapshotDao bpmApprovalSubjectSnapshotDao;
 
     @Resource
     private BpmSubProcessService bpmSubProcessService;
@@ -1187,14 +1191,21 @@ public class BpmTaskService {
     ) {
         if (instanceEntity == null
                 || !StringUtils.hasText(instanceEntity.getBusinessType())
-                || instanceEntity.getBusinessId() == null) {
+                || (instanceEntity.getBusinessId() == null && !StringUtils.hasText(instanceEntity.getBusinessKey()))) {
             return;
         }
         BpmBusinessResultEvent event = new BpmBusinessResultEvent();
         event.setEventId("RESULT:%s:%s".formatted(instanceEntity.getInstanceId(), resultStateEnum.getValue()));
         event.setInstanceId(instanceEntity.getInstanceId());
+        if (instanceEntity.getApprovalSubjectSnapshotId() != null) {
+            var subject = bpmApprovalSubjectSnapshotDao.selectById(instanceEntity.getApprovalSubjectSnapshotId());
+            if (subject != null) {
+                event.setSourceSystemCode(subject.getSourceSystem());
+            }
+        }
         event.setBusinessType(instanceEntity.getBusinessType());
         event.setBusinessId(instanceEntity.getBusinessId());
+        event.setBusinessKey(instanceEntity.getBusinessKey());
         event.setResultState(resultStateEnum.getValue());
         event.setFinalFormDataVersion(
                 instanceEntity.getFormDataVersion() == null ? 1L : instanceEntity.getFormDataVersion()

@@ -14,9 +14,13 @@ public class BpmBusinessResultEvent {
 
     private Long instanceId;
 
+    private String sourceSystemCode;
+
     private String businessType;
 
     private Long businessId;
+
+    private String businessKey;
 
     private Integer resultState;
 

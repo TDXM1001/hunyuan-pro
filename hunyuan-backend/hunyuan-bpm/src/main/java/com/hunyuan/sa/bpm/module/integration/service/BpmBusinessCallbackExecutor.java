@@ -12,6 +12,11 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * BPM 业务回调统一执行器。
@@ -29,6 +34,9 @@ public class BpmBusinessCallbackExecutor {
     @Resource
     private List<BpmBusinessCallbackHandler> callbackHandlers = List.of();
 
+    @Resource
+    private BpmConnectorInvocationService bpmConnectorInvocationService;
+
     public BpmBusinessCallbackExecuteResult execute(Long callbackRecordId, BpmBusinessCallbackTriggerType triggerType) {
         BpmCallbackRecordEntity record = bpmCallbackRecordDao.selectById(callbackRecordId);
         if (record == null) {
@@ -43,6 +51,17 @@ public class BpmBusinessCallbackExecutor {
         }
 
         try {
+            if (record.getSubscriptionVersionId() != null) {
+                JSONObject payload = JSON.parseObject(record.getRequestPayloadJson());
+                payload.put("eventId", record.getEventId());
+                payload.put("signatureAlgorithm", "HMAC-SHA256");
+                payload.put("signature", sign(record.getSigningSecretRef(), record.getRequestPayloadJson()));
+                JSONObject response = bpmConnectorInvocationService.invoke(
+                        record.getConnectorKey(), record.getConnectorVersion(), record.getEndpointOperation(), payload
+                );
+                markSucceeded(record, response == null ? null : response.toJSONString());
+                return BpmBusinessCallbackExecuteResult.success();
+            }
             BpmBusinessCallbackHandler handler = findHandler(record.getBusinessType());
             if (handler == null) {
                 return markFailed(record, "未找到业务回调处理器: " + record.getBusinessType(), null);
@@ -128,7 +147,7 @@ public class BpmBusinessCallbackExecutor {
         update.setUpdateTime(LocalDateTime.now());
         UpdateWrapper<BpmCallbackRecordEntity> wrapper = new UpdateWrapper<BpmCallbackRecordEntity>()
                 .eq("callback_record_id", record.getCallbackRecordId());
-        if (retryCount >= MAX_RETRY_COUNT) {
+        if (retryCount >= maxRetryCount(record)) {
             update.setCallbackStatus(BpmCallbackStatusEnum.NEEDS_COMPENSATION.getValue());
             wrapper.set("next_retry_at", null);
         } else {
@@ -149,6 +168,12 @@ public class BpmBusinessCallbackExecutor {
         return 15;
     }
 
+    private int maxRetryCount(BpmCallbackRecordEntity record) {
+        if (!StringUtils.hasText(record.getRetryPolicyJson())) return MAX_RETRY_COUNT;
+        try { Integer value = JSON.parseObject(record.getRetryPolicyJson()).getInteger("maxAttempts"); return value == null ? MAX_RETRY_COUNT : Math.max(1, Math.min(value, 10)); }
+        catch (Exception ignored) { return MAX_RETRY_COUNT; }
+    }
+
     private String limitFailureReason(RuntimeException ex) {
         String message = ex.getMessage();
         if (!StringUtils.hasText(message)) {
@@ -162,5 +187,22 @@ public class BpmBusinessCallbackExecutor {
             return value;
         }
         return value.length() > maxLength ? value.substring(0, maxLength) : value;
+    }
+
+    private String sign(String secretRef, String payload) {
+        if (!StringUtils.hasText(secretRef) || !secretRef.startsWith("env:")) {
+            throw new IllegalStateException("订阅签名密钥引用无效");
+        }
+        String secret = System.getenv(secretRef.substring(4));
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalStateException("订阅签名密钥不可用");
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return java.util.HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new IllegalStateException("订阅签名失败", ex);
+        }
     }
 }

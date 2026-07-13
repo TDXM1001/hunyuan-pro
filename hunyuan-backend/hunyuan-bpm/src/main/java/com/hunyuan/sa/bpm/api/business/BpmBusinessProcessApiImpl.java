@@ -10,6 +10,7 @@ import com.hunyuan.sa.bpm.module.integration.dao.BpmCallbackRecordDao;
 import com.hunyuan.sa.bpm.module.integration.dao.BpmCommandRecordDao;
 import com.hunyuan.sa.bpm.module.integration.domain.entity.BpmCallbackRecordEntity;
 import com.hunyuan.sa.bpm.module.integration.domain.entity.BpmCommandRecordEntity;
+import com.hunyuan.sa.bpm.module.integration.service.BpmEventSubscriptionService;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
@@ -44,6 +45,9 @@ public class BpmBusinessProcessApiImpl implements BpmBusinessProcessApi {
 
     @Resource
     private BpmCallbackRecordDao bpmCallbackRecordDao;
+
+    @Resource
+    private BpmEventSubscriptionService bpmEventSubscriptionService;
 
     @Override
     public Long start(BpmBusinessStartCommand command) {
@@ -102,6 +106,9 @@ public class BpmBusinessProcessApiImpl implements BpmBusinessProcessApi {
     @Override
     public void publishResultEvent(BpmBusinessResultEvent event) {
         validateResultEvent(event);
+        if (bpmEventSubscriptionService != null && bpmEventSubscriptionService.enqueue(event) > 0) {
+            return;
+        }
         BpmCallbackRecordEntity existingRecord = bpmCallbackRecordDao.selectOne(
                 Wrappers.<BpmCallbackRecordEntity>lambdaQuery()
                         .eq(BpmCallbackRecordEntity::getEventId, event.getEventId())
@@ -115,6 +122,7 @@ public class BpmBusinessProcessApiImpl implements BpmBusinessProcessApi {
         callbackRecord.setInstanceId(event.getInstanceId());
         callbackRecord.setBusinessType(event.getBusinessType());
         callbackRecord.setBusinessId(event.getBusinessId());
+        callbackRecord.setBusinessKey(event.getBusinessKey());
         callbackRecord.setCallbackStatus(CALLBACK_STATUS_PENDING);
         callbackRecord.setRequestPayloadJson(StringUtils.hasText(event.getPayloadJson())
                 ? event.getPayloadJson()
@@ -185,7 +193,12 @@ public class BpmBusinessProcessApiImpl implements BpmBusinessProcessApi {
         if (event.getInstanceId() == null) {
             throw new IllegalArgumentException("instanceId不能为空");
         }
-        validateBusinessKey(event.getBusinessType(), event.getBusinessId());
+        if (!StringUtils.hasText(event.getBusinessType())) {
+            throw new IllegalArgumentException("businessType不能为空");
+        }
+        if (event.getBusinessId() == null && !StringUtils.hasText(event.getBusinessKey())) {
+            throw new IllegalArgumentException("businessId与businessKey不能同时为空");
+        }
     }
 
     private String limitFailureReason(RuntimeException ex) {

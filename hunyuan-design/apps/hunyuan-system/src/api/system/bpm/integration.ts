@@ -107,3 +107,15 @@ export async function queryBpmCommandRecordPage(
     },
   );
 }
+
+export type M6ConfigKind = 'applications' | 'bindings' | 'mappings' | 'subscriptions' | 'systems';
+export type M6ConfigRecord = Record<string, any>;
+export async function listM6Configs(kind: M6ConfigKind) {
+  return requestClient.get<M6ConfigRecord[]>(`/bpm/integration/config/${kind}`);
+}
+export async function saveM6Config(kind: M6ConfigKind, data: M6ConfigRecord) {
+  return requestClient.post<number>(`/bpm/integration/config/${kind}`, data);
+}
+export async function publishM6Config(kind: 'bindings' | 'subscriptions' | 'systems', id: number) {
+  return requestClient.post<number>(`/bpm/integration/config/${kind}/${id}/publish`);
+}
