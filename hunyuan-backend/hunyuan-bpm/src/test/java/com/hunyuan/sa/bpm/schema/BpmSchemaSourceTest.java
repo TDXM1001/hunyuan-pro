@@ -26,7 +26,7 @@ class BpmSchemaSourceTest {
         assertThat(sql).contains("BPM_TASK_ACTION", "BPM_RUNTIME_NODE_STATE", "BPM_ROUTE_EVALUATION_STATUS");
         assertThat(sql).contains("BPM_CANDIDATE_RESOLVER_TYPE", "BPM_TASK_RESULT", "BPM_COPY_TYPE");
         assertThat(sql).contains("BPM_FORM_TYPE", "BPM_APPROVAL_MODE", "BPM_TASK_ACTION_LOG_TYPE");
-        assertThat(sql).contains("BPM_COMMAND_TYPE", "BPM_COMMAND_STATUS", "BPM_SAMPLE_EXPENSE_APPROVAL_STATUS");
+        assertThat(sql).contains("BPM_COMMAND_TYPE", "BPM_COMMAND_STATUS");
         assertThat(sql).contains("'HANDLE_TASK'", "'COPY_TASK'", "'HANDLED'", "'DESIGN_NODE_COPY'");
         assertThat(sql).contains("'parallelAll'", "'START'", "'HANDLE_COMPLETED'", "'RESUBMITTED'");
         assertThat(sql).contains("LEFT JOIN `t_dict_data` existing");

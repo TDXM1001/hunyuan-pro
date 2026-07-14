@@ -6,7 +6,6 @@ import com.hunyuan.sa.bpm.module.category.domain.entity.BpmCategoryEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.form.domain.entity.BpmFormEntity;
-import com.hunyuan.sa.bpm.module.model.domain.entity.BpmModelEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskActionLogEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
@@ -24,8 +23,6 @@ class BpmAuditFieldFillConfigTest {
         assertFill(BpmCategoryEntity.class, "updateTime", FieldFill.INSERT_UPDATE);
         assertFill(BpmFormEntity.class, "createTime", FieldFill.INSERT);
         assertFill(BpmFormEntity.class, "updateTime", FieldFill.INSERT_UPDATE);
-        assertFill(BpmModelEntity.class, "createTime", FieldFill.INSERT);
-        assertFill(BpmModelEntity.class, "updateTime", FieldFill.INSERT_UPDATE);
         assertFill(BpmDefinitionEntity.class, "createTime", FieldFill.INSERT);
         assertFill(BpmDefinitionEntity.class, "updateTime", FieldFill.INSERT_UPDATE);
         assertFill(BpmDefinitionNodeEntity.class, "createTime", FieldFill.INSERT);

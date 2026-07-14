@@ -9,12 +9,11 @@ import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackExecutor
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackHandler;
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackResult;
 import com.hunyuan.sa.bpm.module.integration.service.BpmBusinessCallbackTriggerType;
-import com.hunyuan.sa.bpm.module.sampleexpense.service.BpmSampleExpenseCallbackHandler;
-import com.hunyuan.sa.bpm.module.sampleexpense.service.BpmSampleExpenseService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
@@ -146,27 +145,12 @@ class BpmBusinessCallbackExecutorTest {
     }
 
     @Test
-    void executeShouldCallSampleExpenseHandlerByBusinessType() {
-        BpmSampleExpenseService sampleService = Mockito.mock(BpmSampleExpenseService.class);
-        BpmSampleExpenseCallbackHandler sampleHandler = new BpmSampleExpenseCallbackHandler();
-        setField(sampleHandler, "bpmSampleExpenseService", sampleService);
-        setHandlers(List.of(sampleHandler));
-        BpmCallbackRecordEntity record = buildRecord(BpmCallbackStatusEnum.PENDING.getValue(), 0);
-        record.setBusinessType("sample_expense");
-        record.setRequestPayloadJson("{\"eventId\":\"event-1\",\"instanceId\":88,\"businessType\":\"sample_expense\",\"businessId\":1001,\"resultState\":1}");
-        when(bpmCallbackRecordDao.selectById(1L)).thenReturn(record);
-        when(sampleService.handleCallback(any(BpmBusinessCallbackContext.class)))
-                .thenReturn(BpmBusinessCallbackResult.success("{\"approvalStatus\":2}"));
+    void callbackHandlerCollectionShouldBeOptionalWhenNoLocalHandlerIsRegistered() throws NoSuchFieldException {
+        Field callbackHandlers = BpmBusinessCallbackExecutor.class.getDeclaredField("callbackHandlers");
+        Autowired autowired = callbackHandlers.getAnnotation(Autowired.class);
 
-        BpmBusinessCallbackExecuteResult result = executor.execute(1L, BpmBusinessCallbackTriggerType.MANUAL);
-
-        assertThat(result.processed()).isTrue();
-        assertThat(result.succeeded()).isTrue();
-        verify(sampleService).handleCallback(any(BpmBusinessCallbackContext.class));
-        ArgumentCaptor<BpmCallbackRecordEntity> captor = ArgumentCaptor.forClass(BpmCallbackRecordEntity.class);
-        verify(bpmCallbackRecordDao).update(captor.capture(), any());
-        assertThat(captor.getValue().getCallbackStatus()).isEqualTo(BpmCallbackStatusEnum.SUCCEEDED.getValue());
-        assertThat(captor.getValue().getResponsePayloadJson()).isEqualTo("{\"approvalStatus\":2}");
+        assertThat(autowired).isNotNull();
+        assertThat(autowired.required()).isFalse();
     }
 
     private BpmCallbackRecordEntity buildRecord(Integer status, Integer retryCount) {

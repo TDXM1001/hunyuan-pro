@@ -6,6 +6,7 @@ import com.hunyuan.sa.bpm.common.enumeration.BpmCallbackStatusEnum;
 import com.hunyuan.sa.bpm.module.integration.dao.BpmCallbackRecordDao;
 import com.hunyuan.sa.bpm.module.integration.domain.entity.BpmCallbackRecordEntity;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -31,7 +32,7 @@ public class BpmBusinessCallbackExecutor {
     @Resource
     private BpmCallbackRecordDao bpmCallbackRecordDao;
 
-    @Resource
+    @Autowired(required = false)
     private List<BpmBusinessCallbackHandler> callbackHandlers = List.of();
 
     @Resource
