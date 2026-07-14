@@ -13,7 +13,7 @@ import java.util.Set;
  */
 public class PolicyDocumentValidator {
 
-    private static final int CURRENT_SCHEMA_VERSION = 1;
+    private static final Set<Integer> SUPPORTED_SCHEMA_VERSIONS = Set.of(1, 2);
     private static final Set<String> CANDIDATE_RESOLVERS = Set.of(
             "EMPLOYEE", "ROLE", "DEPARTMENT_MANAGER", "START_EMPLOYEE",
             "START_DEPARTMENT_MANAGER", "ROUTING_FACT_EMPLOYEE", "POST",
@@ -39,7 +39,7 @@ public class PolicyDocumentValidator {
         if (policyType == null) {
             throw new IllegalArgumentException("策略类型不能为空");
         }
-        if (schemaVersion == null || schemaVersion != CURRENT_SCHEMA_VERSION) {
+        if (schemaVersion == null || !SUPPORTED_SCHEMA_VERSIONS.contains(schemaVersion)) {
             throw new IllegalArgumentException("不支持的策略 schema 版本：" + schemaVersion);
         }
         JSONObject document;
@@ -50,6 +50,13 @@ public class PolicyDocumentValidator {
         }
         if (document == null) {
             throw new IllegalArgumentException("策略 JSON 必须为对象");
+        }
+        if (schemaVersion == 2) {
+            Integer payloadSchemaVersion = document.getInteger("schemaVersion");
+            if (payloadSchemaVersion == null || payloadSchemaVersion != 2) {
+                throw new IllegalArgumentException("Schema v2 策略缺少 schemaVersion=2");
+            }
+            document.remove("schemaVersion");
         }
         switch (policyType) {
             case CANDIDATE -> validateCandidate(document);
