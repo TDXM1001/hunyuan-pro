@@ -17,6 +17,14 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyLifecycleCommand;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyValidationResult;
+import com.hunyuan.sa.bpm.module.candidate.domain.visual.BpmPolicyVisualDraft;
+import com.hunyuan.sa.bpm.module.candidate.domain.visual.PolicyVisualCompilation;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyBusinessDetailVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyTechnicalDetailVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyTechnicalDiffVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyCatalogSummaryVO;
+import com.hunyuan.sa.bpm.module.definition.service.BpmDefinitionReferenceQueryService;
+import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.logging.Logger;
@@ -43,6 +53,10 @@ public class BpmPolicyCatalogService {
     private final BpmStartVisibilityPolicyVersionDao startVisibilityPolicyVersionDao;
     private final PolicyCanonicalizer canonicalizer;
     private final PolicyDocumentValidator validator;
+    private final PolicyVisualDocumentMapper visualDocumentMapper;
+
+    @Resource
+    private BpmDefinitionReferenceQueryService definitionReferenceQueryService;
 
     @Autowired
     public BpmPolicyCatalogService(
@@ -71,6 +85,9 @@ public class BpmPolicyCatalogService {
         this.startVisibilityPolicyVersionDao = startVisibilityPolicyVersionDao;
         this.canonicalizer = canonicalizer;
         this.validator = validator;
+        this.visualDocumentMapper = new PolicyVisualDocumentMapper(
+                canonicalizer, validator, new PolicyBusinessSummaryService(), new PolicyRiskAssessmentService()
+        );
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -167,6 +184,116 @@ public class BpmPolicyCatalogService {
         );
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public BpmPolicyBusinessDetailVO saveVisualDraft(
+            PolicyReference reference,
+            long expectedRevision,
+            BpmPolicyVisualDraft draft,
+            long actorEmployeeId
+    ) {
+        if (actorEmployeeId <= 0) {
+            throw new IllegalArgumentException("当前操作员工不能为空");
+        }
+        if (!reference.type().equals(draft.type()) || !reference.policyKey().equals(draft.policyKey())) {
+            throw new IllegalArgumentException("规则引用与草稿内容不一致");
+        }
+        PolicyVisualCompilation compiled = visualDocumentMapper.compile(draft);
+        if (!compiled.valid()) {
+            throw new IllegalArgumentException(compiled.findings().get(0).message());
+        }
+        int affected = switch (reference.type()) {
+            case CANDIDATE -> candidatePolicyVersionDao.saveDraftVisual(
+                    reference.policyKey(), reference.policyVersion(), expectedRevision,
+                    draft.policyName(), draft.description(), compiled.canonicalPayload(), compiled.digest(),
+                    compiled.calculatedRiskLevel(), compiled.businessSummary());
+            case APPROVAL -> approvalPolicyVersionDao.saveDraftVisual(
+                    reference.policyKey(), reference.policyVersion(), expectedRevision,
+                    draft.policyName(), draft.description(), compiled.canonicalPayload(), compiled.digest(),
+                    compiled.calculatedRiskLevel(), compiled.businessSummary());
+            case START_VISIBILITY -> startVisibilityPolicyVersionDao.saveDraftVisual(
+                    reference.policyKey(), reference.policyVersion(), expectedRevision,
+                    draft.policyName(), draft.description(), compiled.canonicalPayload(), compiled.digest(),
+                    compiled.calculatedRiskLevel(), compiled.businessSummary());
+        };
+        if (affected != 1) {
+            throw new IllegalStateException("CATALOG_REVISION_CONFLICT：草稿已变化或当前版本不可编辑");
+        }
+        return new BpmPolicyBusinessDetailVO(
+                reference, "DRAFT", 2, expectedRevision + 1,
+                draft.policyName(), draft.description(), compiled.businessSummary(),
+                compiled.calculatedRiskLevel(), draft, compiled.findings()
+        );
+    }
+
+    public BpmPolicyTechnicalDetailVO technicalDetail(PolicyReference reference) {
+        CatalogRecord record = requireRecord(reference);
+        String canonicalPayload = canonicalizer.canonicalize(record.policyJson());
+        return new BpmPolicyTechnicalDetailVO(
+                reference,
+                record.schemaVersion() == null ? 1 : record.schemaVersion(),
+                canonicalPayload,
+                record.policyDigest() == null ? canonicalizer.sha256(canonicalPayload) : record.policyDigest(),
+                List.of()
+        );
+    }
+
+    public BpmPolicyTechnicalDiffVO technicalDiff(PolicyReference left, PolicyReference right) {
+        Map<String, Object> leftDocument = JSON.parseObject(technicalDetail(left).canonicalPayload(), Map.class);
+        Map<String, Object> rightDocument = JSON.parseObject(technicalDetail(right).canonicalPayload(), Map.class);
+        List<String> changedPaths = new ArrayList<>();
+        collectChangedPaths("", leftDocument, rightDocument, changedPaths);
+        return new BpmPolicyTechnicalDiffVO(left, right, List.copyOf(changedPaths));
+    }
+
+    public String exportCanonical(PolicyReference reference) {
+        return technicalDetail(reference).canonicalPayload();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteDraft(PolicyReference reference, long expectedRevision) {
+        if (definitionReferenceQueryService != null
+                && !definitionReferenceQueryService.findPolicyReferences(reference).isEmpty()) {
+            throw new IllegalStateException("只有未引用草稿可以删除");
+        }
+        int affected = switch (reference.type()) {
+            case CANDIDATE -> candidatePolicyVersionDao.deleteDraft(
+                    reference.policyKey(), reference.policyVersion(), expectedRevision);
+            case APPROVAL -> approvalPolicyVersionDao.deleteDraft(
+                    reference.policyKey(), reference.policyVersion(), expectedRevision);
+            case START_VISIBILITY -> startVisibilityPolicyVersionDao.deleteDraft(
+                    reference.policyKey(), reference.policyVersion(), expectedRevision);
+        };
+        if (affected != 1) {
+            throw new IllegalStateException("只有未引用草稿可以删除，或目录版本已变更");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectChangedPaths(String prefix, Object left, Object right, List<String> result) {
+        if (Objects.equals(left, right)) {
+            return;
+        }
+        if (left instanceof Map<?, ?> leftMap && right instanceof Map<?, ?> rightMap) {
+            Set<String> keys = new java.util.TreeSet<>();
+            leftMap.keySet().forEach(key -> keys.add(String.valueOf(key)));
+            rightMap.keySet().forEach(key -> keys.add(String.valueOf(key)));
+            for (String key : keys) {
+                collectChangedPaths(prefix.isEmpty() ? key : prefix + "." + key,
+                        leftMap.get(key), rightMap.get(key), result);
+            }
+            return;
+        }
+        result.add(prefix.isEmpty() ? "$" : prefix);
+    }
+
+    private CatalogRecord requireRecord(PolicyReference reference) {
+        CatalogRecord record = load(reference);
+        if (record == null) {
+            throw new IllegalArgumentException("策略版本不存在：" + reference.policyKey() + "@" + reference.policyVersion());
+        }
+        return record;
+    }
+
     /**
      * 为管理端和 Graph 设计器读取受控的版本目录。内容始终重新校验并规范化，避免将历史脏数据暴露为可绑定策略。
      */
@@ -208,6 +335,33 @@ public class BpmPolicyCatalogService {
                     startVisibilityRecord(entity)
             )).flatMap(Optional::stream).toList();
         };
+    }
+
+    public List<BpmPolicyCatalogSummaryVO> listBusiness(
+            PolicyType type, String policyKey, String lifecycleState
+    ) {
+        return list(type, policyKey, lifecycleState).stream().map(version -> {
+            long referenceCount = definitionReferenceQueryService == null ? 0
+                    : definitionReferenceQueryService.findPolicyReferences(version.reference()).size();
+            return new BpmPolicyCatalogSummaryVO(
+                    version.reference(), version.reference().policyKey(), null, version.lifecycleState(),
+                    version.schemaVersion(), version.catalogRevision(),
+                    version.schemaVersion() != null && version.schemaVersion() == 2
+                            ? "可视化规则详情" : "旧版规则，复制升级后可进行可视化编辑。",
+                    "UNKNOWN", referenceCount
+            );
+        }).toList();
+    }
+
+    public BpmPolicyBusinessDetailVO getBusinessDetail(PolicyReference reference) {
+        PolicyCatalogVersion version = get(reference);
+        return new BpmPolicyBusinessDetailVO(
+                reference, version.lifecycleState(), version.schemaVersion(), version.catalogRevision(),
+                reference.policyKey(), null,
+                version.schemaVersion() != null && version.schemaVersion() == 2
+                        ? "可视化规则详情" : "旧版规则，复制升级后可进行可视化编辑。",
+                "UNKNOWN", null, List.of()
+        );
     }
 
     public PolicyCatalogVersion get(PolicyReference reference) {
@@ -613,21 +767,24 @@ public class BpmPolicyCatalogService {
     private CatalogRecord candidateRecord(BpmCandidatePolicyVersionEntity entity) {
         return new CatalogRecord(
                 entity.getCandidatePolicyVersionId(), entity.getLifecycleState(), entity.getSchemaVersion(),
-                entity.getPolicyJson(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId()
+                entity.getPolicyJson(), entity.getPolicyDigest(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId(),
+                entity.getPolicyName(), entity.getDescription(), entity.getBusinessSummary(), entity.getCalculatedRiskLevel()
         );
     }
 
     private CatalogRecord approvalRecord(BpmApprovalPolicyVersionEntity entity) {
         return new CatalogRecord(
                 entity.getApprovalPolicyVersionId(), entity.getLifecycleState(), entity.getSchemaVersion(),
-                entity.getPolicyJson(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId()
+                entity.getPolicyJson(), entity.getPolicyDigest(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId(),
+                entity.getPolicyName(), entity.getDescription(), entity.getBusinessSummary(), entity.getCalculatedRiskLevel()
         );
     }
 
     private CatalogRecord startVisibilityRecord(BpmStartVisibilityPolicyVersionEntity entity) {
         return new CatalogRecord(
                 entity.getStartVisibilityPolicyVersionId(), entity.getLifecycleState(), entity.getSchemaVersion(),
-                entity.getPolicyJson(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId()
+                entity.getPolicyJson(), entity.getPolicyDigest(), entity.getCatalogRevision(), entity.getCreatedByEmployeeId(),
+                entity.getPolicyName(), entity.getDescription(), entity.getBusinessSummary(), entity.getCalculatedRiskLevel()
         );
     }
 
@@ -651,8 +808,13 @@ public class BpmPolicyCatalogService {
             String lifecycleState,
             Integer schemaVersion,
             String policyJson,
+            String policyDigest,
             Long catalogRevision,
-            Long createdByEmployeeId
+            Long createdByEmployeeId,
+            String policyName,
+            String description,
+            String businessSummary,
+            String calculatedRiskLevel
     ) {
     }
 }

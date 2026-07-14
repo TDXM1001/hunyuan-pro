@@ -34,5 +34,17 @@ class PolicyCatalogControllerContractTest {
                 "bpm:policy-catalog:retire"
         );
         assertThat(source).contains("BpmCurrentActorProvider");
+        assertThat(source).contains(
+                "/bpm/policy-catalog/visual-draft/save",
+                "/bpm/policy-catalog/technical-detail/{type}/{policyKey}/{policyVersion}",
+                "/bpm/policy-catalog/technical-diff",
+                "/bpm/policy-catalog/technical-export/{type}/{policyKey}/{policyVersion}",
+                "/bpm/policy-catalog/draft/delete"
+        );
+        assertThat(source).contains(
+                "bpm:policy-catalog:save",
+                "bpm:policy-catalog:technical",
+                "bpm:policy-catalog:delete"
+        );
     }
 }

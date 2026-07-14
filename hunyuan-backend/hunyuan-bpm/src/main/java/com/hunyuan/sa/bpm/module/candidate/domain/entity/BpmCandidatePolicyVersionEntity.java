@@ -31,6 +31,11 @@ public class BpmCandidatePolicyVersionEntity {
 
     private String policyDigest;
 
+    private String policyName;
+    private String description;
+    private String businessSummary;
+    private String calculatedRiskLevel;
+
     private Long catalogRevision;
 
     private Long createdByEmployeeId;

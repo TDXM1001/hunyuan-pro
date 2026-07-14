@@ -11,6 +11,8 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyPublicationLease;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyValidationResult;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyBusinessDetailVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyCatalogSummaryVO;
 import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyCatalogService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
@@ -23,8 +25,65 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.*;
 
 class BpmPolicyCatalogServiceTest {
+
+    @Test
+    void saveShouldUpdateOnlyDraftWithExpectedRevision() {
+        BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
+        when(candidateDao.saveDraftVisual(
+                eq("finance-reviewer"), eq(2), eq(3L), any(), any(), any(), any(), any(), any()
+        )).thenReturn(1);
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                candidateDao,
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                Mockito.mock(BpmStartVisibilityPolicyVersionDao.class)
+        );
+
+        BpmPolicyBusinessDetailVO saved = service.saveVisualDraft(
+                new PolicyReference(PolicyType.CANDIDATE, "finance-reviewer", 2),
+                3L,
+                PolicyVisualFixtures.roleCandidate("finance-reviewer", "费用审批人", 8L, "财务经理"),
+                1L
+        );
+
+        assertThat(saved.catalogRevision()).isEqualTo(4L);
+        assertThat(saved.businessSummary()).contains("财务经理");
+        verify(candidateDao).saveDraftVisual(
+                eq("finance-reviewer"), eq(2), eq(3L), eq("费用审批人"), any(),
+                any(), any(), eq("LOW"), any()
+        );
+    }
+
+    @Test
+    void staleSaveMustFailWithoutOverwriting() {
+        BpmCandidatePolicyVersionDao candidateDao = Mockito.mock(BpmCandidatePolicyVersionDao.class);
+        when(candidateDao.saveDraftVisual(anyString(), anyInt(), eq(2L), any(), any(), any(), any(), any(), any()))
+                .thenReturn(0);
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                candidateDao,
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                Mockito.mock(BpmStartVisibilityPolicyVersionDao.class)
+        );
+
+        assertThatThrownBy(() -> service.saveVisualDraft(
+                new PolicyReference(PolicyType.CANDIDATE, "finance-reviewer", 2),
+                2L,
+                PolicyVisualFixtures.roleCandidate("finance-reviewer", "费用审批人", 8L, "财务经理"),
+                1L
+        )).hasMessageContaining("CATALOG_REVISION_CONFLICT");
+    }
+
+    @Test
+    void businessResponsesMustNotExposeCanonicalPayloadOrDigest() {
+        assertThat(BpmPolicyCatalogSummaryVO.class.getDeclaredFields())
+                .extracting(java.lang.reflect.Field::getName)
+                .doesNotContain("canonicalPayload", "policyJson", "digest");
+        assertThat(BpmPolicyBusinessDetailVO.class.getDeclaredFields())
+                .extracting(java.lang.reflect.Field::getName)
+                .doesNotContain("canonicalPayload", "policyJson", "digest");
+    }
 
     @Test
     void springConstructorShouldDeclareInjectionPointWhenClassHasMultipleConstructors() throws Exception {
