@@ -36,10 +36,16 @@ describe('BPM M3 页面 contract', () => {
     [
       'queryGenericApplicationContracts',
       'queryBpmStartableDefinitions',
-      'contractDocument.fieldSchema',
-      'contractDocument.routingFacts',
-      'contractDocument.workingDataSchema',
+      'configuration?.routingFacts',
+      'configuration?.workingDataSchema',
+      'lineItemSchema',
       'submitBpmGenericApplication',
+      'toBusinessObjectFormRules',
+      'getBpmBusinessObjectDetail',
     ].forEach((needle) => expect(source).toContain(needle));
+    const workbench = readFileSync(resolve(process.cwd(), 'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-task-form-workbench.vue'), 'utf8');
+    expect(workbench).toContain('toBusinessObjectFormRules');
+    expect(source).not.toContain('attachmentsJson');
+    expect(source).not.toContain('lineItemsJson');
   });
 });

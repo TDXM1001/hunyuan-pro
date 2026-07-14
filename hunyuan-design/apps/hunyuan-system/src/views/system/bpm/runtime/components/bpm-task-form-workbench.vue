@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
   BpmApprovalSubjectContext,
+  BpmBusinessObjectDetail,
   BpmTaskFormContext,
 } from '#/api/system/bpm';
 
@@ -16,6 +17,7 @@ import {
 } from 'element-plus';
 
 import BpmRuntimeFormRenderer from './bpm-runtime-form-renderer.vue';
+import { toBusinessObjectFormRules } from '#/components/bpm/business-object/business-object-form-rules';
 
 defineOptions({ name: 'BpmTaskFormWorkbench' });
 
@@ -115,6 +117,21 @@ const workingPermissions = computed(() =>
     Object.prototype.hasOwnProperty.call(formData.value, permission.fieldKey),
   ),
 );
+const subjectModel = computed(() => parseData(props.approvalSubjectContext?.fieldsJson || undefined));
+const subjectRules = computed(() => rulesFor('SUBJECT'));
+const workingRules = computed(() => rulesFor('WORKING'));
+function rulesFor(zone: 'SUBJECT' | 'WORKING') {
+  const configuration = props.approvalSubjectContext?.businessObjectConfiguration;
+  if (!configuration) return [];
+  const detail = {
+    configuration: {
+      ...configuration,
+      fieldSchema: zone === 'SUBJECT' ? configuration.fieldSchema : [],
+      workingDataSchema: zone === 'WORKING' ? configuration.workingDataSchema : [],
+    },
+  } as BpmBusinessObjectDetail;
+  return toBusinessObjectFormRules(detail, zone === 'SUBJECT' || props.readonly ? 'APPROVER_READONLY' : 'APPROVER_EDIT');
+}
 
 watch(
   () => [props.formContext, props.approvalSubjectContext] as const,
@@ -153,7 +170,13 @@ defineExpose({ submitPatch });
           </ElTag>
         </div>
 
-        <ElDescriptions :column="2" border>
+        <BpmRuntimeFormRenderer
+          v-if="subjectRules.length"
+          :disabled="true"
+          :model-value="subjectModel"
+          :schema-json="JSON.stringify(subjectRules)"
+        />
+        <ElDescriptions v-else :column="2" border>
           <ElDescriptionsItem
             v-for="([key, value]) in subjectFields"
             :key="key"
@@ -188,7 +211,15 @@ defineExpose({ submitPatch });
           </div>
         </div>
 
-        <div v-if="workingPermissions.length > 0" class="bpm-task-form-workbench__section">
+        <div v-if="workingRules.length > 0" class="bpm-task-form-workbench__section">
+          <strong>流程工作数据</strong>
+          <BpmRuntimeFormRenderer
+            v-model="formData"
+            :field-permissions="workingPermissions"
+            :schema-json="JSON.stringify(workingRules)"
+          />
+        </div>
+        <div v-else-if="workingPermissions.length > 0" class="bpm-task-form-workbench__section">
           <strong>流程工作数据</strong>
           <ElDescriptions :column="1" border>
             <ElDescriptionsItem

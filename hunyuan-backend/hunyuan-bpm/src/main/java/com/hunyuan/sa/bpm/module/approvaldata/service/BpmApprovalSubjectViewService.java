@@ -10,6 +10,7 @@ import com.hunyuan.sa.bpm.module.approvaldata.domain.entity.BpmProcessWorkingDat
 import com.hunyuan.sa.bpm.module.approvaldata.domain.vo.BpmApprovalSubjectContextVO;
 import com.hunyuan.sa.bpm.module.businesscontract.dao.BpmBusinessContractVersionDao;
 import com.hunyuan.sa.bpm.module.businesscontract.domain.entity.BpmBusinessContractVersionEntity;
+import com.hunyuan.sa.bpm.module.businesscontract.service.BusinessObjectV2DocumentMapper;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageDao;
@@ -26,6 +27,7 @@ import java.util.Map;
 
 @Service
 public class BpmApprovalSubjectViewService {
+    private final BusinessObjectV2DocumentMapper businessObjectMapper = new BusinessObjectV2DocumentMapper();
 
     private static final Map<String, Integer> SENSITIVITY_RANK = Map.of(
             "PUBLIC", 0,
@@ -117,6 +119,13 @@ public class BpmApprovalSubjectViewService {
         context.setWorkingDataJson(JSON.toJSONString(visibleWorkingFields));
         context.setWorkingDataVersion(working.getDataVersion());
         context.setFieldPermissions(visiblePermissions);
+        if (Integer.valueOf(2).equals(contract.getSchemaVersion())) {
+            context.setBusinessObjectConfiguration(businessObjectMapper.restore(
+                    contract.getContractKey(), contract.getObjectName(), contract.getDescription(),
+                    contract.getCatalogRevision() == null ? 0L : contract.getCatalogRevision(),
+                    contract.getContractJson()
+            ));
+        }
         return context;
     }
 

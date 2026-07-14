@@ -5,6 +5,7 @@ import type {
 } from '#/api/system/bpm/integration';
 
 import { requestClient } from '#/api/request';
+import type { BpmBusinessObjectDraft } from './business-contract';
 
 export interface BpmInstanceRecord {
   finishedAt?: null | string;
@@ -66,6 +67,7 @@ export interface BpmApprovalSubjectContext {
   viewState: 'DIAGNOSTIC_ERROR' | 'READY';
   workingDataJson?: null | string;
   workingDataVersion?: null | number;
+  businessObjectConfiguration?: BpmBusinessObjectDraft | null;
 }
 
 export interface BpmApprovalGroupSummaryRecord {

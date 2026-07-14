@@ -59,6 +59,9 @@ class BpmApprovalSubjectViewServiceTest {
         assertThat(context.getFieldPermissions())
                 .extracting(item -> item.getFieldKey() + ":" + item.getPermission())
                 .containsExactly("amount:READONLY", "applicantNote:READONLY", "approvedAmount:EDITABLE");
+        assertThat(context.getBusinessObjectConfiguration()).isNotNull();
+        assertThat(context.getBusinessObjectConfiguration().fieldSchema())
+                .extracting(field -> field.key()).contains("amount", "applicantNote");
     }
 
     private BpmApprovalSubjectSnapshotEntity subject() {
@@ -84,15 +87,22 @@ class BpmApprovalSubjectViewServiceTest {
     private BpmBusinessContractVersionEntity contract() {
         BpmBusinessContractVersionEntity contract = new BpmBusinessContractVersionEntity();
         contract.setBusinessContractVersionId(22L);
+        contract.setContractKey("generic-application");
+        contract.setContractVersion(2);
+        contract.setSchemaVersion(2);
+        contract.setObjectName("设备采购");
+        contract.setCatalogRevision(1L);
         contract.setContractJson("""
-                {"fieldSchema":[
+                {"schemaVersion":2,"sourceSystem":"HUNYUAN","businessType":"GENERIC_APPLICATION",
+                "businessKeyRule":{"prefix":"REQ","datePattern":"yyyyMMdd","sequenceDigits":4},"fieldSchema":[
                   {"key":"amount","sensitivity":"INTERNAL"},
                   {"key":"applicantNote","sensitivity":"INTERNAL"},
                   {"key":"internalCostCode","sensitivity":"CONFIDENTIAL"}
                 ],"workingDataSchema":[
                   {"key":"approvedAmount","sensitivity":"INTERNAL"},
                   {"key":"privateMemo","sensitivity":"CONFIDENTIAL"}
-                ]}
+                ],"routingFacts":[],"attachmentRules":{"maxCount":5,"maxSizeMb":20,"allowedExtensions":["pdf"],"required":false},
+                "changePolicy":{"mode":"FIELD_CONTROLLED","editableFields":["approvedAmount"]}}
                 """);
         return contract;
     }

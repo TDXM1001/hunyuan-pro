@@ -92,19 +92,19 @@ export interface BpmBusinessObjectReference {
 }
 
 export interface BpmGenericApplicationSubmitParams {
-  attachmentsJson: string;
+  attachments: Record<string, any>[];
   businessKey: string;
   businessType: string;
   contractKey: string;
   contractVersion: number;
-  fieldsJson: string;
+  fields: Record<string, any>;
   graphDefinitionVersionId: number;
-  lineItemsJson: string;
-  routingFactsJson: string;
+  lineItems: Record<string, any>[];
+  routingFacts: Record<string, any>;
   sourceSystem: string;
   summary?: null | string;
   title: string;
-  workingDataJson: string;
+  workingData: Record<string, any>;
 }
 
 export interface BpmGenericApplicationSubmitResult {
@@ -187,7 +187,7 @@ export async function retireBpmBusinessContract(params: BpmBusinessContractLifec
 }
 
 export async function queryGenericApplicationContracts() {
-  return requestClient.get<BpmBusinessContractRecord[]>('/app/bpm/generic-application/contracts');
+  return requestClient.get<BpmBusinessObjectSummary[]>('/app/bpm/generic-application/contracts');
 }
 
 export async function submitBpmGenericApplication(params: BpmGenericApplicationSubmitParams) {

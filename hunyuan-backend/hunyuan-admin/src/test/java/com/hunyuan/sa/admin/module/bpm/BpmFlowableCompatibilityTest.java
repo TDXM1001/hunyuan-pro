@@ -7,6 +7,8 @@ import com.hunyuan.sa.admin.module.system.employee.dao.OrganizationRelationDao;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.login.manager.LoginManager;
 import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
+import com.hunyuan.sa.admin.module.system.role.service.RoleService;
+import com.hunyuan.sa.admin.module.system.position.service.PositionService;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.config.BpmFlowableAutoConfiguration;
@@ -139,6 +141,12 @@ class BpmFlowableCompatibilityTest {
 
     @MockBean
     private RoleEmployeeService roleEmployeeService;
+
+    @MockBean
+    private RoleService roleService;
+
+    @MockBean
+    private PositionService positionService;
 
     @MockBean
     private OrganizationRelationDao organizationRelationDao;

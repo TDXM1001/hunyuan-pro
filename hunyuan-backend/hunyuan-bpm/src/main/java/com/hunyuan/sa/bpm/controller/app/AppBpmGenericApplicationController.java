@@ -5,7 +5,7 @@ import com.hunyuan.sa.bpm.module.approvaldata.domain.form.BpmGenericApplicationS
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.GenericApplicationSubmitCommand;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.GenericApplicationSubmitResult;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmGenericApplicationService;
-import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractCatalogVersion;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.vo.BpmBusinessObjectSummaryVO;
 import com.hunyuan.sa.bpm.module.businesscontract.service.BpmBusinessContractCatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,8 +26,8 @@ public class AppBpmGenericApplicationController {
 
     @Operation(summary = "查询内置通用申请可用业务契约")
     @GetMapping("/app/bpm/generic-application/contracts")
-    public ResponseDTO<java.util.List<BusinessContractCatalogVersion>> contracts() {
-        return ResponseDTO.ok(contractCatalogService.list(null, "ACTIVE"));
+    public ResponseDTO<java.util.List<BpmBusinessObjectSummaryVO>> contracts() {
+        return ResponseDTO.ok(contractCatalogService.listBusiness(null, "ACTIVE"));
     }
 
     @Operation(summary = "提交内置通用申请并发起 Graph 流程")
@@ -38,8 +38,8 @@ public class AppBpmGenericApplicationController {
         return ResponseDTO.ok(genericApplicationService.submit(new GenericApplicationSubmitCommand(
                 form.getGraphDefinitionVersionId(), form.getContractKey(), form.getContractVersion(),
                 form.getSourceSystem(), form.getBusinessType(), form.getBusinessKey(), form.getTitle(),
-                form.getSummary(), form.getFieldsJson(), form.getLineItemsJson(), form.getAttachmentsJson(),
-                form.getRoutingFactsJson(), form.getWorkingDataJson()
+                form.getSummary(), form.fieldsPayload(), form.lineItemsPayload(), form.attachmentsPayload(),
+                form.routingFactsPayload(), form.workingDataPayload()
         )));
     }
 }

@@ -151,6 +151,45 @@ class BpmApprovalSubjectServiceTest {
                 .hasMessageContaining("未在业务契约中声明");
     }
 
+    @Test
+    void v2ShouldRejectForbiddenAttachmentAndInvalidLineItem() {
+        BpmBusinessContractVersionDao contractDao = Mockito.mock(BpmBusinessContractVersionDao.class);
+        BpmApprovalSubjectSnapshotDao subjectDao = Mockito.mock(BpmApprovalSubjectSnapshotDao.class);
+        BpmBusinessContractVersionEntity contract = activeContract();
+        contract.setSchemaVersion(2);
+        contract.setContractJson(contract.getContractJson().replace(
+                "\"attachmentRules\":{\"maxCount\":5}",
+                "\"lineItemSchema\":{\"minRows\":1,\"maxRows\":2,\"fields\":[{\"key\":\"itemName\",\"type\":\"STRING\",\"required\":true}]},"
+                        + "\"attachmentRules\":{\"maxCount\":5,\"maxSizeMb\":10,\"required\":true,\"allowedExtensions\":[\"pdf\"]}"
+        ));
+        when(contractDao.selectActiveByKeyAndVersion("generic-application", 1)).thenReturn(contract);
+        when(subjectDao.selectCount(any())).thenReturn(0L);
+        BpmApprovalSubjectService service = new BpmApprovalSubjectService(
+                contractDao, subjectDao, Mockito.mock(BpmRoutingFactSnapshotDao.class),
+                Mockito.mock(BpmProcessWorkingDataDao.class)
+        );
+
+        ApprovalSubjectCreateCommand forbiddenAttachment = new ApprovalSubjectCreateCommand(
+                "generic-application", 1, "HUNYUAN", "GENERIC_APPLICATION", "REQ-2026-0003",
+                "设备采购申请", null, "{\"amount\":12000.50}", "[{\"itemName\":\"电脑\"}]",
+                "[{\"fileName\":\"报价单.exe\",\"sizeMb\":1}]", "{\"financeApprover\":50}",
+                "{\"approvedAmount\":12000.50}", 20L, "申请人"
+        );
+        assertThatThrownBy(() -> service.create(forbiddenAttachment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("附件类型不允许");
+
+        ApprovalSubjectCreateCommand invalidLine = new ApprovalSubjectCreateCommand(
+                "generic-application", 1, "HUNYUAN", "GENERIC_APPLICATION", "REQ-2026-0004",
+                "设备采购申请", null, "{\"amount\":12000.50}", "[{}]",
+                "[{\"fileName\":\"报价单.pdf\",\"sizeMb\":1}]", "{\"financeApprover\":50}",
+                "{\"approvedAmount\":12000.50}", 20L, "申请人"
+        );
+        assertThatThrownBy(() -> service.create(invalidLine))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("审批明细缺少必填字段：itemName");
+    }
+
     private ApprovalSubjectCreateCommand validCommand() {
         return new ApprovalSubjectCreateCommand(
                 "generic-application", 1, "HUNYUAN", "GENERIC_APPLICATION", "REQ-2026-0001",

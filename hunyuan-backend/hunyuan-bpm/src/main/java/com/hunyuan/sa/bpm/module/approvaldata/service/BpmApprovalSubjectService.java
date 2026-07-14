@@ -73,6 +73,7 @@ public class BpmApprovalSubjectService {
         JSONObject workingData = parseObject(command.workingDataJson(), "流程工作数据");
         validateData(fields, contractJson.getJSONArray("fieldSchema"), "审批字段");
         validateData(workingData, contractJson.getJSONArray("workingDataSchema"), "流程工作数据");
+        validateLineItems(lineItems, contractJson.getJSONObject("lineItemSchema"), contract.getSchemaVersion());
         validateAttachments(attachments, contractJson.getJSONObject("attachmentRules"));
         JSONObject frozenRoutingFacts = validateAndTrimRoutingFacts(
                 routingFacts, contractJson.getJSONArray("routingFacts")
@@ -186,7 +187,7 @@ public class BpmApprovalSubjectService {
 
     private void validateType(String key, Object value, String type, String label) {
         boolean valid = switch (StringUtils.defaultString(type)) {
-            case "STRING" -> value instanceof String;
+            case "STRING", "DATE", "DATETIME" -> value instanceof String;
             case "DECIMAL" -> value instanceof Number || canParseDecimal(value);
             case "INTEGER", "EMPLOYEE_ID" -> value instanceof Number;
             case "BOOLEAN" -> value instanceof Boolean;
@@ -207,11 +208,51 @@ public class BpmApprovalSubjectService {
     }
 
     private void validateAttachments(JSONArray attachments, JSONObject rules) {
-        if (rules == null || rules.getInteger("maxCount") == null) {
+        if (rules == null) {
             return;
         }
-        if (attachments.size() > rules.getIntValue("maxCount")) {
+        if (rules.getBooleanValue("required") && attachments.isEmpty()) {
+            throw new IllegalArgumentException("审批附件不能为空");
+        }
+        if (rules.getInteger("maxCount") != null && attachments.size() > rules.getIntValue("maxCount")) {
             throw new IllegalArgumentException("审批附件数量超过业务契约限制");
+        }
+        Set<String> allowed = new LinkedHashSet<>();
+        JSONArray allowedExtensions = rules.getJSONArray("allowedExtensions");
+        if (allowedExtensions != null) {
+            allowedExtensions.forEach(value -> allowed.add(String.valueOf(value).toLowerCase(java.util.Locale.ROOT)));
+        }
+        Integer maxSizeMb = rules.getInteger("maxSizeMb");
+        for (int index = 0; index < attachments.size(); index++) {
+            JSONObject attachment = attachments.getJSONObject(index);
+            String fileName = attachment == null ? null : attachment.getString("fileName");
+            String extension = fileName == null || !fileName.contains(".") ? ""
+                    : fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT);
+            if (!allowed.isEmpty() && !allowed.contains(extension)) {
+                throw new IllegalArgumentException("附件类型不允许：" + fileName);
+            }
+            if (maxSizeMb != null && attachment != null && attachment.getBigDecimal("sizeMb") != null
+                    && attachment.getBigDecimal("sizeMb").compareTo(BigDecimal.valueOf(maxSizeMb)) > 0) {
+                throw new IllegalArgumentException("附件大小超过业务契约限制：" + fileName);
+            }
+        }
+    }
+
+    private void validateLineItems(JSONArray lineItems, JSONObject schema, Integer schemaVersion) {
+        if (schema == null) {
+            if (Integer.valueOf(2).equals(schemaVersion) && !lineItems.isEmpty()) {
+                throw new IllegalArgumentException("业务契约未声明审批明细");
+            }
+            return;
+        }
+        int minRows = schema.getIntValue("minRows");
+        int maxRows = schema.getIntValue("maxRows");
+        if (lineItems.size() < minRows || (maxRows > 0 && lineItems.size() > maxRows)) {
+            throw new IllegalArgumentException("审批明细行数不符合业务契约限制");
+        }
+        JSONArray fieldSchema = schema.getJSONArray("fields");
+        for (int index = 0; index < lineItems.size(); index++) {
+            validateData(lineItems.getJSONObject(index), fieldSchema, "审批明细");
         }
     }
 

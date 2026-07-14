@@ -4,6 +4,7 @@ import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmFieldPermissionVO;
 import lombok.Data;
 
 import java.util.List;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.visual.BpmBusinessObjectDraft;
 
 @Data
 public class BpmApprovalSubjectContextVO {
@@ -19,4 +20,5 @@ public class BpmApprovalSubjectContextVO {
     private String workingDataJson;
     private Long workingDataVersion;
     private List<BpmFieldPermissionVO> fieldPermissions;
+    private BpmBusinessObjectDraft businessObjectConfiguration;
 }
