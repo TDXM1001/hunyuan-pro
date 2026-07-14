@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONObject;
 import jakarta.annotation.Resource;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
+import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.migration.ActivityMigrationMapping;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.variable.api.history.HistoricVariableInstance;
@@ -13,6 +15,8 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 /**
  * Flowable 流程实例运行网关，仅在 BPM 模块内部使用。
@@ -24,6 +28,9 @@ public class FlowableProcessInstanceGateway {
 
     @Resource
     private RuntimeService runtimeService;
+
+    @Resource
+    private ProcessEngine processEngine;
 
     @Resource
     private HistoryService historyService;
@@ -142,6 +149,53 @@ public class FlowableProcessInstanceGateway {
                 .processInstanceId(engineProcessInstanceId)
                 .finished()
                 .singleResult() != null;
+    }
+
+    public Set<String> activeActivityIds(String engineProcessInstanceId) {
+        Set<String> result = new LinkedHashSet<>();
+        runtimeService.createExecutionQuery().processInstanceId(engineProcessInstanceId).onlyChildExecutions().list()
+                .forEach(execution -> {
+                    if (execution.getActivityId() != null) result.add(execution.getActivityId());
+                });
+        return result;
+    }
+
+    public long activeActivityCount(String engineProcessInstanceId) {
+        return runtimeService.createExecutionQuery().processInstanceId(engineProcessInstanceId).onlyChildExecutions()
+                .list().stream().filter(execution -> execution.getActivityId() != null).count();
+    }
+
+    public List<String> validateMigration(String engineProcessInstanceId, String targetEngineDefinitionId,
+                                          Map<String, String> compiledActivityMappings) {
+        var builder = processEngine.getProcessMigrationService().createProcessInstanceMigrationBuilder()
+                .migrateToProcessDefinition(targetEngineDefinitionId);
+        compiledActivityMappings.forEach((source, target) -> builder.addActivityMigrationMapping(
+                ActivityMigrationMapping.createMappingFor(source, target)));
+        return List.copyOf(builder.validateMigration(engineProcessInstanceId).getValidationMessages());
+    }
+
+    public void migrate(String engineProcessInstanceId, String targetEngineDefinitionId,
+                        Map<String, String> compiledActivityMappings, Map<String, Object> migratedVariables) {
+        var builder = processEngine.getProcessMigrationService().createProcessInstanceMigrationBuilder()
+                .migrateToProcessDefinition(targetEngineDefinitionId);
+        compiledActivityMappings.forEach((source, target) -> builder.addActivityMigrationMapping(
+                ActivityMigrationMapping.createMappingFor(source, target)));
+        if (migratedVariables != null && !migratedVariables.isEmpty()) builder.withProcessInstanceVariables(migratedVariables);
+        builder.migrate(engineProcessInstanceId);
+    }
+
+    public Map<String, Object> variables(String engineProcessInstanceId) {
+        return new HashMap<>(runtimeService.getVariables(engineProcessInstanceId));
+    }
+
+    public String currentProcessDefinitionId(String engineProcessInstanceId) {
+        ProcessInstance instance = runtimeService.createProcessInstanceQuery()
+                .processInstanceId(engineProcessInstanceId).singleResult();
+        return instance == null ? null : instance.getProcessDefinitionId();
+    }
+
+    public long activeTaskCount(String engineProcessInstanceId) {
+        return processEngine.getTaskService().createTaskQuery().processInstanceId(engineProcessInstanceId).active().count();
     }
 
     private boolean isBlank(String value) {

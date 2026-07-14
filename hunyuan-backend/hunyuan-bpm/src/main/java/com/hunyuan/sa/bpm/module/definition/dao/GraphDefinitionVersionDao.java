@@ -31,4 +31,7 @@ public interface GraphDefinitionVersionDao extends BaseMapper<GraphDefinitionVer
             + "WHERE lifecycle_state='ACTIVE' "
             + "ORDER BY process_name_snapshot ASC, definition_version DESC, graph_definition_version_id DESC")
     List<GraphDefinitionVersionEntity> selectActiveStartableList();
+
+    @Select("SELECT * FROM t_bpm_graph_definition_version WHERE graph_definition_version_id=#{id} FOR UPDATE")
+    GraphDefinitionVersionEntity selectByIdForUpdate(@Param("id") Long id);
 }
