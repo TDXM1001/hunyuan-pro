@@ -27,13 +27,6 @@ const columnsFactory = (): ColumnOption<BpmStartableDefinitionRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
   { prop: 'definitionName', label: '流程名称', minWidth: 180 },
   { prop: 'definitionKey', label: '流程编码', minWidth: 160 },
-  {
-    prop: 'definitionSource',
-    label: '来源',
-    width: 100,
-    align: 'center',
-    formatter: (row) => row.definitionSource === 'GRAPH' ? 'Graph' : '旧定义',
-  },
   { prop: 'definitionVersion', label: '版本', width: 90, align: 'center' },
   {
     prop: 'categoryNameSnapshot',
@@ -69,13 +62,9 @@ async function loadData() {
 }
 
 function handleStart(row: BpmStartableDefinitionRecord) {
-  const query = row.definitionSource === 'GRAPH'
-    ? row.graphDefinitionVersionId
-      ? { graphDefinitionVersionId: String(row.graphDefinitionVersionId) }
-      : undefined
-    : row.definitionId
-      ? { definitionId: String(row.definitionId) }
-      : undefined;
+  const query = row.graphDefinitionVersionId
+    ? { graphDefinitionVersionId: String(row.graphDefinitionVersionId) }
+    : undefined;
   if (!query) {
     ElMessage.warning('流程定义版本无效，请刷新后重试');
     return;

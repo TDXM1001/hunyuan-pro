@@ -307,8 +307,7 @@ export interface BpmTaskDetailRecord extends BpmTaskRecord {
 
 export interface BpmStartableDefinitionRecord {
   categoryNameSnapshot?: null | string;
-  definitionId?: null | number;
-  definitionSource?: 'GRAPH' | 'LEGACY';
+  definitionSource: 'GRAPH';
   definitionKey: string;
   definitionName: string;
   definitionVersion: number;
@@ -317,8 +316,7 @@ export interface BpmStartableDefinitionRecord {
 }
 
 export interface BpmRuntimeStartDraftRecord {
-  definitionId?: null | number;
-  definitionSource?: 'GRAPH' | 'LEGACY';
+  definitionSource: 'GRAPH';
   definitionName: string;
   formDataJson: string;
   formDataVersion?: null | number;
@@ -359,7 +357,6 @@ export interface BpmInstanceStartForm {
   businessId?: null | number;
   businessKey?: null | string;
   businessType?: null | string;
-  definitionId?: null | number;
   formDataJson: string;
   graphDefinitionVersionId?: null | number;
   summary?: null | string;
@@ -486,12 +483,6 @@ export async function getBpmTaskDetail(taskId: number) {
 
 export async function queryBpmStartableDefinitions() {
   return requestClient.get<BpmStartableDefinitionRecord[]>('/app/bpm/startable');
-}
-
-export async function getBpmStartDraft(definitionId: number) {
-  return requestClient.get<BpmRuntimeStartDraftRecord>(
-    `/app/bpm/start-draft/${definitionId}`,
-  );
 }
 
 export async function getBpmGraphStartDraft(graphDefinitionVersionId: number) {

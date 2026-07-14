@@ -1,12 +1,26 @@
 import { requestClient } from '#/api/request';
+import type { PageResult } from '#/api/system/organization';
 import type { ProcessDefinitionGraph } from '#/components/bpm/graph/graph-process-model';
 
 export interface BpmGraphDraftRecord {
+  categoryId?: number;
   draftId: number;
+  draftStatus?: string;
   graphJson: string;
   layoutJson: string;
+  processKey?: string;
+  processName?: string;
   revision: number;
   semanticHash: string;
+  updateTime?: string;
+}
+
+export interface BpmGraphDraftPageQueryParams {
+  categoryId?: number;
+  pageNum: number;
+  pageSize: number;
+  processKey?: string;
+  processName?: string;
 }
 
 export interface CreateBpmGraphDraftParams {
@@ -47,6 +61,10 @@ export interface BpmGraphDefinitionDetailRecord {
 
 export function createBpmGraphDraft(params: CreateBpmGraphDraftParams) {
   return requestClient.post<BpmGraphDraftRecord>('/bpm/graph-draft/create', params);
+}
+
+export function queryBpmGraphDraftPage(params: BpmGraphDraftPageQueryParams) {
+  return requestClient.post<PageResult<BpmGraphDraftRecord>>('/bpm/graph-draft/query', params);
 }
 
 export function getBpmGraphDraft(draftId: number) {
