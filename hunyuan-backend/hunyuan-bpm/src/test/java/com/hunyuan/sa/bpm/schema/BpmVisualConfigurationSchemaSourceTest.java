@@ -26,5 +26,7 @@ class BpmVisualConfigurationSchemaSourceTest {
                 "审批规则", "information_schema.columns", "ON DUPLICATE KEY UPDATE",
                 "WHERE NOT EXISTS"
         );
+        assertThat(sql).contains("SELECT 1, menu.menu_id", "existing.role_id=1");
+        assertThat(sql).doesNotContain("SELECT role_id, menu.menu_id");
     }
 }

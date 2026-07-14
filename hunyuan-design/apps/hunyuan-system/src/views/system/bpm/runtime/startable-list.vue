@@ -55,7 +55,9 @@ const { columns, columnChecks } = useTableColumns(columnsFactory);
 async function loadData() {
   loading.value = true;
   try {
-    rows.value = await queryBpmStartableDefinitions();
+    rows.value = (await queryBpmStartableDefinitions()).filter(
+      (item) => item.definitionSource === 'GRAPH',
+    );
   } finally {
     loading.value = false;
   }

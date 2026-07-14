@@ -7,6 +7,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.vo.BpmBusinessObjectDetailVO;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.vo.BpmBusinessObjectSummaryVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyBusinessDetailVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyCatalogSummaryVO;
+import java.util.Arrays;
 
 class PolicyCatalogControllerContractTest {
 
@@ -51,5 +56,18 @@ class PolicyCatalogControllerContractTest {
                 "bpm:policy-catalog:technical",
                 "bpm:policy-catalog:delete"
         );
+    }
+
+    @Test
+    void businessResponseTypesMustNotDeclareTechnicalPayloadOrDigest() {
+        for (Class<?> type : java.util.List.of(
+                BpmPolicyBusinessDetailVO.class, BpmPolicyCatalogSummaryVO.class,
+                BpmBusinessObjectDetailVO.class, BpmBusinessObjectSummaryVO.class
+        )) {
+            String components = Arrays.stream(type.getRecordComponents())
+                    .map(component -> component.getName().toLowerCase())
+                    .reduce("", (left, right) -> left + "," + right);
+            assertThat(components).doesNotContain("canonical", "digest", "payload");
+        }
     }
 }
