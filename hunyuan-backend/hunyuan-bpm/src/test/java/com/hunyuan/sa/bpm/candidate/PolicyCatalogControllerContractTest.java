@@ -36,6 +36,10 @@ class PolicyCatalogControllerContractTest {
         assertThat(source).contains("BpmCurrentActorProvider");
         assertThat(source).contains(
                 "/bpm/policy-catalog/visual-draft/save",
+                "/bpm/policy-catalog/visual-draft/create",
+                "/bpm/policy-catalog/visual-draft/validate",
+                "/bpm/policy-catalog/simulate",
+                "/bpm/policy-catalog/identity-options",
                 "/bpm/policy-catalog/technical-detail/{type}/{policyKey}/{policyVersion}",
                 "/bpm/policy-catalog/technical-diff",
                 "/bpm/policy-catalog/technical-export/{type}/{policyKey}/{policyVersion}",

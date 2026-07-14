@@ -14,6 +14,9 @@ describe('M2 policy catalog graph binding contract', () => {
 
     expect(apiSource).toContain('/bpm/policy-catalog/list');
     expect(apiSource).toContain('queryBpmPolicyCatalog');
+    expect(apiSource).toContain('businessSummary');
+    expect(apiSource).toContain('saveBpmPolicyVisualDraft');
+    expect(apiSource).not.toContain('interface BpmPolicyCatalogRecord {\n  canonicalPayload');
     expect(designerSource).toContain('candidatePolicies');
     expect(designerSource).toContain('approvalPolicies');
     expect(designerSource).toContain('startVisibilityPolicies');

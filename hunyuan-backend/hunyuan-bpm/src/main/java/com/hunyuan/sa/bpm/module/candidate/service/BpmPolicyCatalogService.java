@@ -19,6 +19,7 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyValidationResult;
 import com.hunyuan.sa.bpm.module.candidate.domain.visual.BpmPolicyVisualDraft;
 import com.hunyuan.sa.bpm.module.candidate.domain.visual.PolicyVisualCompilation;
+import com.hunyuan.sa.bpm.module.candidate.domain.visual.PolicyBusinessValidationResult;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyBusinessDetailVO;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyTechnicalDetailVO;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyTechnicalDiffVO;
@@ -221,8 +222,23 @@ public class BpmPolicyCatalogService {
         return new BpmPolicyBusinessDetailVO(
                 reference, "DRAFT", 2, expectedRevision + 1,
                 draft.policyName(), draft.description(), compiled.businessSummary(),
-                compiled.calculatedRiskLevel(), draft, compiled.findings()
+                compiled.calculatedRiskLevel(), 0L, draft, compiled.findings()
         );
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public BpmPolicyBusinessDetailVO createVisualDraft(BpmPolicyVisualDraft draft, long actorEmployeeId) {
+        PolicyVisualCompilation compiled = visualDocumentMapper.compile(draft);
+        if (!compiled.valid()) throw new IllegalArgumentException(compiled.findings().get(0).message());
+        PolicyCatalogVersion created = createDraft(new PolicyDraftCommand(
+                draft.type(), draft.policyKey(), 2, compiled.canonicalPayload(), actorEmployeeId));
+        return saveVisualDraft(created.reference(), 0L, draft, actorEmployeeId);
+    }
+
+    public PolicyBusinessValidationResult validateVisualDraft(BpmPolicyVisualDraft draft) {
+        PolicyVisualCompilation compiled = visualDocumentMapper.compile(draft);
+        return new PolicyBusinessValidationResult(compiled.valid(), compiled.calculatedRiskLevel(),
+                compiled.businessSummary(), compiled.findings(), compiled.canonicalPayload(), compiled.digest());
     }
 
     public BpmPolicyTechnicalDetailVO technicalDetail(PolicyReference reference) {
@@ -340,28 +356,56 @@ public class BpmPolicyCatalogService {
     public List<BpmPolicyCatalogSummaryVO> listBusiness(
             PolicyType type, String policyKey, String lifecycleState
     ) {
-        return list(type, policyKey, lifecycleState).stream().map(version -> {
-            long referenceCount = definitionReferenceQueryService == null ? 0
-                    : definitionReferenceQueryService.findPolicyReferences(version.reference()).size();
-            return new BpmPolicyCatalogSummaryVO(
-                    version.reference(), version.reference().policyKey(), null, version.lifecycleState(),
-                    version.schemaVersion(), version.catalogRevision(),
-                    version.schemaVersion() != null && version.schemaVersion() == 2
-                            ? "可视化规则详情" : "旧版规则，复制升级后可进行可视化编辑。",
-                    "UNKNOWN", referenceCount
-            );
-        }).toList();
+        if (type == null) throw new IllegalArgumentException("策略类型不能为空");
+        String key = StringUtils.trimToNull(policyKey); String state = normalizeLifecycleState(lifecycleState);
+        return switch (type) {
+            case CANDIDATE -> candidatePolicyVersionDao.selectList(new LambdaQueryWrapper<BpmCandidatePolicyVersionEntity>()
+                    .eq(key != null, BpmCandidatePolicyVersionEntity::getPolicyKey, key)
+                    .eq(state != null, BpmCandidatePolicyVersionEntity::getLifecycleState, state)
+                    .orderByAsc(BpmCandidatePolicyVersionEntity::getPolicyKey).orderByDesc(BpmCandidatePolicyVersionEntity::getPolicyVersion))
+                    .stream().map(entity -> businessSummary(new PolicyReference(type, entity.getPolicyKey(), entity.getPolicyVersion()), candidateRecord(entity))).toList();
+            case APPROVAL -> approvalPolicyVersionDao.selectList(new LambdaQueryWrapper<BpmApprovalPolicyVersionEntity>()
+                    .eq(key != null, BpmApprovalPolicyVersionEntity::getPolicyKey, key)
+                    .eq(state != null, BpmApprovalPolicyVersionEntity::getLifecycleState, state)
+                    .orderByAsc(BpmApprovalPolicyVersionEntity::getPolicyKey).orderByDesc(BpmApprovalPolicyVersionEntity::getPolicyVersion))
+                    .stream().map(entity -> businessSummary(new PolicyReference(type, entity.getPolicyKey(), entity.getPolicyVersion()), approvalRecord(entity))).toList();
+            case START_VISIBILITY -> startVisibilityPolicyVersionDao.selectList(new LambdaQueryWrapper<BpmStartVisibilityPolicyVersionEntity>()
+                    .eq(key != null, BpmStartVisibilityPolicyVersionEntity::getPolicyKey, key)
+                    .eq(state != null, BpmStartVisibilityPolicyVersionEntity::getLifecycleState, state)
+                    .orderByAsc(BpmStartVisibilityPolicyVersionEntity::getPolicyKey).orderByDesc(BpmStartVisibilityPolicyVersionEntity::getPolicyVersion))
+                    .stream().map(entity -> businessSummary(new PolicyReference(type, entity.getPolicyKey(), entity.getPolicyVersion()), startVisibilityRecord(entity))).toList();
+        };
     }
 
     public BpmPolicyBusinessDetailVO getBusinessDetail(PolicyReference reference) {
-        PolicyCatalogVersion version = get(reference);
+        CatalogRecord record = requireRecord(reference);
+        int schemaVersion = record.schemaVersion() == null ? 1 : record.schemaVersion();
+        long revision = normalizeRevision(record.catalogRevision());
+        String name = StringUtils.defaultIfBlank(record.policyName(), reference.policyKey());
         return new BpmPolicyBusinessDetailVO(
-                reference, version.lifecycleState(), version.schemaVersion(), version.catalogRevision(),
-                reference.policyKey(), null,
-                version.schemaVersion() != null && version.schemaVersion() == 2
-                        ? "可视化规则详情" : "旧版规则，复制升级后可进行可视化编辑。",
-                "UNKNOWN", null, List.of()
+                reference, record.lifecycleState(), schemaVersion, revision, name, record.description(),
+                businessSummaryText(record, schemaVersion),
+                StringUtils.defaultIfBlank(record.calculatedRiskLevel(), "UNKNOWN"),
+                definitionReferenceQueryService == null ? 0L : definitionReferenceQueryService.findPolicyReferences(reference).size(),
+                visualDocumentMapper.restore(reference.type(), reference.policyKey(), name, record.description(),
+                        schemaVersion, revision, record.policyJson()), List.of()
         );
+    }
+
+    private BpmPolicyCatalogSummaryVO businessSummary(PolicyReference reference, CatalogRecord record) {
+        int schema = record.schemaVersion() == null ? 1 : record.schemaVersion();
+        long count = definitionReferenceQueryService == null ? 0
+                : definitionReferenceQueryService.findPolicyReferences(reference).size();
+        return new BpmPolicyCatalogSummaryVO(reference,
+                StringUtils.defaultIfBlank(record.policyName(), reference.policyKey()), record.description(),
+                record.lifecycleState(), schema, normalizeRevision(record.catalogRevision()),
+                businessSummaryText(record, schema),
+                StringUtils.defaultIfBlank(record.calculatedRiskLevel(), "UNKNOWN"), count);
+    }
+
+    private String businessSummaryText(CatalogRecord record, int schemaVersion) {
+        return StringUtils.defaultIfBlank(record.businessSummary(), schemaVersion == 2
+                ? "规则摘要待重新校验。" : "旧版规则，复制升级后可进行可视化编辑。");
     }
 
     public PolicyCatalogVersion get(PolicyReference reference) {

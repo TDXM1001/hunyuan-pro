@@ -155,6 +155,25 @@ public class AdminBpmPolicyCatalogController {
         ));
     }
 
+    @Operation(summary = "新建可视化规则草稿")
+    @PostMapping("/bpm/policy-catalog/visual-draft/create")
+    @SaCheckPermission("bpm:policy-catalog:save")
+    public ResponseDTO<BpmPolicyBusinessDetailVO> createVisualDraft(
+            @RequestBody @Valid BpmPolicyVisualDraftForm form
+    ) {
+        return ResponseDTO.ok(bpmPolicyCatalogService.createVisualDraft(
+                form.toVisualDraft(), bpmCurrentActorProvider.requireCurrentEmployeeId()));
+    }
+
+    @Operation(summary = "校验可视化规则草稿")
+    @PostMapping("/bpm/policy-catalog/visual-draft/validate")
+    @SaCheckPermission("bpm:policy-catalog:save")
+    public ResponseDTO<com.hunyuan.sa.bpm.module.candidate.domain.visual.PolicyBusinessValidationResult> validateVisualDraft(
+            @RequestBody @Valid BpmPolicyVisualDraftForm form
+    ) {
+        return ResponseDTO.ok(bpmPolicyCatalogService.validateVisualDraft(form.toVisualDraft()));
+    }
+
     @Operation(summary = "读取只读技术协议")
     @GetMapping("/bpm/policy-catalog/technical-detail/{type}/{policyKey}/{policyVersion}")
     @SaCheckPermission("bpm:policy-catalog:technical")
@@ -221,11 +240,12 @@ public class AdminBpmPolicyCatalogController {
             @RequestParam String kind,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long stableId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "20") Integer pageSize
     ) {
         return ResponseDTO.ok(identityOptionService.query(
-                kind, keyword, departmentId, pageNum, pageSize));
+                kind, keyword, departmentId, stableId, pageNum, pageSize));
     }
 
     private PolicyReference reference(BpmPolicyCatalogReferenceForm form) {

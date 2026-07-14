@@ -1,5 +1,7 @@
 package com.hunyuan.sa.admin.module.system.employee.dao;
 
+import com.hunyuan.sa.bpm.api.identity.BpmIdentityOptionSnapshot;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -33,4 +35,14 @@ public interface OrganizationRelationDao {
               AND disabled_flag = 0
             """)
     Long selectActiveManagerEmployeeId(@Param("employeeId") Long employeeId);
+
+    @Select("""
+            SELECT 'USER_GROUP' kind, user_group_id stableId, group_name displayName,
+                   NULL departmentId, NULL departmentName, disabled_flag disabled
+            FROM t_user_group
+            WHERE deleted_flag = 0
+              AND (#{keyword} IS NULL OR #{keyword} = '' OR group_name LIKE CONCAT('%', #{keyword}, '%'))
+            ORDER BY group_name, user_group_id
+            """)
+    List<BpmIdentityOptionSnapshot> queryUserGroupOptions(@Param("keyword") String keyword);
 }

@@ -21,6 +21,10 @@ public class BpmPolicyIdentityOptionService {
 
     public BpmIdentityOptionPageVO query(
             String kind, String keyword, Long departmentId, int pageNum, int pageSize
+    ) { return query(kind, keyword, departmentId, null, pageNum, pageSize); }
+
+    public BpmIdentityOptionPageVO query(
+            String kind, String keyword, Long departmentId, Long stableId, int pageNum, int pageSize
     ) {
         String normalizedKind = kind == null ? "" : kind.trim().toUpperCase();
         if (!KINDS.contains(normalizedKind)) {
@@ -29,7 +33,10 @@ public class BpmPolicyIdentityOptionService {
         if (pageNum < 1 || pageSize < 1 || pageSize > 100) {
             throw new IllegalArgumentException("分页参数不合法");
         }
-        var options = identityGateway.queryIdentityOptions(normalizedKind, keyword, departmentId);
+        var exact = stableId == null ? null : identityGateway.findIdentityOption(normalizedKind, stableId);
+        var options = exact == null
+                ? identityGateway.queryIdentityOptions(normalizedKind, keyword, departmentId)
+                : java.util.List.of(exact);
         int from = Math.min((pageNum - 1) * pageSize, options.size());
         int to = Math.min(from + pageSize, options.size());
         var items = options.subList(from, to).stream().map(option -> new BpmIdentityOptionVO(

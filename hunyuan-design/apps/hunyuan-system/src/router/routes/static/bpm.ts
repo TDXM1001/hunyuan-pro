@@ -33,6 +33,18 @@ const routes: RouteRecordRaw[] = [
         name: 'SystemBpmModelDesignerRoute',
         path: '/system/bpm/model/designer',
       },
+      {
+        component: () => import('#/views/system/bpm/policy/policy-editor.vue'),
+        meta: { activePath: '/system/bpm/policy/policy-catalog', hideInMenu: true, title: '编辑审批规则' },
+        name: 'SystemBpmPolicyEditorRoute',
+        path: '/system/bpm/policy/editor',
+      },
+      {
+        component: () => import('#/views/system/bpm/policy/policy-detail.vue'),
+        meta: { activePath: '/system/bpm/policy/policy-catalog', hideInMenu: true, title: '审批规则详情' },
+        name: 'SystemBpmPolicyDetailRoute',
+        path: '/system/bpm/policy/detail',
+      },
     ],
   },
   {

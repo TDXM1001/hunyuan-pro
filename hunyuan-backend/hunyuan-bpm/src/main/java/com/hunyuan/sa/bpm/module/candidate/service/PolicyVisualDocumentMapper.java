@@ -1,6 +1,8 @@
 package com.hunyuan.sa.bpm.module.candidate.service;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
 import com.hunyuan.sa.bpm.module.candidate.domain.visual.ApprovalPolicyVisualDocument;
 import com.hunyuan.sa.bpm.module.candidate.domain.visual.BpmPolicyVisualDraft;
@@ -70,6 +72,89 @@ public class PolicyVisualDocumentMapper {
                 risk.level(),
                 List.copyOf(findings)
         );
+    }
+
+    public BpmPolicyVisualDraft restore(
+            PolicyType type, String policyKey, String policyName, String description,
+            int schemaVersion, long catalogRevision, String canonicalPayload
+    ) {
+        if (schemaVersion != 2) {
+            return null;
+        }
+        JSONObject document = JSON.parseObject(canonicalPayload);
+        return switch (type) {
+            case CANDIDATE -> new BpmPolicyVisualDraft(type, policyKey, policyName, description, 2,
+                    catalogRevision, restoreCandidate(document), null, null);
+            case APPROVAL -> new BpmPolicyVisualDraft(type, policyKey, policyName, description, 2,
+                    catalogRevision, null, new ApprovalPolicyVisualDocument(
+                    document.getString("completionMode"), document.getInteger("ratioPercent"),
+                    document.getString("rejectionRule"), document.getString("returnRule"),
+                    document.getJSONArray("allowedActions") == null ? List.of()
+                            : document.getJSONArray("allowedActions").toJavaList(String.class)
+            ), null);
+            case START_VISIBILITY -> new BpmPolicyVisualDraft(type, policyKey, policyName, description, 2,
+                    catalogRevision, null, null, new StartVisibilityPolicyVisualDocument(
+                    restoreScope(document.getJSONObject("startScope")),
+                    restoreScope(document.getJSONObject("visibilityScope"))
+            ));
+        };
+    }
+
+    private CandidatePolicyVisualDocument restoreCandidate(JSONObject document) {
+        String resolverType = document.getString("resolverType");
+        JSONObject parameters = document.getJSONObject("resolverParameters");
+        return new CandidatePolicyVisualDocument(
+                resolverType, restoreResolverIdentity(resolverType, parameters),
+                document.getString("resolutionPhase"), document.getString("memberOrder"),
+                document.getString("emptyCandidatePolicy"), document.getString("selfApprovalPolicy"),
+                restoreIdentity(document.getJSONObject("fallbackIdentityReference")), null
+        );
+    }
+
+    private PolicyIdentityReference restoreResolverIdentity(String type, JSONObject parameters) {
+        if (parameters == null) return null;
+        return switch (type == null ? "" : type) {
+            case "ROLE" -> identity("ROLE", parameters.getLong("roleId"));
+            case "EMPLOYEE" -> {
+                JSONArray ids = parameters.getJSONArray("employeeIds");
+                yield identity("EMPLOYEE", ids == null || ids.isEmpty() ? null : ids.getLong(0));
+            }
+            case "DEPARTMENT_MANAGER" -> identity("DEPARTMENT", parameters.getLong("departmentId"));
+            case "POST" -> identity("POST", parameters.getLong("positionId"));
+            case "USER_GROUP" -> identity("USER_GROUP", parameters.getLong("userGroupId"));
+            case "ROUTING_FACT_EMPLOYEE" -> new PolicyIdentityReference(type, null, "流程字段中的员工", parameters.getString("factKey"));
+            case "START_EMPLOYEE" -> new PolicyIdentityReference(type, null, "发起人", null);
+            case "START_DEPARTMENT_MANAGER" -> new PolicyIdentityReference(type, null, "发起人部门负责人", null);
+            default -> null;
+        };
+    }
+
+    private PolicyIdentityReference identity(String kind, Long id) {
+        return id == null ? null : new PolicyIdentityReference(kind, id, null, null);
+    }
+
+    private PolicyIdentityReference restoreIdentity(JSONObject source) {
+        return source == null ? null : new PolicyIdentityReference(
+                source.getString("kind"), source.getLong("stableId"), null, source.getString("factKey"));
+    }
+
+    private PolicyScopeVisualDocument restoreScope(JSONObject source) {
+        if (source == null) return null;
+        String type = source.getString("type");
+        String idField = switch (type == null ? "" : type) {
+            case "EMPLOYEE_IDS" -> "employeeIds"; case "ROLE_IDS" -> "roleIds";
+            case "DEPARTMENT_IDS" -> "departmentIds"; default -> null;
+        };
+        String kind = switch (type == null ? "" : type) {
+            case "EMPLOYEE_IDS" -> "EMPLOYEE"; case "ROLE_IDS" -> "ROLE";
+            case "DEPARTMENT_IDS" -> "DEPARTMENT"; default -> null;
+        };
+        List<PolicyIdentityReference> identities = idField == null || source.getJSONArray(idField) == null
+                ? List.of() : source.getJSONArray(idField).stream()
+                .map(value -> identity(kind, ((Number) value).longValue())).toList();
+        List<PolicyScopeVisualDocument> scopes = source.getJSONArray("scopes") == null ? List.of()
+                : source.getJSONArray("scopes").stream().map(value -> restoreScope((JSONObject) value)).toList();
+        return new PolicyScopeVisualDocument(type, identities, scopes);
     }
 
     private void requireDraft(BpmPolicyVisualDraft draft) {

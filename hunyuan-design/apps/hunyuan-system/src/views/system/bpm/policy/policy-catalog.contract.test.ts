@@ -4,19 +4,29 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('M2 policy catalog management page contract', () => {
-  it('manages immutable policy versions through the catalog API', () => {
+  it('navigates to visual pages without exposing JSON editors', () => {
     const source = readFileSync(resolve(
       process.cwd(),
       'apps/hunyuan-system/src/views/system/bpm/policy/policy-catalog.vue',
     ), 'utf8');
 
     expect(source).toContain('queryBpmPolicyCatalog');
-    expect(source).toContain('validateBpmPolicyDraft');
-    expect(source).toContain('createBpmPolicyDraft');
     expect(source).toContain('copyBpmPolicyAsDraft');
-    expect(source).toContain('activateBpmPolicyVersion');
     expect(source).toContain('retireBpmPolicyVersion');
-    expect(source).toContain('已启用版本只可复制为新草稿');
+    expect(source).toContain('/system/bpm/policy/editor');
+    expect(source).toContain('/system/bpm/policy/detail');
+    expect(source).toContain('继续编辑');
+    expect(source).not.toContain('policyJson');
+    expect(source).not.toContain('策略 JSON');
+  });
+
+  it('registers visual permissions in the latest incremental SQL', () => {
+    const sql = readFileSync(resolve(process.cwd(), '../数据库SQL脚本/mysql/sql-update-log/v3.62.0.sql'), 'utf8');
+    expect(sql).toContain("'审批规则'");
+    expect(sql).toContain("'bpm:policy-catalog:save'");
+    expect(sql).toContain("'bpm:policy-catalog:simulate'");
+    expect(sql).toContain("'bpm:policy-catalog:technical'");
+    expect(sql).toContain("'bpm:policy-catalog:delete'");
   });
 
   it('registers the catalog page and every server permission through the M2 incremental SQL', () => {

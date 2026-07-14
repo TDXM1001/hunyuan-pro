@@ -33,6 +33,12 @@ public interface BpmOrgIdentityGateway {
         return List.of();
     }
 
+    default BpmIdentityOptionSnapshot findIdentityOption(String kind, Long stableId) {
+        if (stableId == null) return null;
+        return queryIdentityOptions(kind, null, null).stream()
+                .filter(option -> stableId.equals(option.stableId())).findFirst().orElse(null);
+    }
+
     /**
      * 解析组织域登记的用户组有效成员。
      */

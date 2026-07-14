@@ -9,6 +9,6 @@ import java.util.List;
 public record BpmPolicyBusinessDetailVO(
         PolicyReference reference, String lifecycleState, Integer schemaVersion, Long catalogRevision,
         String policyName, String description, String businessSummary, String calculatedRiskLevel,
-        BpmPolicyVisualDraft configuration, List<PolicyValidationFinding> findings
+        long referenceCount, BpmPolicyVisualDraft configuration, List<PolicyValidationFinding> findings
 ) {
 }

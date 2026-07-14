@@ -7,6 +7,7 @@ import com.hunyuan.sa.admin.module.system.employee.dao.OrganizationRelationDao;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
 import com.hunyuan.sa.admin.module.system.role.service.RoleService;
+import com.hunyuan.sa.admin.module.system.position.service.PositionService;
 import com.hunyuan.sa.bpm.api.identity.BpmIdentityOptionSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
@@ -32,19 +33,22 @@ public class AdminBpmOrgIdentityGateway implements BpmOrgIdentityGateway {
 
     private final OrganizationRelationDao organizationRelationDao;
     private final RoleService roleService;
+    private final PositionService positionService;
 
     public AdminBpmOrgIdentityGateway(
             EmployeeService employeeService,
             DepartmentService departmentService,
             RoleEmployeeService roleEmployeeService,
             OrganizationRelationDao organizationRelationDao,
-            RoleService roleService
+            RoleService roleService,
+            PositionService positionService
     ) {
         this.employeeService = employeeService;
         this.departmentService = departmentService;
         this.roleEmployeeService = roleEmployeeService;
         this.organizationRelationDao = organizationRelationDao;
         this.roleService = roleService;
+        this.positionService = positionService;
     }
 
     @Override
@@ -125,6 +129,26 @@ public class AdminBpmOrgIdentityGateway implements BpmOrgIdentityGateway {
                     .map(role -> new BpmIdentityOptionSnapshot(
                             "ROLE", role.getRoleId(), role.getRoleName(), null, null, false
                     )).toList();
+        }
+        if ("DEPARTMENT".equals(kind)) {
+            return departmentService.listAll().stream()
+                    .filter(department -> normalizedKeyword.isEmpty()
+                            || text(department.getDepartmentName()).contains(normalizedKeyword))
+                    .map(department -> new BpmIdentityOptionSnapshot(
+                            "DEPARTMENT", department.getDepartmentId(), department.getDepartmentName(),
+                            department.getDepartmentId(), department.getDepartmentName(), false
+                    )).toList();
+        }
+        if ("POST".equals(kind)) {
+            return positionService.queryList().stream()
+                    .filter(position -> normalizedKeyword.isEmpty()
+                            || text(position.getPositionName()).contains(normalizedKeyword))
+                    .map(position -> new BpmIdentityOptionSnapshot(
+                            "POST", position.getPositionId(), position.getPositionName(), null, null, false
+                    )).toList();
+        }
+        if ("USER_GROUP".equals(kind)) {
+            return organizationRelationDao.queryUserGroupOptions(keyword == null ? null : keyword.trim());
         }
         return List.of();
     }
