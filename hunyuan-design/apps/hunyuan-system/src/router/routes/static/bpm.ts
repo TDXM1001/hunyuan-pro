@@ -45,6 +45,18 @@ const routes: RouteRecordRaw[] = [
         name: 'SystemBpmPolicyDetailRoute',
         path: '/system/bpm/policy/detail',
       },
+      {
+        component: () => import('#/views/system/bpm/business-contract/business-object-editor.vue'),
+        meta: { activePath: '/system/bpm/business-contract/business-contract-catalog', hideInMenu: true, title: '编辑业务对象' },
+        name: 'SystemBpmBusinessObjectEditorRoute',
+        path: '/system/bpm/business-contract/editor',
+      },
+      {
+        component: () => import('#/views/system/bpm/business-contract/business-object-detail.vue'),
+        meta: { activePath: '/system/bpm/business-contract/business-contract-catalog', hideInMenu: true, title: '业务对象详情' },
+        name: 'SystemBpmBusinessObjectDetailRoute',
+        path: '/system/bpm/business-contract/detail',
+      },
     ],
   },
   {
