@@ -127,11 +127,12 @@ parallelAll：parallelGateway split -> N 个 userTask -> parallelGateway join
 
 - 当前总体设计与 M1-M8 任务基线：`docs/superpowers/specs/2026-07-11-bpm-enterprise-blueprint.md`
 - 当前差距基线：`docs/superpowers/specs/2026-07-11-bpm-enterprise-gap-baseline.md`
+- 当前平台总验收与发布基线：`docs/superpowers/specs/2026-07-14-bpm-m1-m8-platform-release-baseline.md`
 - 模块设计：`2026-07-11-bpm-module-01-modeling-compiler-design.md`、`02-assignment-approval-strategy-design.md`、`03-approval-data-governance-design.md`、`04-core-runtime-workbench-design.md`、`05-advanced-runtime-design.md`、`06-configurable-business-integration-design.md`、`07-operations-governance-design.md`、`08-definition-evolution-migration-design.md`
 
-M1“流程定义中心”、M2“身份组织与审批策略”、M3“审批对象与数据治理”、M4“核心审批运行与工作台”、M5“高级流程运行”和 M6“配置化业务接入”均已关闭。M6 当前为 `RELEASABLE`，版本化控制面、固定开放协议、应用与员工双重授权、类型化流程绑定、可靠事件订阅、实库迁移和响应式管理工作台均已验收，详见 `docs/superpowers/specs/2026-07-13-bpm-m6-configurable-business-integration-acceptance.md`；下一模块为 M7“运营治理”。
+M1“流程定义中心”、M2“身份组织与审批策略”、M3“审批对象与数据治理”、M4“核心审批运行与工作台”、M5“高级流程运行”、M6“配置化业务接入”、M7“运营与治理”和 M8“迁移与演进”均已完成实现、模块验收并关闭。2026-07-14 已在同一功能基线 `3293f469d987a465a8b868b290fcc037b57e3c17` 上完成平台级自动化、真实 Flowable/MySQL、认证登录和八模块页面矩阵总验收，发布基线 `BPM-M1-M8-R1` 状态为 `RELEASABLE`。
 
-M2“身份组织与审批策略”已关闭：策略目录、五种审批模式、自动终态、完整组织来源、高风险独立确认、受控转办、`INELIGIBLE` 恢复、幂等并发、重启恢复、跨节点连续审批、退回发起人和浏览器详情均形成真实证据，当前状态为 `RELEASABLE`，详见 `docs/superpowers/specs/2026-07-13-bpm-m2-assignment-approval-strategy-acceptance.md`。
+当前 M1-M8 路线已封版，不再存在“下一模块”。后续功能、契约、迁移、安全边界或模块语义变化必须建立新的版本化设计与发布基线，不得覆盖本轮历史验收事实。
 
 ## 平台能力边界
 
