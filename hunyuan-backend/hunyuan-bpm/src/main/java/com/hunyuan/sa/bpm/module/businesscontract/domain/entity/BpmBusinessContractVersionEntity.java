@@ -30,6 +30,9 @@ public class BpmBusinessContractVersionEntity {
     private String contractJson;
 
     private String contractDigest;
+    private String objectName;
+    private String description;
+    private String businessSummary;
 
     private Long catalogRevision;
 

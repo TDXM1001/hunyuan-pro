@@ -62,4 +62,20 @@ public interface BpmBusinessContractVersionDao extends BaseMapper<BpmBusinessCon
             @Param("actorEmployeeId") Long actorEmployeeId,
             @Param("actionAt") LocalDateTime actionAt
     );
+
+    @Update("""
+            UPDATE t_bpm_business_contract_version
+            SET object_name=#{objectName}, description=#{description}, business_summary=#{businessSummary},
+                contract_json=#{canonicalPayload}, contract_digest=#{digest},
+                catalog_revision=catalog_revision+1, update_time=now()
+            WHERE contract_key=#{contractKey} AND contract_version=#{contractVersion}
+              AND lifecycle_state='DRAFT' AND catalog_revision=#{expectedRevision}
+            """)
+    int saveVisualDraft(@Param("contractKey") String contractKey,@Param("contractVersion") Integer contractVersion,
+                        @Param("expectedRevision") Long expectedRevision,@Param("objectName") String objectName,
+                        @Param("description") String description,@Param("businessSummary") String businessSummary,
+                        @Param("canonicalPayload") String canonicalPayload,@Param("digest") String digest);
+
+    @Update("DELETE FROM t_bpm_business_contract_version WHERE contract_key=#{contractKey} AND contract_version=#{contractVersion} AND lifecycle_state='DRAFT' AND catalog_revision=#{expectedRevision}")
+    int deleteDraft(@Param("contractKey") String contractKey,@Param("contractVersion") Integer contractVersion,@Param("expectedRevision") Long expectedRevision);
 }

@@ -5,7 +5,10 @@ import com.hunyuan.sa.bpm.module.businesscontract.domain.entity.BpmBusinessContr
 import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractCatalogVersion;
 import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractDraftCommand;
 import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractLifecycleCommand;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.vo.BpmBusinessObjectTechnicalDiffVO;
 import com.hunyuan.sa.bpm.module.businesscontract.service.BpmBusinessContractCatalogService;
+import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionReferenceVO;
+import com.hunyuan.sa.bpm.module.definition.service.BpmDefinitionReferenceQueryService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
@@ -14,6 +17,7 @@ import org.mockito.Mockito;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class BpmBusinessContractCatalogServiceTest {
@@ -93,6 +97,79 @@ class BpmBusinessContractCatalogServiceTest {
         assertThatThrownBy(() -> service.validate(1, invalid))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("businessAmount");
+    }
+
+    @Test
+    void staleVisualDraftSaveShouldFailCatalogRevisionCas() {
+        BpmBusinessContractVersionDao dao = Mockito.mock(BpmBusinessContractVersionDao.class);
+        when(dao.saveVisualDraft(
+                ArgumentMatchers.eq("expense"), ArgumentMatchers.eq(2), ArgumentMatchers.eq(0L),
+                ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
+                ArgumentMatchers.anyString(), ArgumentMatchers.anyString()
+        )).thenReturn(0);
+        BpmBusinessContractCatalogService service = new BpmBusinessContractCatalogService(dao);
+
+        assertThatThrownBy(() -> service.saveVisualDraft(2, BusinessObjectFixtures.expense(), 1L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CATALOG_REVISION_CONFLICT");
+    }
+
+    @Test
+    void upgradeMustCreateNewV2DraftWithoutChangingV1() {
+        BpmBusinessContractVersionDao dao = Mockito.mock(BpmBusinessContractVersionDao.class);
+        BpmBusinessContractVersionEntity source = draftEntity();
+        String sourceJson = source.getContractJson();
+        source.setContractVersion(1);
+        source.setContractDigest("source-digest");
+        when(dao.selectOne(ArgumentMatchers.any())).thenReturn(source);
+        when(dao.selectMaxContractVersion("generic-application")).thenReturn(1);
+        when(dao.saveVisualDraft(
+                ArgumentMatchers.eq("generic-application"), ArgumentMatchers.eq(2), ArgumentMatchers.eq(0L),
+                ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
+                ArgumentMatchers.anyString(), ArgumentMatchers.anyString()
+        )).thenReturn(1);
+        BpmBusinessContractCatalogService service = new BpmBusinessContractCatalogService(dao);
+
+        var upgraded = service.upgradeV1AsV2Draft("generic-application", 1, 1L);
+
+        assertThat(upgraded.schemaVersion()).isEqualTo(2);
+        assertThat(upgraded.contractVersion()).isEqualTo(2);
+        assertThat(source.getContractJson()).isEqualTo(sourceJson);
+        assertThat(source.getContractDigest()).isEqualTo("source-digest");
+        verify(dao).insert(ArgumentMatchers.<BpmBusinessContractVersionEntity>argThat(
+                entity -> entity.getSchemaVersion() == 2));
+        verify(dao, never()).updateById(source);
+    }
+
+    @Test
+    void referencedDraftCannotBeDeletedAndTechnicalDiffIsReadOnly() {
+        BpmBusinessContractVersionDao dao = Mockito.mock(BpmBusinessContractVersionDao.class);
+        BpmDefinitionReferenceQueryService references = Mockito.mock(BpmDefinitionReferenceQueryService.class);
+        when(references.findBusinessContractReferences("expense", 2)).thenReturn(java.util.List.of(
+                new BpmDefinitionReferenceVO(9L, 7L, "DRAFT", "expense-flow", "费用审批", 1, "DRAFT")
+        ));
+        BpmBusinessContractCatalogService service = new BpmBusinessContractCatalogService(dao, references);
+
+        assertThatThrownBy(() -> service.deleteDraft("expense", 2, 0L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("草稿仍被 Graph 引用");
+
+        BpmBusinessContractVersionEntity left = v2Entity(1, "amount");
+        BpmBusinessContractVersionEntity right = v2Entity(2, "approvalNote");
+        when(dao.selectOne(ArgumentMatchers.any())).thenReturn(left, right);
+        BpmBusinessObjectTechnicalDiffVO diff = service.technicalDiff("expense", 1, 2);
+        assertThat(diff.changedFieldKeys()).containsExactly("amount", "approvalNote");
+        verify(dao, never()).updateById(ArgumentMatchers.<BpmBusinessContractVersionEntity>any());
+    }
+
+    private BpmBusinessContractVersionEntity v2Entity(int version, String fieldKey) {
+        BpmBusinessContractVersionEntity entity = new BpmBusinessContractVersionEntity();
+        entity.setContractKey("expense");
+        entity.setContractVersion(version);
+        entity.setSchemaVersion(2);
+        entity.setContractJson("{\"schemaVersion\":2,\"fieldSchema\":[{\"key\":\"" + fieldKey
+                + "\"}],\"routingFacts\":[],\"workingDataSchema\":[]}");
+        return entity;
     }
 
     private BpmBusinessContractVersionEntity draftEntity() {

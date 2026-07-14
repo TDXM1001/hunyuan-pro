@@ -12,13 +12,13 @@ import java.util.regex.PatternSyntaxException;
 
 final class BusinessContractDocumentValidator {
 
-    private static final Set<String> TYPES = Set.of("STRING", "DECIMAL", "INTEGER", "BOOLEAN", "EMPLOYEE_ID");
+    private static final Set<String> TYPES = Set.of("STRING", "DECIMAL", "INTEGER", "BOOLEAN", "DATE", "DATETIME", "EMPLOYEE_ID");
     private static final Set<String> SENSITIVITIES = Set.of("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED");
     private static final Set<String> CHANGE_MODES = Set.of("LOCKED", "VERSIONED", "RESTART_REQUIRED", "FIELD_CONTROLLED");
 
     void validate(Integer schemaVersion, String contractJson) {
-        if (!Integer.valueOf(1).equals(schemaVersion)) {
-            throw new IllegalArgumentException("当前只支持业务契约 schemaVersion=1");
+        if (!Set.of(1, 2).contains(schemaVersion)) {
+            throw new IllegalArgumentException("不支持的业务对象 Schema 版本：" + schemaVersion);
         }
         JSONObject document;
         try {
@@ -28,6 +28,9 @@ final class BusinessContractDocumentValidator {
         }
         if (document == null) {
             throw new IllegalArgumentException("业务契约 JSON 必须为对象");
+        }
+        if (schemaVersion == 2 && document.getIntValue("schemaVersion") != 2) {
+            throw new IllegalArgumentException("Schema v2 业务对象缺少 schemaVersion=2");
         }
         requireText(document.getString("sourceSystem"), "业务契约 sourceSystem 不能为空");
         requireText(document.getString("businessType"), "业务契约 businessType 不能为空");

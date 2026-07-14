@@ -34,6 +34,27 @@ public class BpmDefinitionReferenceQueryService {
         return java.util.stream.Stream.concat(published.stream(), drafts.stream()).toList();
     }
 
+    public List<BpmDefinitionReferenceVO> findBusinessContractReferences(String contractKey, int contractVersion) {
+        List<BpmDefinitionReferenceVO> published = graphDefinitionVersionDao.selectList(null).stream()
+                .filter(version -> containsContract(parse(version.getDependencyVersionsJson()), contractKey, contractVersion))
+                .map(this::toVO).toList();
+        List<BpmDefinitionReferenceVO> drafts = bpmProcessDraftDao.selectList(null).stream()
+                .filter(draft -> containsContract(parse(draft.getGraphJson()), contractKey, contractVersion))
+                .map(draft -> new BpmDefinitionReferenceVO(null, draft.getDraftId(), "DRAFT", draft.getProcessKey(),
+                        draft.getProcessName(), draft.getRevision(), draft.getDraftStatus())).toList();
+        return java.util.stream.Stream.concat(published.stream(), drafts.stream()).toList();
+    }
+
+    private boolean containsContract(Object value, String key, int version) {
+        if (value instanceof Map<?, ?> map) {
+            if (key.equals(String.valueOf(map.get("contractKey")))
+                    && String.valueOf(version).equals(String.valueOf(map.get("contractVersion")))) return true;
+            return map.values().stream().anyMatch(nested -> containsContract(nested, key, version));
+        }
+        return value instanceof Collection<?> collection
+                && collection.stream().anyMatch(nested -> containsContract(nested, key, version));
+    }
+
     private Object parse(String json) {
         return json == null || json.isBlank() ? Map.of() : JSON.parse(json);
     }

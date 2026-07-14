@@ -11,6 +11,12 @@ import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractD
 import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractLifecycleCommand;
 import com.hunyuan.sa.bpm.module.businesscontract.domain.model.BusinessContractValidationResult;
 import com.hunyuan.sa.bpm.module.businesscontract.service.BpmBusinessContractCatalogService;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.form.BpmBusinessObjectDraftForm;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.form.BpmBusinessObjectTechnicalDiffForm;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.vo.*;
+import com.hunyuan.sa.bpm.module.businesscontract.domain.visual.BusinessObjectValidationResult;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException; import java.net.URLEncoder; import java.nio.charset.StandardCharsets;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -35,20 +41,20 @@ public class AdminBpmBusinessContractController {
 
     @GetMapping("/bpm/business-contract/list")
     @SaCheckPermission("bpm:business-contract:list")
-    public ResponseDTO<List<BusinessContractCatalogVersion>> list(
+    public ResponseDTO<List<BpmBusinessObjectSummaryVO>> list(
             @RequestParam(required = false) String contractKey,
             @RequestParam(required = false) String lifecycleState
     ) {
-        return ResponseDTO.ok(catalogService.list(contractKey, lifecycleState));
+        return ResponseDTO.ok(catalogService.listBusiness(contractKey, lifecycleState));
     }
 
     @GetMapping("/bpm/business-contract/detail/{contractKey}/{contractVersion}")
     @SaCheckPermission("bpm:business-contract:detail")
-    public ResponseDTO<BusinessContractCatalogVersion> detail(
+    public ResponseDTO<BpmBusinessObjectDetailVO> detail(
             @PathVariable String contractKey,
             @PathVariable Integer contractVersion
     ) {
-        return ResponseDTO.ok(catalogService.get(contractKey, contractVersion));
+        return ResponseDTO.ok(catalogService.getBusinessDetail(contractKey, contractVersion));
     }
 
     @PostMapping("/bpm/business-contract/validate")
@@ -95,6 +101,25 @@ public class AdminBpmBusinessContractController {
     ) {
         return ResponseDTO.ok(catalogService.retire(lifecycle(form)));
     }
+
+    @PostMapping("/bpm/business-contract/visual-draft/create") @SaCheckPermission("bpm:business-contract:save")
+    public ResponseDTO<BpmBusinessObjectDetailVO> createVisual(@RequestBody @Valid BpmBusinessObjectDraftForm form){return ResponseDTO.ok(catalogService.createVisualDraft(form.toDraft(),actorProvider.requireCurrentEmployeeId()));}
+    @PostMapping("/bpm/business-contract/visual-draft/save") @SaCheckPermission("bpm:business-contract:save")
+    public ResponseDTO<BpmBusinessObjectDetailVO> saveVisual(@RequestBody @Valid BpmBusinessObjectDraftForm form){return ResponseDTO.ok(catalogService.saveVisualDraft(form.getContractVersion(),form.toDraft(),actorProvider.requireCurrentEmployeeId()));}
+    @PostMapping("/bpm/business-contract/visual-draft/validate") @SaCheckPermission("bpm:business-contract:save")
+    public ResponseDTO<BusinessObjectValidationResult> validateVisual(@RequestBody @Valid BpmBusinessObjectDraftForm form){return ResponseDTO.ok(catalogService.validateVisualDraft(form.toDraft()));}
+    @PostMapping("/bpm/business-contract/upgrade-v2") @SaCheckPermission("bpm:business-contract:upgrade")
+    public ResponseDTO<BpmBusinessObjectDetailVO> upgrade(@RequestBody @Valid BpmBusinessContractReferenceForm form){return ResponseDTO.ok(catalogService.upgradeV1AsV2Draft(form.getContractKey(),form.getContractVersion(),actorProvider.requireCurrentEmployeeId()));}
+    @PostMapping("/bpm/business-contract/draft/delete") @SaCheckPermission("bpm:business-contract:delete")
+    public ResponseDTO<String> deleteDraft(@RequestBody @Valid BpmBusinessContractLifecycleForm form){catalogService.deleteDraft(form.getContractKey(),form.getContractVersion(),form.getCatalogRevision());return ResponseDTO.ok();}
+    @GetMapping("/bpm/business-contract/references/{contractKey}/{contractVersion}") @SaCheckPermission("bpm:business-contract:detail")
+    public ResponseDTO<List<BpmBusinessObjectReferenceVO>> references(@PathVariable String contractKey,@PathVariable Integer contractVersion){return ResponseDTO.ok(catalogService.references(contractKey,contractVersion));}
+    @GetMapping("/bpm/business-contract/technical-detail/{contractKey}/{contractVersion}") @SaCheckPermission("bpm:business-contract:technical")
+    public ResponseDTO<BpmBusinessObjectTechnicalDetailVO> technicalDetail(@PathVariable String contractKey,@PathVariable Integer contractVersion){return ResponseDTO.ok(catalogService.technicalDetail(contractKey,contractVersion));}
+    @PostMapping("/bpm/business-contract/technical-diff") @SaCheckPermission("bpm:business-contract:technical")
+    public ResponseDTO<BpmBusinessObjectTechnicalDiffVO> technicalDiff(@RequestBody @Valid BpmBusinessObjectTechnicalDiffForm form){return ResponseDTO.ok(catalogService.technicalDiff(form.getContractKey(),form.getLeftVersion(),form.getRightVersion()));}
+    @GetMapping("/bpm/business-contract/technical-export/{contractKey}/{contractVersion}") @SaCheckPermission("bpm:business-contract:technical")
+    public void technicalExport(@PathVariable String contractKey,@PathVariable Integer contractVersion,HttpServletResponse response)throws IOException{byte[] content=catalogService.exportCanonical(contractKey,contractVersion).getBytes(StandardCharsets.UTF_8);String name=URLEncoder.encode(contractKey+"-v"+contractVersion+".json",StandardCharsets.UTF_8).replace("+","%20");response.setContentType("application/json;charset=UTF-8");response.setHeader("Content-Disposition","attachment; filename*=UTF-8''"+name);response.setContentLength(content.length);response.getOutputStream().write(content);}
 
     private BusinessContractLifecycleCommand lifecycle(BpmBusinessContractLifecycleForm form) {
         return new BusinessContractLifecycleCommand(
