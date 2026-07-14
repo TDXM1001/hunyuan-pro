@@ -6,6 +6,8 @@ import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.employee.dao.OrganizationRelationDao;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
+import com.hunyuan.sa.admin.module.system.role.service.RoleService;
+import com.hunyuan.sa.bpm.api.identity.BpmIdentityOptionSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import org.springframework.stereotype.Component;
@@ -29,17 +31,20 @@ public class AdminBpmOrgIdentityGateway implements BpmOrgIdentityGateway {
     private final RoleEmployeeService roleEmployeeService;
 
     private final OrganizationRelationDao organizationRelationDao;
+    private final RoleService roleService;
 
     public AdminBpmOrgIdentityGateway(
             EmployeeService employeeService,
             DepartmentService departmentService,
             RoleEmployeeService roleEmployeeService,
-            OrganizationRelationDao organizationRelationDao
+            OrganizationRelationDao organizationRelationDao,
+            RoleService roleService
     ) {
         this.employeeService = employeeService;
         this.departmentService = departmentService;
         this.roleEmployeeService = roleEmployeeService;
         this.organizationRelationDao = organizationRelationDao;
+        this.roleService = roleService;
     }
 
     @Override
@@ -90,6 +95,42 @@ public class AdminBpmOrgIdentityGateway implements BpmOrgIdentityGateway {
     @Override
     public List<Long> listActiveEmployeeIdsByPositionId(Long positionId) {
         return employeeService.listActiveEmployeeIdsByPositionId(positionId);
+    }
+
+    @Override
+    public List<BpmIdentityOptionSnapshot> queryIdentityOptions(
+            String kind, String keyword, Long departmentId
+    ) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase();
+        if ("EMPLOYEE".equals(kind)) {
+            List<com.hunyuan.sa.admin.module.system.employee.domain.vo.EmployeeVO> employees =
+                    employeeService.queryAllEmployee(null).getData();
+            return employees == null ? List.of() : employees.stream()
+                    .filter(employee -> departmentId == null || departmentId.equals(employee.getDepartmentId()))
+                    .filter(employee -> normalizedKeyword.isEmpty()
+                            || text(employee.getActualName()).contains(normalizedKeyword)
+                            || text(employee.getLoginName()).contains(normalizedKeyword))
+                    .map(employee -> new BpmIdentityOptionSnapshot(
+                            "EMPLOYEE", employee.getEmployeeId(), employee.getActualName(),
+                            employee.getDepartmentId(), employee.getDepartmentName(),
+                            Boolean.TRUE.equals(employee.getDisabledFlag())
+                    )).toList();
+        }
+        if ("ROLE".equals(kind)) {
+            var response = roleService.getAllRole();
+            return response.getData() == null ? List.of() : response.getData().stream()
+                    .filter(role -> normalizedKeyword.isEmpty()
+                            || text(role.getRoleName()).contains(normalizedKeyword)
+                            || text(role.getRoleCode()).contains(normalizedKeyword))
+                    .map(role -> new BpmIdentityOptionSnapshot(
+                            "ROLE", role.getRoleId(), role.getRoleName(), null, null, false
+                    )).toList();
+        }
+        return List.of();
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value.toLowerCase();
     }
 
     @Override

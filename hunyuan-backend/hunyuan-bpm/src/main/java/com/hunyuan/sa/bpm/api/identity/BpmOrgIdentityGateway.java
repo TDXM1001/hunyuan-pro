@@ -27,6 +27,12 @@ public interface BpmOrgIdentityGateway {
      */
     List<Long> listActiveEmployeeIdsByPositionId(Long positionId);
 
+    default List<BpmIdentityOptionSnapshot> queryIdentityOptions(
+            String kind, String keyword, Long departmentId
+    ) {
+        return List.of();
+    }
+
     /**
      * 解析组织域登记的用户组有效成员。
      */

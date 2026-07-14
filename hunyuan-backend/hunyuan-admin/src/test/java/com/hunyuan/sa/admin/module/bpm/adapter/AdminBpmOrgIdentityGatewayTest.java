@@ -6,6 +6,7 @@ import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.employee.dao.OrganizationRelationDao;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
+import com.hunyuan.sa.admin.module.system.role.service.RoleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -33,7 +34,8 @@ class AdminBpmOrgIdentityGatewayTest {
                 employeeService,
                 departmentService,
                 Mockito.mock(RoleEmployeeService.class),
-                organizationRelationDao
+                organizationRelationDao,
+                Mockito.mock(RoleService.class)
         );
     }
 

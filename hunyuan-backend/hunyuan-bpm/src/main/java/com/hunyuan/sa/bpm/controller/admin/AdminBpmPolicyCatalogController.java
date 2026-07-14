@@ -9,6 +9,7 @@ import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyCatalogHighRiskA
 import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyCatalogReferenceForm;
 import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyTechnicalDiffForm;
 import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicyVisualDraftForm;
+import com.hunyuan.sa.bpm.module.candidate.domain.form.BpmPolicySimulationForm;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyCatalogVersion;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyDraftCommand;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyLifecycleCommand;
@@ -19,6 +20,10 @@ import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyBusinessDetailVO;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyTechnicalDetailVO;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyTechnicalDiffVO;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyCatalogSummaryVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmIdentityOptionPageVO;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicySimulationVO;
+import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyIdentityOptionService;
+import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicySimulationService;
 import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyCatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,6 +55,12 @@ public class AdminBpmPolicyCatalogController {
 
     @Resource
     private BpmCurrentActorProvider bpmCurrentActorProvider;
+
+    @Resource
+    private BpmPolicySimulationService simulationService;
+
+    @Resource
+    private BpmPolicyIdentityOptionService identityOptionService;
 
     @Operation(summary = "查询策略目录")
     @GetMapping("/bpm/policy-catalog/list")
@@ -191,6 +202,30 @@ public class AdminBpmPolicyCatalogController {
     public ResponseDTO<String> deleteDraft(@RequestBody @Valid BpmPolicyCatalogLifecycleForm form) {
         bpmPolicyCatalogService.deleteDraft(reference(form), form.getCatalogRevision());
         return ResponseDTO.ok();
+    }
+
+    @Operation(summary = "模拟审批规则")
+    @PostMapping("/bpm/policy-catalog/simulate")
+    @SaCheckPermission("bpm:policy-catalog:simulate")
+    public ResponseDTO<BpmPolicySimulationVO> simulate(
+            @RequestBody @Valid BpmPolicySimulationForm form
+    ) {
+        return ResponseDTO.ok(simulationService.simulate(
+                form, bpmCurrentActorProvider.requireCurrentEmployeeId()));
+    }
+
+    @Operation(summary = "查询可选身份")
+    @GetMapping("/bpm/policy-catalog/identity-options")
+    @SaCheckPermission("bpm:policy-catalog:detail")
+    public ResponseDTO<BpmIdentityOptionPageVO> identityOptions(
+            @RequestParam String kind,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize
+    ) {
+        return ResponseDTO.ok(identityOptionService.query(
+                kind, keyword, departmentId, pageNum, pageSize));
     }
 
     private PolicyReference reference(BpmPolicyCatalogReferenceForm form) {
