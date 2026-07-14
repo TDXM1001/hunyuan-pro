@@ -96,10 +96,15 @@ class M2M3GraphPublicationDependencyResolverTest {
         Map<String, Object> candidatePolicies = (Map<String, Object>) snapshot.toSnapshotMap().get("candidatePolicies");
         Map<String, Object> candidatePolicy = (Map<String, Object>) candidatePolicies.get("review");
         assertThat(candidatePolicy)
+                .containsEntry("type", "CANDIDATE")
                 .containsEntry("policyKey", "finance-review")
                 .containsEntry("canonicalPayload", "{\"emptyCandidatePolicy\":\"BLOCK\",\"resolutionPhase\":\"ACTIVATE\",\"resolverParameters\":{\"roleId\":8},\"resolverType\":\"ROLE\",\"selfApprovalPolicy\":\"BLOCK\"}")
                 .containsKey("digest");
         assertThat(snapshot.toSnapshotMap()).containsKeys("approvalPolicies", "startVisibilityPolicy");
+        assertThat(snapshot.canonicalPayload()).contains("canonicalPayload", "schemaVersion");
+        assertThat(com.alibaba.fastjson.JSON.toJSONString(snapshot.businessMetadata()))
+                .contains("policyName", "businessSummary", "calculatedRiskLevel")
+                .doesNotContain("canonicalPayload", "digest");
     }
 
     @Test

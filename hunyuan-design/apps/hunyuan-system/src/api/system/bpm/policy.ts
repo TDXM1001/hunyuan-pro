@@ -32,6 +32,7 @@ export interface BpmIdentityOptionPage { items: BpmIdentityOption[]; total: numb
 export interface BpmPolicyBusinessDetail extends BpmPolicyCatalogRecord { configuration?: BpmPolicyVisualDraft; findings: BpmPolicyFinding[] }
 export interface BpmPolicyTechnicalDetail { reference: BpmPolicyReference; schemaVersion: number; canonicalPayload: string; digest: string; diagnostics: BpmPolicyFinding[] }
 export interface BpmPolicyTechnicalDiff { left: BpmPolicyReference; right: BpmPolicyReference; changedPaths: string[] }
+export interface BpmDefinitionReference { graphDefinitionVersionId?: number; draftId?: number; referenceSource: 'DRAFT' | 'PUBLISHED'; processKey: string; processName: string; definitionVersion: number; lifecycleState: string }
 export interface BpmPolicySimulationResult { resolvedMembers: Array<{ employeeId: number; employeeName: string; departmentName?: string }>; diagnostics: string[]; automaticOutcome?: string; businessSummary: string; findings: BpmPolicyFinding[] }
 export interface BpmPolicyBusinessValidationResult { valid: boolean; calculatedRiskLevel: 'HIGH' | 'LOW' | 'MEDIUM'; businessSummary: string; findings: BpmPolicyFinding[] }
 
@@ -80,6 +81,7 @@ export function activateHighRiskBpmPolicyVersion(params: ChangeBpmPolicyLifecycl
 export function getBpmPolicyTechnicalDetail(reference: BpmPolicyReference) { return requestClient.get<BpmPolicyTechnicalDetail>(`/bpm/policy-catalog/technical-detail/${reference.type}/${encodeURIComponent(reference.policyKey)}/${reference.policyVersion}`); }
 export function diffBpmPolicyTechnicalDetail(left:BpmPolicyReference,right:BpmPolicyReference){return requestClient.post<BpmPolicyTechnicalDiff>('/bpm/policy-catalog/technical-diff',{leftType:left.type,leftPolicyKey:left.policyKey,leftPolicyVersion:left.policyVersion,rightType:right.type,rightPolicyKey:right.policyKey,rightPolicyVersion:right.policyVersion})}
 export function exportBpmPolicyTechnicalDetail(reference: BpmPolicyReference) { return requestClient.get(`/bpm/policy-catalog/technical-export/${reference.type}/${encodeURIComponent(reference.policyKey)}/${reference.policyVersion}`, { responseType: 'blob' }); }
+export function queryBpmPolicyReferences(reference:BpmPolicyReference){return requestClient.get<BpmDefinitionReference[]>(`/bpm/policy-catalog/references/${reference.type}/${encodeURIComponent(reference.policyKey)}/${reference.policyVersion}`)}
 
 export function createBpmPolicyDraft(params: CreateBpmPolicyDraftParams) {
   return requestClient.post<BpmPolicyCatalogRecord>('/bpm/policy-catalog/draft', params);

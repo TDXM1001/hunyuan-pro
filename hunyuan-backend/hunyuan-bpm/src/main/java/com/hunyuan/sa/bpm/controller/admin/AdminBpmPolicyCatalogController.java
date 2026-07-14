@@ -24,6 +24,8 @@ import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmIdentityOptionPageVO;
 import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicySimulationVO;
 import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyIdentityOptionService;
 import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicySimulationService;
+import com.hunyuan.sa.bpm.module.definition.service.BpmDefinitionReferenceQueryService;
+import com.hunyuan.sa.bpm.module.definition.domain.vo.BpmDefinitionReferenceVO;
 import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyCatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -61,6 +63,9 @@ public class AdminBpmPolicyCatalogController {
 
     @Resource
     private BpmPolicyIdentityOptionService identityOptionService;
+
+    @Resource
+    private BpmDefinitionReferenceQueryService definitionReferenceQueryService;
 
     @Operation(summary = "查询策略目录")
     @GetMapping("/bpm/policy-catalog/list")
@@ -246,6 +251,16 @@ public class AdminBpmPolicyCatalogController {
     ) {
         return ResponseDTO.ok(identityOptionService.query(
                 kind, keyword, departmentId, stableId, pageNum, pageSize));
+    }
+
+    @Operation(summary = "查询规则的 Graph 引用")
+    @GetMapping("/bpm/policy-catalog/references/{type}/{policyKey}/{policyVersion}")
+    @SaCheckPermission("bpm:policy-catalog:detail")
+    public ResponseDTO<List<BpmDefinitionReferenceVO>> references(
+            @PathVariable PolicyType type, @PathVariable String policyKey, @PathVariable Integer policyVersion
+    ) {
+        return ResponseDTO.ok(definitionReferenceQueryService.findPolicyReferences(
+                new PolicyReference(type, policyKey, policyVersion)));
     }
 
     private PolicyReference reference(BpmPolicyCatalogReferenceForm form) {

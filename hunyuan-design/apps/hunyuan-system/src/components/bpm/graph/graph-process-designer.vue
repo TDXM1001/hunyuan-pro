@@ -66,6 +66,13 @@ const semanticDiff = computed(() =>
 const candidatePolicies = computed(() => props.policyCatalog?.candidatePolicies || []);
 const approvalPolicies = computed(() => props.policyCatalog?.approvalPolicies || []);
 const startVisibilityPolicies = computed(() => props.policyCatalog?.startVisibilityPolicies || []);
+function selectedPolicy(policies: BpmPolicyCatalogRecord[], reference: unknown) {
+  const value = policySelectionValue(reference);
+  return policies.find((policy) => catalogPolicySelectionValue(policy) === value);
+}
+const selectedStartVisibilityPolicy = computed(() => selectedPolicy(startVisibilityPolicies.value, graph.value.policies.startVisibilityPolicy));
+const selectedCandidatePolicy = computed(() => selectedNode.value ? selectedPolicy(candidatePolicies.value, selectedNode.value.properties?.candidatePolicy) : undefined);
+const selectedApprovalPolicy = computed(() => selectedNode.value ? selectedPolicy(approvalPolicies.value, selectedNode.value.properties?.approvalPolicy) : undefined);
 
 const palette: Array<{ label: string; type: GraphNodeType }> = [
   { label: '审批', type: 'APPROVAL' },
@@ -418,11 +425,12 @@ function positiveInteger(value: unknown): value is number {
           <ElOption
             v-for="policy in startVisibilityPolicies"
             :key="catalogPolicySelectionValue(policy)"
-            :label="`${policy.reference.policyKey} v${policy.reference.policyVersion}`"
+            :label="`${policy.policyName} v${policy.reference.policyVersion}`"
             :value="catalogPolicySelectionValue(policy)"
           />
         </ElSelect>
       </label>
+      <div v-if="selectedStartVisibilityPolicy" class="graph-designer__policy-summary"><ElTag :type="selectedStartVisibilityPolicy.calculatedRiskLevel==='HIGH'?'danger':'info'">{{selectedStartVisibilityPolicy.calculatedRiskLevel}}</ElTag>{{selectedStartVisibilityPolicy.businessSummary}}</div>
 
       <template v-if="selectedNode">
         <ElDivider />
@@ -451,11 +459,12 @@ function positiveInteger(value: unknown): value is number {
               <ElOption
                 v-for="policy in candidatePolicies"
                 :key="catalogPolicySelectionValue(policy)"
-                :label="`${policy.reference.policyKey} v${policy.reference.policyVersion}`"
+                :label="`${policy.policyName} v${policy.reference.policyVersion}`"
                 :value="catalogPolicySelectionValue(policy)"
               />
             </ElSelect>
           </label>
+          <div v-if="selectedCandidatePolicy" class="graph-designer__policy-summary"><ElTag :type="selectedCandidatePolicy.calculatedRiskLevel==='HIGH'?'danger':'info'">{{selectedCandidatePolicy.calculatedRiskLevel}}</ElTag>{{selectedCandidatePolicy.businessSummary}}</div>
           <label class="graph-designer__field"><span>SLA 到期时长</span><ElInput :disabled="disabled" :model-value="String(asRecord(selectedNode.properties?.taskSlaPolicy)?.dueAfter || '')" placeholder="PT2H" @update:model-value="updateNestedAdvancedProperty('taskSlaPolicy', 'dueAfter', $event)" /></label>
           <label class="graph-designer__field"><span>超时动作</span>
             <ElSelect :disabled="disabled" :model-value="String(asRecord(selectedNode.properties?.taskSlaPolicy)?.timeoutAction || 'REMIND_ONLY')" @update:model-value="updateNestedAdvancedProperty('taskSlaPolicy', 'timeoutAction', $event)">
@@ -473,11 +482,12 @@ function positiveInteger(value: unknown): value is number {
               <ElOption
                 v-for="policy in approvalPolicies"
                 :key="catalogPolicySelectionValue(policy)"
-                :label="`${policy.reference.policyKey} v${policy.reference.policyVersion}`"
+                :label="`${policy.policyName} v${policy.reference.policyVersion}`"
                 :value="catalogPolicySelectionValue(policy)"
               />
             </ElSelect>
           </label>
+          <div v-if="selectedNode.type === 'APPROVAL' && selectedApprovalPolicy" class="graph-designer__policy-summary"><ElTag :type="selectedApprovalPolicy.calculatedRiskLevel==='HIGH'?'danger':'info'">{{selectedApprovalPolicy.calculatedRiskLevel}}</ElTag>{{selectedApprovalPolicy.businessSummary}}</div>
         </template>
         <template v-if="isGateway(selectedNode.type)">
           <label class="graph-designer__field">
@@ -683,6 +693,7 @@ function positiveInteger(value: unknown): value is number {
 .graph-designer__node small { display: block; margin-top: 6px; color: var(--el-text-color-secondary); font-size: 11px; }
 .graph-designer__section-title { color: var(--el-text-color-primary); font-size: 13px; font-weight: 600; }
 .graph-designer__field { display: grid; gap: 4px; color: var(--el-text-color-secondary); font-size: 12px; }
+.graph-designer__policy-summary { display: flex; gap: 6px; align-items: flex-start; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.5; }
 .graph-designer__connection-actions { display: flex; align-items: center; gap: 8px; }
 .graph-designer__finding { display: flex; gap: 6px; align-items: flex-start; border: 0; background: transparent; color: var(--el-text-color-regular); cursor: pointer; text-align: left; }
 .graph-designer__diff-item { display: flex; gap: 4px; align-items: center; color: var(--el-text-color-secondary); font-size: 12px; }

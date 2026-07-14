@@ -8,6 +8,7 @@ import com.hunyuan.sa.bpm.module.businesscontract.service.BpmBusinessContractCat
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyPublicationLease;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyReference;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyType;
+import com.hunyuan.sa.bpm.module.candidate.domain.vo.BpmPolicyBusinessDetailVO;
 import com.hunyuan.sa.bpm.module.candidate.service.BpmPolicyCatalogService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -106,13 +107,23 @@ public class M2M3GraphPublicationDependencyResolver implements GraphPublicationD
         } catch (IllegalArgumentException | IllegalStateException ex) {
             throw new GraphPublicationDependencyException(label + "版本不存在或未启用：" + policyKey + "@" + policyVersion, ex);
         }
+        BpmPolicyBusinessDetailVO business;
+        try {
+            business = policyCatalogService.getBusinessDetail(lease.reference());
+        } catch (RuntimeException ignored) {
+            business = null;
+        }
         return Map.of(
+                "type", type.name(),
                 "policyKey", lease.reference().policyKey(),
                 "policyVersion", lease.reference().policyVersion(),
                 "policyVersionId", lease.policyVersionId(),
                 "schemaVersion", lease.schemaVersion(),
                 "canonicalPayload", lease.canonicalPayload(),
-                "digest", lease.digest()
+                "digest", lease.digest(),
+                "policyName", business == null ? policyKey : business.policyName(),
+                "businessSummary", business == null ? "" : business.businessSummary(),
+                "calculatedRiskLevel", business == null ? "UNKNOWN" : business.calculatedRiskLevel()
         );
     }
 

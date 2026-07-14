@@ -40,6 +40,7 @@ class PolicyCatalogControllerContractTest {
                 "/bpm/policy-catalog/visual-draft/validate",
                 "/bpm/policy-catalog/simulate",
                 "/bpm/policy-catalog/identity-options",
+                "/bpm/policy-catalog/references/{type}/{policyKey}/{policyVersion}",
                 "/bpm/policy-catalog/technical-detail/{type}/{policyKey}/{policyVersion}",
                 "/bpm/policy-catalog/technical-diff",
                 "/bpm/policy-catalog/technical-export/{type}/{policyKey}/{policyVersion}",

@@ -33,4 +33,12 @@ describe('graph process designer contract', () => {
     expect(source).not.toContain('baseEndpoint');
     expect(source).not.toContain('credentialRef');
   });
+
+  it('shows safe rule metadata without raw protocol', () => {
+    const source = readFileSync(componentPath, 'utf8');
+    expect(source).toContain('policyName');
+    expect(source).toContain('businessSummary');
+    expect(source).toContain('calculatedRiskLevel');
+    expect(source).not.toContain('canonicalPayload');
+  });
 });
