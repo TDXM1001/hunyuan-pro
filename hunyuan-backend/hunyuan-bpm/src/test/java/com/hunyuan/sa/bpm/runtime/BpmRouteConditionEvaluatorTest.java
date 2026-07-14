@@ -1,6 +1,6 @@
 package com.hunyuan.sa.bpm.runtime;
 
-import com.hunyuan.sa.bpm.engine.ast.RouteCondition;
+import com.hunyuan.sa.bpm.module.runtime.domain.model.RouteCondition;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmRouteConditionEvaluator;
 import org.junit.jupiter.api.Test;

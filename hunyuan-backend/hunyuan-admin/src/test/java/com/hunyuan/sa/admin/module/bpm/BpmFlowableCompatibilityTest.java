@@ -10,8 +10,6 @@ import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
 import com.hunyuan.sa.bpm.config.BpmFlowableAutoConfiguration;
-import com.hunyuan.sa.bpm.engine.compiler.CompiledDefinitionArtifact;
-import com.hunyuan.sa.bpm.engine.compiler.SimpleModelBpmnCompiler;
 import com.hunyuan.sa.bpm.engine.compiler.graph.GraphBpmnCompiler;
 import com.hunyuan.sa.bpm.engine.graph.GraphEdge;
 import com.hunyuan.sa.bpm.engine.graph.GraphNode;
@@ -119,7 +117,6 @@ class BpmFlowableCompatibilityTest {
     })
     @Import({
             BpmFlowableAutoConfiguration.class,
-            SimpleModelBpmnCompiler.class,
             HunyuanDelayStartListener.class,
             HunyuanDelayEndListener.class,
             HunyuanGraphRouteDecisionListener.class,
@@ -196,9 +193,6 @@ class BpmFlowableCompatibilityTest {
     private BpmCurrentActorProvider bpmCurrentActorProvider;
 
     @Autowired
-    private SimpleModelBpmnCompiler simpleModelBpmnCompiler;
-
-    @Autowired
     private RepositoryService repositoryService;
 
     @Autowired
@@ -209,68 +203,6 @@ class BpmFlowableCompatibilityTest {
         assertThat(processEngine).isNotNull();
         assertThat(bpmOrgIdentityGateway).isNotNull();
         assertThat(bpmCurrentActorProvider).isNotNull();
-    }
-
-    @Test
-    void deploysControlledV2BranchModel() {
-        CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
-                "compat_v2",
-                "v2 网关兼容",
-                """
-                        {"schemaVersion":2,"nodes":[
-                          {"nodeKey":"route","name":"排他路由","type":"EXCLUSIVE_BRANCH","branches":[
-                            {"branchKey":"a","name":"A","condition":{"sourceType":"FORM_FIELD","fieldKey":"amount","valueType":"NUMBER","operator":"GT","compareValue":0},"nodes":[{"nodeKey":"task_a","name":"A审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1}]},
-                            {"branchKey":"default","name":"默认","isDefault":true,"nodes":[]}
-                          ]},
-                          {"nodeKey":"inclusive","name":"包容路由","type":"INCLUSIVE_BRANCH","branches":[
-                            {"branchKey":"b","name":"B","condition":{"sourceType":"FORM_FIELD","fieldKey":"amount","valueType":"NUMBER","operator":"GTE","compareValue":100},"nodes":[{"nodeKey":"task_b","name":"B审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1}]},
-                            {"branchKey":"default","name":"默认","isDefault":true,"nodes":[]}
-                          ]}
-                        ]}
-                        """,
-                "{\"type\":\"ALL\"}",
-                "{}"
-        );
-
-        var deployment = repositoryService.createDeployment()
-                .name("v2 网关兼容")
-                .addBytes("compat-v2.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
-                .deploy();
-
-        assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
-                .isEqualTo(1);
-    }
-
-    @Test
-    void deploysControlledV3TimeAndExternalWaitModel() {
-        CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
-                "compat_v3",
-                "v3 时间与外部等待兼容",
-                """
-                        {"schemaVersion":3,"nodes":[
-                          {
-                            "nodeKey":"review","name":"财务审批","type":"USER_TASK","candidateResolverType":"EMPLOYEE","employeeId":1,
-                            "taskSlaPolicy":{"dueAfter":"PT2H","reminderSchedule":["PT1H"],"timeoutAction":"REMIND_ONLY","systemActionComment":"审批超时提醒"}
-                          },
-                          {"nodeKey":"cooling","name":"冷静期","type":"DELAY","mode":"DURATION","value":"PT1H","timezone":"Asia/Shanghai","overduePolicy":"TRIGGER_IMMEDIATELY"},
-                          {
-                            "nodeKey":"finance_sync","name":"同步财务","type":"EXTERNAL_TRIGGER","connectorKey":"finance","operationKey":"createExpense",
-                            "requestMapping":{"amount":"approvedAmount"},"responseMapping":{"externalNo":"financeNo"},
-                            "waitMode":"WAIT_CALLBACK","timeoutPolicy":{"timeoutAfter":"PT30M"}
-                          }
-                        ]}
-                        """,
-                "{\"type\":\"ALL\"}",
-                "{}"
-        );
-
-        var deployment = repositoryService.createDeployment()
-                .name("v3 时间与外部等待兼容")
-                .addBytes("compat-v3.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
-                .deploy();
-
-        assertThat(repositoryService.createProcessDefinitionQuery().deploymentId(deployment.getId()).count())
-                .isEqualTo(1);
     }
 
     @Test
@@ -433,34 +365,6 @@ class BpmFlowableCompatibilityTest {
 
     private GraphEdge edge(String edgeId, String sourceNodeId, String targetNodeId, String sourcePort, Map<String, Object> properties) {
         return new GraphEdge(edgeId, "scope_root", sourceNodeId, targetNodeId, sourcePort, properties);
-    }
-
-    @Test
-    void createsRealFlowableTimerJobForV3DelayNode() {
-        CompiledDefinitionArtifact artifact = simpleModelBpmnCompiler.compile(
-                "compat_v3_delay",
-                "v3 延迟计时兼容",
-                """
-                        {"schemaVersion":3,"nodes":[
-                          {"nodeKey":"cooling","name":"冷静期","type":"DELAY","mode":"DURATION","value":"PT1H","timezone":"Asia/Shanghai","overduePolicy":"TRIGGER_IMMEDIATELY"}
-                        ]}
-                        """,
-                "{\"type\":\"ALL\"}",
-                "{}"
-        );
-        repositoryService.createDeployment()
-                .name("v3 延迟计时兼容")
-                .addBytes("compat-v3-delay.bpmn20.xml", artifact.compiledBpmnXml().getBytes(StandardCharsets.UTF_8))
-                .deploy();
-
-        var processInstance = runtimeService.startProcessInstanceByKey(
-                "compat_v3_delay",
-                Map.of("hunyuanInstanceId", 1L)
-        );
-
-        assertThat(processEngine.getManagementService().createTimerJobQuery()
-                .processInstanceId(processInstance.getId())
-                .count()).isEqualTo(1);
     }
 
     @Test

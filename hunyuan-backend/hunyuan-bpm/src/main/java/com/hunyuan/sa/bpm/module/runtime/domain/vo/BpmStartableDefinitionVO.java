@@ -15,7 +15,7 @@ public class BpmStartableDefinitionVO {
     @Schema(description = "Graph 定义版本ID")
     private Long graphDefinitionVersionId;
 
-    @Schema(description = "定义来源：LEGACY/GRAPH")
+    @Schema(description = "定义来源：GRAPH")
     private String definitionSource;
 
     @Schema(description = "定义编码")

@@ -33,12 +33,6 @@ public class AppBpmStartController {
         return bpmInstanceService.queryStartableDefinitions();
     }
 
-    @Operation(summary = "查询发起草稿")
-    @GetMapping("/app/bpm/start-draft/{definitionId}")
-    public ResponseDTO<BpmRuntimeStartDraftVO> startDraft(@PathVariable Long definitionId) {
-        return bpmInstanceService.getStartDraft(definitionId);
-    }
-
     @Operation(summary = "查询 Graph 发起草稿")
     @GetMapping("/app/bpm/graph-start-draft/{graphDefinitionVersionId}")
     public ResponseDTO<BpmRuntimeStartDraftVO> graphStartDraft(@PathVariable Long graphDefinitionVersionId) {

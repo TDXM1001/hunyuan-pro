@@ -6,11 +6,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftCreateCommand;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftCreateForm;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftImportCommand;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftImportForm;
+import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftQueryForm;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftSaveCommand;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftSaveForm;
 import com.hunyuan.sa.bpm.module.model.domain.vo.BpmGraphDraftVO;
@@ -33,6 +35,13 @@ public class AdminBpmGraphDraftController {
 
     @Resource
     private BpmCurrentActorProvider bpmCurrentActorProvider;
+
+    @Operation(summary = "分页查询 Graph 流程草稿")
+    @PostMapping("/bpm/graph-draft/query")
+    @SaCheckPermission("bpm:graph-draft:query")
+    public ResponseDTO<PageResult<BpmGraphDraftVO>> query(@RequestBody @Valid BpmGraphDraftQueryForm form) {
+        return bpmGraphDraftService.queryDrafts(form);
+    }
 
     @Operation(summary = "创建 Graph 流程草稿")
     @PostMapping("/bpm/graph-draft/create")

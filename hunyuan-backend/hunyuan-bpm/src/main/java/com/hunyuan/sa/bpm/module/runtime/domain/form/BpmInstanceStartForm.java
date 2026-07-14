@@ -1,7 +1,6 @@
 package com.hunyuan.sa.bpm.module.runtime.domain.form;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -11,10 +10,8 @@ import lombok.Data;
 @Data
 public class BpmInstanceStartForm {
 
-    @Schema(description = "定义ID")
-    private Long definitionId;
-
     @Schema(description = "Graph 定义版本ID")
+    @jakarta.validation.constraints.NotNull(message = "Graph定义版本不能为空")
     private Long graphDefinitionVersionId;
 
     @Schema(description = "M3 审批对象快照ID，Graph流程必填")
@@ -39,8 +36,4 @@ public class BpmInstanceStartForm {
     @NotBlank(message = "表单数据不能为空")
     private String formDataJson;
 
-    @AssertTrue(message = "流程定义来源必须且只能选择一种")
-    public boolean hasExactlyOneDefinitionSource() {
-        return (definitionId == null) != (graphDefinitionVersionId == null);
-    }
 }

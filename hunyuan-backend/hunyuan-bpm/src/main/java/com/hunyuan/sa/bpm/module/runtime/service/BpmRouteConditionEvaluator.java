@@ -1,6 +1,6 @@
 package com.hunyuan.sa.bpm.module.runtime.service;
 
-import com.hunyuan.sa.bpm.engine.ast.RouteCondition;
+import com.hunyuan.sa.bpm.module.runtime.domain.model.RouteCondition;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpression;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionContext;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionRegistry;

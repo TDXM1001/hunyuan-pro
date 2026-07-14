@@ -8,11 +8,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.common.util.SmartEnumUtil;
 import com.hunyuan.sa.base.common.util.SmartPageUtil;
 import com.hunyuan.sa.base.module.support.serialnumber.constant.SerialNumberIdEnum;
 import com.hunyuan.sa.base.module.support.serialnumber.service.SerialNumberService;
-import com.hunyuan.sa.bpm.api.business.domain.BpmBusinessStartCommand;
 import com.hunyuan.sa.bpm.api.identity.BpmCurrentActorProvider;
 import com.hunyuan.sa.bpm.api.identity.BpmEmployeeSnapshot;
 import com.hunyuan.sa.bpm.api.identity.BpmOrgIdentityGateway;
@@ -25,19 +23,13 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.StartVisibilityEvaluationContext;
 import com.hunyuan.sa.bpm.module.candidate.service.StartVisibilityPolicyEvaluator;
 import com.hunyuan.sa.bpm.common.enumeration.BpmApprovalGroupCloseReasonEnum;
-import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionLifecycleStateEnum;
-import com.hunyuan.sa.bpm.common.enumeration.BpmDefinitionStartStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceResultStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmInstanceRunStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskResultEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmTaskStateEnum;
 import com.hunyuan.sa.bpm.common.enumeration.BpmFormDataChangeSourceEnum;
 import com.hunyuan.sa.bpm.engine.internal.FlowableProcessInstanceGateway;
-import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
-import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
-import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
-import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
@@ -80,9 +72,6 @@ public class BpmInstanceService {
     private static final long CURRENT_TENANT_ID = 1L;
 
     @Resource
-    private BpmDefinitionDao bpmDefinitionDao;
-
-    @Resource
     private GraphDefinitionVersionDao graphDefinitionVersionDao;
 
     @Resource
@@ -90,9 +79,6 @@ public class BpmInstanceService {
 
     @Resource
     private BpmTaskDao bpmTaskDao;
-
-    @Resource
-    private BpmDefinitionNodeDao bpmDefinitionNodeDao;
 
     @Resource
     private BpmTaskActionLogDao bpmTaskActionLogDao;
@@ -113,9 +99,6 @@ public class BpmInstanceService {
     private SerialNumberService serialNumberService;
 
     @Resource
-    private BpmTaskAssignmentResolver bpmTaskAssignmentResolver;
-
-    @Resource
     private BpmTaskProjectionService bpmTaskProjectionService;
 
     @Resource
@@ -126,9 +109,6 @@ public class BpmInstanceService {
 
     @Resource
     private BpmApprovalGroupService bpmApprovalGroupService;
-
-    @Resource
-    private BpmRuntimeFormDataValidator bpmRuntimeFormDataValidator;
 
     @Resource
     private BpmFormDataChangeDao bpmFormDataChangeDao;
@@ -160,12 +140,6 @@ public class BpmInstanceService {
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
         BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
         List<BpmStartableDefinitionVO> list = new ArrayList<>();
-        bpmDefinitionDao.queryStartableList(employeeId).stream()
-                .filter(definition -> canEmployeeStart(definition.getStartScopeJson(), employeeId))
-                .forEach(definition -> {
-                    definition.setDefinitionSource("LEGACY");
-                    list.add(definition);
-                });
         graphDefinitionVersionDao.selectActiveStartableList().stream()
                 .filter(graphVersion -> canEmployeeStartGraph(graphVersion, employeeSnapshot))
                 .map(this::toGraphStartableDefinition)
@@ -175,22 +149,6 @@ public class BpmInstanceService {
                 .thenComparing(BpmStartableDefinitionVO::getDefinitionSource, Comparator.nullsLast(String::compareTo))
                 .thenComparing(BpmStartableDefinitionVO::getDefinitionVersion, Comparator.nullsLast(Comparator.reverseOrder())));
         return ResponseDTO.ok(list);
-    }
-
-    public ResponseDTO<BpmRuntimeStartDraftVO> getStartDraft(Long definitionId) {
-        BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(definitionId);
-        ResponseDTO<BpmRuntimeStartDraftVO> validationResponse = validateCurrentStartableDefinition(definitionEntity);
-        if (validationResponse != null) {
-            return validationResponse;
-        }
-        return ResponseDTO.ok(buildStartDraft(
-                definitionEntity,
-                definitionEntity.getDefinitionName(),
-                null,
-                "{}",
-                null,
-                null
-        ));
     }
 
     public ResponseDTO<BpmRuntimeStartDraftVO> getGraphStartDraft(Long graphDefinitionVersionId) {
@@ -279,20 +237,21 @@ public class BpmInstanceService {
             return ResponseDTO.userErrorParam("当前流程实例状态不支持重新提交");
         }
 
-        BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(instanceEntity.getDefinitionId());
-        ResponseDTO<BpmRuntimeStartDraftVO> validationResponse = validateCurrentStartableDefinition(definitionEntity);
+        GraphDefinitionVersionEntity graphVersion = graphDefinitionVersionDao.selectById(
+                instanceEntity.getGraphDefinitionVersionId()
+        );
+        ResponseDTO<BpmRuntimeStartDraftVO> validationResponse = validateGraphVersionForRuntime(graphVersion);
         if (validationResponse != null) {
             return validationResponse;
         }
 
-        return ResponseDTO.ok(buildStartDraft(
-                definitionEntity,
-                instanceEntity.getTitle(),
-                instanceEntity.getSummary(),
-                StringUtils.defaultIfBlank(instanceEntity.getCurrentFormDataSnapshotJson(), "{}"),
-                instanceEntity.getInstanceId(),
-                instanceEntity.getFormDataVersion() == null ? 1L : instanceEntity.getFormDataVersion()
-        ));
+        BpmRuntimeStartDraftVO draft = buildGraphStartDraft(graphVersion);
+        draft.setTitle(StringUtils.defaultIfBlank(instanceEntity.getTitle(), draft.getDefinitionName()));
+        draft.setSummary(instanceEntity.getSummary());
+        draft.setFormDataJson(StringUtils.defaultIfBlank(instanceEntity.getCurrentFormDataSnapshotJson(), "{}"));
+        draft.setSourceInstanceId(instanceEntity.getInstanceId());
+        draft.setFormDataVersion(instanceEntity.getFormDataVersion() == null ? 1L : instanceEntity.getFormDataVersion());
+        return ResponseDTO.ok(draft);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -433,20 +392,12 @@ public class BpmInstanceService {
             return ResponseDTO.userErrorParam("FORM_DATA_VERSION_CONFLICT：审批数据已变化，请刷新后重新确认");
         }
 
-        BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(instanceEntity.getDefinitionId());
-        ResponseDTO<Long> validationResponse = validateCurrentStartableDefinition(definitionEntity);
+        GraphDefinitionVersionEntity graphVersion = graphDefinitionVersionDao.selectById(
+                instanceEntity.getGraphDefinitionVersionId()
+        );
+        ResponseDTO<Long> validationResponse = validateGraphVersionForRuntime(graphVersion);
         if (validationResponse != null) {
             return validationResponse;
-        }
-
-        if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
-            ResponseDTO<String> formDataResponse = bpmRuntimeFormDataValidator.validateFullData(
-                    definitionEntity.getFormSchemaSnapshotJson(),
-                    resubmitForm.getFormDataJson()
-            );
-            if (!Boolean.TRUE.equals(formDataResponse.getOk())) {
-                return ResponseDTO.userErrorParam(formDataResponse.getMsg());
-            }
         }
 
         JSONObject beforeData = JSON.parseObject(
@@ -499,31 +450,18 @@ public class BpmInstanceService {
             nextProcessWorkingDataId = mutation.processWorkingDataId();
             afterVersion = mutation.dataVersion();
         }
-        List<BpmDefinitionNodeEntity> definitionNodes = bpmDefinitionNodeDao.selectList(
-                Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
-                        .eq(BpmDefinitionNodeEntity::getDefinitionId, definitionEntity.getDefinitionId())
-                        .orderByAsc(BpmDefinitionNodeEntity::getSortOrder, BpmDefinitionNodeEntity::getDefinitionNodeId)
-        );
-
-        Map<String, Object> runtimeAssignmentVariables;
-        try {
-            runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(
-                    definitionNodes,
-                    new BpmTaskAssignmentContext(employeeSnapshot, nextFormDataJson)
-            );
-        } catch (IllegalArgumentException ex) {
-            return ResponseDTO.userErrorParam(ex.getMessage());
-        }
-
         LocalDateTime now = LocalDateTime.now();
         BpmInstanceEntity updateInstanceEntity = new BpmInstanceEntity();
         updateInstanceEntity.setInstanceId(instanceEntity.getInstanceId());
-        updateInstanceEntity.setEngineProcessDefinitionId(definitionEntity.getEngineProcessDefinitionId());
-        updateInstanceEntity.setDefinitionKeySnapshot(definitionEntity.getDefinitionKey());
-        updateInstanceEntity.setDefinitionVersionSnapshot(definitionEntity.getDefinitionVersion());
-        updateInstanceEntity.setCategoryIdSnapshot(definitionEntity.getCategoryIdSnapshot());
-        updateInstanceEntity.setCategoryNameSnapshot(definitionEntity.getCategoryNameSnapshot());
-        updateInstanceEntity.setTitle(StringUtils.isBlank(resubmitForm.getTitle()) ? definitionEntity.getDefinitionName() : resubmitForm.getTitle());
+        updateInstanceEntity.setEngineProcessDefinitionId(graphVersion.getEngineProcessDefinitionId());
+        updateInstanceEntity.setDefinitionKeySnapshot(graphVersion.getProcessKey());
+        updateInstanceEntity.setDefinitionVersionSnapshot(graphVersion.getDefinitionVersion());
+        updateInstanceEntity.setCategoryIdSnapshot(graphVersion.getCategoryIdSnapshot());
+        updateInstanceEntity.setCategoryNameSnapshot(graphVersion.getCategoryNameSnapshot());
+        updateInstanceEntity.setTitle(StringUtils.defaultIfBlank(
+                resubmitForm.getTitle(),
+                StringUtils.defaultIfBlank(graphVersion.getProcessNameSnapshot(), graphVersion.getProcessKey())
+        ));
         updateInstanceEntity.setSummary(resubmitForm.getSummary());
         updateInstanceEntity.setCurrentFormDataSnapshotJson(nextFormDataJson);
         updateInstanceEntity.setFormDataVersion(afterVersion);
@@ -553,11 +491,11 @@ public class BpmInstanceService {
         }
 
         String engineProcessInstanceId = flowableProcessInstanceGateway.start(
-                definitionEntity.getEngineProcessDefinitionId(),
+                graphVersion.getEngineProcessDefinitionId(),
                 instanceEntity.getInstanceId(),
                 employeeId,
                 nextFormDataJson,
-                runtimeAssignmentVariables
+                Map.of()
         );
         BpmInstanceEntity engineUpdate = new BpmInstanceEntity();
         engineUpdate.setInstanceId(instanceEntity.getInstanceId());
@@ -571,15 +509,11 @@ public class BpmInstanceService {
 
     @Transactional(rollbackFor = Exception.class)
     public ResponseDTO<Long> startInstance(BpmInstanceStartForm startForm) {
-        if (startForm == null || !startForm.hasExactlyOneDefinitionSource()) {
-            return ResponseDTO.userErrorParam("流程定义来源只能选择一种");
+        if (startForm == null || startForm.getGraphDefinitionVersionId() == null) {
+            return ResponseDTO.userErrorParam("Graph定义版本不能为空");
         }
         Long employeeId = bpmCurrentActorProvider.requireCurrentEmployeeId();
-        if (startForm.getGraphDefinitionVersionId() != null) {
-            return startGraphInstance(startForm, employeeId);
-        }
-        BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectById(startForm.getDefinitionId());
-        return startInstanceWithDefinition(startForm, definitionEntity, employeeId);
+        return startGraphInstance(startForm, employeeId);
     }
 
     private ResponseDTO<Long> startGraphInstance(BpmInstanceStartForm startForm, Long employeeId) {
@@ -736,157 +670,6 @@ public class BpmInstanceService {
     ) {
     }
 
-    @Transactional(rollbackFor = Exception.class)
-    public ResponseDTO<Long> startBusinessInstance(BpmBusinessStartCommand command) {
-        if (command == null) {
-            return ResponseDTO.userErrorParam("业务流程发起命令不能为空");
-        }
-        BpmDefinitionEntity definitionEntity = bpmDefinitionDao.selectCurrentByDefinitionKey(command.getDefinitionKey());
-        BpmInstanceStartForm startForm = new BpmInstanceStartForm();
-        startForm.setDefinitionId(definitionEntity == null ? null : definitionEntity.getDefinitionId());
-        startForm.setTitle(command.getTitle());
-        startForm.setSummary(command.getSummary());
-        startForm.setFormDataJson(StringUtils.defaultIfBlank(command.getFormDataJson(), "{}"));
-        startForm.setBusinessType(command.getBusinessType());
-        startForm.setBusinessId(command.getBusinessId());
-        startForm.setBusinessKey(command.getBusinessKey());
-        return startInstanceWithDefinition(startForm, definitionEntity, command.getStartEmployeeId());
-    }
-
-    private ResponseDTO<Long> startInstanceWithDefinition(
-            BpmInstanceStartForm startForm,
-            BpmDefinitionEntity definitionEntity,
-            Long employeeId
-    ) {
-        ResponseDTO<Long> validationResponse = validateCurrentStartableDefinition(definitionEntity, employeeId);
-        if (validationResponse != null) {
-            return validationResponse;
-        }
-
-        if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
-            ResponseDTO<String> formDataResponse = bpmRuntimeFormDataValidator.validateFullData(
-                    definitionEntity.getFormSchemaSnapshotJson(),
-                    startForm.getFormDataJson()
-            );
-            if (!Boolean.TRUE.equals(formDataResponse.getOk())) {
-                return ResponseDTO.userErrorParam(formDataResponse.getMsg());
-            }
-        }
-
-        BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
-        SerialNumberIdEnum serialNumberIdEnum = SmartEnumUtil.getEnumByValue(
-                definitionEntity.getInstanceNoRuleIdSnapshot(),
-                SerialNumberIdEnum.class
-        );
-        if (serialNumberIdEnum == null) {
-            serialNumberIdEnum = SerialNumberIdEnum.ORDER;
-        }
-
-        String instanceNo = serialNumberService.generate(serialNumberIdEnum);
-        List<BpmDefinitionNodeEntity> definitionNodes = bpmDefinitionNodeDao.selectList(
-                Wrappers.<BpmDefinitionNodeEntity>lambdaQuery()
-                        .eq(BpmDefinitionNodeEntity::getDefinitionId, definitionEntity.getDefinitionId())
-                        .orderByAsc(BpmDefinitionNodeEntity::getSortOrder, BpmDefinitionNodeEntity::getDefinitionNodeId)
-        );
-
-        Map<String, Object> runtimeAssignmentVariables;
-        try {
-            runtimeAssignmentVariables = bpmTaskAssignmentResolver.resolve(
-                    definitionNodes,
-                    new BpmTaskAssignmentContext(employeeSnapshot, startForm.getFormDataJson())
-            );
-        } catch (IllegalArgumentException ex) {
-            return ResponseDTO.userErrorParam(ex.getMessage());
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        BpmInstanceEntity entity = new BpmInstanceEntity();
-        entity.setInstanceNo(instanceNo);
-        entity.setDefinitionId(definitionEntity.getDefinitionId());
-        entity.setEngineProcessDefinitionId(definitionEntity.getEngineProcessDefinitionId());
-        entity.setDefinitionKeySnapshot(definitionEntity.getDefinitionKey());
-        entity.setDefinitionVersionSnapshot(definitionEntity.getDefinitionVersion());
-        entity.setCategoryIdSnapshot(definitionEntity.getCategoryIdSnapshot());
-        entity.setCategoryNameSnapshot(definitionEntity.getCategoryNameSnapshot());
-        entity.setTitle(StringUtils.isBlank(startForm.getTitle()) ? definitionEntity.getDefinitionName() : startForm.getTitle());
-        entity.setSummary(startForm.getSummary());
-        entity.setStartEmployeeId(employeeSnapshot.employeeId());
-        entity.setStartEmployeeNameSnapshot(employeeSnapshot.actualName());
-        entity.setStartDepartmentIdSnapshot(employeeSnapshot.departmentId());
-        entity.setStartDepartmentNameSnapshot(employeeSnapshot.departmentName());
-        entity.setBusinessType(startForm.getBusinessType());
-        entity.setBusinessId(startForm.getBusinessId());
-        entity.setBusinessKey(startForm.getBusinessKey());
-        entity.setInitialFormDataSnapshotJson(startForm.getFormDataJson());
-        entity.setCurrentFormDataSnapshotJson(startForm.getFormDataJson());
-        entity.setFormDataVersion(1L);
-        entity.setRunState(BpmInstanceRunStateEnum.RUNNING.getValue());
-        entity.setActiveTaskCount(0);
-        entity.setCurrentGeneration(1);
-        entity.setStartedAt(now);
-        entity.setLastActionAt(now);
-        bpmInstanceDao.insert(entity);
-        if (StringUtils.isNotBlank(definitionEntity.getFormSchemaSnapshotJson())) {
-            insertInitialFormDataChange(entity, employeeSnapshot);
-        }
-        String engineProcessInstanceId = flowableProcessInstanceGateway.start(
-                definitionEntity.getEngineProcessDefinitionId(),
-                entity.getInstanceId(),
-                employeeId,
-                startForm.getFormDataJson(),
-                runtimeAssignmentVariables
-        );
-        BpmInstanceEntity engineUpdate = new BpmInstanceEntity();
-        engineUpdate.setInstanceId(entity.getInstanceId());
-        engineUpdate.setEngineProcessInstanceId(engineProcessInstanceId);
-        bpmInstanceDao.updateById(engineUpdate);
-        bpmTaskProjectionService.syncActiveTasksForInstance(entity.getInstanceId());
-        return ResponseDTO.ok(entity.getInstanceId());
-    }
-
-    private void insertInitialFormDataChange(
-            BpmInstanceEntity instance,
-            BpmEmployeeSnapshot actor
-    ) {
-        JSONObject initialData = JSON.parseObject(
-                StringUtils.defaultIfBlank(instance.getInitialFormDataSnapshotJson(), "{}")
-        );
-        JSONArray changedFields = new JSONArray();
-        initialData.keySet().forEach(changedFields::add);
-        BpmFormDataChangeEntity change = new BpmFormDataChangeEntity();
-        change.setInstanceId(instance.getInstanceId());
-        change.setChangeSource(BpmFormDataChangeSourceEnum.INSTANCE_STARTED.name());
-        change.setActorEmployeeId(actor.employeeId());
-        change.setActorNameSnapshot(actor.actualName());
-        change.setBeforeVersion(0L);
-        change.setAfterVersion(1L);
-        change.setChangedFieldsJson(JSON.toJSONString(changedFields));
-        change.setBeforeValuesJson("{}");
-        change.setAfterValuesJson(JSON.toJSONString(initialData));
-        bpmFormDataChangeDao.insert(change);
-    }
-
-    private BpmRuntimeStartDraftVO buildStartDraft(
-            BpmDefinitionEntity definitionEntity,
-            String title,
-            String summary,
-            String formDataJson,
-            Long sourceInstanceId,
-            Long formDataVersion
-    ) {
-        BpmRuntimeStartDraftVO draftVO = new BpmRuntimeStartDraftVO();
-        draftVO.setDefinitionId(definitionEntity.getDefinitionId());
-        draftVO.setDefinitionName(definitionEntity.getDefinitionName());
-        draftVO.setFormNameSnapshot(definitionEntity.getFormNameSnapshot());
-        draftVO.setFormSchemaSnapshotJson(definitionEntity.getFormSchemaSnapshotJson());
-        draftVO.setTitle(StringUtils.isBlank(title) ? definitionEntity.getDefinitionName() : title);
-        draftVO.setSummary(summary);
-        draftVO.setFormDataJson(StringUtils.defaultIfBlank(formDataJson, "{}"));
-        draftVO.setFormDataVersion(formDataVersion);
-        draftVO.setSourceInstanceId(sourceInstanceId);
-        return draftVO;
-    }
-
     private BpmRuntimeStartDraftVO buildGraphStartDraft(GraphDefinitionVersionEntity graphVersion) {
         BpmRuntimeStartDraftVO draftVO = new BpmRuntimeStartDraftVO();
         draftVO.setGraphDefinitionVersionId(graphVersion.getGraphDefinitionVersionId());
@@ -900,74 +683,17 @@ public class BpmInstanceService {
         return draftVO;
     }
 
-    private <T> ResponseDTO<T> validateCurrentStartableDefinition(BpmDefinitionEntity definitionEntity) {
-        return validateCurrentStartableDefinition(definitionEntity, bpmCurrentActorProvider.requireCurrentEmployeeId());
-    }
-
-    private <T> ResponseDTO<T> validateCurrentStartableDefinition(BpmDefinitionEntity definitionEntity, Long employeeId) {
-        if (definitionEntity == null) {
+    private <T> ResponseDTO<T> validateGraphVersionForRuntime(GraphDefinitionVersionEntity graphVersion) {
+        if (graphVersion == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
         }
-        if (employeeId == null) {
-            return ResponseDTO.userErrorParam("发起员工不能为空");
+        if (!"ACTIVE".equals(graphVersion.getLifecycleState())) {
+            return ResponseDTO.userErrorParam("Graph 定义版本已下线，无法重新提交");
         }
-        if (!BpmDefinitionLifecycleStateEnum.CURRENT.equalsValue(definitionEntity.getLifecycleState())) {
-            return ResponseDTO.userErrorParam("当前流程定义不是可运行的当前版本");
-        }
-        if (!BpmDefinitionStartStateEnum.STARTABLE.equalsValue(definitionEntity.getStartState())) {
-            return ResponseDTO.userErrorParam("当前流程定义已停用，无法发起");
-        }
-        if (!canEmployeeStart(definitionEntity.getStartScopeJson(), employeeId)) {
-            return ResponseDTO.userErrorParam("当前流程定义不在可发起范围内");
+        if (StringUtils.isBlank(graphVersion.getEngineProcessDefinitionId())) {
+            throw new IllegalStateException("Graph 定义版本缺少 Flowable 流程定义ID");
         }
         return null;
-    }
-
-    private boolean canEmployeeStart(String startScopeJson, Long employeeId) {
-        if (StringUtils.isBlank(startScopeJson)) {
-            return true;
-        }
-        try {
-            JSONObject scopeObject = JSON.parseObject(startScopeJson);
-            String type = scopeObject.getString("type");
-            if (StringUtils.isBlank(type) || "ALL".equalsIgnoreCase(type)) {
-                return true;
-            }
-            if ("EMPLOYEE".equalsIgnoreCase(type)) {
-                return containsLong(scopeObject.getJSONArray("employeeIds"), employeeId);
-            }
-            if ("DEPARTMENT".equalsIgnoreCase(type)) {
-                BpmEmployeeSnapshot employeeSnapshot = bpmOrgIdentityGateway.requireEmployee(employeeId);
-                return containsLong(scopeObject.getJSONArray("departmentIds"), employeeSnapshot.departmentId());
-            }
-            if ("ROLE".equalsIgnoreCase(type)) {
-                JSONArray roleIds = scopeObject.getJSONArray("roleIds");
-                if (roleIds == null || roleIds.isEmpty()) {
-                    return false;
-                }
-                for (Object roleId : roleIds) {
-                    if (roleId != null && bpmOrgIdentityGateway.listEmployeeIdsByRoleId(Long.valueOf(roleId.toString())).contains(employeeId)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return false;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
-
-    private boolean containsLong(JSONArray values, Long targetValue) {
-        if (values == null || targetValue == null) {
-            return false;
-        }
-        for (Object value : values) {
-            if (value != null && targetValue.toString().equals(value.toString())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void closePendingTasks(Long instanceId, LocalDateTime actionAt) {

@@ -6,7 +6,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.exception.BusinessException;
-import com.hunyuan.sa.bpm.engine.ast.RouteCondition;
+import com.hunyuan.sa.bpm.module.runtime.domain.model.RouteCondition;
 import com.hunyuan.sa.bpm.engine.route.BpmRouteExpressionContext;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.RoutingDataSnapshot;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;

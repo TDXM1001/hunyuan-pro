@@ -17,10 +17,9 @@ import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationCommand;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.WorkingDataMutationResult;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalDataMutationService;
-import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
+import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
-import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionEntity;
-import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmFormDataChangeDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskActionLogDao;
@@ -36,13 +35,11 @@ import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskRejectForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskReturnForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.form.BpmTaskTransferForm;
 import com.hunyuan.sa.bpm.module.runtime.domain.vo.BpmRuntimeStartDraftVO;
-import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskAssignmentResolver;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmApprovalGroupService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmInstanceCopyService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskProjectionService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTaskService;
-import com.hunyuan.sa.bpm.module.runtime.service.BpmRuntimeFormDataValidator;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmTimeEventService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmExternalWaitService;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmSubProcessService;
@@ -95,8 +92,7 @@ class BpmRuntimeCommandServiceTest {
         bpmFormDataChangeDao = Mockito.mock(BpmFormDataChangeDao.class);
         bpmApprovalDataMutationService = Mockito.mock(BpmApprovalDataMutationService.class);
 
-        setField(bpmInstanceService, "bpmDefinitionDao", Mockito.mock(BpmDefinitionDao.class));
-        setField(bpmInstanceService, "bpmDefinitionNodeDao", Mockito.mock(BpmDefinitionNodeDao.class));
+        setField(bpmInstanceService, "graphDefinitionVersionDao", Mockito.mock(GraphDefinitionVersionDao.class));
         setField(bpmInstanceService, "bpmInstanceDao", bpmInstanceDao);
         setField(bpmInstanceService, "bpmTaskDao", bpmTaskDao);
         setField(bpmInstanceService, "bpmTaskActionLogDao", bpmTaskActionLogDao);
@@ -104,10 +100,8 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmInstanceService, "bpmCurrentActorProvider", Mockito.mock(BpmCurrentActorProvider.class));
         setField(bpmInstanceService, "bpmOrgIdentityGateway", Mockito.mock(BpmOrgIdentityGateway.class));
         setField(bpmInstanceService, "serialNumberService", Mockito.mock(SerialNumberService.class));
-        setField(bpmInstanceService, "bpmTaskAssignmentResolver", Mockito.mock(BpmTaskAssignmentResolver.class));
         setField(bpmInstanceService, "bpmTaskProjectionService", Mockito.mock(BpmTaskProjectionService.class));
         setField(bpmInstanceService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
-        setField(bpmInstanceService, "bpmRuntimeFormDataValidator", new BpmRuntimeFormDataValidator());
         setField(bpmInstanceService, "bpmFormDataChangeDao", bpmFormDataChangeDao);
         setField(bpmInstanceService, "bpmApprovalDataMutationService", bpmApprovalDataMutationService);
         setField(bpmInstanceService, "bpmTimeEventService", Mockito.mock(BpmTimeEventService.class));
@@ -128,50 +122,6 @@ class BpmRuntimeCommandServiceTest {
         setField(bpmTaskService, "bpmApprovalGroupService", Mockito.mock(BpmApprovalGroupService.class));
         setField(bpmTaskService, "bpmSubProcessService", Mockito.mock(BpmSubProcessService.class));
         when(bpmInstanceCopyService.createManualCopies(any(), any(), any(), any())).thenReturn(ResponseDTO.ok());
-    }
-
-    @Test
-    void startInstanceShouldKeepInitialAndCurrentFormSnapshotsSeparated() {
-        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
-        definitionEntity.setDefinitionId(1L);
-        definitionEntity.setEngineProcessDefinitionId("leave:1:1000");
-        definitionEntity.setDefinitionKey("leave");
-        definitionEntity.setDefinitionVersion(1);
-        definitionEntity.setCategoryIdSnapshot(7L);
-        definitionEntity.setCategoryNameSnapshot("人事流程");
-        definitionEntity.setInstanceNoRuleIdSnapshot(1);
-        definitionEntity.setLifecycleState(1);
-        definitionEntity.setStartState(1);
-
-        when(definitionDao().selectById(1L)).thenReturn(definitionEntity);
-        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
-        when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null));
-        when(serialNumberService().generate(any())).thenReturn("SN-2026-0001");
-        when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
-        when(processInstanceGateway().start("leave:1:1000", 100L, "{\"amount\":100}", Map.of())).thenReturn("process-1000");
-        when(bpmInstanceDao.insert(any(BpmInstanceEntity.class))).thenAnswer(invocation -> {
-            BpmInstanceEntity entity = invocation.getArgument(0);
-            entity.setInstanceId(8L);
-            return 1;
-        });
-
-        BpmInstanceStartForm form = new BpmInstanceStartForm();
-        form.setDefinitionId(1L);
-        form.setFormDataJson("{\"amount\":100}");
-        form.setTitle("请假申请");
-
-        ResponseDTO<Long> response = bpmInstanceService.startInstance(form);
-
-        assertThat(response.getOk()).isTrue();
-        assertThat(response.getData()).isEqualTo(8L);
-
-        ArgumentCaptor<BpmInstanceEntity> instanceCaptor = ArgumentCaptor.forClass(BpmInstanceEntity.class);
-        verify(bpmInstanceDao).insert(instanceCaptor.capture());
-        assertThat(instanceCaptor.getValue().getInitialFormDataSnapshotJson()).isEqualTo("{\"amount\":100}");
-        assertThat(instanceCaptor.getValue().getCurrentFormDataSnapshotJson()).isEqualTo("{\"amount\":100}");
-        assertThat(instanceCaptor.getValue().getRunState()).isEqualTo(BpmInstanceRunStateEnum.RUNNING.getValue());
-        assertThat(instanceCaptor.getValue().getInstanceNo()).isEqualTo("SN-2026-0001");
-        verify(taskProjectionService()).syncActiveTasksForInstance(8L);
     }
 
     @Test
@@ -556,18 +506,12 @@ class BpmRuntimeCommandServiceTest {
     }
 
     @Test
-    void getResubmitDraftShouldExposeCurrentSnapshotForWaitResubmitInstance() {
-        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
-        definitionEntity.setDefinitionId(2L);
-        definitionEntity.setDefinitionName("请假流程");
-        definitionEntity.setFormNameSnapshot("请假表单");
-        definitionEntity.setFormSchemaSnapshotJson("{\"type\":\"object\"}");
-        definitionEntity.setLifecycleState(1);
-        definitionEntity.setStartState(1);
+    void getResubmitDraftShouldExposeGraphVersionAndCurrentSnapshot() {
+        GraphDefinitionVersionEntity graphVersion = activeGraphVersion();
 
         BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
         instanceEntity.setInstanceId(8L);
-        instanceEntity.setDefinitionId(2L);
+        instanceEntity.setGraphDefinitionVersionId(20L);
         instanceEntity.setStartEmployeeId(100L);
         instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
         instanceEntity.setTitle("请假申请");
@@ -576,18 +520,16 @@ class BpmRuntimeCommandServiceTest {
         instanceEntity.setFormDataVersion(3L);
 
         when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
-        when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instanceEntity);
-        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(graphVersionDao().selectById(20L)).thenReturn(graphVersion);
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
 
         ResponseDTO<BpmRuntimeStartDraftVO> response = bpmInstanceService.getResubmitDraft(8L);
 
         assertThat(response.getOk()).isTrue();
         assertThat(response.getData()).isNotNull();
-        assertThat(response.getData().getDefinitionId()).isEqualTo(2L);
+        assertThat(response.getData().getGraphDefinitionVersionId()).isEqualTo(20L);
+        assertThat(response.getData().getDefinitionSource()).isEqualTo("GRAPH");
         assertThat(response.getData().getDefinitionName()).isEqualTo("请假流程");
-        assertThat(response.getData().getFormNameSnapshot()).isEqualTo("请假表单");
-        assertThat(response.getData().getFormSchemaSnapshotJson()).isEqualTo("{\"type\":\"object\"}");
         assertThat(response.getData().getFormDataJson()).isEqualTo("{\"amount\":200}");
         assertThat(response.getData().getFormDataVersion()).isEqualTo(3L);
         assertThat(response.getData().getSourceInstanceId()).isEqualTo(8L);
@@ -596,21 +538,12 @@ class BpmRuntimeCommandServiceTest {
     }
 
     @Test
-    void resubmitMyInstanceShouldReusePlatformInstanceButStartNewEngineRun() {
-        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
-        definitionEntity.setDefinitionId(2L);
-        definitionEntity.setDefinitionKey("leave");
-        definitionEntity.setDefinitionName("请假流程");
-        definitionEntity.setDefinitionVersion(2);
-        definitionEntity.setCategoryIdSnapshot(7L);
-        definitionEntity.setCategoryNameSnapshot("人事流程");
-        definitionEntity.setLifecycleState(1);
-        definitionEntity.setStartState(1);
-        definitionEntity.setEngineProcessDefinitionId("leave:2:2000");
+    void resubmitMyGraphInstanceShouldReusePlatformInstanceAndFrozenGraphVersion() {
+        GraphDefinitionVersionEntity graphVersion = activeGraphVersion();
 
         BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
         instanceEntity.setInstanceId(8L);
-        instanceEntity.setDefinitionId(2L);
+        instanceEntity.setGraphDefinitionVersionId(20L);
         instanceEntity.setEngineProcessDefinitionId("leave:1:1000");
         instanceEntity.setEngineProcessInstanceId("process-1000");
         instanceEntity.setDefinitionKeySnapshot("leave");
@@ -628,15 +561,12 @@ class BpmRuntimeCommandServiceTest {
         instanceEntity.setFormDataVersion(3L);
         instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
 
-        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
         when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instanceEntity);
-        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(graphVersionDao().selectById(20L)).thenReturn(graphVersion);
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
                 new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null)
         );
-        when(definitionNodeDao().selectList(any())).thenReturn(java.util.List.of());
-        when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
         when(processInstanceGateway().start("leave:2:2000", 8L, 100L, "{\"amount\":200}", Map.of()))
                 .thenReturn("process-2000");
 
@@ -658,17 +588,14 @@ class BpmRuntimeCommandServiceTest {
         verify(bpmInstanceDao, Mockito.times(2)).updateById(instanceCaptor.capture());
         BpmInstanceEntity stateUpdate = instanceCaptor.getAllValues().get(0);
         BpmInstanceEntity engineUpdate = instanceCaptor.getAllValues().get(1);
-        assertThat(stateUpdate.getInstanceId()).isEqualTo(8L);
         assertThat(stateUpdate.getEngineProcessDefinitionId()).isEqualTo("leave:2:2000");
         assertThat(stateUpdate.getDefinitionVersionSnapshot()).isEqualTo(2);
         assertThat(stateUpdate.getCurrentFormDataSnapshotJson()).isEqualTo("{\"amount\":200}");
         assertThat(stateUpdate.getFormDataVersion()).isEqualTo(4L);
-        assertThat(stateUpdate.getInitialFormDataSnapshotJson()).isNull();
         assertThat(stateUpdate.getRunState()).isEqualTo(BpmInstanceRunStateEnum.RUNNING.getValue());
         assertThat(stateUpdate.getSummary()).isEqualTo("修改后重提");
-        assertThat(engineUpdate.getInstanceId()).isEqualTo(8L);
-        assertThat(engineUpdate.getEngineProcessInstanceId()).isEqualTo("process-2000");
         assertThat(stateUpdate.getTitle()).isEqualTo("请假申请-重提");
+        assertThat(engineUpdate.getEngineProcessInstanceId()).isEqualTo("process-2000");
 
         ArgumentCaptor<BpmTaskActionLogEntity> logCaptor = ArgumentCaptor.forClass(BpmTaskActionLogEntity.class);
         verify(bpmTaskActionLogDao).insert(logCaptor.capture());
@@ -681,19 +608,12 @@ class BpmRuntimeCommandServiceTest {
     }
 
     @Test
-    void resubmitM3InstanceShouldCreateWorkingDataVersionAndEvidence() {
-        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
-        definitionEntity.setDefinitionId(2L);
-        definitionEntity.setDefinitionKey("expense");
-        definitionEntity.setDefinitionName("费用流程");
-        definitionEntity.setDefinitionVersion(2);
-        definitionEntity.setLifecycleState(1);
-        definitionEntity.setStartState(1);
-        definitionEntity.setEngineProcessDefinitionId("expense:2:2000");
+    void resubmitGraphApprovalInstanceShouldCreateWorkingDataVersionAndEvidence() {
+        GraphDefinitionVersionEntity graphVersion = activeGraphVersion();
 
         BpmInstanceEntity instance = new BpmInstanceEntity();
         instance.setInstanceId(8L);
-        instance.setDefinitionId(2L);
+        instance.setGraphDefinitionVersionId(20L);
         instance.setStartEmployeeId(100L);
         instance.setApprovalSubjectSnapshotId(101L);
         instance.setProcessWorkingDataId(301L);
@@ -702,17 +622,15 @@ class BpmRuntimeCommandServiceTest {
         instance.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
 
         when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instance);
-        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
+        when(graphVersionDao().selectById(20L)).thenReturn(graphVersion);
         when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
         when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
                 new BpmEmployeeSnapshot(100L, "张三", 7L, "财务部", null, null)
         );
-        when(definitionNodeDao().selectList(any())).thenReturn(List.of());
-        when(taskAssignmentResolver().resolve(any(), any(BpmEmployeeSnapshot.class))).thenReturn(Map.of());
         when(bpmApprovalDataMutationService.update(any())).thenReturn(
                 new WorkingDataMutationResult(302L, 901L, 4L, "{\"amount\":200}")
         );
-        when(processInstanceGateway().start("expense:2:2000", 8L, 100L, "{\"amount\":200}", Map.of()))
+        when(processInstanceGateway().start("leave:2:2000", 8L, 100L, "{\"amount\":200}", Map.of()))
                 .thenReturn("process-2000");
 
         BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
@@ -740,85 +658,9 @@ class BpmRuntimeCommandServiceTest {
         verify(bpmFormDataChangeDao, never()).insert(any(BpmFormDataChangeEntity.class));
     }
 
-    @Test
-    void resubmitMyInstanceShouldResolveSelectedEmployeeFromLatestFormData() {
-        BpmDefinitionEntity definitionEntity = new BpmDefinitionEntity();
-        definitionEntity.setDefinitionId(2L);
-        definitionEntity.setDefinitionKey("expense");
-        definitionEntity.setDefinitionName("费用流程");
-        definitionEntity.setDefinitionVersion(2);
-        definitionEntity.setCategoryIdSnapshot(7L);
-        definitionEntity.setCategoryNameSnapshot("费用流程");
-        definitionEntity.setLifecycleState(1);
-        definitionEntity.setStartState(1);
-        definitionEntity.setEngineProcessDefinitionId("expense:2:2000");
-
-        BpmDefinitionNodeEntity nodeEntity = new BpmDefinitionNodeEntity();
-        nodeEntity.setNodeKey("task_selected");
-        nodeEntity.setNodeType("userTask");
-        nodeEntity.setNodeNameSnapshot("发起时选择审批");
-        nodeEntity.setAuthoredRuleSnapshotJson(
-                "{\"nodeKey\":\"task_selected\",\"name\":\"发起时选择审批\",\"type\":\"userTask\",\"candidateResolverType\":\"EMPLOYEE_SELECT_AT_START\",\"employeeSelectFieldKey\":\"approverEmployeeId\"}"
-        );
-
-        BpmInstanceEntity instanceEntity = new BpmInstanceEntity();
-        instanceEntity.setInstanceId(8L);
-        instanceEntity.setDefinitionId(2L);
-        instanceEntity.setEngineProcessDefinitionId("expense:1:1000");
-        instanceEntity.setEngineProcessInstanceId("process-1000");
-        instanceEntity.setDefinitionKeySnapshot("expense");
-        instanceEntity.setDefinitionVersionSnapshot(1);
-        instanceEntity.setCategoryIdSnapshot(7L);
-        instanceEntity.setCategoryNameSnapshot("费用流程");
-        instanceEntity.setTitle("费用申请");
-        instanceEntity.setStartEmployeeId(100L);
-        instanceEntity.setInitialFormDataSnapshotJson("{\"amount\":100,\"approverEmployeeId\":301}");
-        instanceEntity.setCurrentFormDataSnapshotJson("{\"amount\":100,\"approverEmployeeId\":301}");
-        instanceEntity.setFormDataVersion(1L);
-        instanceEntity.setRunState(BpmInstanceRunStateEnum.WAIT_RESUBMIT.getValue());
-
-        BpmTaskAssignmentResolver realResolver = new BpmTaskAssignmentResolver();
-        setField(realResolver, "bpmOrgIdentityGateway", instanceIdentityGateway());
-        setField(bpmInstanceService, "bpmTaskAssignmentResolver", realResolver);
-
-        when(bpmInstanceDao.selectById(8L)).thenReturn(instanceEntity);
-        when(bpmInstanceDao.selectByIdForUpdate(8L)).thenReturn(instanceEntity);
-        when(definitionDao().selectById(2L)).thenReturn(definitionEntity);
-        when(definitionNodeDao().selectList(any())).thenReturn(List.of(nodeEntity));
-        when(instanceCurrentActorProvider().requireCurrentEmployeeId()).thenReturn(100L);
-        when(instanceIdentityGateway().requireEmployee(100L)).thenReturn(
-                new BpmEmployeeSnapshot(100L, "张三", 7L, "人事部", null, null)
-        );
-        when(instanceIdentityGateway().requireEmployee(302L)).thenReturn(
-                new BpmEmployeeSnapshot(302L, "审批人B", 8L, "财务部", null, null)
-        );
-        when(processInstanceGateway().start("expense:2:2000", 8L, 100L, "{\"amount\":200,\"approverEmployeeId\":302}", Map.of("assignee_task_selected", "302")))
-                .thenReturn("process-2000");
-
-        BpmInstanceResubmitForm form = new BpmInstanceResubmitForm();
-        form.setInstanceId(8L);
-        form.setFormDataVersion(1L);
-        form.setFormDataJson("{\"amount\":200,\"approverEmployeeId\":302}");
-        form.setTitle("费用申请-重提");
-
-        ResponseDTO<Long> response = bpmInstanceService.resubmitMyInstance(form);
-
-        assertThat(response.getOk()).isTrue();
-
-        ArgumentCaptor<Map<String, Object>> variablesCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(processInstanceGateway()).start(
-                Mockito.eq("expense:2:2000"),
-                Mockito.eq(8L),
-                Mockito.eq(100L),
-                Mockito.eq("{\"amount\":200,\"approverEmployeeId\":302}"),
-                variablesCaptor.capture()
-        );
-        assertThat(variablesCaptor.getValue()).containsEntry("assignee_task_selected", "302");
-    }
-
     @SuppressWarnings("unchecked")
-    private BpmDefinitionDao definitionDao() {
-        return (BpmDefinitionDao) getFieldValue(bpmInstanceService, "bpmDefinitionDao");
+    private GraphDefinitionVersionDao graphVersionDao() {
+        return (GraphDefinitionVersionDao) getFieldValue(bpmInstanceService, "graphDefinitionVersionDao");
     }
 
     @SuppressWarnings("unchecked")
@@ -842,11 +684,6 @@ class BpmRuntimeCommandServiceTest {
     }
 
     @SuppressWarnings("unchecked")
-    private BpmDefinitionNodeDao definitionNodeDao() {
-        return (BpmDefinitionNodeDao) getFieldValue(bpmInstanceService, "bpmDefinitionNodeDao");
-    }
-
-    @SuppressWarnings("unchecked")
     private BpmOrgIdentityGateway taskIdentityGateway() {
         return (BpmOrgIdentityGateway) getFieldValue(bpmTaskService, "bpmOrgIdentityGateway");
     }
@@ -867,13 +704,21 @@ class BpmRuntimeCommandServiceTest {
     }
 
     @SuppressWarnings("unchecked")
-    private BpmTaskAssignmentResolver taskAssignmentResolver() {
-        return (BpmTaskAssignmentResolver) getFieldValue(bpmInstanceService, "bpmTaskAssignmentResolver");
-    }
-
-    @SuppressWarnings("unchecked")
     private BpmTaskProjectionService taskServiceProjectionService() {
         return (BpmTaskProjectionService) getFieldValue(bpmTaskService, "bpmTaskProjectionService");
+    }
+
+    private GraphDefinitionVersionEntity activeGraphVersion() {
+        GraphDefinitionVersionEntity graphVersion = new GraphDefinitionVersionEntity();
+        graphVersion.setGraphDefinitionVersionId(20L);
+        graphVersion.setProcessKey("leave");
+        graphVersion.setProcessNameSnapshot("请假流程");
+        graphVersion.setDefinitionVersion(2);
+        graphVersion.setCategoryIdSnapshot(7L);
+        graphVersion.setCategoryNameSnapshot("人事流程");
+        graphVersion.setLifecycleState("ACTIVE");
+        graphVersion.setEngineProcessDefinitionId("leave:2:2000");
+        return graphVersion;
     }
 
     private Object getFieldValue(Object target, String fieldName) {

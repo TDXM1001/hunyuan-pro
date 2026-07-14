@@ -17,11 +17,15 @@ class BpmGraphDraftControllerContractTest {
         ));
 
         assertThat(source).contains("/bpm/graph-draft/create");
+        assertThat(source).contains("/bpm/graph-draft/query");
         assertThat(source).contains("/bpm/graph-draft/save");
         assertThat(source).contains("/bpm/graph-draft/detail/{draftId}");
         assertThat(source).contains("/bpm/graph-draft/export/{draftId}");
         assertThat(source).contains("/bpm/graph-draft/import");
-        assertThat(source).contains("bpm:graph-draft:add", "bpm:graph-draft:update", "bpm:graph-draft:detail");
+        assertThat(source).contains(
+                "bpm:graph-draft:query", "bpm:graph-draft:add",
+                "bpm:graph-draft:update", "bpm:graph-draft:detail"
+        );
         assertThat(source).contains("BpmCurrentActorProvider");
     }
 }

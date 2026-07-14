@@ -1,9 +1,13 @@
 package com.hunyuan.sa.bpm.module.model.service;
 
 import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
+import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.base.common.util.SmartPageUtil;
 import com.hunyuan.sa.bpm.engine.graph.GraphCanonicalizer;
 import com.hunyuan.sa.bpm.engine.graph.GraphDocumentCodec;
 import com.hunyuan.sa.bpm.engine.graph.GraphNode;
@@ -12,12 +16,14 @@ import com.hunyuan.sa.bpm.module.model.dao.BpmProcessDraftDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmProcessDraftEntity;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftCreateCommand;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftImportCommand;
+import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftQueryForm;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftSaveCommand;
 import com.hunyuan.sa.bpm.module.model.domain.vo.BpmGraphDraftVO;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.List;
 
 /**
  * Graph 草稿的创建与 revision 条件保存，不读取或写入旧作者模型。
@@ -33,6 +39,24 @@ public class BpmGraphDraftService {
 
     @Resource
     private BpmProcessDraftDao bpmProcessDraftDao;
+
+    public ResponseDTO<PageResult<BpmGraphDraftVO>> queryDrafts(BpmGraphDraftQueryForm form) {
+        Page<BpmProcessDraftEntity> page = new Page<>(form.getPageNum(), form.getPageSize());
+        page.setSearchCount(!Boolean.FALSE.equals(form.getSearchCount()));
+        Page<BpmProcessDraftEntity> result = bpmProcessDraftDao.selectPage(
+                page,
+                Wrappers.<BpmProcessDraftEntity>lambdaQuery()
+                        .like(org.springframework.util.StringUtils.hasText(form.getProcessKey()),
+                                BpmProcessDraftEntity::getProcessKey, form.getProcessKey())
+                        .like(org.springframework.util.StringUtils.hasText(form.getProcessName()),
+                                BpmProcessDraftEntity::getProcessName, form.getProcessName())
+                        .eq(form.getCategoryId() != null,
+                                BpmProcessDraftEntity::getCategoryId, form.getCategoryId())
+                        .orderByDesc(BpmProcessDraftEntity::getUpdateTime, BpmProcessDraftEntity::getDraftId)
+        );
+        List<BpmGraphDraftVO> records = result.getRecords().stream().map(this::toSummaryVO).toList();
+        return ResponseDTO.ok(SmartPageUtil.convert2PageResult(result, records));
+    }
 
     public ResponseDTO<BpmGraphDraftVO> createDraft(BpmGraphDraftCreateCommand command) {
         if (bpmProcessDraftDao.selectByProcessKey(command.processKey()) != null) {
@@ -144,6 +168,19 @@ public class BpmGraphDraftService {
         result.setGraphJson(graphJson);
         result.setLayoutJson(layoutJson);
         result.setSemanticHash(semanticHash);
+        return result;
+    }
+
+    private BpmGraphDraftVO toSummaryVO(BpmProcessDraftEntity entity) {
+        BpmGraphDraftVO result = toVO(
+                entity.getDraftId(), entity.getRevision(), entity.getGraphJson(),
+                entity.getLayoutJson(), entity.getSemanticHash()
+        );
+        result.setProcessKey(entity.getProcessKey());
+        result.setProcessName(entity.getProcessName());
+        result.setCategoryId(entity.getCategoryId());
+        result.setDraftStatus(entity.getDraftStatus());
+        result.setUpdateTime(entity.getUpdateTime());
         return result;
     }
 }

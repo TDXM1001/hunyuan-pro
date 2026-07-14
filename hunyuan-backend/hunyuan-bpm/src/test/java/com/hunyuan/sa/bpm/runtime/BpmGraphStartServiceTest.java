@@ -11,7 +11,6 @@ import com.hunyuan.sa.bpm.module.candidate.domain.model.StartDecision;
 import com.hunyuan.sa.bpm.module.approvaldata.domain.model.ApprovalRuntimeBinding;
 import com.hunyuan.sa.bpm.module.approvaldata.service.BpmApprovalRuntimeDataService;
 import com.hunyuan.sa.bpm.module.candidate.service.StartVisibilityPolicyEvaluator;
-import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionDao;
 import com.hunyuan.sa.bpm.module.definition.dao.GraphDefinitionVersionDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.GraphDefinitionVersionEntity;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
@@ -40,7 +39,6 @@ import static org.mockito.Mockito.when;
 class BpmGraphStartServiceTest {
 
     private BpmInstanceService service;
-    private BpmDefinitionDao definitionDao;
     private GraphDefinitionVersionDao graphDefinitionVersionDao;
     private BpmInstanceDao instanceDao;
     private FlowableProcessInstanceGateway processInstanceGateway;
@@ -50,13 +48,11 @@ class BpmGraphStartServiceTest {
     @BeforeEach
     void setUp() {
         service = new BpmInstanceService();
-        definitionDao = Mockito.mock(BpmDefinitionDao.class);
         graphDefinitionVersionDao = Mockito.mock(GraphDefinitionVersionDao.class);
         instanceDao = Mockito.mock(BpmInstanceDao.class);
         processInstanceGateway = Mockito.mock(FlowableProcessInstanceGateway.class);
         startVisibilityPolicyEvaluator = Mockito.mock(StartVisibilityPolicyEvaluator.class);
         approvalRuntimeDataService = Mockito.mock(BpmApprovalRuntimeDataService.class);
-        setField(service, "bpmDefinitionDao", definitionDao);
         setField(service, "graphDefinitionVersionDao", graphDefinitionVersionDao);
         setField(service, "bpmInstanceDao", instanceDao);
         setField(service, "flowableProcessInstanceGateway", processInstanceGateway);
@@ -103,21 +99,6 @@ class BpmGraphStartServiceTest {
     }
 
     @Test
-    void startShouldRejectAmbiguousDefinitionSourceBeforeReadingAnyDefinition() {
-        BpmInstanceStartForm form = new BpmInstanceStartForm();
-        form.setDefinitionId(1L);
-        form.setGraphDefinitionVersionId(41L);
-        form.setFormDataJson("{}");
-
-        ResponseDTO<Long> response = service.startInstance(form);
-
-        assertThat(response.getOk()).isFalse();
-        assertThat(response.getMsg()).contains("只能选择一种");
-        verify(definitionDao, never()).selectById(any());
-        verify(graphDefinitionVersionDao, never()).selectById(any());
-    }
-
-    @Test
     void graphStartDraftShouldReadOnlyTheRequestedActiveVersion() {
         when(graphDefinitionVersionDao.selectById(41L)).thenReturn(graphVersion());
         when(startVisibilityPolicyEvaluator.evaluateStart(eq(1), any(), any()))
@@ -126,7 +107,6 @@ class BpmGraphStartServiceTest {
         ResponseDTO<BpmRuntimeStartDraftVO> response = service.getGraphStartDraft(41L);
 
         assertThat(response.getOk()).isTrue();
-        assertThat(response.getData().getDefinitionId()).isNull();
         assertThat(response.getData().getGraphDefinitionVersionId()).isEqualTo(41L);
         assertThat(response.getData().getDefinitionSource()).isEqualTo("GRAPH");
         assertThat(response.getData().getDefinitionName()).isEqualTo("图形费用申请");
@@ -140,7 +120,6 @@ class BpmGraphStartServiceTest {
         denied.setGraphDefinitionVersionId(42L);
         denied.setProcessKey("restricted-graph");
         denied.setProcessNameSnapshot("受限图形流程");
-        when(definitionDao.queryStartableList(100L)).thenReturn(List.of());
         when(graphDefinitionVersionDao.selectActiveStartableList()).thenReturn(List.of(allowed, denied));
         when(startVisibilityPolicyEvaluator.evaluateStart(eq(1), any(), any()))
                 .thenReturn(
