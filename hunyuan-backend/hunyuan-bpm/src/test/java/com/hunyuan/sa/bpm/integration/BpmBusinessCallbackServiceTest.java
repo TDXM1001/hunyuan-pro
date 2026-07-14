@@ -68,6 +68,17 @@ class BpmBusinessCallbackServiceTest {
     }
 
     @Test
+    void retryShouldReturnUserErrorWhenExecutionStillFails() {
+        when(callbackExecutor.execute(1L, BpmBusinessCallbackTriggerType.MANUAL))
+                .thenReturn(BpmBusinessCallbackExecuteResult.failed("外部系统仍不可用"));
+
+        ResponseDTO<String> response = callbackService.retry(1L);
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).isEqualTo("外部系统仍不可用");
+    }
+
+    @Test
     void compensateShouldMarkNeedsCompensationRecordAsCompensated() {
         BpmCallbackRecordEntity record = new BpmCallbackRecordEntity();
         record.setCallbackRecordId(1L);

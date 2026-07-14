@@ -33,7 +33,7 @@ public class BpmBusinessCallbackService {
                 callbackRecordId,
                 BpmBusinessCallbackTriggerType.MANUAL
         );
-        if (!result.processed() && "回调记录不存在".equals(result.message())) {
+        if (!result.succeeded()) {
             return ResponseDTO.userErrorParam(result.message());
         }
         return ResponseDTO.ok();

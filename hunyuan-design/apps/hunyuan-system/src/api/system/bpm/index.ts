@@ -10,6 +10,7 @@ export const BPM_ENDPOINT_INDEX = {
   connector: '/bpm/connector/',
   listener: '/bpm/listener/',
   model: '/bpm/model/',
+  operations: '/bpm/operations/',
   policyCatalog: '/bpm/policy-catalog/',
   businessContract: '/bpm/business-contract/',
   runtimeTask: '/bpm/task/',
@@ -24,6 +25,7 @@ export * from './graph';
 export * from './integration';
 export * from './listener';
 export * from './model';
+export * from './operations';
 export * from './policy';
 export * from './runtime';
 export * from './sample-expense';
