@@ -7,7 +7,7 @@ import type {
 import type { ColumnOption } from '@vben/art-hooks/table';
 import type { FormInstance, FormRules } from 'element-plus';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 
 import { ArtSearchPanel } from '@vben/art-hooks/common';
 import {
@@ -95,11 +95,6 @@ const columnsFactory = (): ColumnOption<ConfigRecord>[] => [
 ];
 
 const { columns, columnChecks } = useTableColumns(columnsFactory);
-
-const hasPagination = computed(() => pagination.total > pagination.size);
-const tableHeight = computed(() =>
-  hasPagination.value ? 'calc(100% - 44px)' : '100%',
-);
 
 function resetForm() {
   Object.assign(formData, {
@@ -242,7 +237,7 @@ onMounted(() => {
           <ArtTable
             :columns="columns"
             :data="rows"
-            :height="tableHeight"
+            height="100%"
             :loading="loading"
             :pagination="pagination"
             :pagination-options="{

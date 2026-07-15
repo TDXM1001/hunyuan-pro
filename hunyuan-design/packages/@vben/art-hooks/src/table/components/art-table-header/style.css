@@ -20,7 +20,6 @@
   align-items: center;
   justify-content: space-between;
   min-height: var(--art-table-toolbar-control-size);
-  margin-bottom: var(--art-table-toolbar-section-gap);
 }
 
 .art-table-header .header-left,

@@ -38,6 +38,8 @@ interface PaginationOptions {
 }
 
 const DEFAULT_TABLE_HEIGHT = 420
+/** 分页条占用高度：控件 34px + section-gap 约 8px，与 loading overlay inset 对齐 */
+const PAGINATION_RESERVE_PX = 44
 
 const STATUS_COLUMN_PROPS = new Set(['status', 'state'])
 const ACTION_COLUMN_PROPS = new Set(['action', 'actions', 'operation', 'operations'])
@@ -137,16 +139,6 @@ export default defineComponent({
 
     const isEmpty = computed(() => props.data.length === 0)
     const showLoadingOverlay = computed(() => props.loading)
-    const resolvedTableHeight = computed(() => {
-      if (isFullScreen.value) return '100%'
-      return props.height ?? DEFAULT_TABLE_HEIGHT
-    })
-    const tableHeight = computed(() => {
-      if (!isEmpty.value || props.loading) {
-        return resolvedTableHeight.value
-      }
-      return props.emptyHeight === '100%' ? resolvedTableHeight.value : props.emptyHeight
-    })
 
     const layout = computed(() => {
       if (width.value < 768) return 'prev, pager, next, sizes, jumper, total'
@@ -166,6 +158,39 @@ export default defineComponent({
       size: 'default' as const,
       ...props.paginationOptions,
     }))
+
+    // 与渲染条件对齐：有数据且（不隐藏单页 或 实际多页）时会画出分页条
+    const showsPagination = computed(() => {
+      if (!props.pagination || props.data.length === 0) return false
+      if (mergedPaginationOptions.value.hideOnSinglePage) {
+        return props.pagination.total > props.pagination.size
+      }
+      return true
+    })
+
+    const resolvedTableHeight = computed(() => {
+      if (isFullScreen.value) return '100%'
+      return props.height ?? DEFAULT_TABLE_HEIGHT
+    })
+
+    // 页面常传 height="100%"，但单页数据时仍会显示分页；此处自动预留，避免挤掉卡片底边距
+    const tableHeight = computed(() => {
+      const base =
+        !isEmpty.value || props.loading
+          ? resolvedTableHeight.value
+          : props.emptyHeight === '100%'
+            ? resolvedTableHeight.value
+            : props.emptyHeight
+
+      if (
+        showsPagination.value &&
+        !isFullScreen.value &&
+        base === '100%'
+      ) {
+        return `calc(100% - ${PAGINATION_RESERVE_PX}px)`
+      }
+      return base
+    })
 
     const paginationSummary = computed(() => {
       if (!props.pagination) return ''
@@ -228,7 +253,7 @@ export default defineComponent({
         return h(ElTableColumn, { ...cleanColumnProps(col), key: col.prop || col.type }, columnSlots)
       })
 
-      const pagination = props.pagination && props.data.length > 0
+      const pagination = showsPagination.value
         ? h(
             'div',
             {
@@ -254,10 +279,10 @@ export default defineComponent({
                 : null,
               h(ElPagination, {
                 ...mergedPaginationOptions.value,
-                currentPage: props.pagination.current,
+                currentPage: props.pagination!.current,
                 disabled: props.loading,
-                pageSize: props.pagination.size,
-                total: props.pagination.total,
+                pageSize: props.pagination!.size,
+                total: props.pagination!.total,
                 onCurrentChange: (val: number) => {
                   emit('pagination:current-change', val)
                   scrollToTop()

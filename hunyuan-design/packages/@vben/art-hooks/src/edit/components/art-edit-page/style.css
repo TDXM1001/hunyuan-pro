@@ -75,6 +75,22 @@
   min-height: 0;
   gap: 12px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--el-border-color) transparent;
+}
+
+.art-edit-page__body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.art-edit-page__body::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 3px;
+}
+
+.art-edit-page__body::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .art-edit-page__footer {
