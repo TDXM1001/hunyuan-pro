@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProcessDefinitionGraph } from '#/components/bpm/graph/graph-process-model';
-import type { BpmGraphDefinitionDetailRecord, BpmPolicyCatalogRecord } from '#/api/system/bpm';
+import type { BpmCategoryRecord, BpmGraphDefinitionDetailRecord, BpmPolicyCatalogRecord } from '#/api/system/bpm';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -11,9 +11,10 @@ import {
   ElButton,
   ElDialog,
   ElInput,
-  ElInputNumber,
   ElMessage,
   ElMessageBox,
+  ElOption,
+  ElSelect,
   ElTable,
   ElTableColumn,
   ElTabPane,
@@ -28,6 +29,7 @@ import {
   getBpmGraphDraft,
   getLatestBpmGraphDefinitionDetail,
   publishBpmGraphDefinition,
+  queryBpmCategoryPage,
   queryBpmPolicyCatalog,
   restoreBpmGraphDraft,
   saveBpmGraphDraft,
@@ -57,6 +59,7 @@ const baseline = ref<ProcessDefinitionGraph>();
 const draftMeta = reactive<DraftMeta>({ processKey: '', processName: '' });
 const definitionDetailVisible = ref(false);
 const publishedDefinition = ref<BpmGraphDefinitionDetailRecord>();
+const categoryOptions = ref<BpmCategoryRecord[]>([]);
 const policyCatalog = reactive({
   approvalPolicies: [] as BpmPolicyCatalogRecord[],
   candidatePolicies: [] as BpmPolicyCatalogRecord[],
@@ -130,6 +133,10 @@ async function loadPolicyCatalog() {
 async function createDraft() {
   if (!draftMeta.processKey.trim() || !draftMeta.processName.trim()) {
     ElMessage.warning('请输入流程编码和流程名称');
+    return;
+  }
+  if (!draftMeta.categoryId) {
+    ElMessage.warning('请选择流程分类');
     return;
   }
   busy.value = true;
@@ -248,8 +255,13 @@ watch(
 );
 
 onMounted(() => {
-  void loadPolicyCatalog().catch((error) => {
-    ElMessage.error(error?.message || '策略目录加载失败');
+  void Promise.all([
+    loadPolicyCatalog(),
+    queryBpmCategoryPage({ disabledFlag: false, pageNum: 1, pageSize: 200 }).then((page) => {
+      categoryOptions.value = page?.list ?? [];
+    }),
+  ]).catch((error) => {
+    ElMessage.error(error?.message || '流程配置数据加载失败');
   });
 });
 </script>
@@ -280,7 +292,14 @@ onMounted(() => {
       <section v-if="!hasDraft" class="graph-editor-page__create">
         <ElInput v-model="draftMeta.processKey" placeholder="流程编码，例如 expense-approval" />
         <ElInput v-model="draftMeta.processName" placeholder="流程名称" />
-        <ElInputNumber v-model="draftMeta.categoryId" :min="1" placeholder="分类 ID（可选）" />
+        <ElSelect v-model="draftMeta.categoryId" filterable placeholder="请选择流程分类">
+          <ElOption
+            v-for="item in categoryOptions"
+            :key="item.categoryId"
+            :label="item.categoryName"
+            :value="item.categoryId"
+          />
+        </ElSelect>
         <ElButton :disabled="busy" :icon="Plus" type="primary" @click="createDraft">创建 Graph 草稿</ElButton>
       </section>
 
@@ -343,7 +362,7 @@ onMounted(() => {
 .graph-editor-page__header h1 { margin: 2px 0 0; font-size: 18px; font-weight: 600; }
 .graph-editor-page__actions, .graph-editor-page__create { display: flex; align-items: center; gap: 8px; }
 .graph-editor-page__create { padding: 12px; border: 1px solid var(--el-border-color); background: var(--el-fill-color-lighter); }
-.graph-editor-page__create :deep(.el-input), .graph-editor-page__create :deep(.el-input-number) { width: 240px; }
+.graph-editor-page__create :deep(.el-input), .graph-editor-page__create :deep(.el-select) { width: 240px; }
 .graph-editor-page__definition-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; color: var(--el-text-color-secondary); font-size: 13px; }
-@media (max-width: 900px) { .graph-editor-page__header, .graph-editor-page__actions, .graph-editor-page__create { align-items: stretch; flex-direction: column; } .graph-editor-page__create :deep(.el-input), .graph-editor-page__create :deep(.el-input-number) { width: 100%; } }
+@media (max-width: 900px) { .graph-editor-page__header, .graph-editor-page__actions, .graph-editor-page__create { align-items: stretch; flex-direction: column; } .graph-editor-page__create :deep(.el-input), .graph-editor-page__create :deep(.el-select) { width: 100%; } }
 </style>

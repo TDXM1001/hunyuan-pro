@@ -8,6 +8,17 @@ function readSource(path: string) {
 }
 
 describe('Graph definition inspection contracts', () => {
+  it('requires an enabled category selected by business name before creating a draft', () => {
+    const editorSource = readSource('apps/hunyuan-system/src/views/system/bpm/model/model-editor.vue');
+
+    expect(editorSource).toContain('queryBpmCategoryPage');
+    expect(editorSource).toContain('disabledFlag: false');
+    expect(editorSource).toContain('请选择流程分类');
+    expect(editorSource).toContain(':label="item.categoryName"');
+    expect(editorSource).toContain(':value="item.categoryId"');
+    expect(editorSource).not.toContain('分类 ID（可选）');
+  });
+
   it('exposes immutable definition inspection in the API and model editor', () => {
     const apiSource = readSource('apps/hunyuan-system/src/api/system/bpm/graph.ts');
     const editorSource = readSource('apps/hunyuan-system/src/views/system/bpm/model/model-editor.vue');

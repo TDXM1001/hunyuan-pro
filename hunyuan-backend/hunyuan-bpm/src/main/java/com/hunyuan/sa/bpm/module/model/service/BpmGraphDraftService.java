@@ -12,6 +12,8 @@ import com.hunyuan.sa.bpm.engine.graph.GraphCanonicalizer;
 import com.hunyuan.sa.bpm.engine.graph.GraphDocumentCodec;
 import com.hunyuan.sa.bpm.engine.graph.GraphNode;
 import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
+import com.hunyuan.sa.bpm.module.category.dao.BpmCategoryDao;
+import com.hunyuan.sa.bpm.module.category.domain.entity.BpmCategoryEntity;
 import com.hunyuan.sa.bpm.module.model.dao.BpmProcessDraftDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmProcessDraftEntity;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftCreateCommand;
@@ -40,6 +42,9 @@ public class BpmGraphDraftService {
     @Resource
     private BpmProcessDraftDao bpmProcessDraftDao;
 
+    @Resource
+    private BpmCategoryDao bpmCategoryDao;
+
     public ResponseDTO<PageResult<BpmGraphDraftVO>> queryDrafts(BpmGraphDraftQueryForm form) {
         Page<BpmProcessDraftEntity> page = new Page<>(form.getPageNum(), form.getPageSize());
         page.setSearchCount(!Boolean.FALSE.equals(form.getSearchCount()));
@@ -59,6 +64,15 @@ public class BpmGraphDraftService {
     }
 
     public ResponseDTO<BpmGraphDraftVO> createDraft(BpmGraphDraftCreateCommand command) {
+        if (command.categoryId() == null) {
+            return ResponseDTO.userErrorParam("请选择流程分类");
+        }
+        BpmCategoryEntity category = bpmCategoryDao.selectById(command.categoryId());
+        if (category == null
+                || Boolean.TRUE.equals(category.getDeletedFlag())
+                || Boolean.TRUE.equals(category.getDisabledFlag())) {
+            return ResponseDTO.userErrorParam("所选流程分类不可用，请重新选择");
+        }
         if (bpmProcessDraftDao.selectByProcessKey(command.processKey()) != null) {
             return ResponseDTO.userErrorParam("流程资产编码已存在");
         }

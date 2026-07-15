@@ -6,6 +6,8 @@ import com.hunyuan.sa.bpm.engine.graph.GraphNode;
 import com.hunyuan.sa.bpm.engine.graph.GraphNodeType;
 import com.hunyuan.sa.bpm.engine.graph.GraphScope;
 import com.hunyuan.sa.bpm.engine.graph.HunyuanProcessDefinitionGraph;
+import com.hunyuan.sa.bpm.module.category.dao.BpmCategoryDao;
+import com.hunyuan.sa.bpm.module.category.domain.entity.BpmCategoryEntity;
 import com.hunyuan.sa.bpm.module.model.dao.BpmProcessDraftDao;
 import com.hunyuan.sa.bpm.module.model.domain.entity.BpmProcessDraftEntity;
 import com.hunyuan.sa.bpm.module.model.domain.form.BpmGraphDraftCreateCommand;
@@ -35,11 +37,20 @@ class BpmGraphDraftServiceTest {
 
     private BpmProcessDraftDao draftDao;
 
+    private BpmCategoryDao categoryDao;
+
     @BeforeEach
     void setUp() {
         service = new BpmGraphDraftService();
         draftDao = Mockito.mock(BpmProcessDraftDao.class);
+        categoryDao = Mockito.mock(BpmCategoryDao.class);
         setField(service, "bpmProcessDraftDao", draftDao);
+        setField(service, "bpmCategoryDao", categoryDao);
+        BpmCategoryEntity category = new BpmCategoryEntity();
+        category.setCategoryId(9L);
+        category.setDisabledFlag(false);
+        category.setDeletedFlag(false);
+        when(categoryDao.selectById(9L)).thenReturn(category);
     }
 
     @Test
@@ -84,6 +95,42 @@ class BpmGraphDraftServiceTest {
 
         assertThat(response.getOk()).isFalse();
         assertThat(response.getMsg()).contains("编码已存在");
+        Mockito.verify(draftDao, Mockito.never()).insert(any(BpmProcessDraftEntity.class));
+    }
+
+    @Test
+    void createShouldRejectMissingCategoryBeforeInsert() {
+        ResponseDTO<BpmGraphDraftVO> response = service.createDraft(new BpmGraphDraftCreateCommand(
+                "expense_apply",
+                "报销申请",
+                null,
+                graph(120),
+                7L
+        ));
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("流程分类");
+        Mockito.verify(draftDao, Mockito.never()).insert(any(BpmProcessDraftEntity.class));
+    }
+
+    @Test
+    void createShouldRejectUnavailableCategoryBeforeInsert() {
+        BpmCategoryEntity disabled = new BpmCategoryEntity();
+        disabled.setCategoryId(10L);
+        disabled.setDisabledFlag(true);
+        disabled.setDeletedFlag(false);
+        when(categoryDao.selectById(10L)).thenReturn(disabled);
+
+        ResponseDTO<BpmGraphDraftVO> response = service.createDraft(new BpmGraphDraftCreateCommand(
+                "expense_apply",
+                "报销申请",
+                10L,
+                graph(120),
+                7L
+        ));
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("不可用");
         Mockito.verify(draftDao, Mockito.never()).insert(any(BpmProcessDraftEntity.class));
     }
 

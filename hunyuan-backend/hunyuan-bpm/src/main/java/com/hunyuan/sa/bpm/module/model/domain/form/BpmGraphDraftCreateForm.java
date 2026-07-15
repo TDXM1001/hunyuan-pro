@@ -24,6 +24,7 @@ public class BpmGraphDraftCreateForm {
     private String processName;
 
     @Schema(description = "流程分类 ID")
+    @NotNull(message = "请选择流程分类")
     private Long categoryId;
 
     @Schema(description = "正式流程图")
