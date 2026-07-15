@@ -668,9 +668,6 @@ onMounted(() => {
             <ElDescriptionsItem label="任务名称">
               {{ detailData.taskName }}
             </ElDescriptionsItem>
-            <ElDescriptionsItem label="任务标识">
-              {{ detailData.taskKey || '-' }}
-            </ElDescriptionsItem>
             <ElDescriptionsItem label="发起人">
               {{ detailData.startEmployeeNameSnapshot || '-' }}
             </ElDescriptionsItem>
@@ -698,9 +695,6 @@ onMounted(() => {
             </ElDescriptionsItem>
             <ElDescriptionsItem label="完成时间">
               {{ detailData.completedAt || '-' }}
-            </ElDescriptionsItem>
-            <ElDescriptionsItem :span="2" label="运行时分配快照">
-              <code>{{ detailData.runtimeAssignmentSnapshotJson || '-' }}</code>
             </ElDescriptionsItem>
           </ElDescriptions>
 

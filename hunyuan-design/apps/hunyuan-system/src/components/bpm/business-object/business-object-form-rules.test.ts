@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { createBusinessObjectModel } from '#/views/system/bpm/business-contract/business-object-editor-model';
-import { toBusinessObjectFormRules } from './business-object-form-rules';
+import {
+  toBusinessObjectFormRules,
+  toBusinessObjectLineItemRows,
+} from './business-object-form-rules';
 
 describe('business object form preview rules', () => {
   it('maps backend registered controls without exposing protocol fields', () => {
@@ -24,5 +27,20 @@ describe('business object form preview rules', () => {
     expect(readonly.every((rule) => (rule as any).props?.disabled === true)).toBe(true);
     expect((editable.find((rule) => rule.field === 'approvalNote') as any)?.props?.disabled).toBe(false);
     expect((editable.find((rule) => rule.field === 'amount') as any)?.props?.disabled).toBe(true);
+  });
+
+  it('maps frozen line-item keys to business labels', () => {
+    const detail = { configuration: createBusinessObjectModel() } as any;
+    detail.configuration.lineItemSchema = {
+      fields: [{ key: 'expenseItem', label: '费用项目' }],
+      maxRows: 10,
+      minRows: 1,
+      name: '费用明细',
+    };
+
+    expect(toBusinessObjectLineItemRows(detail, [{ expenseItem: '高铁交通' }])).toEqual({
+      name: '费用明细',
+      rows: [[{ label: '费用项目', value: '高铁交通' }]],
+    });
   });
 });

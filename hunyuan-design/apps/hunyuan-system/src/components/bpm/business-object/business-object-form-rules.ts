@@ -14,3 +14,17 @@ export function toBusinessObjectFormRules(detail: BpmBusinessObjectDetail, persp
     validate: field.required ? [{ message: `${field.label}不能为空`, required: true }] : [],
   } as FormRule));
 }
+
+export function toBusinessObjectLineItemRows(
+  detail: BpmBusinessObjectDetail,
+  items: Record<string, any>[],
+) {
+  const schema = detail.configuration?.lineItemSchema;
+  return {
+    name: schema?.name || '明细',
+    rows: items.map((item) => (schema?.fields || []).map((field) => ({
+      label: field.label,
+      value: item[field.key],
+    }))),
+  };
+}

@@ -37,7 +37,6 @@ describe('BPM M3 页面 contract', () => {
       'queryGenericApplicationContracts',
       'queryBpmStartableDefinitions',
       'configuration?.routingFacts',
-      'configuration?.workingDataSchema',
       'lineItemSchema',
       'submitBpmGenericApplication',
       'toBusinessObjectFormRules',
@@ -45,7 +44,15 @@ describe('BPM M3 页面 contract', () => {
     ].forEach((needle) => expect(source).toContain(needle));
     const workbench = readFileSync(resolve(process.cwd(), 'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-task-form-workbench.vue'), 'utf8');
     expect(workbench).toContain('toBusinessObjectFormRules');
+    expect(workbench).toContain('toBusinessObjectLineItemRows');
+    expect(workbench).toContain('workingDataSchema.some((field) => field.key === permission.fieldKey)');
+    expect(workbench).not.toContain('hasOwnProperty.call(formData.value');
+    const todo = readFileSync(resolve(process.cwd(), 'apps/hunyuan-system/src/views/system/bpm/runtime/my-todo-list.vue'), 'utf8');
+    expect(todo).not.toContain('label="任务标识"');
+    expect(todo).not.toContain('运行时分配快照');
     expect(source).not.toContain('attachmentsJson');
     expect(source).not.toContain('lineItemsJson');
+    expect(source).not.toContain('流程初始化信息');
+    expect(source).not.toContain('workingRules');
   });
 });

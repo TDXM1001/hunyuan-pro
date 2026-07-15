@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class BpmApprovalSubjectViewService {
@@ -94,6 +95,7 @@ public class BpmApprovalSubjectViewService {
         int clearance = sensitivityRank(properties.getString("maxSensitivity"), "INTERNAL");
         Map<String, String> configuredPermissions = fieldPermissions(properties.getJSONArray("fieldPermissions"));
         JSONObject contractJson = JSON.parseObject(contract.getContractJson());
+        Set<String> contractEditableFields = editableFields(contractJson.getJSONObject("changePolicy"));
         JSONObject subjectFields = JSON.parseObject(subject.getFieldsJson());
         JSONObject workingFields = JSON.parseObject(working.getDataJson());
         JSONObject visibleSubjectFields = new JSONObject(true);
@@ -101,11 +103,11 @@ public class BpmApprovalSubjectViewService {
         List<BpmFieldPermissionVO> visiblePermissions = new ArrayList<>();
         appendVisibleFields(
                 contractJson.getJSONArray("fieldSchema"), subjectFields, configuredPermissions,
-                clearance, visibleSubjectFields, visiblePermissions
+                Set.of(), clearance, visibleSubjectFields, visiblePermissions
         );
         appendVisibleFields(
                 contractJson.getJSONArray("workingDataSchema"), workingFields, configuredPermissions,
-                clearance, visibleWorkingFields, visiblePermissions
+                contractEditableFields, clearance, visibleWorkingFields, visiblePermissions
         );
 
         BpmApprovalSubjectContextVO context = new BpmApprovalSubjectContextVO();
@@ -133,6 +135,7 @@ public class BpmApprovalSubjectViewService {
             JSONArray schema,
             JSONObject data,
             Map<String, String> configuredPermissions,
+            Set<String> defaultEditableFields,
             int clearance,
             JSONObject visibleData,
             List<BpmFieldPermissionVO> visiblePermissions
@@ -143,7 +146,8 @@ public class BpmApprovalSubjectViewService {
         for (int index = 0; index < schema.size(); index++) {
             JSONObject definition = schema.getJSONObject(index);
             String key = definition.getString("key");
-            String permission = configuredPermissions.getOrDefault(key, "READONLY");
+            String defaultPermission = defaultEditableFields.contains(key) ? "EDITABLE" : "READONLY";
+            String permission = configuredPermissions.getOrDefault(key, defaultPermission);
             if ("HIDDEN".equals(permission)
                     || sensitivityRank(definition.getString("sensitivity"), "INTERNAL") > clearance) {
                 continue;
@@ -191,6 +195,19 @@ public class BpmApprovalSubjectViewService {
             result.put(key, permission);
         }
         return result;
+    }
+
+    private Set<String> editableFields(JSONObject changePolicy) {
+        if (changePolicy == null || !"FIELD_CONTROLLED".equals(changePolicy.getString("mode"))) {
+            return Set.of();
+        }
+        JSONArray fields = changePolicy.getJSONArray("editableFields");
+        if (fields == null) {
+            return Set.of();
+        }
+        Set<String> result = new java.util.LinkedHashSet<>();
+        fields.forEach(value -> result.add(String.valueOf(value)));
+        return Set.copyOf(result);
     }
 
     private int sensitivityRank(String value, String fallback) {

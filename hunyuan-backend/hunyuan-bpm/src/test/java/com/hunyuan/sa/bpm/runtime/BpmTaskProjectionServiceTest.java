@@ -8,8 +8,11 @@ import com.hunyuan.sa.bpm.engine.internal.FlowableActiveTaskSnapshot;
 import com.hunyuan.sa.bpm.engine.internal.FlowableTaskGateway;
 import com.hunyuan.sa.bpm.module.definition.dao.BpmDefinitionNodeDao;
 import com.hunyuan.sa.bpm.module.definition.domain.entity.BpmDefinitionNodeEntity;
+import com.hunyuan.sa.bpm.module.runtime.dao.BpmApprovalStageMemberDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmInstanceDao;
 import com.hunyuan.sa.bpm.module.runtime.dao.BpmTaskDao;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageEntity;
+import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmApprovalStageMemberEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmInstanceEntity;
 import com.hunyuan.sa.bpm.module.runtime.domain.entity.BpmTaskEntity;
 import com.hunyuan.sa.bpm.module.runtime.service.BpmNotificationCommand;
@@ -42,6 +45,7 @@ class BpmTaskProjectionServiceTest {
     private BpmInstanceDao bpmInstanceDao;
     private BpmTaskDao bpmTaskDao;
     private BpmDefinitionNodeDao bpmDefinitionNodeDao;
+    private BpmApprovalStageMemberDao bpmApprovalStageMemberDao;
     private FlowableTaskGateway flowableTaskGateway;
     private BpmOrgIdentityGateway bpmOrgIdentityGateway;
     private BpmNotificationListenerService bpmNotificationListenerService;
@@ -53,6 +57,7 @@ class BpmTaskProjectionServiceTest {
         bpmInstanceDao = Mockito.mock(BpmInstanceDao.class);
         bpmTaskDao = Mockito.mock(BpmTaskDao.class);
         bpmDefinitionNodeDao = Mockito.mock(BpmDefinitionNodeDao.class);
+        bpmApprovalStageMemberDao = Mockito.mock(BpmApprovalStageMemberDao.class);
         flowableTaskGateway = Mockito.mock(FlowableTaskGateway.class);
         bpmOrgIdentityGateway = Mockito.mock(BpmOrgIdentityGateway.class);
         bpmNotificationListenerService = Mockito.mock(BpmNotificationListenerService.class);
@@ -60,6 +65,7 @@ class BpmTaskProjectionServiceTest {
         setField(service, "bpmInstanceDao", bpmInstanceDao);
         setField(service, "bpmTaskDao", bpmTaskDao);
         setField(service, "bpmDefinitionNodeDao", bpmDefinitionNodeDao);
+        setField(service, "bpmApprovalStageMemberDao", bpmApprovalStageMemberDao);
         setField(service, "flowableTaskGateway", flowableTaskGateway);
         setField(service, "bpmOrgIdentityGateway", bpmOrgIdentityGateway);
         setField(service, "bpmNotificationListenerService", bpmNotificationListenerService);
@@ -358,6 +364,48 @@ class BpmTaskProjectionServiceTest {
         assertThat(captor.getValue().getTaskKey()).isEqualTo("archive_handle");
         assertThat(captor.getValue().getTaskName()).isEqualTo("归档办理");
         assertThat(captor.getValue().getDefinitionNodeId()).isNull();
+    }
+
+    @Test
+    void graphApprovalStageTaskShouldUseFrozenBusinessNodeName() {
+        BpmInstanceEntity instance = buildInstance();
+        instance.setDefinitionId(null);
+        instance.setDefinitionSource("GRAPH");
+        instance.setGraphDefinitionVersionId(41L);
+        BpmApprovalStageEntity stage = new BpmApprovalStageEntity();
+        stage.setApprovalStageId(31L);
+        stage.setInstanceId(8L);
+        stage.setAuthoredNodeId("review_node");
+        stage.setEngineProcessInstanceId("process-1");
+        stage.setEngineExecutionId("execution-1");
+        BpmApprovalStageMemberEntity member = new BpmApprovalStageMemberEntity();
+        member.setApprovalStageMemberId(32L);
+        member.setCurrentEmployeeId(22L);
+        member.setMemberState("ACTIVE");
+        BpmGraphRuntimeMetadataService metadataService = Mockito.mock(BpmGraphRuntimeMetadataService.class);
+        setField(service, "bpmGraphRuntimeMetadataService", metadataService);
+        when(metadataService.requireNode(41L, "review_node"))
+                .thenReturn(new BpmGraphRuntimeMetadataService.GraphNodeMetadata(
+                        "review_node", "scope_root", "财务审批", GraphNodeType.APPROVAL, new JSONObject(true)
+                ));
+        when(bpmInstanceDao.selectById(8L)).thenReturn(instance);
+        when(bpmApprovalStageMemberDao.selectByApprovalStageId(31L)).thenReturn(List.of(member));
+        when(bpmTaskDao.selectByApprovalStageMemberId(32L)).thenReturn(null);
+        when(bpmOrgIdentityGateway.requireEmployee(22L)).thenReturn(
+                new BpmEmployeeSnapshot(22L, "李四", 9L, "财务部", null, null)
+        );
+        when(bpmTaskDao.insert(any(BpmTaskEntity.class))).thenAnswer(invocation -> {
+            BpmTaskEntity task = invocation.getArgument(0);
+            task.setTaskId(33L);
+            return 1;
+        });
+
+        service.projectActiveApprovalStageMembers(stage);
+
+        ArgumentCaptor<BpmTaskEntity> captor = ArgumentCaptor.forClass(BpmTaskEntity.class);
+        verify(bpmTaskDao).insert(captor.capture());
+        assertThat(captor.getValue().getTaskKey()).isEqualTo("review_node");
+        assertThat(captor.getValue().getTaskName()).isEqualTo("财务审批");
     }
 
     private BpmInstanceEntity buildInstance() {

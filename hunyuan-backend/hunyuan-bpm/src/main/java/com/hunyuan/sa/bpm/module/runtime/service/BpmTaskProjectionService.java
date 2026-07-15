@@ -143,7 +143,10 @@ public class BpmTaskProjectionService {
         task.setEngineExecutionId(stage.getEngineExecutionId());
         task.setEngineProcessInstanceId(stage.getEngineProcessInstanceId());
         task.setTaskKey(stage.getAuthoredNodeId());
-        task.setTaskName("审批：" + stage.getAuthoredNodeId());
+        task.setTaskName("GRAPH".equals(instance.getDefinitionSource())
+                ? bpmGraphRuntimeMetadataService.requireNode(
+                        instance.getGraphDefinitionVersionId(), stage.getAuthoredNodeId()).nodeName()
+                : "审批：" + stage.getAuthoredNodeId());
         task.setInstanceNo(instance.getInstanceNo());
         task.setInstanceTitle(instance.getTitle());
         task.setStartEmployeeId(instance.getStartEmployeeId());

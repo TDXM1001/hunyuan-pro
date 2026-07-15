@@ -17,7 +17,10 @@ import {
 } from 'element-plus';
 
 import BpmRuntimeFormRenderer from './bpm-runtime-form-renderer.vue';
-import { toBusinessObjectFormRules } from '#/components/bpm/business-object/business-object-form-rules';
+import {
+  toBusinessObjectFormRules,
+  toBusinessObjectLineItemRows,
+} from '#/components/bpm/business-object/business-object-form-rules';
 
 defineOptions({ name: 'BpmTaskFormWorkbench' });
 
@@ -110,13 +113,22 @@ async function submitPatch() {
 const subjectFields = computed(() =>
   Object.entries(parseData(props.approvalSubjectContext?.fieldsJson || undefined)),
 );
-const lineItems = computed(() => parseArray(props.approvalSubjectContext?.lineItemsJson));
+const lineItemView = computed(() => {
+  const configuration = props.approvalSubjectContext?.businessObjectConfiguration;
+  return configuration
+    ? toBusinessObjectLineItemRows(
+        { configuration } as BpmBusinessObjectDetail,
+        parseArray(props.approvalSubjectContext?.lineItemsJson),
+      )
+    : { name: '明细', rows: [] };
+});
 const attachments = computed(() => parseArray(props.approvalSubjectContext?.attachmentsJson));
-const workingPermissions = computed(() =>
-  (props.approvalSubjectContext?.fieldPermissions || []).filter((permission) =>
-    Object.prototype.hasOwnProperty.call(formData.value, permission.fieldKey),
-  ),
-);
+const workingPermissions = computed(() => {
+  const workingDataSchema = props.approvalSubjectContext?.businessObjectConfiguration?.workingDataSchema || [];
+  return (props.approvalSubjectContext?.fieldPermissions || []).filter((permission) =>
+    workingDataSchema.some((field) => field.key === permission.fieldKey),
+  );
+});
 const subjectModel = computed(() => parseData(props.approvalSubjectContext?.fieldsJson || undefined));
 const subjectRules = computed(() => rulesFor('SUBJECT'));
 const workingRules = computed(() => rulesFor('WORKING'));
@@ -186,20 +198,20 @@ defineExpose({ submitPatch });
           </ElDescriptionsItem>
         </ElDescriptions>
 
-        <div v-if="lineItems.length > 0" class="bpm-task-form-workbench__section">
-          <strong>明细</strong>
+        <div v-if="lineItemView.rows.length > 0" class="bpm-task-form-workbench__section">
+          <strong>{{ lineItemView.name }}</strong>
           <ElDescriptions
-            v-for="(item, index) in lineItems"
+            v-for="(item, index) in lineItemView.rows"
             :key="index"
             :column="2"
             border
           >
             <ElDescriptionsItem
-              v-for="(value, key) in item"
-              :key="String(key)"
-              :label="String(key)"
+              v-for="field in item"
+              :key="field.label"
+              :label="field.label"
             >
-              {{ value ?? '-' }}
+              {{ field.value ?? '-' }}
             </ElDescriptionsItem>
           </ElDescriptions>
         </div>

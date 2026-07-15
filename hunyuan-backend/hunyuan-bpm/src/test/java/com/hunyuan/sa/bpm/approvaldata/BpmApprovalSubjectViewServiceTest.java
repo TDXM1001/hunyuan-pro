@@ -55,10 +55,15 @@ class BpmApprovalSubjectViewServiceTest {
                 .doesNotContain("internalCostCode", "RND-01");
         assertThat(context.getLineItemsJson()).contains("开发工作站");
         assertThat(context.getAttachmentsJson()).contains("报价单.pdf");
-        assertThat(context.getWorkingDataJson()).contains("approvedAmount").doesNotContain("privateMemo");
+        assertThat(context.getWorkingDataJson()).contains("approvedAmount", "approvalNote").doesNotContain("privateMemo");
         assertThat(context.getFieldPermissions())
                 .extracting(item -> item.getFieldKey() + ":" + item.getPermission())
-                .containsExactly("amount:READONLY", "applicantNote:READONLY", "approvedAmount:EDITABLE");
+                .containsExactly(
+                        "amount:READONLY",
+                        "applicantNote:READONLY",
+                        "approvedAmount:EDITABLE",
+                        "approvalNote:EDITABLE"
+                );
         assertThat(context.getBusinessObjectConfiguration()).isNotNull();
         assertThat(context.getBusinessObjectConfiguration().fieldSchema())
                 .extracting(field -> field.key()).contains("amount", "applicantNote");
@@ -80,7 +85,7 @@ class BpmApprovalSubjectViewServiceTest {
         var working = new com.hunyuan.sa.bpm.module.approvaldata.domain.entity.BpmProcessWorkingDataEntity();
         working.setProcessWorkingDataId(301L);
         working.setDataVersion(2L);
-        working.setDataJson("{\"approvedAmount\":11000.00,\"privateMemo\":\"仅主管可见\"}");
+        working.setDataJson("{\"approvedAmount\":11000.00,\"approvalNote\":\"同意\",\"privateMemo\":\"仅主管可见\"}");
         return working;
     }
 
@@ -100,9 +105,10 @@ class BpmApprovalSubjectViewServiceTest {
                   {"key":"internalCostCode","sensitivity":"CONFIDENTIAL"}
                 ],"workingDataSchema":[
                   {"key":"approvedAmount","sensitivity":"INTERNAL"},
+                  {"key":"approvalNote","sensitivity":"INTERNAL"},
                   {"key":"privateMemo","sensitivity":"CONFIDENTIAL"}
                 ],"routingFacts":[],"attachmentRules":{"maxCount":5,"maxSizeMb":20,"allowedExtensions":["pdf"],"required":false},
-                "changePolicy":{"mode":"FIELD_CONTROLLED","editableFields":["approvedAmount"]}}
+                "changePolicy":{"mode":"FIELD_CONTROLLED","editableFields":["approvedAmount","approvalNote"]}}
                 """);
         return contract;
     }
