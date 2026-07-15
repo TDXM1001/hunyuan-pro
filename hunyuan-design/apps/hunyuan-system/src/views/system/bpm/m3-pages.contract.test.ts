@@ -22,7 +22,18 @@ describe('BPM M3 页面 contract', () => {
     expect(source).not.toContain('契约 JSON');
     expect(source).not.toContain('canonicalContractJson');
     const editor = readFileSync(resolve(process.cwd(), 'apps/hunyuan-system/src/views/system/bpm/business-contract/business-object-editor.vue'), 'utf8');
-    ['createBpmBusinessObjectVisualDraft', 'saveBpmBusinessObjectVisualDraft', 'validateBpmBusinessObjectVisualDraft', 'BpmSchemaFieldTable'].forEach((needle) => expect(editor).toContain(needle));
+    [
+      'createBpmBusinessObjectVisualDraft',
+      'saveBpmBusinessObjectVisualDraft',
+      'validateBpmBusinessObjectVisualDraft',
+      'BpmSchemaFieldTable',
+      'Page auto-content-height',
+      '!p-3 h-full min-h-0 overflow-hidden',
+      'queryDictOptionsByCode',
+      'BPM_BUSINESS_TYPE',
+      '<ElSelect',
+    ].forEach((needle) => expect(editor).toContain(needle));
+    expect(editor).not.toContain('<ElInput v-model="model.businessType"');
     expect(editor).not.toContain('canonicalContractJson');
   });
 
