@@ -66,8 +66,8 @@ public class BpmBusinessContractCatalogService {
 
     @Transactional(rollbackFor = Exception.class)
     public BpmBusinessObjectDetailVO upgradeV1AsV2Draft(String key,int version,long actorEmployeeId) {
-        BusinessContractCatalogVersion source=get(key,version); if(source.schemaVersion()!=1)throw new IllegalStateException("只有 Schema v1 可以升级");
-        BpmBusinessObjectDraft draft=v2Mapper.upgradeV1(key,key,"从 v1 升级生成",0L,source.canonicalContractJson());
+        BpmBusinessContractVersionEntity source=requireEntity(key,version); int schema=source.getSchemaVersion()==null?1:source.getSchemaVersion(); if(schema!=1)throw new IllegalStateException("只有 Schema v1 可以升级");
+        BpmBusinessObjectDraft draft=v2Mapper.upgradeV1(key,StringUtils.defaultIfBlank(source.getObjectName(),key),StringUtils.defaultIfBlank(source.getDescription(),"从 v1 升级生成"),0L,source.getContractJson());
         return createVisualDraft(draft,actorEmployeeId);
     }
 

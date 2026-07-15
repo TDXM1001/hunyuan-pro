@@ -30,7 +30,10 @@ import {
   ElTimelineItem,
 } from 'element-plus';
 
-import { getBpmTaskDetail, queryBpmTaskPage } from '#/api/system/bpm';
+import {
+  getBpmAdminTaskDetail,
+  queryBpmTaskPage,
+} from '#/api/system/bpm';
 
 import BpmApprovalGroupPanel from '../runtime/components/bpm-approval-group-panel.vue';
 
@@ -90,60 +93,32 @@ const tableHeight = computed(() =>
 );
 
 function getTaskStateLabel(value?: null | number) {
-  if (value === 1) {
-    return '待处理';
-  }
-  if (value === 2) {
-    return '已完成';
-  }
-  if (value === 3) {
-    return '已取消';
-  }
+  if (value === 1) return '待处理';
+  if (value === 2) return '已完成';
+  if (value === 3) return '已取消';
   return '未知';
 }
 
 function getTaskStateType(value?: null | number) {
-  if (value === 1) {
-    return 'warning';
-  }
-  if (value === 2) {
-    return 'success';
-  }
-  if (value === 3) {
-    return 'info';
-  }
+  if (value === 1) return 'warning';
+  if (value === 2) return 'success';
+  if (value === 3) return 'info';
   return 'info';
 }
 
 function getTaskResultLabel(value?: null | number) {
-  if (value === 1) {
-    return '通过';
-  }
-  if (value === 2) {
-    return '拒绝';
-  }
-  if (value === 3) {
-    return '退回';
-  }
-  if (value === 4) {
-    return '转办';
-  }
+  if (value === 1) return '通过';
+  if (value === 2) return '拒绝';
+  if (value === 3) return '退回';
+  if (value === 4) return '转办';
   return '-';
 }
 
 function getTaskResultType(value?: null | number) {
-  if (value === 1) {
-    return 'success';
-  }
-  if (value === 2) {
-    return 'danger';
-  }
-  if (value === 3) {
-    return 'warning';
-  }
-  if (value === 4) {
-    return 'info';
-  }
+  if (value === 1) return 'success';
+  if (value === 2) return 'danger';
+  if (value === 3) return 'warning';
+  if (value === 4) return 'info';
   return 'info';
 }
 
@@ -151,6 +126,11 @@ function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
     APPROVED: '审批通过',
     INSTANCE_CANCELLED: '实例取消',
+    M2_APPROVE: '审批通过',
+    M2_MEMBER_INELIGIBLE: '成员失效',
+    M2_MEMBER_TRANSFERRED: '成员转办',
+    M2_REJECT: '审批拒绝',
+    M2_RETURN: '退回发起人',
     REJECTED: '审批拒绝',
     RESUBMITTED: '重新提交',
     RETURNED_TO_INITIATOR: '退回发起人',
@@ -201,7 +181,7 @@ async function openDetailDialog(row: BpmTaskRecord) {
   detailData.value = undefined;
   detailLoadErrorMessage.value = '';
   try {
-    detailData.value = await getBpmTaskDetail(row.taskId);
+    detailData.value = await getBpmAdminTaskDetail(row.taskId);
   } catch (error: any) {
     detailLoadErrorMessage.value = '流程任务详情加载失败，请稍后重试。';
     ElMessage.error(error?.message || detailLoadErrorMessage.value);
@@ -258,47 +238,43 @@ onMounted(() => {
             />
           </ElFormItem>
           <ElFormItem label="任务状态">
-            <ElSelect v-model="searchForm.taskState" clearable placeholder="请选择任务状态">
-              <ElOption label="待处理" :value="1" />
-              <ElOption label="已完成" :value="2" />
-              <ElOption label="已取消" :value="3" />
+            <ElSelect
+              v-model="searchForm.taskState"
+              clearable
+              placeholder="请选择任务状态"
+            >
+              <ElOption :value="1" label="待处理" />
+              <ElOption :value="2" label="已完成" />
+              <ElOption :value="3" label="已取消" />
             </ElSelect>
           </ElFormItem>
         </ArtSearchPanel>
       </ElCard>
 
       <ElCard class="task-page__table-card" shadow="never">
-        <ArtTablePanel>
-          <ArtTableHeader
-            v-model="columnChecks"
-            :loading="loading"
-            layout="search,size,fullscreen,columns,settings"
-            :show-search-bar="showSearchBar"
-            @search="handleToggleSearchBar"
-          />
+        <ArtTableHeader
+          v-model:column-checks="columnChecks"
+          v-model:search-bar-show="showSearchBar"
+          @refresh="loadData"
+          @toggle-search-bar="handleToggleSearchBar"
+        />
 
-          <ArtTable
-            :columns="columns"
-            :data="rows"
-            :height="tableHeight"
-            :loading="loading"
-            :pagination="pagination"
-            :pagination-options="{
-              align: 'center',
-              hideOnSinglePage: false,
-              layout: 'sizes, prev, pager, next, jumper',
-              pageSizes: [10, 20, 30],
-              showTotalSummary: true,
-              size: 'small',
-            }"
-            @pagination:current-change="handleCurrentChange"
-            @pagination:size-change="handleSizeChange"
-          >
+        <ArtTablePanel
+          :pagination="{
+            currentPage: pagination.current,
+            pageSize: pagination.size,
+            total: pagination.total,
+          }"
+          :table-height="tableHeight"
+          @current-change="handleCurrentChange"
+          @size-change="handleSizeChange"
+        >
+          <ArtTable :columns="columns" :data="rows" :loading="loading" row-key="taskId">
             <template #taskName="{ row }">
               <div class="task-page__task-name">
                 <span>{{ row.taskName }}</span>
                 <small v-if="row.approvalGroup">
-                  {{ row.approvalGroup.approvalGroupName }}，
+                  {{ row.approvalGroup.approvalGroupName }}
                   {{ row.approvalGroup.processedMemberCount }}/{{
                     row.approvalGroup.totalMemberCount
                   }}
@@ -306,6 +282,7 @@ onMounted(() => {
                 </small>
               </div>
             </template>
+
             <template #taskState="{ row }">
               <ElTag :type="getTaskStateType(row.taskState)" effect="plain" size="small">
                 {{ getTaskStateLabel(row.taskState) }}
@@ -346,9 +323,6 @@ onMounted(() => {
             <ElDescriptionsItem label="任务名称">
               {{ detailData.taskName }}
             </ElDescriptionsItem>
-            <ElDescriptionsItem label="任务标识">
-              {{ detailData.taskKey || '-' }}
-            </ElDescriptionsItem>
             <ElDescriptionsItem label="发起人">
               {{ detailData.startEmployeeNameSnapshot || '-' }}
             </ElDescriptionsItem>
@@ -376,9 +350,6 @@ onMounted(() => {
             </ElDescriptionsItem>
             <ElDescriptionsItem label="完成时间">
               {{ detailData.completedAt || '-' }}
-            </ElDescriptionsItem>
-            <ElDescriptionsItem :span="2" label="运行时分配快照">
-              <code>{{ detailData.runtimeAssignmentSnapshotJson || '-' }}</code>
             </ElDescriptionsItem>
           </ElDescriptions>
 
@@ -430,87 +401,52 @@ onMounted(() => {
 .task-page__search-card {
   background: var(--el-bg-color);
   border: 0;
-  flex-shrink: 0;
-}
-
-.task-page__search-card :deep(.el-card__body) {
-  padding: 16px;
 }
 
 .task-page__table-card {
-  border: 1px solid var(--el-border-color-lighter);
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-height: 0;
-  overflow: hidden;
 }
 
 .task-page__table-card :deep(.el-card__body) {
   display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-  padding: 16px;
-}
-
-.task-page :deep(.art-table-panel),
-.task-page :deep(.art-table) {
   flex: 1;
+  flex-direction: column;
+  gap: 12px;
   min-height: 0;
-}
-
-.task-page :deep(.art-table-header) {
-  margin-bottom: 18px;
-}
-
-.task-page :deep(.art-table) {
-  --art-table-section-gap: 8px;
-}
-
-.task-page__actions {
-  align-items: center;
-  display: inline-flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.task-page__actions :deep(.el-button) {
-  font-size: 14px;
-  line-height: 22px;
-  min-height: 22px;
-  padding: 0;
-}
-
-.task-page__actions :deep(.el-button + .el-button) {
-  margin-left: 0;
+  padding: 12px;
 }
 
 .task-page__task-name {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  gap: 4px;
 }
 
 .task-page__task-name small {
   color: var(--el-text-color-secondary);
-  line-height: 18px;
+  font-size: 12px;
+}
+
+.task-page__actions {
+  display: inline-flex;
+  justify-content: center;
 }
 
 .task-page__detail {
-  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 220px;
 }
 
 .task-page__detail-error {
   align-items: center;
   display: flex;
   justify-content: center;
-  min-height: 320px;
-}
-
-.task-page__detail code {
-  white-space: pre-wrap;
-  word-break: break-all;
+  min-height: 220px;
 }
 
 .task-page__timeline-title {
@@ -518,7 +454,6 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   line-height: 22px;
-  margin-top: 16px;
 }
 
 .task-page__timeline {
@@ -535,5 +470,15 @@ onMounted(() => {
   color: var(--el-text-color-regular);
   line-height: 22px;
   margin: 6px 0 0;
+}
+
+@media (max-width: 768px) {
+  .task-page {
+    gap: 12px;
+  }
+
+  .task-page__table-card :deep(.el-card__body) {
+    padding: 10px;
+  }
 }
 </style>

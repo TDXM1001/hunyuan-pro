@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('bpm instance detail drawer security contract', () => {
-  it('shows subprocess failure policy only in the admin detail source', () => {
+  it('keeps business detail readable without raw snapshots or technical trace sections', () => {
     const source = readFileSync(
       resolve(
         process.cwd(),
@@ -13,8 +13,14 @@ describe('bpm instance detail drawer security contract', () => {
       'utf8',
     );
 
-    expect(source).toContain(
-      '<ElTableColumn v-if="detailSource === \'admin\'" label="失败策略"',
-    );
+    expect(source).not.toContain('currentFormDataSnapshotJson');
+    expect(source).not.toContain('callbackRecords.length');
+    expect(source).not.toContain('commandRecords.length');
+    expect(source).not.toContain('notificationRecords.length');
+    expect(source).not.toContain('timeEvents.length');
+    expect(source).not.toContain('externalWaits.length');
+    expect(source).not.toContain('subProcesses.length');
+    expect(source).not.toContain('log.fromAssigneeEmployeeId');
+    expect(source).not.toContain('BpmRouteDecisionList');
   });
 });

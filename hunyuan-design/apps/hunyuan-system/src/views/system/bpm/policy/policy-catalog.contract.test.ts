@@ -4,6 +4,22 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('M2 policy catalog management page contract', () => {
+  it('shows read-only technical panels to technical permission holders and built-in admins', () => {
+    const policyDetail = readFileSync(resolve(
+      process.cwd(),
+      'apps/hunyuan-system/src/views/system/bpm/policy/policy-detail.vue',
+    ), 'utf8');
+    const objectDetail = readFileSync(resolve(
+      process.cwd(),
+      'apps/hunyuan-system/src/views/system/bpm/business-contract/business-object-detail.vue',
+    ), 'utf8');
+
+    expect(policyDetail).toContain("hasAccessByRoles(['admin'])");
+    expect(policyDetail).toContain("hasAccessByCodes(['bpm:policy-catalog:technical'])");
+    expect(objectDetail).toContain("hasAccessByRoles(['admin'])");
+    expect(objectDetail).toContain("hasAccessByCodes(['bpm:business-contract:technical'])");
+  });
+
   it('navigates to visual pages without exposing JSON editors', () => {
     const source = readFileSync(resolve(
       process.cwd(),

@@ -142,6 +142,37 @@ class BpmBusinessContractCatalogServiceTest {
     }
 
     @Test
+    void upgradeMustBackfillLegacyV1MetadataWhenSourceSystemIsMissing() {
+        BpmBusinessContractVersionDao dao = Mockito.mock(BpmBusinessContractVersionDao.class);
+        BpmBusinessContractVersionEntity source = draftEntity();
+        source.setContractKey("m1_acceptance_contract");
+        source.setContractVersion(1);
+        source.setContractJson(legacyV1ContractJsonWithoutSourceSystem());
+        source.setContractDigest(null);
+        when(dao.selectOne(ArgumentMatchers.any())).thenReturn(source);
+        when(dao.selectMaxContractVersion("m1_acceptance_contract")).thenReturn(1);
+        when(dao.saveVisualDraft(
+                ArgumentMatchers.eq("m1_acceptance_contract"), ArgumentMatchers.eq(2), ArgumentMatchers.eq(0L),
+                ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
+                ArgumentMatchers.anyString(), ArgumentMatchers.anyString()
+        )).thenReturn(1);
+        BpmBusinessContractCatalogService service = new BpmBusinessContractCatalogService(dao);
+
+        var upgraded = service.upgradeV1AsV2Draft("m1_acceptance_contract", 1, 1L);
+
+        assertThat(upgraded.schemaVersion()).isEqualTo(2);
+        assertThat(upgraded.contractVersion()).isEqualTo(2);
+        assertThat(upgraded.configuration()).isNotNull();
+        assertThat(upgraded.configuration().sourceSystem()).isEqualTo("LEGACY");
+        assertThat(upgraded.configuration().businessType()).isEqualTo("M1_LOCAL_ACCEPTANCE");
+        assertThat(upgraded.configuration().fieldSchema())
+                .extracting(field -> field.key())
+                .containsExactly("legacyAmount");
+        assertThat(source.getContractJson()).isEqualTo(legacyV1ContractJsonWithoutSourceSystem());
+        assertThat(source.getContractDigest()).isNull();
+    }
+
+    @Test
     void referencedDraftCannotBeDeletedAndTechnicalDiffIsReadOnly() {
         BpmBusinessContractVersionDao dao = Mockito.mock(BpmBusinessContractVersionDao.class);
         BpmDefinitionReferenceQueryService references = Mockito.mock(BpmDefinitionReferenceQueryService.class);
@@ -204,6 +235,18 @@ class BpmBusinessContractCatalogServiceTest {
                   "attachmentRules":{"maxCount":5},
                   "detailLayout":{"sections":["fields","lineItems","attachments"]},
                   "changePolicy":{"mode":"FIELD_CONTROLLED","editableFields":["approvedAmount","approvalNote"]}
+                }
+                """;
+    }
+
+    private String legacyV1ContractJsonWithoutSourceSystem() {
+        return """
+                {
+                  "businessType":"M1_LOCAL_ACCEPTANCE",
+                  "fields":[
+                    {"key":"legacyAmount","label":"旧金额","type":"DECIMAL","required":true,"sensitivity":"INTERNAL"}
+                  ],
+                  "attachmentRules":{"maxCount":5}
                 }
                 """;
     }

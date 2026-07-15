@@ -2,6 +2,7 @@
 import type {
   BpmInstanceDetailRecord,
   BpmInstanceTraceRecord,
+  BpmTaskActionLogRecord,
 } from '#/api/system/bpm/runtime';
 
 import { computed, ref } from 'vue';
@@ -20,8 +21,6 @@ import {
   ElEmpty,
   ElMessage,
   ElSkeleton,
-  ElTable,
-  ElTableColumn,
   ElTag,
   ElTimeline,
   ElTimelineItem,
@@ -29,7 +28,6 @@ import {
 
 import BpmApprovalGroupPanel from './bpm-approval-group-panel.vue';
 import BpmApprovalStagePanel from './bpm-approval-stage-panel.vue';
-import BpmRouteDecisionList from './bpm-route-decision-list.vue';
 import BpmRuntimeProcessGraph from './bpm-runtime-process-graph.vue';
 
 defineOptions({ name: 'SystemBpmInstanceDetailDrawer' });
@@ -38,23 +36,13 @@ type DetailSource = 'admin' | 'runtime';
 
 const visible = ref(false);
 const loading = ref(false);
-const detailSource = ref<DetailSource>('runtime');
 const detail = ref<BpmInstanceDetailRecord>();
 const trace = ref<BpmInstanceTraceRecord>();
 const loadErrorMessage = ref('');
+
 const currentTasks = computed(() => detail.value?.currentTasks ?? []);
 const actionLogs = computed(() => detail.value?.actionLogs ?? []);
-const callbackRecords = computed(() => trace.value?.callbackRecords ?? []);
-const commandRecords = computed(() => trace.value?.commandRecords ?? []);
-const notificationRecords = computed(() => trace.value?.notificationRecords ?? []);
-const timeEvents = computed(() => trace.value?.timeEvents ?? []);
-const externalWaits = computed(() => trace.value?.externalWaits ?? []);
-const subProcesses = computed(() => trace.value?.subProcesses ?? []);
-const formDataChanges = computed(() => trace.value?.formDataChanges ?? []);
-const traceCurrentTasks = computed(() => trace.value?.currentTasks ?? []);
-const traceActionLogs = computed(() => trace.value?.actionLogs ?? []);
 const processGraph = computed(() => trace.value?.processGraph);
-const routeDecisions = computed(() => trace.value?.routeDecisions ?? []);
 const approvalGroups = computed(
   () => trace.value?.approvalGroups ?? detail.value?.approvalGroups ?? [],
 );
@@ -63,14 +51,17 @@ const approvalStages = computed(() => trace.value?.approvalStages ?? []);
 function getActionLabel(actionType?: null | string) {
   const labelMap: Record<string, string> = {
     ADD_SIGNED: '任务加签',
-    APPROVAL_GROUP_ALL_APPROVED: '审批组全员通过',
-    APPROVAL_GROUP_CANCELLED: '审批组已关闭',
     APPROVED: '审批通过',
     DELEGATED: '任务委派',
     INSTANCE_CANCELLED: '实例取消',
+    M2_APPROVE: '审批通过',
+    M2_MEMBER_INELIGIBLE: '成员失效',
+    M2_MEMBER_TRANSFERRED: '成员转办',
+    M2_REJECT: '审批拒绝',
+    M2_RETURN: '退回发起人',
     PARALLEL_MEMBER_APPROVED: '会签成员通过',
-    PARALLEL_MEMBER_REJECTED: '会签成员拒绝，审批组已终止',
-    PARALLEL_MEMBER_RETURNED: '会签成员退回发起人，其他待办已取消',
+    PARALLEL_MEMBER_REJECTED: '会签成员拒绝',
+    PARALLEL_MEMBER_RETURNED: '会签成员退回发起人',
     RECALLED: '发起人撤回',
     REDUCE_SIGNED: '任务减签',
     REJECTED: '审批拒绝',
@@ -81,55 +72,34 @@ function getActionLabel(actionType?: null | string) {
   return actionType ? (labelMap[actionType] ?? actionType) : '-';
 }
 
-function getNotificationStatusLabel(sendStatus?: null | number) {
-  if (sendStatus === 0) {
-    return '待发送';
+function getCurrentNodeSummary(detailRecord?: BpmInstanceDetailRecord) {
+  const json = detailRecord?.currentNodeSummaryJson?.trim();
+  if (!json) {
+    return '-';
   }
-  if (sendStatus === 1) {
-    return '成功';
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return '-';
+    }
+    const names = parsed
+      .map((item) =>
+        typeof item?.taskName === 'string' ? item.taskName.trim() : '',
+      )
+      .filter(Boolean);
+    return names.length > 0 ? names.join('、') : '-';
+  } catch {
+    return '-';
   }
-  if (sendStatus === 2) {
-    return '失败';
-  }
-  return '-';
 }
 
-function getCallbackStatusLabel(value?: null | number) {
-  if (value === 0) {
-    return '待回调';
-  }
-  if (value === 1) {
-    return '成功';
-  }
-  if (value === 2) {
-    return '失败';
-  }
-  if (value === 3) {
-    return '需人工补偿';
-  }
-  if (value === 4) {
-    return '已补偿';
-  }
-  return '未知';
-}
-
-function getCallbackStatusType(value?: null | number) {
-  if (value === 1 || value === 4) {
-    return 'success';
-  }
-  if (value === 2) {
-    return 'danger';
-  }
-  if (value === 3) {
-    return 'warning';
-  }
-  return 'info';
+function businessActionLogs(logs: BpmTaskActionLogRecord[]) {
+  return logs.filter((log) => log.actionType !== 'APPROVAL_GROUP_ALL_APPROVED');
 }
 
 async function open(instanceId: number, source: DetailSource = 'runtime') {
   visible.value = true;
   loading.value = true;
-  detailSource.value = source;
   detail.value = undefined;
   trace.value = undefined;
   loadErrorMessage.value = '';
@@ -184,10 +154,7 @@ defineExpose({ open });
           {{ detail.summary || '-' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="当前节点">
-          <code>{{ detail.currentNodeSummaryJson || '-' }}</code>
-        </ElDescriptionsItem>
-        <ElDescriptionsItem v-if="detailSource === 'admin'" label="表单快照">
-          <code>{{ detail.currentFormDataSnapshotJson || '-' }}</code>
+          {{ getCurrentNodeSummary(detail) }}
         </ElDescriptionsItem>
       </ElDescriptions>
 
@@ -216,9 +183,12 @@ defineExpose({ open });
       </template>
 
       <div class="bpm-instance-detail__section-title">动作轨迹</div>
-      <ElTimeline v-if="actionLogs.length > 0" class="bpm-instance-detail__timeline">
+      <ElTimeline
+        v-if="businessActionLogs(actionLogs).length > 0"
+        class="bpm-instance-detail__timeline"
+      >
         <ElTimelineItem
-          v-for="log in actionLogs"
+          v-for="log in businessActionLogs(actionLogs)"
           :key="log.actionLogId"
           :timestamp="log.actionAt || ''"
         >
@@ -231,192 +201,13 @@ defineExpose({ open });
           <p v-if="log.commentText" class="bpm-instance-detail__comment">
             {{ log.commentText }}
           </p>
-          <p
-            v-if="log.fromAssigneeEmployeeId || log.toAssigneeEmployeeId"
-            class="bpm-instance-detail__comment"
-          >
-            {{ log.fromAssigneeEmployeeId || '-' }} -> {{ log.toAssigneeEmployeeId || '-' }}
-          </p>
         </ElTimelineItem>
       </ElTimeline>
       <ElEmpty v-else description="暂无动作轨迹" />
 
-      <template v-if="trace">
-        <template v-if="processGraph?.nodes?.length">
-          <div class="bpm-instance-detail__section-title">流程路径</div>
-          <BpmRuntimeProcessGraph :graph="processGraph" />
-        </template>
-        <template v-if="routeDecisions.length">
-          <div class="bpm-instance-detail__section-title">路由记录</div>
-          <BpmRouteDecisionList :decisions="routeDecisions" />
-        </template>
-        <div class="bpm-instance-detail__section-title">表单数据变更</div>
-        <ElTable
-          v-if="formDataChanges.length > 0"
-          :data="formDataChanges"
-          border
-          size="small"
-        >
-          <ElTableColumn label="版本" width="92">
-            <template #default="{ row }">
-              {{ row.beforeVersion }} -> {{ row.afterVersion }}
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="来源" prop="changeSource" min-width="150" />
-          <ElTableColumn label="操作人" prop="actorNameSnapshot" min-width="110" />
-          <ElTableColumn label="节点" prop="nodeKeySnapshot" min-width="120" />
-          <ElTableColumn label="变更字段" prop="changedFieldsJson" min-width="180" />
-          <ElTableColumn label="修改前" prop="beforeValuesJson" min-width="180" />
-          <ElTableColumn label="修改后" prop="afterValuesJson" min-width="180" />
-        </ElTable>
-        <ElEmpty v-else description="暂无表单数据变更" />
-
-        <div class="bpm-instance-detail__section-title">可靠性追踪</div>
-        <div class="bpm-instance-detail__trace-summary">
-          <div class="bpm-instance-detail__trace-item">
-            <span>当前任务</span>
-            <strong>{{ traceCurrentTasks.length }}</strong>
-          </div>
-          <div class="bpm-instance-detail__trace-item">
-            <span>动作轨迹</span>
-            <strong>{{ traceActionLogs.length }}</strong>
-          </div>
-          <div class="bpm-instance-detail__trace-item">
-            <span>回调记录</span>
-            <strong>{{ callbackRecords.length }}</strong>
-          </div>
-          <div class="bpm-instance-detail__trace-item">
-            <span>命令记录</span>
-            <strong>{{ commandRecords.length }}</strong>
-          </div>
-          <div class="bpm-instance-detail__trace-item">
-            <span>通知记录</span>
-            <strong>{{ notificationRecords.length }}</strong>
-          </div>
-          <div class="bpm-instance-detail__trace-item"><span>时间事件</span><strong>{{ timeEvents.length }}</strong></div>
-          <div class="bpm-instance-detail__trace-item"><span>外部等待</span><strong>{{ externalWaits.length }}</strong></div>
-          <div class="bpm-instance-detail__trace-item"><span>子流程</span><strong>{{ subProcesses.length }}</strong></div>
-        </div>
-
-        <div class="bpm-instance-detail__sub-title">时间事件</div>
-        <ElTable v-if="timeEvents.length" :data="timeEvents" border size="small">
-          <ElTableColumn label="类型" prop="eventKind" min-width="130" />
-          <ElTableColumn label="节点" prop="nodeKey" min-width="120" />
-          <ElTableColumn label="状态" prop="eventStatus" min-width="130" />
-          <ElTableColumn label="计划时间" prop="scheduledAt" min-width="170" />
-          <ElTableColumn label="触发次数" prop="triggerCount" width="90" />
-        </ElTable>
-        <ElEmpty v-else description="暂无时间事件" />
-
-        <div class="bpm-instance-detail__sub-title">外部等待</div>
-        <ElTable v-if="externalWaits.length" :data="externalWaits" border size="small">
-          <ElTableColumn label="连接器" prop="connectorKey" min-width="120" />
-          <ElTableColumn label="操作" prop="operationKey" min-width="130" />
-          <ElTableColumn label="节点" prop="nodeKey" min-width="120" />
-          <ElTableColumn label="状态" prop="waitStatus" min-width="120" />
-          <ElTableColumn label="超时时间" prop="timeoutAt" min-width="170" />
-        </ElTable>
-        <ElEmpty v-else description="暂无外部等待" />
-
-        <div class="bpm-instance-detail__sub-title">子流程</div>
-        <ElTable v-if="subProcesses.length" :data="subProcesses" border size="small">
-          <ElTableColumn label="节点" prop="parentNodeId" min-width="120" />
-          <ElTableColumn label="流程" prop="calledProcessKey" min-width="140" />
-          <ElTableColumn label="版本" prop="calledDefinitionVersionId" width="80" />
-          <ElTableColumn label="状态" prop="linkStatus" min-width="120" />
-          <ElTableColumn v-if="detailSource === 'admin'" label="失败策略" prop="failurePolicy" min-width="130" />
-        </ElTable>
-        <ElEmpty v-else description="暂无子流程" />
-
-        <div class="bpm-instance-detail__sub-title">回调记录</div>
-        <ElTable
-          v-if="callbackRecords.length > 0"
-          :data="callbackRecords"
-          border
-          size="small"
-        >
-          <ElTableColumn
-            label="事件ID"
-            min-width="150"
-            prop="eventId"
-            show-overflow-tooltip
-          />
-          <ElTableColumn label="业务类型" min-width="100" prop="businessType" />
-          <ElTableColumn label="业务ID" min-width="90" prop="businessId" />
-          <ElTableColumn label="状态" min-width="110">
-            <template #default="{ row }">
-              <ElTag :type="getCallbackStatusType(row.callbackStatus)" effect="plain" size="small">
-                {{ getCallbackStatusLabel(row.callbackStatus) }}
-              </ElTag>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="重试" min-width="70" prop="retryCount" />
-          <ElTableColumn label="下次重试" min-width="150" prop="nextRetryAt" />
-          <ElTableColumn
-            label="补偿说明"
-            min-width="160"
-            prop="compensationReason"
-            show-overflow-tooltip
-          />
-          <ElTableColumn
-            label="失败原因"
-            min-width="160"
-            prop="failureReason"
-            show-overflow-tooltip
-          />
-        </ElTable>
-        <ElEmpty v-else description="暂无回调记录" />
-
-        <div class="bpm-instance-detail__sub-title">命令记录</div>
-        <ElTable
-          v-if="commandRecords.length > 0"
-          :data="commandRecords"
-          border
-          size="small"
-        >
-          <ElTableColumn
-            label="命令键"
-            min-width="180"
-            prop="commandKey"
-            show-overflow-tooltip
-          />
-          <ElTableColumn label="命令类型" min-width="90" prop="commandType" />
-          <ElTableColumn label="业务类型" min-width="100" prop="businessType" />
-          <ElTableColumn label="业务ID" min-width="90" prop="businessId" />
-          <ElTableColumn label="状态" min-width="80" prop="commandStatus" />
-          <ElTableColumn
-            label="失败原因"
-            min-width="160"
-            prop="failureReason"
-            show-overflow-tooltip
-          />
-        </ElTable>
-        <ElEmpty v-else description="暂无命令记录" />
-
-        <div class="bpm-instance-detail__sub-title">通知记录</div>
-        <ElTable
-          v-if="notificationRecords.length > 0"
-          :data="notificationRecords"
-          border
-          size="small"
-        >
-          <ElTableColumn label="事件" min-width="120" prop="eventKey" show-overflow-tooltip />
-          <ElTableColumn label="渠道" min-width="80" prop="channel" />
-          <ElTableColumn label="接收员工" min-width="90" prop="receiverEmployeeId" />
-          <ElTableColumn label="状态" min-width="80">
-            <template #default="{ row }">
-              {{ getNotificationStatusLabel(row.sendStatus) }}
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="发送时间" min-width="150" prop="sentAt" />
-          <ElTableColumn
-            label="失败原因"
-            min-width="160"
-            prop="failReason"
-            show-overflow-tooltip
-          />
-        </ElTable>
-        <ElEmpty v-else description="暂无通知记录" />
+      <template v-if="trace && processGraph?.nodes?.length">
+        <div class="bpm-instance-detail__section-title">流程路径</div>
+        <BpmRuntimeProcessGraph :graph="processGraph" />
       </template>
     </div>
   </ElDrawer>
@@ -434,11 +225,6 @@ defineExpose({ open });
   display: flex;
   justify-content: center;
   min-height: 320px;
-}
-
-.bpm-instance-detail code {
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 
 .bpm-instance-detail__section-title {
@@ -463,41 +249,6 @@ defineExpose({ open });
   grid-template-columns: minmax(120px, 1fr) minmax(80px, 120px) minmax(140px, 180px);
   min-height: 36px;
   padding: 8px 10px;
-}
-
-.bpm-instance-detail__trace-summary {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-}
-
-.bpm-instance-detail__trace-item {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 54px;
-  min-width: 0;
-  padding: 8px 10px;
-}
-
-.bpm-instance-detail__trace-item span {
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-}
-
-.bpm-instance-detail__trace-item strong {
-  color: var(--el-text-color-primary);
-  font-size: 18px;
-  line-height: 24px;
-}
-
-.bpm-instance-detail__sub-title {
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 20px;
 }
 
 .bpm-instance-detail__timeline {

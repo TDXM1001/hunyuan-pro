@@ -7,7 +7,7 @@ const root = process.cwd();
 const readSource = (path: string) => readFileSync(resolve(root, path), 'utf8');
 
 describe('M2 approval stage runtime detail contract', () => {
-  it('renders frozen policy versions, progress, and original/current handlers without engine internals', () => {
+  it('keeps approval stage detail business readable without leaking engine ids or raw policy versions', () => {
     const panel = readSource(
       'apps/hunyuan-system/src/views/system/bpm/runtime/components/bpm-approval-stage-panel.vue',
     );
@@ -16,14 +16,15 @@ describe('M2 approval stage runtime detail contract', () => {
     );
 
     expect(panel).toContain('BpmApprovalStageTraceRecord');
-    expect(panel).toContain('candidatePolicyVersionId');
-    expect(panel).toContain('approvalPolicyVersionId');
     expect(panel).toContain('requiredApprovalCount');
-    expect(panel).toContain('sourceEmployeeId');
-    expect(panel).toContain('currentEmployeeId');
     expect(panel).toContain('sourceEmployeeNameSnapshot');
     expect(panel).toContain('currentEmployeeNameSnapshot');
-    expect(panel).toContain('terminalReason');
+    expect(panel).not.toContain('candidatePolicyVersionId');
+    expect(panel).not.toContain('approvalPolicyVersionId');
+    expect(panel).not.toContain('sourceEmployeeId');
+    expect(panel).not.toContain('currentEmployeeId');
+    expect(panel).not.toContain('authoredNodeId');
+    expect(panel).not.toContain('terminalReason');
     expect(panel).not.toContain('engineExecutionId');
     expect(panel).not.toContain('approvalPolicySnapshotJson');
     expect(drawer).toContain('BpmApprovalStagePanel');

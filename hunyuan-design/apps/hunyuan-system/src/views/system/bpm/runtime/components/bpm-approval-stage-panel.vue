@@ -40,6 +40,26 @@ function completionModeLabel(value: string) {
   return labels[value] ?? value;
 }
 
+function actionResultLabel(value?: null | string) {
+  const labels: Record<string, string> = {
+    APPROVED: '通过',
+    CANCELLED: '已取消',
+    REJECTED: '拒绝',
+    RETURNED: '退回',
+  };
+  return value ? (labels[value] ?? value) : '-';
+}
+
+function changeReasonLabel(value?: null | string) {
+  const labels: Record<string, string> = {
+    APPROVE: '审批通过',
+    REJECT: '审批拒绝',
+    RETURN: '退回发起人',
+    TRANSFER: '转办',
+  };
+  return value ? (labels[value] ?? value) : '-';
+}
+
 function memberStateLabel(value: string) {
   const labels: Record<string, string> = {
     ACTIVE: '待审批',
@@ -58,13 +78,13 @@ function memberStateLabel(value: string) {
 <template>
   <div class="bpm-approval-stage-panel">
     <div
-      v-for="stage in stages"
+      v-for="(stage, index) in stages"
       :key="stage.approvalStageId"
       class="bpm-approval-stage-panel__stage"
     >
       <div class="bpm-approval-stage-panel__header">
         <div>
-          <strong>{{ stage.authoredNodeId }}</strong>
+          <strong>审批阶段 {{ index + 1 }}</strong>
           <span>{{ completionModeLabel(stage.completionMode) }}</span>
           <span>{{ stage.approvedMemberCount }}/{{ stage.effectiveMemberCount }} 已通过</span>
           <span>阈值 {{ stage.requiredApprovalCount }}</span>
@@ -76,35 +96,34 @@ function memberStateLabel(value: string) {
       </div>
 
       <div class="bpm-approval-stage-panel__meta">
-        <span>候选策略 v{{ stage.candidatePolicyVersionId }}</span>
-        <span>审批策略 v{{ stage.approvalPolicyVersionId }}</span>
         <span>已处理 {{ stage.processedMemberCount }}/{{ stage.effectiveMemberCount }}</span>
-        <span v-if="stage.terminalReason">终止原因：{{ stage.terminalReason }}</span>
       </div>
 
       <ElTable :data="stage.members" border size="small">
         <ElTableColumn label="序号" width="68" align="center" prop="memberOrder" />
         <ElTableColumn label="原审批人" min-width="110">
           <template #default="{ row }">
-            {{ row.sourceEmployeeNameSnapshot || row.sourceEmployeeId }}
+            {{ row.sourceEmployeeNameSnapshot || '-' }}
           </template>
         </ElTableColumn>
         <ElTableColumn label="当前处理人" min-width="110">
           <template #default="{ row }">
-            {{ row.currentEmployeeNameSnapshot || row.currentEmployeeId }}
+            {{ row.currentEmployeeNameSnapshot || '-' }}
           </template>
         </ElTableColumn>
         <ElTableColumn label="状态" min-width="105">
           <template #default="{ row }">{{ memberStateLabel(row.memberState) }}</template>
         </ElTableColumn>
         <ElTableColumn label="结果" min-width="100">
-          <template #default="{ row }">{{ row.actionResult || '-' }}</template>
+          <template #default="{ row }">{{ actionResultLabel(row.actionResult) }}</template>
         </ElTableColumn>
         <ElTableColumn label="处理时间" min-width="165">
-          <template #default="{ row }">{{ row.completedAt || row.cancelledAt || row.activatedAt || '-' }}</template>
+          <template #default="{ row }">
+            {{ row.completedAt || row.cancelledAt || row.activatedAt || '-' }}
+          </template>
         </ElTableColumn>
         <ElTableColumn label="说明" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.changeReason || '-' }}</template>
+          <template #default="{ row }">{{ changeReasonLabel(row.changeReason) }}</template>
         </ElTableColumn>
       </ElTable>
     </div>

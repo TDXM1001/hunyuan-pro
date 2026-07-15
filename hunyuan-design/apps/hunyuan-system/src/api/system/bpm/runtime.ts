@@ -477,6 +477,10 @@ export async function queryBpmTaskPage(params: BpmTaskPageQueryParams) {
   });
 }
 
+export async function getBpmAdminTaskDetail(taskId: number) {
+  return requestClient.get<BpmTaskDetailRecord>(`/bpm/task/detail/${taskId}`);
+}
+
 export async function getBpmTaskDetail(taskId: number) {
   return requestClient.get<BpmTaskDetailRecord>(
     `/app/bpm/task/detail/${taskId}`,
