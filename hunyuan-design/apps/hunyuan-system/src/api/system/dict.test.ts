@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildDictOptionsByCode,
   buildDictDataMutationPayload,
   buildDictMutationPayload,
   buildDictPageQueryPayload,
@@ -77,5 +78,58 @@ describe('dictionary api payloads', () => {
       remark: '默认开启',
       sortOrder: 99,
     });
+  });
+
+  it('builds enabled dictionary options by dict code in sort order', () => {
+    expect(
+      buildDictOptionsByCode(
+        [
+          {
+            dataLabel: '通用申请',
+            dataValue: 'GENERIC_APPLICATION',
+            dictCode: 'BPM_BUSINESS_TYPE',
+            dictDataId: 1,
+            dictDisabledFlag: false,
+            dictId: 10,
+            disabledFlag: false,
+            sortOrder: 20,
+          },
+          {
+            dataLabel: '已停用',
+            dataValue: 'DISABLED_TYPE',
+            dictCode: 'BPM_BUSINESS_TYPE',
+            dictDataId: 2,
+            dictDisabledFlag: false,
+            dictId: 10,
+            disabledFlag: true,
+            sortOrder: 10,
+          },
+          {
+            dataLabel: '其他字典',
+            dataValue: 'OTHER',
+            dictCode: 'OTHER_DICT',
+            dictDataId: 3,
+            dictDisabledFlag: false,
+            dictId: 11,
+            disabledFlag: false,
+            sortOrder: 5,
+          },
+          {
+            dataLabel: '差旅报销',
+            dataValue: 'EXPENSE',
+            dictCode: 'BPM_BUSINESS_TYPE',
+            dictDataId: 4,
+            dictDisabledFlag: false,
+            dictId: 10,
+            disabledFlag: false,
+            sortOrder: 10,
+          },
+        ],
+        '  BPM_BUSINESS_TYPE  ',
+      ),
+    ).toEqual([
+      { label: '差旅报销', value: 'EXPENSE' },
+      { label: '通用申请', value: 'GENERIC_APPLICATION' },
+    ]);
   });
 });

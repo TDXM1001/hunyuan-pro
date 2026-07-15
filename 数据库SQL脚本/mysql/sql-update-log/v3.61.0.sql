@@ -1,38 +1,31 @@
--- BPM Graph-only control plane cleanup.
--- 执行前提：已执行 v3.60.0，Graph 草稿、发布与运行链路已可用。
--- 兼容影响：仅调整 BPM 管理端菜单与权限；不删除历史定义表或实例投影数据。
--- 恢复方式：重新启用菜单 312 并恢复所需角色绑定；菜单 311 可改回原名称。
+-- BPM 业务对象配置：补充业务类型字典，供业务对象、流程绑定和运行时申请页面统一选择。
 
-UPDATE `t_menu`
-SET `menu_name` = 'Graph 流程设计',
-    `path` = '/system/bpm/model',
-    `component` = '/system/bpm/model/model-list.vue',
-    `visible_flag` = 1,
-    `disabled_flag` = 0,
-    `deleted_flag` = 0,
-    `update_time` = now()
-WHERE `menu_id` = 311;
-
-INSERT INTO `t_menu` (`menu_id`, `menu_name`, `menu_type`, `parent_id`, `sort`, `path`, `component`, `perms_type`, `api_perms`, `web_perms`, `icon`, `context_menu_id`, `frame_flag`, `frame_url`, `cache_flag`, `visible_flag`, `disabled_flag`, `deleted_flag`, `create_user_id`, `create_time`, `update_user_id`, `update_time`)
-VALUES
-  (387, '查询Graph草稿', 3, 311, 9, NULL, NULL, 1, 'bpm:graph-draft:query', 'bpm:graph-draft:query', NULL, 311, 0, NULL, 0, 1, 0, 0, 1, now(), NULL, now())
-ON DUPLICATE KEY UPDATE
-  `menu_name` = VALUES(`menu_name`), `parent_id` = VALUES(`parent_id`), `sort` = VALUES(`sort`),
-  `api_perms` = VALUES(`api_perms`), `web_perms` = VALUES(`web_perms`),
-  `context_menu_id` = VALUES(`context_menu_id`), `visible_flag` = VALUES(`visible_flag`),
-  `disabled_flag` = VALUES(`disabled_flag`), `deleted_flag` = VALUES(`deleted_flag`), `update_time` = now();
-
-INSERT INTO `t_role_menu` (`role_id`, `menu_id`, `create_time`, `update_time`)
-SELECT 1, 387, now(), now()
+INSERT INTO `t_dict` (`dict_name`, `dict_code`, `remark`, `disabled_flag`)
+SELECT source.`dict_name`, source.`dict_code`, source.`remark`, 0
+FROM (
+    SELECT 'BPM业务类型' AS `dict_name`,
+           'BPM_BUSINESS_TYPE' AS `dict_code`,
+           '业务对象、流程绑定与运行时申请统一使用的业务类型编码' AS `remark`
+) source
 WHERE NOT EXISTS (
-  SELECT 1 FROM `t_role_menu` WHERE `role_id` = 1 AND `menu_id` = 387
+    SELECT 1
+    FROM `t_dict` existing
+    WHERE existing.`dict_code` = source.`dict_code`
 );
 
-DELETE FROM `t_role_menu` WHERE `menu_id` = 312;
-
-UPDATE `t_menu`
-SET `visible_flag` = 0,
-    `disabled_flag` = 1,
-    `deleted_flag` = 1,
-    `update_time` = now()
-WHERE `menu_id` = 312;
+INSERT INTO `t_dict_data`
+(`dict_id`, `data_value`, `data_label`, `remark`, `sort_order`, `disabled_flag`)
+SELECT dict.`dict_id`, source.`data_value`, source.`data_label`, source.`remark`, source.`sort_order`, 0
+FROM (
+    SELECT 'BPM_BUSINESS_TYPE' AS `dict_code`,
+           'GENERIC_APPLICATION' AS `data_value`,
+           '通用申请' AS `data_label`,
+           '默认业务对象类型，适用于当前 BPM 通用申请闭环' AS `remark`,
+           100 AS `sort_order`
+) source
+JOIN `t_dict` dict
+  ON dict.`dict_code` = source.`dict_code`
+LEFT JOIN `t_dict_data` existing
+  ON existing.`dict_id` = dict.`dict_id`
+ AND existing.`data_value` = source.`data_value`
+WHERE existing.`dict_data_id` IS NULL;

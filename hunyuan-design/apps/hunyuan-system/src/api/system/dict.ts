@@ -35,6 +35,11 @@ export interface DictDataRecord {
   updateTime?: null | string;
 }
 
+export interface DictOption {
+  label: string;
+  value: string;
+}
+
 export interface DictPageQueryParams {
   keywords?: string;
   disabledFlag?: boolean;
@@ -105,6 +110,31 @@ export function buildDictDataMutationPayload<
   };
 }
 
+export function buildDictOptionsByCode(
+  records: DictDataRecord[],
+  dictCode: string,
+): DictOption[] {
+  const normalizedDictCode = cleanText(dictCode);
+  if (!normalizedDictCode) {
+    return [];
+  }
+
+  return records
+    .filter((item) => (
+      item.dictCode === normalizedDictCode
+      && !item.dictDisabledFlag
+      && !item.disabledFlag
+    ))
+    .sort((left, right) => (
+      left.sortOrder - right.sortOrder
+      || left.dataLabel.localeCompare(right.dataLabel, 'zh-CN')
+    ))
+    .map((item) => ({
+      label: item.dataLabel,
+      value: item.dataValue,
+    }));
+}
+
 export async function queryDictPage(params: DictPageQueryParams) {
   return requestClient.post<PageResult<DictRecord>>(
     '/support/dict/queryPage',
@@ -142,6 +172,27 @@ export async function queryDictDataList(dictId: number) {
   return requestClient.get<DictDataRecord[]>(
     `/support/dict/dictData/queryDictData/${dictId}`,
   );
+}
+
+let allDictDataPromise: null | Promise<DictDataRecord[]> = null;
+
+export async function queryAllDictData() {
+  if (!allDictDataPromise) {
+    allDictDataPromise = requestClient
+      .get<DictDataRecord[]>('/support/dict/getAllDictData')
+      .then((data) => data ?? [])
+      .catch((error) => {
+        allDictDataPromise = null;
+        throw error;
+      });
+  }
+
+  return allDictDataPromise;
+}
+
+export async function queryDictOptionsByCode(dictCode: string) {
+  const allDictData = await queryAllDictData();
+  return buildDictOptionsByCode(allDictData, dictCode);
 }
 
 export async function toggleDictDataDisabled(dictDataId: number) {
