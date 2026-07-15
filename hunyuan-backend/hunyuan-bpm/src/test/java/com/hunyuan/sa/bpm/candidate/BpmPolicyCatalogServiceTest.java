@@ -4,6 +4,7 @@ import com.hunyuan.sa.bpm.module.candidate.dao.BpmCandidatePolicyVersionDao;
 import com.hunyuan.sa.bpm.module.candidate.dao.BpmApprovalPolicyVersionDao;
 import com.hunyuan.sa.bpm.module.candidate.dao.BpmStartVisibilityPolicyVersionDao;
 import com.hunyuan.sa.bpm.module.candidate.domain.entity.BpmCandidatePolicyVersionEntity;
+import com.hunyuan.sa.bpm.module.candidate.domain.entity.BpmStartVisibilityPolicyVersionEntity;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyCatalogVersion;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyDraftCommand;
 import com.hunyuan.sa.bpm.module.candidate.domain.model.PolicyLifecycleCommand;
@@ -206,6 +207,37 @@ class BpmPolicyCatalogServiceTest {
                 .hasMessageContaining("高风险");
 
         verify(candidateDao, Mockito.never()).update(ArgumentMatchers.isNull(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void visualActivationShouldUseThePersistedServerRiskAssessment() {
+        BpmStartVisibilityPolicyVersionDao visibilityDao = Mockito.mock(BpmStartVisibilityPolicyVersionDao.class);
+        BpmStartVisibilityPolicyVersionEntity draft = new BpmStartVisibilityPolicyVersionEntity();
+        draft.setStartVisibilityPolicyVersionId(41L);
+        draft.setPolicyKey("admin-start");
+        draft.setPolicyVersion(1);
+        draft.setLifecycleState("DRAFT");
+        draft.setSchemaVersion(2);
+        draft.setPolicyJson("{\"schemaVersion\":2,\"startScope\":{\"employeeIds\":[1],\"type\":\"EMPLOYEE_IDS\"},\"visibilityScope\":{\"type\":\"ALL\"}}");
+        draft.setCatalogRevision(1L);
+        draft.setCalculatedRiskLevel("LOW");
+        draft.setCreatedByEmployeeId(1L);
+        when(visibilityDao.selectByPolicyKeyAndVersionForUpdate("admin-start", 1)).thenReturn(draft);
+        when(visibilityDao.update(ArgumentMatchers.isNull(), ArgumentMatchers.any())).thenReturn(1);
+        BpmPolicyCatalogService service = new BpmPolicyCatalogService(
+                Mockito.mock(BpmCandidatePolicyVersionDao.class),
+                Mockito.mock(BpmApprovalPolicyVersionDao.class),
+                visibilityDao
+        );
+
+        PolicyCatalogVersion activated = service.activate(new PolicyLifecycleCommand(
+                new PolicyReference(PolicyType.START_VISIBILITY, "admin-start", 1),
+                1L,
+                1L
+        ));
+
+        assertThat(activated.lifecycleState()).isEqualTo("ACTIVE");
+        assertThat(activated.catalogRevision()).isEqualTo(2L);
     }
 
     @Test

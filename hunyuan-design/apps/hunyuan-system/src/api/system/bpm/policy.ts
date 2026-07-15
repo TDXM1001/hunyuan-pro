@@ -25,7 +25,7 @@ export interface CandidatePolicyVisualDocument { resolverType: string; identityR
 export interface ApprovalPolicyVisualDocument { completionMode: string; ratioPercent?: number; rejectionRule: string; returnRule: string; allowedActions: string[] }
 export interface PolicyScopeVisualDocument { type: string; identities?: BpmIdentityReference[]; scopes?: PolicyScopeVisualDocument[] }
 export interface StartVisibilityPolicyVisualDocument { startScope: PolicyScopeVisualDocument; visibilityScope: PolicyScopeVisualDocument }
-export interface BpmPolicyVisualDraft { type: BpmPolicyType; policyKey: string; policyName: string; description?: string; policyVersion: number; catalogRevision: number; candidate?: CandidatePolicyVisualDocument; approval?: ApprovalPolicyVisualDocument; startVisibility?: StartVisibilityPolicyVisualDocument }
+export interface BpmPolicyVisualDraft { type: BpmPolicyType; policyKey: string; policyName: string; description?: string; schemaVersion: 2; policyVersion: number; catalogRevision: number; candidate?: CandidatePolicyVisualDocument; approval?: ApprovalPolicyVisualDocument; startVisibility?: StartVisibilityPolicyVisualDocument }
 export interface BpmPolicyFinding { code: string; severity: string; fieldPath: string; message: string; suggestion: string }
 export interface BpmIdentityOption { kind: string; stableId: number; displayName: string; departmentId?: number; departmentName?: string; disabled: boolean }
 export interface BpmIdentityOptionPage { items: BpmIdentityOption[]; total: number; pageNum: number; pageSize: number }

@@ -508,7 +508,7 @@ public class BpmPolicyCatalogService {
         if (!Objects.equals(catalogRevision, command.expectedCatalogRevision())) {
             throw new IllegalStateException("策略目录版本已变更，请刷新后重试");
         }
-        boolean highRisk = isHighRisk(command.reference().type(), record.policyJson());
+        boolean highRisk = isHighRisk(command.reference().type(), record);
         if (!allowHighRisk && highRisk) {
             throw new IllegalStateException("高风险策略必须通过独立确认入口启用");
         }
@@ -544,6 +544,14 @@ public class BpmPolicyCatalogService {
                 validated.digest(),
                 nextRevision
         );
+    }
+
+    private boolean isHighRisk(PolicyType type, CatalogRecord record) {
+        String calculatedRiskLevel = StringUtils.trimToNull(record.calculatedRiskLevel());
+        if (calculatedRiskLevel != null && !"UNKNOWN".equals(calculatedRiskLevel)) {
+            return "HIGH".equals(calculatedRiskLevel);
+        }
+        return isHighRisk(type, record.policyJson());
     }
 
     private boolean isHighRisk(PolicyType type, String policyJson) {
