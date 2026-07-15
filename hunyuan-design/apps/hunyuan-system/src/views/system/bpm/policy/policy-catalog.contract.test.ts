@@ -16,6 +16,11 @@ describe('M2 policy catalog management page contract', () => {
 
     expect(policyDetail).toContain("hasAccessByRoles(['admin'])");
     expect(policyDetail).toContain("hasAccessByCodes(['bpm:policy-catalog:technical'])");
+    expect(policyDetail).toContain('ArtDetailPage');
+    expect(policyDetail).toContain('ArtDetail');
+    expect(policyDetail).toContain('Page auto-content-height');
+    expect(policyDetail).toContain('!p-3 h-full min-h-0 overflow-hidden');
+    expect(policyDetail).not.toContain('ElDescriptions');
     expect(objectDetail).toContain("hasAccessByRoles(['admin'])");
     expect(objectDetail).toContain("hasAccessByCodes(['bpm:business-contract:technical'])");
   });
