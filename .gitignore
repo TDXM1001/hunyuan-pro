@@ -61,7 +61,11 @@ vite.config.ts.*
 .agent
 .agents
 .claude
-.codex
+.codex/*
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/build-hunyuan-business-frontend/
+!.codex/skills/build-hunyuan-business-frontend/**
 skills-lock.json
 .pnpm-store
 

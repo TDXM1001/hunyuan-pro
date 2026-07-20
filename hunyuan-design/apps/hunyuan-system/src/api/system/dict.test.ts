@@ -87,7 +87,7 @@ describe('dictionary api payloads', () => {
           {
             dataLabel: '通用申请',
             dataValue: 'GENERIC_APPLICATION',
-            dictCode: 'BPM_BUSINESS_TYPE',
+            dictCode: 'BUSINESS_TYPE',
             dictDataId: 1,
             dictDisabledFlag: false,
             dictId: 10,
@@ -97,7 +97,7 @@ describe('dictionary api payloads', () => {
           {
             dataLabel: '已停用',
             dataValue: 'DISABLED_TYPE',
-            dictCode: 'BPM_BUSINESS_TYPE',
+            dictCode: 'BUSINESS_TYPE',
             dictDataId: 2,
             dictDisabledFlag: false,
             dictId: 10,
@@ -117,7 +117,7 @@ describe('dictionary api payloads', () => {
           {
             dataLabel: '差旅报销',
             dataValue: 'EXPENSE',
-            dictCode: 'BPM_BUSINESS_TYPE',
+            dictCode: 'BUSINESS_TYPE',
             dictDataId: 4,
             dictDisabledFlag: false,
             dictId: 10,
@@ -125,7 +125,7 @@ describe('dictionary api payloads', () => {
             sortOrder: 10,
           },
         ],
-        '  BPM_BUSINESS_TYPE  ',
+        '  BUSINESS_TYPE  ',
       ),
     ).toEqual([
       { label: '差旅报销', value: 'EXPENSE' },

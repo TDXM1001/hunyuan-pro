@@ -1,7 +1,6 @@
 package com.hunyuan.sa.admin.module.system.employee.service;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
@@ -437,23 +436,6 @@ public class EmployeeService {
     public ResponseDTO<List<EmployeeVO>> queryAllEmployee(Boolean disabledFlag) {
         List<EmployeeVO> employeeList = employeeDao.selectEmployeeByDisabledAndDeleted(disabledFlag, Boolean.FALSE);
         return ResponseDTO.ok(employeeList);
-    }
-
-    /**
-     * BPM 岗位候选解析使用的受控员工查询，只返回未删除且未禁用的员工。
-     */
-    public List<Long> listActiveEmployeeIdsByPositionId(Long positionId) {
-        if (positionId == null || positionId <= 0) {
-            return Collections.emptyList();
-        }
-        return employeeDao.selectList(new LambdaQueryWrapper<EmployeeEntity>()
-                        .eq(EmployeeEntity::getPositionId, positionId)
-                        .eq(EmployeeEntity::getDisabledFlag, Boolean.FALSE)
-                        .eq(EmployeeEntity::getDeletedFlag, Boolean.FALSE)
-                        .orderByAsc(EmployeeEntity::getEmployeeId))
-                .stream()
-                .map(EmployeeEntity::getEmployeeId)
-                .toList();
     }
 
     /**
