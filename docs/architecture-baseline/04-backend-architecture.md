@@ -169,7 +169,7 @@ Spring Validation
 Spring Transaction
 Spring Modulith 和/或 ArchUnit
 JUnit 5
-Testcontainers
+独立 MySQL/Redis 集成测试环境
 ```
 
 Spring Modulith可用于表达模块、验证依赖和管理应用事件；ArchUnit可补充项目特定依赖规则。二者可以单独使用，也可以组合使用。

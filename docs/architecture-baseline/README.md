@@ -28,6 +28,8 @@
 | [06-testing-and-quality.md](06-testing-and-quality.md) | 测试分层、架构守卫和验收边界 |
 | [07-deployment-and-evolution.md](07-deployment-and-evolution.md) | 当前部署形态及未来演进触发条件 |
 | [08-technology-decisions.md](08-technology-decisions.md) | 已接受、暂定、延后和当前不采用的决策 |
+| [09-current-state-migration-map.md](09-current-state-migration-map.md) | 当前代码、数据和质量基线到目标架构的迁移映射 |
+| [10-platform-seed-bootstrap-and-access-audit.md](10-platform-seed-bootstrap-and-access-audit.md) | 平台 seed、初始管理员 bootstrap 与菜单角色权限盘点 |
 
 ## 3. 当前架构摘要
 

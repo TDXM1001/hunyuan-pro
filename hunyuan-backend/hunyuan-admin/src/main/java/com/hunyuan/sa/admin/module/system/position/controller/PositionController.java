@@ -1,5 +1,6 @@
 package com.hunyuan.sa.admin.module.system.position.controller;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -40,24 +41,28 @@ public class PositionController {
 
     @Operation(summary = "添加 @author kaiyun")
     @PostMapping("/position/add")
+    @SaCheckPermission("system:position:add")
     public ResponseDTO<String> add(@RequestBody @Valid PositionAddForm addForm) {
         return positionService.add(addForm);
     }
 
     @Operation(summary = "更新 @author kaiyun")
     @PostMapping("/position/update")
+    @SaCheckPermission("system:position:update")
     public ResponseDTO<String> update(@RequestBody @Valid PositionUpdateForm updateForm) {
         return positionService.update(updateForm);
     }
 
     @Operation(summary = "批量删除 @author kaiyun")
     @PostMapping("/position/batchDelete")
+    @SaCheckPermission("system:position:delete")
     public ResponseDTO<String> batchDelete(@RequestBody ValidateList<Long> idList) {
         return positionService.batchDelete(idList);
     }
 
     @Operation(summary = "单个删除 @author kaiyun")
     @GetMapping("/position/delete/{positionId}")
+    @SaCheckPermission("system:position:delete")
     public ResponseDTO<String> batchDelete(@PathVariable Long positionId) {
         return positionService.delete(positionId);
     }

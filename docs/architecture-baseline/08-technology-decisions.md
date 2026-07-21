@@ -23,7 +23,7 @@
 | 接口风格 | REST + OpenAPI | 契约清晰且工具成熟 |
 | API 命名空间 | 当前使用 `/api/admin/v1` | 区分终端并保留版本边界 |
 | 数据迁移 | Flyway | 数据结构变更可审计、可重复验证 |
-| 数据库测试 | Testcontainers + 真实 MySQL | 避免内存数据库行为差异 |
+| 数据库测试 | 独立 MySQL 8 测试库 + 显式集成测试开关 | 避免内存数据库差异，也不要求 Docker |
 
 ## 3. 暂定技术基线
 
@@ -51,7 +51,7 @@ Spring Validation
 Spring Transaction
 Spring Modulith 和/或 ArchUnit
 JUnit 5
-Testcontainers
+独立 MySQL/Redis 集成测试环境
 ```
 
 ### 3.3 数据与部署

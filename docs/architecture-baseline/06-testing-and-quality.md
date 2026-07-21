@@ -39,7 +39,7 @@
 
 ### 2.3 MySQL 集成测试
 
-使用 JUnit 5 和 Testcontainers 启动与生产同系列的 MySQL，验证：
+使用 JUnit 5 和独立测试数据库验证。当前 Windows 开发环境使用 phpStudy 中与生产同系列的 MySQL，并通过独立数据库名、Redis DB 和显式环境变量与开发数据隔离：
 
 - Flyway 可以从空库完整迁移。
 - MyBatis/JPA 映射正确。
@@ -48,6 +48,8 @@
 - 事务、锁、并发和回滚行为正确。
 
 不使用 H2 代替全部 MySQL 集成测试，因为两者的 SQL、类型、索引和锁行为存在差异。
+
+集成测试默认不运行，只有 `HUNYUAN_IT_ENABLED=true` 且测试库名以 `_it` 结尾时才启用。测试代码不得回退连接开发库，也不得自动删除或清空非测试数据库。
 
 ### 2.4 API 测试
 

@@ -53,6 +53,7 @@
         <jsoup.version>1.21.1</jsoup.version>
         <tika.version>3.1.0</tika.version>
         <httpcomponents.version>5.5</httpcomponents.version>
+        <archunit.version>1.4.1</archunit.version>
     </properties>
 
     <dependencyManagement>
@@ -326,6 +327,12 @@
                 <groupId>org.apache.httpcomponents.client5</groupId>
                 <artifactId>httpclient5</artifactId>
                 <version>${httpcomponents.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
             </dependency>
 
         </dependencies>

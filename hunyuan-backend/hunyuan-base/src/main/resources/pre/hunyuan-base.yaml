@@ -20,6 +20,15 @@ spring:
       method:
         pointcut: com.hunyuan.sa..*Service.*
 
+  flyway:
+    enabled: ${HUNYUAN_FLYWAY_ENABLED:false}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 3.64.0
+    placeholder-replacement: false
+    validate-on-migrate: true
+    clean-disabled: true
+
   # redis 连接池配置信息
   data:
     redis:

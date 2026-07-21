@@ -1,5 +1,6 @@
 package com.hunyuan.sa.admin.module.system.support;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -47,6 +48,7 @@ public class AdminProtectController extends SupportBaseController {
 
     @Operation(summary = "分页查询 @author 1024创新实验室-主任-卓大")
     @PostMapping("/protect/loginFail/queryPage")
+    @SaCheckPermission("support:protect:loginFail:query")
     public ResponseDTO<PageResult<LoginFailVO>> queryPage(@RequestBody @Valid LoginFailQueryForm queryForm) {
         return ResponseDTO.ok(securityLoginService.queryPage(queryForm));
     }
@@ -54,18 +56,21 @@ public class AdminProtectController extends SupportBaseController {
 
     @Operation(summary = "批量删除 @author 1024创新实验室-主任-卓大")
     @PostMapping("/protect/loginFail/batchDelete")
+    @SaCheckPermission("support:protect:loginFail:delete")
     public ResponseDTO<String> batchDelete(@RequestBody ValidateList<Long> idList) {
         return securityLoginService.batchDelete(idList);
     }
 
     @Operation(summary = "更新三级等保配置 @author 1024创新实验室-主任-卓大")
     @PostMapping("/protect/level3protect/updateConfig")
+    @SaCheckPermission("support:protect:level3:update")
     public ResponseDTO<String> updateConfig(@RequestBody @Valid Level3ProtectConfigForm configForm) {
         return level3ProtectConfigService.updateLevel3Config(configForm);
     }
 
     @Operation(summary = "查询 三级等保配置 @author 1024创新实验室-主任-卓大")
     @GetMapping("/protect/level3protect/getConfig")
+    @SaCheckPermission("support:protect:level3:query")
     public ResponseDTO<String> getConfig() {
         return ResponseDTO.ok(configService.getConfigValue(ConfigKeyEnum.LEVEL3_PROTECT_CONFIG));
     }

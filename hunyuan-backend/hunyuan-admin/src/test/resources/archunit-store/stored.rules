@@ -1,0 +1,5 @@
+#
+#Tue Jul 21 09:36:18 CST 2026
+no\ classes\ that\ reside\ in\ a\ package\ 'com.hunyuan.sa.admin.module..'\ should\ not\ access\ another\ admin\ module's\ DAO,\ Mapper,\ or\ Entity=da0b64fc-556b-431f-91a3-2322cd8fc4e2
+slices\ matching\ 'com.hunyuan.sa.admin.module.(*)..'\ should\ be\ free\ of\ cycles=4f9abc74-8671-43ca-9a43-cf91ef061dd4
+slices\ matching\ 'com.hunyuan.sa.base.module.support.(*)..'\ should\ be\ free\ of\ cycles=10681e6b-26f0-4c8e-8d07-4a4b0e61298f

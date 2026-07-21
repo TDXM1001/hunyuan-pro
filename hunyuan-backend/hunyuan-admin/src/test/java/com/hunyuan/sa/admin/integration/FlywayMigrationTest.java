@@ -1,0 +1,73 @@
+package com.hunyuan.sa.admin.integration;
+
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@EnabledIfEnvironmentVariable(named = "HUNYUAN_IT_ENABLED", matches = "(?i)true")
+class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
+
+    @Test
+    void emptyDatabaseShouldMigrateToPlatformSeedWithoutCredentialsOrBpmTables() {
+        Flyway flyway = Flyway.configure()
+                .dataSource(
+                        requiredEnvironment("HUNYUAN_IT_DB_URL"),
+                        requiredEnvironment("HUNYUAN_IT_DB_USERNAME"),
+                        requiredEnvironment("HUNYUAN_IT_DB_PASSWORD"))
+                .locations("classpath:db/migration")
+                .placeholderReplacement(false)
+                .cleanDisabled(true)
+                .load();
+
+        flyway.migrate();
+
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.65.0");
+
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                requiredEnvironment("HUNYUAN_IT_DB_URL"),
+                requiredEnvironment("HUNYUAN_IT_DB_USERNAME"),
+                requiredEnvironment("HUNYUAN_IT_DB_PASSWORD"));
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        String databaseName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        assertThat(databaseName).endsWith("_it");
+        Integer retiredTableCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = ?
+                  AND (table_name LIKE 't_bpm\\_%' OR table_name LIKE 'act\\_%')
+                """, Integer.class, databaseName);
+
+        assertThat(retiredTableCount).isZero();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_config WHERE config_key IN ('super_password', 'level3_protect_config')",
+                Integer.class)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT config_value FROM t_config WHERE config_key = 'super_password'",
+                String.class)).isEmpty();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_role WHERE role_code = 'platform_admin'",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_data_scope ds
+                JOIN t_role r ON r.role_id = ds.role_id
+                WHERE r.role_code = 'platform_admin'
+                  AND ds.data_scope_type = 1
+                  AND ds.view_type = 10
+                """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_dict WHERE dict_code IN ('SYS_GENDER', 'SYS_DISABLED_FLAG')",
+                Integer.class)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE deleted_flag = 0 AND menu_type IN (1, 2)",
+                Integer.class)).isEqualTo(14);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_employee",
+                Integer.class)).isZero();
+    }
+}
