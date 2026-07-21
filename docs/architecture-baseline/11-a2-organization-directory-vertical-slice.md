@@ -160,4 +160,4 @@ DELETE /api/admin/v1/organization/departments/{departmentId}
 - 模块开关已通过：关闭 `module.organization.directory.enabled` 后管理员新 API 返回稳定错误码 `41001`，非管理员登录菜单不再包含部门目录，直达 URL 落到未找到页面；开关已恢复为 `true`。
 - 验证结果：后端全量测试 22 项执行、3 项隔离测试按环境配置跳过、0 失败；前端单测 58 个文件/430 项通过；`@hunyuan/system` 类型检查通过；OpenAPI 返回 200，并暴露部门列表、详情、负责人候选、新增、更新、删除 6 个 operationId。
 
-当前仍保留的边界：旧部门 API 和旧页面入口只处于兼容期，尚未在本批次下线；A2 试点验收通过，但旧入口退役和更大组织域重构必须另立迁移批次。
+当前收口状态：A2.1 已完成旧部门 API、旧页面、旧权限码和兼容实现的代码与数据退役，并通过隔离库、开发库、直接 API、后端、前端和浏览器运行态验收。管理员可查看 7 个部门并拥有完整写入口；只读角色可查看 7 个部门但无写按钮，直接写 API 返回 `30005` 且数据不变；模块关闭时管理员新 API 返回 `41001`、目录菜单和直达页面均不可用，恢复开关后新 API 与只读页面恢复正常。临时角色和员工关联已全部清理。A2.1 已关闭，可以进入 A3 范围评估，但本批次不直接启动 A3 实现。详见 [13-a2-1-organization-directory-compatibility-retirement.md](13-a2-1-organization-directory-compatibility-retirement.md)。

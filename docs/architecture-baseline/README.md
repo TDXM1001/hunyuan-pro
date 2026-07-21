@@ -32,6 +32,7 @@
 | [10-platform-seed-bootstrap-and-access-audit.md](10-platform-seed-bootstrap-and-access-audit.md) | 平台 seed、初始管理员 bootstrap 与菜单角色权限盘点 |
 | [11-a2-organization-directory-vertical-slice.md](11-a2-organization-directory-vertical-slice.md) | A2 组织目录首个垂直切片的业务契约与验收边界 |
 | [12-local-database-inventory-and-usage.md](12-local-database-inventory-and-usage.md) | 本机开发库、隔离测试库、迁移样本与历史备份的用途和操作边界 |
+| [13-a2-1-organization-directory-compatibility-retirement.md](13-a2-1-organization-directory-compatibility-retirement.md) | A2.1 组织目录兼容入口退役、授权迁移与迁移链路收口 |
 
 ## 3. 当前架构摘要
 
