@@ -25,7 +25,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
 
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.66.1");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.67.0");
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 requiredEnvironment("HUNYUAN_IT_DB_URL"),
@@ -81,6 +81,20 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_menu WHERE api_perms LIKE 'organization.department.%' AND perms_type = 1",
                 Integer.class)).isEqualTo(4);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/department'",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE api_perms LIKE 'system:department:%' OR web_perms LIKE 'system:department:%'",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE menu.path = '/organization/department'
+                   OR menu.api_perms LIKE 'system:department:%'
+                   OR menu.web_perms LIKE 'system:department:%'
+                """, Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM t_role_data_scope scope

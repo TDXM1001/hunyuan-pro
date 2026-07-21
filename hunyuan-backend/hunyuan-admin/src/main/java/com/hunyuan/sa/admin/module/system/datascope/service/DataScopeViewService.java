@@ -2,9 +2,9 @@ package com.hunyuan.sa.admin.module.system.datascope.service;
 
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
-import com.hunyuan.sa.admin.module.system.department.manager.DepartmentCacheManager;
 import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
 import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDataScopeDao;
@@ -12,6 +12,7 @@ import com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao;
 import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleDataScopeEntity;
 import com.hunyuan.sa.base.common.util.SmartEnumUtil;
 import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -41,7 +42,9 @@ public class DataScopeViewService {
     private EmployeeDao employeeDao;
 
     @Resource
-    private DepartmentCacheManager departmentCacheManager;
+    // 延迟解析组织目录，避免数据范围适配器在启动阶段形成循环依赖。
+    @Lazy
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     /**
      * 获取某人可以查看的所有人员数据
@@ -85,7 +88,7 @@ public class DataScopeViewService {
 
     public List<Long> getDepartmentAndSubIdList(Long employeeId) {
         EmployeeEntity employeeEntity = employeeDao.selectById(employeeId);
-        return departmentCacheManager.getDepartmentSelfAndChildren(employeeEntity.getDepartmentId());
+        return organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employeeEntity.getDepartmentId());
     }
 
     /**

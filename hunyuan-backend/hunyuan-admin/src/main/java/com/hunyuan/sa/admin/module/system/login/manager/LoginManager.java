@@ -3,8 +3,8 @@ package com.hunyuan.sa.admin.module.system.login.manager;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import com.hunyuan.sa.admin.constant.AdminCacheConst;
-import com.hunyuan.sa.admin.module.system.department.domain.vo.DepartmentVO;
-import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public class LoginManager {
 
     @Resource
-    private DepartmentService departmentService;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
     private IFileStorageService fileStorageService;
@@ -87,8 +87,8 @@ public class LoginManager {
         requestEmployee.setUserType(UserTypeEnum.ADMIN_EMPLOYEE);
 
         // 部门信息
-        DepartmentVO department = departmentService.getDepartmentById(employeeEntity.getDepartmentId());
-        requestEmployee.setDepartmentName(null == department ? StringConst.EMPTY : department.getDepartmentName());
+        Department department = organizationDepartmentFacade.findForCollaboration(employeeEntity.getDepartmentId()).orElse(null);
+        requestEmployee.setDepartmentName(null == department ? StringConst.EMPTY : department.departmentName());
 
         // 头像信息
         String avatar = employeeEntity.getAvatar();

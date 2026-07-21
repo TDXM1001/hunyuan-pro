@@ -22,17 +22,18 @@ public interface OrganizationDepartmentFacade {
 
     ResponseDTO<String> delete(Long departmentId);
 
-    /**
-     * Compatibility access for the legacy system department API. These methods keep
-     * the old entry points available while sharing the same write implementation.
-     */
-    List<Department> listForCompatibility();
+    /** 跨模块按编号读取部门，不套用当前登录人的页面数据范围。 */
+    Optional<Department> findForCollaboration(Long departmentId);
 
-    Optional<Department> findForCompatibility(Long departmentId);
+    /** 跨模块读取完整部门目录，不套用当前登录人的页面数据范围。 */
+    List<Department> listForCollaboration();
 
-    ResponseDTO<Long> createForCompatibility(DepartmentCommand command);
+    /** 返回一组部门编号中不存在的编号。 */
+    List<Long> missingIdsForCollaboration(List<Long> departmentIds);
 
-    ResponseDTO<String> updateForCompatibility(Long departmentId, DepartmentCommand command);
+    /** 返回指定部门以及全部下级部门编号。 */
+    List<Long> selfAndDescendantIdsForCollaboration(Long departmentId);
 
-    ResponseDTO<String> deleteForCompatibility(Long departmentId);
+    /** 返回从顶级部门到指定部门的名称路径。 */
+    String pathForCollaboration(Long departmentId);
 }

@@ -4,10 +4,8 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
-import com.hunyuan.sa.admin.module.system.department.dao.DepartmentDao;
-import com.hunyuan.sa.admin.module.system.department.domain.entity.DepartmentEntity;
-import com.hunyuan.sa.admin.module.system.department.domain.vo.DepartmentVO;
-import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
 import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.employee.domain.form.*;
@@ -53,16 +51,13 @@ public class EmployeeService {
     private EmployeeDao employeeDao;
 
     @Resource
-    private DepartmentDao departmentDao;
-
-    @Resource
     private EmployeeManager employeeManager;
 
     @Resource
     private RoleEmployeeDao roleEmployeeDao;
 
     @Resource
-    private DepartmentService departmentService;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
     private SecurityPasswordService securityPasswordService;
@@ -91,7 +86,7 @@ public class EmployeeService {
 
         List<Long> departmentIdList = new ArrayList<>();
         if (employeeQueryForm.getDepartmentId() != null) {
-            departmentIdList.addAll(departmentService.selfAndChildrenIdList(employeeQueryForm.getDepartmentId()));
+            departmentIdList.addAll(organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employeeQueryForm.getDepartmentId()));
         }
 
         List<EmployeeVO> employeeList = employeeDao.queryEmployee(pageParam, employeeQueryForm, departmentIdList);
@@ -114,7 +109,7 @@ public class EmployeeService {
         employeeList.forEach(e -> {
             e.setRoleIdList(employeeRoleIdListMap.getOrDefault(e.getEmployeeId(), Lists.newArrayList()));
             e.setRoleNameList(employeeRoleNameListMap.getOrDefault(e.getEmployeeId(), Lists.newArrayList()));
-            e.setDepartmentName(departmentService.getDepartmentPath(e.getDepartmentId()));
+            e.setDepartmentName(organizationDepartmentFacade.pathForCollaboration(e.getDepartmentId()));
             e.setPositionName(positionNameMap.get(e.getPositionId()));
             if (StringUtils.isNotBlank(e.getAvatar())) {
                 ResponseDTO<String> avatarUrlResponse = fileStorageService.getFileUrl(e.getAvatar());
@@ -143,8 +138,7 @@ public class EmployeeService {
         }
         // 部门是否存在
         Long departmentId = employeeAddForm.getDepartmentId();
-        DepartmentEntity department = departmentDao.selectById(departmentId);
-        if (department == null) {
+        if (organizationDepartmentFacade.findForCollaboration(departmentId).isEmpty()) {
             return ResponseDTO.userErrorParam("部门不存在");
         }
 
@@ -178,8 +172,7 @@ public class EmployeeService {
 
         // 部门是否存在
         Long departmentId = employeeUpdateForm.getDepartmentId();
-        DepartmentEntity departmentEntity = departmentDao.selectById(departmentId);
-        if (departmentEntity == null) {
+        if (organizationDepartmentFacade.findForCollaboration(departmentId).isEmpty()) {
             return ResponseDTO.userErrorParam("部门不存在");
         }
 
@@ -401,12 +394,12 @@ public class EmployeeService {
             return ResponseDTO.ok(Collections.emptyList());
         }
 
-        DepartmentVO department = departmentService.getDepartmentById(departmentId);
+        Department department = organizationDepartmentFacade.findForCollaboration(departmentId).orElse(null);
 
         List<EmployeeVO> voList = employeeEntityList.stream().map(e -> {
             EmployeeVO employeeVO = SmartBeanUtil.copy(e, EmployeeVO.class);
             if (department != null) {
-                employeeVO.setDepartmentName(department.getDepartmentName());
+                employeeVO.setDepartmentName(department.departmentName());
             }
             return employeeVO;
         }).collect(Collectors.toList());

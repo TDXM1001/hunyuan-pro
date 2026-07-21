@@ -3,8 +3,8 @@ package com.hunyuan.sa.admin.module.system.role.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
-import com.hunyuan.sa.admin.module.system.department.dao.DepartmentDao;
-import com.hunyuan.sa.admin.module.system.department.domain.entity.DepartmentEntity;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.employee.domain.vo.EmployeeVO;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDao;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao;
@@ -46,7 +46,7 @@ public class RoleEmployeeService {
     @Resource
     private RoleDao roleDao;
     @Resource
-    private DepartmentDao departmentDao;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
     @Resource
     private RoleEmployeeManager roleEmployeeManager;
 
@@ -92,8 +92,10 @@ public class RoleEmployeeService {
     private void setDepartmentName(List<EmployeeVO> employeeList) {
         List<Long> departmentIdList = employeeList.stream().filter(e -> e != null && e.getDepartmentId() != null).map(EmployeeVO::getDepartmentId).collect(Collectors.toList());
         if (CollectionUtils.isNotEmpty(departmentIdList)) {
-            List<DepartmentEntity> departmentEntities = departmentDao.selectBatchIds(departmentIdList);
-            Map<Long, String> departmentIdNameMap = departmentEntities.stream().collect(Collectors.toMap(DepartmentEntity::getDepartmentId, DepartmentEntity::getDepartmentName));
+            Set<Long> departmentIds = Set.copyOf(departmentIdList);
+            Map<Long, String> departmentIdNameMap = organizationDepartmentFacade.listForCollaboration().stream()
+                    .filter(department -> departmentIds.contains(department.departmentId()))
+                    .collect(Collectors.toMap(Department::departmentId, Department::departmentName));
             employeeList.forEach(e -> {
                 e.setDepartmentName(departmentIdNameMap.getOrDefault(e.getDepartmentId(), StringConst.EMPTY));
             });

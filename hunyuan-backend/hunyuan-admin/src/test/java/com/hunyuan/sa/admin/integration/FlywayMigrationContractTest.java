@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(4);
+        assertThat(migrations).hasSize(5);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -33,6 +33,8 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_66_0__a2_organization_directory.sql");
         assertThat(migrations.get(3).getFileName().toString())
                 .isEqualTo("V3_66_1__a2_organization_permission_type.sql");
+        assertThat(migrations.get(4).getFileName().toString())
+                .isEqualTo("V3_67_0__a2_1_retire_legacy_department_access.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -74,5 +76,13 @@ class FlywayMigrationContractTest {
                 .contains("`PERMS_TYPE` = 1")
                 .contains("'/ORGANIZATION/DIRECTORY'")
                 .contains("'ORGANIZATION.DEPARTMENT.%'");
+
+        String legacyDepartmentRetirement = Files.readString(migrations.get(4), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(legacyDepartmentRetirement)
+                .contains("'/ORGANIZATION/EMPLOYEE'")
+                .contains("'ORGANIZATION.DEPARTMENT.READ'")
+                .contains("'SYSTEM:DEPARTMENT:ADD'")
+                .contains("DELETE ROLE_MENU")
+                .contains("DELETE FROM `T_MENU`");
     }
 }

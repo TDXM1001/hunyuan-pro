@@ -50,9 +50,7 @@ public class RoleMenuService {
     private OrganizationModuleAvailability organizationModuleAvailability;
 
     private static final String ORGANIZATION_PATH = "/organization/directory";
-    private static final String LEGACY_DEPARTMENT_PATH = "/organization/department";
     private static final String ORGANIZATION_CAPABILITY_PREFIX = "organization.department.";
-    private static final String LEGACY_DEPARTMENT_CAPABILITY_PREFIX = "system:department:";
 
     /**
      * 更新角色权限
@@ -136,9 +134,7 @@ public class RoleMenuService {
             String path = menu.getPath();
             String apiPerms = menu.getApiPerms();
             return !ORGANIZATION_PATH.equals(path)
-                    && !LEGACY_DEPARTMENT_PATH.equals(path)
-                    && (apiPerms == null || (!apiPerms.startsWith(ORGANIZATION_CAPABILITY_PREFIX)
-                    && !apiPerms.startsWith(LEGACY_DEPARTMENT_CAPABILITY_PREFIX)));
+                    && (apiPerms == null || !apiPerms.startsWith(ORGANIZATION_CAPABILITY_PREFIX));
         }).toList();
     }
 }

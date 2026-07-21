@@ -14,7 +14,7 @@ import com.hunyuan.sa.admin.module.business.oa.enterprise.domain.vo.EnterpriseEx
 import com.hunyuan.sa.admin.module.business.oa.enterprise.domain.vo.EnterpriseListVO;
 import com.hunyuan.sa.admin.module.business.oa.enterprise.domain.vo.EnterpriseVO;
 import com.hunyuan.sa.admin.module.business.oa.enterprise.manager.EnterpriseEmployeeManager;
-import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
@@ -57,7 +57,7 @@ public class EnterpriseService {
     private DataTracerService dataTracerService;
 
     @Resource
-    private DepartmentService departmentService;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     /**
      * 分页查询企业模块
@@ -232,7 +232,7 @@ public class EnterpriseService {
         Page<?> page = SmartPageUtil.convert2PageQuery(queryForm);
         List<EnterpriseEmployeeVO> enterpriseEmployeeVOList = enterpriseEmployeeDao.queryPageEmployeeList(page, queryForm);
         for (EnterpriseEmployeeVO enterpriseEmployeeVO : enterpriseEmployeeVOList) {
-            enterpriseEmployeeVO.setDepartmentName(departmentService.getDepartmentPath(enterpriseEmployeeVO.getDepartmentId()));
+            enterpriseEmployeeVO.setDepartmentName(organizationDepartmentFacade.pathForCollaboration(enterpriseEmployeeVO.getDepartmentId()));
         }
         return SmartPageUtil.convert2PageResult(page, enterpriseEmployeeVOList);
     }

@@ -3,7 +3,6 @@ package com.hunyuan.sa.admin.module.organization.department.application;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.organization.department.domain.DepartmentCommand;
 import com.hunyuan.sa.admin.module.organization.department.domain.DepartmentRepository;
-import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationDepartmentCachePort;
 import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationDirectoryPort;
 import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationDepartmentScopePort;
 import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationMember;
@@ -15,8 +14,12 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -29,9 +32,6 @@ public class OrganizationDepartmentApplicationService implements OrganizationDep
 
     @Resource
     private OrganizationDirectoryPort organizationDirectoryPort;
-
-    @Resource
-    private OrganizationDepartmentCachePort cachePort;
 
     @Resource
     private OrganizationModuleAvailability moduleAvailability;
@@ -74,18 +74,11 @@ public class OrganizationDepartmentApplicationService implements OrganizationDep
         return createInternal(command, true);
     }
 
-    @Transactional
-    @Override
-    public ResponseDTO<Long> createForCompatibility(DepartmentCommand command) {
-        return createInternal(command, false);
-    }
-
     private ResponseDTO<Long> createInternal(DepartmentCommand command, boolean enforceScope) {
         Department department = normalize(command, null);
         validateParent(department, null, enforceScope);
         validateManager(department.managerId());
         Long departmentId = departmentRepository.insert(department);
-        cachePort.clearDepartmentCaches();
         return ResponseDTO.ok(departmentId);
     }
 
@@ -94,12 +87,6 @@ public class OrganizationDepartmentApplicationService implements OrganizationDep
     public ResponseDTO<String> update(Long departmentId, DepartmentCommand command) {
         moduleAvailability.requireEnabled();
         return updateInternal(departmentId, command, true);
-    }
-
-    @Transactional
-    @Override
-    public ResponseDTO<String> updateForCompatibility(Long departmentId, DepartmentCommand command) {
-        return updateInternal(departmentId, command, false);
     }
 
     private ResponseDTO<String> updateInternal(Long departmentId, DepartmentCommand command, boolean enforceScope) {
@@ -113,7 +100,6 @@ public class OrganizationDepartmentApplicationService implements OrganizationDep
         validateParent(department, departmentId, enforceScope);
         validateManager(department.managerId());
         departmentRepository.update(department);
-        cachePort.clearDepartmentCaches();
         return ResponseDTO.ok();
     }
 
@@ -122,12 +108,6 @@ public class OrganizationDepartmentApplicationService implements OrganizationDep
     public ResponseDTO<String> delete(Long departmentId) {
         moduleAvailability.requireEnabled();
         return deleteInternal(departmentId, true);
-    }
-
-    @Transactional
-    @Override
-    public ResponseDTO<String> deleteForCompatibility(Long departmentId) {
-        return deleteInternal(departmentId, false);
     }
 
     private ResponseDTO<String> deleteInternal(Long departmentId, boolean enforceScope) {
@@ -144,20 +124,81 @@ public class OrganizationDepartmentApplicationService implements OrganizationDep
             throw new OrganizationBusinessException(OrganizationErrorCode.DEPARTMENT_NOT_EMPTY, "请先处理部门员工");
         }
         departmentRepository.delete(departmentId);
-        cachePort.clearDepartmentCaches();
         return ResponseDTO.ok();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Department> listForCompatibility() {
+    public Optional<Department> findForCollaboration(Long departmentId) {
+        return departmentRepository.findById(departmentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Department> listForCollaboration() {
         return departmentRepository.findAll();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Department> findForCompatibility(Long departmentId) {
-        return departmentRepository.findById(departmentId);
+    public List<Long> missingIdsForCollaboration(List<Long> departmentIds) {
+        if (departmentIds == null || departmentIds.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> expectedIds = new HashSet<>(departmentIds);
+        expectedIds.remove(null);
+        Set<Long> existingIds = departmentRepository.findAll().stream()
+                .map(Department::departmentId)
+                .filter(expectedIds::contains)
+                .collect(java.util.stream.Collectors.toSet());
+        return expectedIds.stream().filter(id -> !existingIds.contains(id)).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> selfAndDescendantIdsForCollaboration(Long departmentId) {
+        if (departmentId == null) {
+            return List.of();
+        }
+        Map<Long, List<Long>> childrenByParent = new HashMap<>();
+        for (Department department : departmentRepository.findAll()) {
+            childrenByParent.computeIfAbsent(department.parentId(), ignored -> new ArrayList<>())
+                    .add(department.departmentId());
+        }
+        List<Long> result = new ArrayList<>();
+        Set<Long> visited = new HashSet<>();
+        ArrayDeque<Long> queue = new ArrayDeque<>();
+        queue.add(departmentId);
+        while (!queue.isEmpty()) {
+            Long current = queue.removeFirst();
+            if (!visited.add(current)) {
+                continue;
+            }
+            result.add(current);
+            queue.addAll(childrenByParent.getOrDefault(current, List.of()));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String pathForCollaboration(Long departmentId) {
+        Map<Long, Department> departmentsById = new HashMap<>();
+        for (Department department : departmentRepository.findAll()) {
+            departmentsById.put(department.departmentId(), department);
+        }
+        List<String> names = new ArrayList<>();
+        Set<Long> visited = new HashSet<>();
+        Long cursor = departmentId;
+        while (cursor != null && cursor != 0L && visited.add(cursor)) {
+            Department department = departmentsById.get(cursor);
+            if (department == null) {
+                break;
+            }
+            names.add(0, department.departmentName());
+            cursor = department.parentId();
+        }
+        return String.join("/", names);
     }
 
     private Department normalize(DepartmentCommand command, Long departmentId) {

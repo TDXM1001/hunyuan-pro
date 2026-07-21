@@ -8,7 +8,7 @@ import com.hunyuan.sa.admin.module.business.oa.notice.dao.NoticeDao;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.form.NoticeEmployeeQueryForm;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.form.NoticeViewRecordQueryForm;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.*;
-import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.base.common.domain.PageResult;
@@ -41,7 +41,7 @@ public class NoticeEmployeeService {
     private NoticeService noticeService;
 
     @Resource
-    private DepartmentService departmentService;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
     private EmployeeService employeeService;
@@ -56,7 +56,7 @@ public class NoticeEmployeeService {
         EmployeeEntity employeeEntity = employeeService.getById(requestEmployeeId);
         // 如果不是管理员 则获取请求人的 部门及其子部门
         if (!employeeEntity.getAdministratorFlag() && employeeEntity.getDepartmentId() != null) {
-            employeeDepartmentIdList = departmentService.selfAndChildrenIdList(employeeEntity.getDepartmentId());
+            employeeDepartmentIdList = organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employeeEntity.getDepartmentId());
         }
 
         List<NoticeEmployeeVO> noticeList = null;
@@ -136,7 +136,7 @@ public class NoticeEmployeeService {
                 .map(NoticeVisibleRangeVO::getDataId).collect(Collectors.toList());
 
         for (Long visibleDepartmentId : visibleDepartmentIdList) {
-            List<Long> departmentIdList = departmentService.selfAndChildrenIdList(visibleDepartmentId);
+            List<Long> departmentIdList = organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(visibleDepartmentId);
             if (departmentIdList.contains(departmentId)) {
                 return true;
             }

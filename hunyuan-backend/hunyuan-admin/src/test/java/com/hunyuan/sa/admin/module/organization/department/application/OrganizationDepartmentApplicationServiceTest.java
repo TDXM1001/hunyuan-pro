@@ -3,7 +3,6 @@ package com.hunyuan.sa.admin.module.organization.department.application;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.organization.department.domain.DepartmentCommand;
 import com.hunyuan.sa.admin.module.organization.department.domain.DepartmentRepository;
-import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationDepartmentCachePort;
 import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationDirectoryPort;
 import com.hunyuan.sa.admin.module.organization.department.domain.OrganizationDepartmentScopePort;
 import com.hunyuan.sa.admin.module.organization.OrganizationModuleAvailability;
@@ -16,7 +15,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
+import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,8 +32,6 @@ class OrganizationDepartmentApplicationServiceTest {
     @Mock
     private OrganizationDirectoryPort directoryPort;
     @Mock
-    private OrganizationDepartmentCachePort cachePort;
-    @Mock
     private OrganizationModuleAvailability moduleAvailability;
     @Mock
     private OrganizationDepartmentScopePort departmentScopePort;
@@ -44,7 +43,6 @@ class OrganizationDepartmentApplicationServiceTest {
         service = new OrganizationDepartmentApplicationService();
         ReflectionTestUtils.setField(service, "departmentRepository", repository);
         ReflectionTestUtils.setField(service, "organizationDirectoryPort", directoryPort);
-        ReflectionTestUtils.setField(service, "cachePort", cachePort);
         ReflectionTestUtils.setField(service, "moduleAvailability", moduleAvailability);
         ReflectionTestUtils.setField(service, "departmentScopePort", departmentScopePort);
         org.mockito.Mockito.lenient().when(departmentScopePort.canAccess(org.mockito.ArgumentMatchers.anyLong())).thenReturn(true);
@@ -91,7 +89,7 @@ class OrganizationDepartmentApplicationServiceTest {
     }
 
     @Test
-    void deletesEmptyDepartmentAndInvalidatesCompatibilityCache() {
+    void deletesEmptyDepartment() {
         when(repository.exists(10L)).thenReturn(true);
         when(repository.countChildren(10L)).thenReturn(0);
         when(directoryPort.countActiveEmployees(10L)).thenReturn(0);
@@ -99,25 +97,28 @@ class OrganizationDepartmentApplicationServiceTest {
         service.delete(10L);
 
         verify(repository).delete(10L);
-        verify(cachePort).clearDepartmentCaches();
     }
 
     @Test
-    void compatibilityLookupKeepsLegacyMissingDepartmentSemantics() {
+    void collaborationLookupKeepsMissingDepartmentSemantics() {
         when(repository.findById(999L)).thenReturn(Optional.empty());
 
-        org.assertj.core.api.Assertions.assertThat(service.findForCompatibility(999L)).isEmpty();
+        assertThat(service.findForCollaboration(999L)).isEmpty();
 
         verifyNoInteractions(moduleAvailability, departmentScopePort);
     }
 
     @Test
-    void compatibilityUpdateSharesRulesWithoutNewModuleOrScopeGates() {
-        when(repository.exists(10L)).thenReturn(true);
+    void collaborationQueriesBuildDescendantsAndPathWithoutPageScope() {
+        when(repository.findAll()).thenReturn(List.of(
+                department(10L, 0L),
+                department(20L, 10L),
+                department(30L, 20L)
+        ));
 
-        service.updateForCompatibility(10L, new DepartmentCommand("研发中心", null, 0L, 10));
+        assertThat(service.selfAndDescendantIdsForCollaboration(10L)).containsExactly(10L, 20L, 30L);
+        assertThat(service.pathForCollaboration(30L)).isEqualTo("部门10/部门20/部门30");
 
-        verify(repository).update(org.mockito.ArgumentMatchers.any());
         verifyNoInteractions(moduleAvailability, departmentScopePort);
     }
 

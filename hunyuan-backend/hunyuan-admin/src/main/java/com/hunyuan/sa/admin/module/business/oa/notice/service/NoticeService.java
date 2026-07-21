@@ -15,10 +15,8 @@ import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.NoticeUpdateForm
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.NoticeVO;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.NoticeVisibleRangeVO;
 import com.hunyuan.sa.admin.module.business.oa.notice.manager.NoticeManager;
-import com.hunyuan.sa.admin.module.system.department.dao.DepartmentDao;
-import com.hunyuan.sa.admin.module.system.department.domain.entity.DepartmentEntity;
-import com.hunyuan.sa.admin.module.system.department.domain.vo.DepartmentVO;
-import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
 import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.base.common.constant.StringConst;
@@ -60,10 +58,7 @@ public class NoticeService {
     private EmployeeDao employeeDao;
 
     @Resource
-    private DepartmentDao departmentDao;
-
-    @Resource
-    private DepartmentService departmentService;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
     private NoticeTypeService noticeTypeService;
@@ -149,10 +144,9 @@ public class NoticeService {
                 .distinct().collect(Collectors.toList());
         if (CollectionUtils.isNotEmpty(deptIdList)) {
             deptIdList = deptIdList.stream().distinct().collect(Collectors.toList());
-            List<Long> dbDeptIdList = departmentDao.selectBatchIds(deptIdList).stream().map(DepartmentEntity::getDepartmentId).collect(Collectors.toList());
-            Collection<Long> subtract = CollectionUtils.subtract(deptIdList, dbDeptIdList);
-            if (!subtract.isEmpty()) {
-                return ResponseDTO.userErrorParam("部门id不存在：" + subtract);
+            List<Long> missingDepartmentIds = organizationDepartmentFacade.missingIdsForCollaboration(deptIdList);
+            if (!missingDepartmentIds.isEmpty()) {
+                return ResponseDTO.userErrorParam("部门id不存在：" + missingDepartmentIds);
             }
         }
         return ResponseDTO.ok();
@@ -229,8 +223,8 @@ public class NoticeService {
                     EmployeeEntity employeeEntity = employeeMap.get(noticeVisibleRange.getDataId());
                     noticeVisibleRange.setDataName(employeeEntity == null ? StringConst.EMPTY : employeeEntity.getActualName());
                 } else {
-                    DepartmentVO departmentVO = departmentService.getDepartmentById(noticeVisibleRange.getDataId());
-                    noticeVisibleRange.setDataName(departmentVO == null ? StringConst.EMPTY : departmentVO.getDepartmentName());
+                    Department department = organizationDepartmentFacade.findForCollaboration(noticeVisibleRange.getDataId()).orElse(null);
+                    noticeVisibleRange.setDataName(department == null ? StringConst.EMPTY : department.departmentName());
                 }
             }
             updateFormVO.setVisibleRangeList(noticeVisibleRangeList);
