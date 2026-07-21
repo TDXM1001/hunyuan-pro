@@ -2,6 +2,7 @@ package com.hunyuan.sa.admin.module.system.role.service;
 
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
+import com.hunyuan.sa.admin.module.organization.OrganizationModuleAvailability;
 import com.hunyuan.sa.admin.module.system.menu.dao.MenuDao;
 import com.hunyuan.sa.admin.module.system.menu.domain.entity.MenuEntity;
 import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuSimpleTreeVO;
@@ -45,6 +46,13 @@ public class RoleMenuService {
     private RoleMenuManager roleMenuManager;
     @Resource
     private MenuDao menuDao;
+    @Resource
+    private OrganizationModuleAvailability organizationModuleAvailability;
+
+    private static final String ORGANIZATION_PATH = "/organization/directory";
+    private static final String LEGACY_DEPARTMENT_PATH = "/organization/department";
+    private static final String ORGANIZATION_CAPABILITY_PREFIX = "organization.department.";
+    private static final String LEGACY_DEPARTMENT_CAPABILITY_PREFIX = "system:department:";
 
     /**
      * 更新角色权限
@@ -74,17 +82,16 @@ public class RoleMenuService {
      *
      */
     public List<MenuVO> getMenuList(List<Long> roleIdList, Boolean administratorFlag) {
-        //管理员返回所有菜单（只返回目录和菜单，不包括功能点）
+        // 管理员需要同时返回功能点，前端据此建立按钮级能力码。
         if(administratorFlag){
-            List<Integer> menuTypeList = Lists.newArrayList(1, 2); // 1=目录, 2=菜单
-            return menuDao.queryMenuList(false, false, menuTypeList);
+            return filterDisabledModules(menuDao.queryMenuList(false, false, null));
         }
         //非管理员 无角色 返回空菜单
         if (CollectionUtils.isEmpty(roleIdList)) {
             return new ArrayList<>();
         }
         List<MenuEntity> menuEntityList = roleMenuDao.selectMenuListByRoleIdList(roleIdList, false);
-        return SmartBeanUtil.copyList(menuEntityList, MenuVO.class);
+        return filterDisabledModules(SmartBeanUtil.copyList(menuEntityList, MenuVO.class));
     }
 
 
@@ -99,7 +106,7 @@ public class RoleMenuService {
         List<Long> selectedMenuId = roleMenuDao.queryMenuIdByRoleId(roleId);
         res.setSelectedMenuId(selectedMenuId);
         //查询菜单权限
-        List<MenuVO> menuVOList = menuDao.queryMenuList(Boolean.FALSE, Boolean.FALSE, null);
+        List<MenuVO> menuVOList = filterDisabledModules(menuDao.queryMenuList(Boolean.FALSE, Boolean.FALSE, null));
         Map<Long, List<MenuVO>> parentMap = menuVOList.stream().collect(Collectors.groupingBy(MenuVO::getParentId, Collectors.toList()));
         List<MenuSimpleTreeVO> menuTreeList = this.buildMenuTree(parentMap, NumberUtils.LONG_ZERO);
         res.setMenuTreeList(menuTreeList);
@@ -119,5 +126,19 @@ public class RoleMenuService {
             e.setChildren(this.buildMenuTree(parentMap, e.getMenuId()));
         });
         return res;
+    }
+
+    private List<MenuVO> filterDisabledModules(List<MenuVO> menus) {
+        if (organizationModuleAvailability.enabled()) {
+            return menus;
+        }
+        return menus.stream().filter(menu -> {
+            String path = menu.getPath();
+            String apiPerms = menu.getApiPerms();
+            return !ORGANIZATION_PATH.equals(path)
+                    && !LEGACY_DEPARTMENT_PATH.equals(path)
+                    && (apiPerms == null || (!apiPerms.startsWith(ORGANIZATION_CAPABILITY_PREFIX)
+                    && !apiPerms.startsWith(LEGACY_DEPARTMENT_CAPABILITY_PREFIX)));
+        }).toList();
     }
 }

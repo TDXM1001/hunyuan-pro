@@ -24,11 +24,15 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(2);
+        assertThat(migrations).hasSize(4);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
                 .isEqualTo("V3_65_0__platform_seed.sql");
+        assertThat(migrations.get(2).getFileName().toString())
+                .isEqualTo("V3_66_0__a2_organization_directory.sql");
+        assertThat(migrations.get(3).getFileName().toString())
+                .isEqualTo("V3_66_1__a2_organization_permission_type.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -54,5 +58,21 @@ class FlywayMigrationContractTest {
                 .doesNotContain("INSERT INTO `T_EMPLOYEE`")
                 .doesNotContain("INSERT INTO T_EMPLOYEE")
                 .doesNotContain("GOODS_PLACE");
+
+        String organizationDirectory = Files.readString(migrations.get(2), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(organizationDirectory)
+                .contains("'MODULE.ORGANIZATION.DIRECTORY.ENABLED'")
+                .contains("'/ORGANIZATION/DIRECTORY'")
+                .contains("'ORGANIZATION.DEPARTMENT.READ'")
+                .contains("'ORGANIZATION.DEPARTMENT.CREATE'")
+                .contains("'ORGANIZATION.DEPARTMENT.UPDATE'")
+                .contains("'ORGANIZATION.DEPARTMENT.DELETE'")
+                .doesNotContain("INSERT INTO `T_EMPLOYEE`");
+
+        String organizationPermissionType = Files.readString(migrations.get(3), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(organizationPermissionType)
+                .contains("`PERMS_TYPE` = 1")
+                .contains("'/ORGANIZATION/DIRECTORY'")
+                .contains("'ORGANIZATION.DEPARTMENT.%'");
     }
 }

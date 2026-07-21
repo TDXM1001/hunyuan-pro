@@ -42,6 +42,19 @@ class ArchitectureGuardTest {
             .that().resideInAPackage("com.hunyuan.sa.admin.module..")
             .should(notAccessAnotherModulePersistenceInternals()));
 
+    @ArchTest
+    static final ArchRule ORGANIZATION_DOMAIN_MUST_NOT_DEPEND_ON_FRAMEWORKS = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.organization..domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "org.springframework..", "org.apache.ibatis..", "com.baomidou.mybatisplus..", "..controller..");
+
+    @ArchTest
+    static final ArchRule ORGANIZATION_MUST_NOT_DEPEND_ON_LEGACY_PERSISTENCE = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.organization..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.system..dao..",
+                    "com.hunyuan.sa.admin.module.system..domain.entity..");
+
     private static ArchCondition<JavaClass> notAccessAnotherModulePersistenceInternals() {
         return new ArchCondition<>("not access another admin module's DAO, Mapper, or Entity") {
             @Override

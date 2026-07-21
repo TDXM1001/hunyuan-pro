@@ -1,20 +1,22 @@
 package com.hunyuan.sa.admin.module.system.department.service;
 
 import jakarta.annotation.Resource;
-import com.hunyuan.sa.admin.module.system.department.dao.DepartmentDao;
+import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.organization.department.domain.Department;
+import com.hunyuan.sa.admin.module.organization.department.domain.DepartmentCommand;
 import com.hunyuan.sa.admin.module.system.department.domain.entity.DepartmentEntity;
 import com.hunyuan.sa.admin.module.system.department.domain.form.DepartmentAddForm;
 import com.hunyuan.sa.admin.module.system.department.domain.form.DepartmentUpdateForm;
 import com.hunyuan.sa.admin.module.system.department.domain.vo.DepartmentTreeVO;
 import com.hunyuan.sa.admin.module.system.department.domain.vo.DepartmentVO;
 import com.hunyuan.sa.admin.module.system.department.manager.DepartmentCacheManager;
-import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
-import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 部门 service
@@ -29,10 +31,7 @@ import java.util.List;
 public class DepartmentService {
 
     @Resource
-    private DepartmentDao departmentDao;
-
-    @Resource
-    private EmployeeDao employeeDao;
+    private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
     private DepartmentCacheManager departmentCacheManager;
@@ -44,9 +43,7 @@ public class DepartmentService {
      */
 
     public ResponseDTO<String> addDepartment(DepartmentAddForm departmentAddForm) {
-        DepartmentEntity departmentEntity = SmartBeanUtil.copy(departmentAddForm, DepartmentEntity.class);
-        departmentDao.insert(departmentEntity);
-        this.clearCache();
+        organizationDepartmentFacade.createForCompatibility(toCommand(departmentAddForm));
         return ResponseDTO.ok();
     }
 
@@ -55,18 +52,7 @@ public class DepartmentService {
      * 更新部门信息
      */
     public ResponseDTO<String> updateDepartment(DepartmentUpdateForm updateDTO) {
-        if (updateDTO.getParentId() == null) {
-            return ResponseDTO.userErrorParam("父级部门id不能为空");
-        }
-        DepartmentEntity entity = departmentDao.selectById(updateDTO.getDepartmentId());
-        if (entity == null) {
-            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
-        }
-        DepartmentEntity departmentEntity = SmartBeanUtil.copy(updateDTO, DepartmentEntity.class);
-        departmentEntity.setSort(updateDTO.getSort());
-        departmentDao.updateById(departmentEntity);
-        this.clearCache();
-        return ResponseDTO.ok();
+        return organizationDepartmentFacade.updateForCompatibility(updateDTO.getDepartmentId(), toCommand(updateDTO));
     }
 
     /**
@@ -75,25 +61,7 @@ public class DepartmentService {
      * 2、需要判断当前部门是否有员工，有员工则不能删除
      */
     public ResponseDTO<String> deleteDepartment(Long departmentId) {
-        DepartmentEntity departmentEntity = departmentDao.selectById(departmentId);
-        if (null == departmentEntity) {
-            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
-        }
-        // 是否有子级部门
-        int subDepartmentNum = departmentDao.countSubDepartment(departmentId);
-        if (subDepartmentNum > 0) {
-            return ResponseDTO.userErrorParam("请先删除子级部门");
-        }
-
-        // 是否有未删除员工
-        int employeeNum = employeeDao.countByDepartmentId(departmentId, Boolean.FALSE);
-        if (employeeNum > 0) {
-            return ResponseDTO.userErrorParam("请先删除部门员工");
-        }
-        departmentDao.deleteById(departmentId);
-        // 清除缓存
-        this.clearCache();
-        return ResponseDTO.ok();
+        return organizationDepartmentFacade.deleteForCompatibility(departmentId);
     }
 
     /**
@@ -109,7 +77,7 @@ public class DepartmentService {
      * 获取部门树形结构
      */
     public ResponseDTO<List<DepartmentTreeVO>> departmentTree() {
-        List<DepartmentTreeVO> treeVOList = departmentCacheManager.getDepartmentTree();
+        List<DepartmentTreeVO> treeVOList = departmentCacheManager.buildTree(listAll());
         return ResponseDTO.ok(treeVOList);
     }
 
@@ -118,7 +86,7 @@ public class DepartmentService {
      * 自身以及所有下级的部门id列表
      */
     public List<Long> selfAndChildrenIdList(Long departmentId) {
-        return departmentCacheManager.getDepartmentSelfAndChildren(departmentId);
+        return departmentCacheManager.selfAndChildrenIdList(departmentId, listAll());
     }
 
 
@@ -126,7 +94,7 @@ public class DepartmentService {
      * 获取所有部门
      */
     public List<DepartmentVO> listAll() {
-        return departmentCacheManager.getDepartmentList();
+        return organizationDepartmentFacade.listForCompatibility().stream().map(this::toLegacyView).toList();
     }
 
 
@@ -134,14 +102,47 @@ public class DepartmentService {
      * 获取部门
      */
     public DepartmentVO getDepartmentById(Long departmentId) {
-        return departmentDao.selectDepartmentVO(departmentId);
+        return organizationDepartmentFacade.findForCompatibility(departmentId)
+                .map(this::toLegacyView)
+                .orElse(null);
     }
 
     /**
      * 获取部门路径：/公司/研发部/产品组
      */
     public String getDepartmentPath(Long departmentId) {
-        return departmentCacheManager.getDepartmentPathMap().get(departmentId);
+        Map<Long, DepartmentVO> departmentMap = new HashMap<>();
+        for (DepartmentVO department : listAll()) {
+            departmentMap.put(department.getDepartmentId(), department);
+        }
+        List<String> names = new ArrayList<>();
+        Long cursor = departmentId;
+        while (cursor != null && cursor != 0L) {
+            DepartmentVO department = departmentMap.get(cursor);
+            if (department == null) {
+                break;
+            }
+            names.add(0, department.getDepartmentName());
+            cursor = department.getParentId();
+        }
+        return String.join("/", names);
+    }
+
+    private DepartmentCommand toCommand(DepartmentAddForm form) {
+        return new DepartmentCommand(form.getDepartmentName(), form.getManagerId(), form.getParentId(), form.getSort());
+    }
+
+    private DepartmentVO toLegacyView(Department department) {
+        DepartmentVO view = new DepartmentVO();
+        view.setDepartmentId(department.departmentId());
+        view.setDepartmentName(department.departmentName());
+        view.setManagerId(department.managerId());
+        view.setManagerName(department.managerName());
+        view.setParentId(department.parentId());
+        view.setSort(department.sort());
+        view.setCreateTime(department.createTime());
+        view.setUpdateTime(department.updateTime());
+        return view;
     }
 
 }

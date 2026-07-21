@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
-import com.hunyuan.sa.admin.module.system.department.service.DepartmentService;
+import com.hunyuan.sa.admin.module.system.department.manager.DepartmentCacheManager;
 import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
 import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDataScopeDao;
@@ -41,7 +41,7 @@ public class DataScopeViewService {
     private EmployeeDao employeeDao;
 
     @Resource
-    private DepartmentService departmentService;
+    private DepartmentCacheManager departmentCacheManager;
 
     /**
      * 获取某人可以查看的所有人员数据
@@ -85,7 +85,7 @@ public class DataScopeViewService {
 
     public List<Long> getDepartmentAndSubIdList(Long employeeId) {
         EmployeeEntity employeeEntity = employeeDao.selectById(employeeId);
-        return departmentService.selfAndChildrenIdList(employeeEntity.getDepartmentId());
+        return departmentCacheManager.getDepartmentSelfAndChildren(employeeEntity.getDepartmentId());
     }
 
     /**

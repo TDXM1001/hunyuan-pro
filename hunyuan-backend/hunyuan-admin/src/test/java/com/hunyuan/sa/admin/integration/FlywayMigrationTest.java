@@ -25,7 +25,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
 
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.65.0");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.66.1");
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 requiredEnvironment("HUNYUAN_IT_DB_URL"),
@@ -69,5 +69,25 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_employee",
                 Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT config_value FROM t_config WHERE config_key = 'module.organization.directory.enabled'",
+                String.class)).isEqualTo("true");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/directory' AND api_perms = 'organization.department.read'",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/directory' AND perms_type = 1",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE api_perms LIKE 'organization.department.%' AND perms_type = 1",
+                Integer.class)).isEqualTo(4);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_data_scope scope
+                JOIN t_role role ON role.role_id = scope.role_id
+                WHERE role.role_code = 'platform_admin'
+                  AND scope.data_scope_type = 2
+                  AND scope.view_type = 10
+                """, Integer.class)).isEqualTo(1);
     }
 }

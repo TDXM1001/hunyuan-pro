@@ -17,6 +17,8 @@ public enum DataScopeTypeEnum implements BaseEnum {
      * 系统通知
      */
     NOTICE(1, 20, "系统通知", "系统通知数据范围"),
+
+    ORGANIZATION_DIRECTORY(2, 30, "组织目录", "组织目录部门数据范围"),
     ;
 
     private final Integer value;
