@@ -30,6 +30,8 @@
 | [08-technology-decisions.md](08-technology-decisions.md) | 已接受、暂定、延后和当前不采用的决策 |
 | [09-current-state-migration-map.md](09-current-state-migration-map.md) | 当前代码、数据和质量基线到目标架构的迁移映射 |
 | [10-platform-seed-bootstrap-and-access-audit.md](10-platform-seed-bootstrap-and-access-audit.md) | 平台 seed、初始管理员 bootstrap 与菜单角色权限盘点 |
+| [11-a2-organization-directory-vertical-slice.md](11-a2-organization-directory-vertical-slice.md) | A2 组织目录首个垂直切片的业务契约与验收边界 |
+| [12-local-database-inventory-and-usage.md](12-local-database-inventory-and-usage.md) | 本机开发库、隔离测试库、迁移样本与历史备份的用途和操作边界 |
 
 ## 3. 当前架构摘要
 
