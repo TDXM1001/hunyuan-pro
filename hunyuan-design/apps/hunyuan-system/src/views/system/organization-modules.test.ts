@@ -5,10 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 const modulePages = [
   {
-    label: 'department',
-    path: 'apps/hunyuan-system/src/views/system/department/department-list.vue',
-  },
-  {
     label: 'position',
     path: 'apps/hunyuan-system/src/views/system/position/position-list.vue',
   },
@@ -21,17 +17,16 @@ const systemIndexPath = 'apps/hunyuan-system/index.html';
 const systemFaviconPath = 'apps/hunyuan-system/public/favicon.svg';
 const menuPagePath = 'apps/hunyuan-system/src/views/system/menu/menu-list.vue';
 const menuApiPath = 'apps/hunyuan-system/src/api/system/menu.ts';
+const legacyDepartmentPagePath =
+  'apps/hunyuan-system/src/views/system/department/department-list.vue';
+const organizationApiPath =
+  'apps/hunyuan-system/src/api/system/organization.ts';
 
 const actionPages = [
   {
     actionClass: 'employee-table-panel__actions',
     label: 'employee',
     path: 'apps/hunyuan-system/src/views/system/employee/components/employee-table-panel.vue',
-  },
-  {
-    actionClass: 'department-page__actions',
-    label: 'department',
-    path: 'apps/hunyuan-system/src/views/system/department/department-list.vue',
   },
   {
     actionClass: 'position-page__actions',
@@ -41,6 +36,13 @@ const actionPages = [
 ] as const;
 
 describe('organization backend menu docking pages', () => {
+  it('retires the legacy department page and action api client', () => {
+    expect(existsSync(resolve(process.cwd(), legacyDepartmentPagePath))).toBe(false);
+
+    const source = readFileSync(resolve(process.cwd(), organizationApiPath), 'utf8');
+    expect(source).not.toContain('/department/');
+  });
+
   it.each(modulePages)('provides a real $label page', ({ path }) => {
     const pagePath = resolve(process.cwd(), path);
 
@@ -218,14 +220,7 @@ describe('organization backend menu docking pages', () => {
     expect(existsSync(faviconPath)).toBe(true);
   });
 
-  it('keeps department and position pages without extra title or explainer copy', () => {
-    const departmentSource = readFileSync(
-      resolve(
-        process.cwd(),
-        'apps/hunyuan-system/src/views/system/department/department-list.vue',
-      ),
-      'utf8',
-    );
+  it('keeps the position page without extra title or explainer copy', () => {
     const positionSource = readFileSync(
       resolve(
         process.cwd(),
@@ -234,66 +229,10 @@ describe('organization backend menu docking pages', () => {
       'utf8',
     );
 
-    expect(departmentSource).not.toContain('department-page__title');
-    expect(departmentSource).not.toContain('department-page__hero');
-    expect(departmentSource).not.toContain('department-page__desc');
-    expect(departmentSource).toContain(':collapsible="false"');
-
     expect(positionSource).not.toContain('position-page__title');
     expect(positionSource).not.toContain('position-page__hero');
     expect(positionSource).not.toContain('position-page__desc');
     expect(positionSource).toContain(':collapsible="false"');
-  });
-
-  it('keeps department management as a collapsible tree table', () => {
-    const source = readFileSync(
-      resolve(
-        process.cwd(),
-        'apps/hunyuan-system/src/views/system/department/department-list.vue',
-      ),
-      'utf8',
-    );
-
-    expect(source).toContain('children?: DepartmentTreeRow[];');
-    expect(source).toContain('row-key="departmentId"');
-    expect(source).toContain(':default-expand-all="true"');
-    expect(source).toContain(':tree-props="{ children: \'children\' }"');
-  });
-
-  it('separates root department creation from child department creation', () => {
-    const source = readFileSync(
-      resolve(
-        process.cwd(),
-        'apps/hunyuan-system/src/views/system/department/department-list.vue',
-      ),
-      'utf8',
-    );
-
-    expect(source).toContain('openAddRootDialog');
-    expect(source).toContain('openAddChildDialog');
-    expect(source).toContain('新增顶级部门');
-    expect(source).toContain('新增下级');
-    expect(source).toContain('parentId: row.departmentId');
-    expect(source).toContain('dialogTitle');
-  });
-
-  it('locks department parent context and labels managers with department names', () => {
-    const source = readFileSync(
-      resolve(
-        process.cwd(),
-        'apps/hunyuan-system/src/views/system/department/department-list.vue',
-      ),
-      'utf8',
-    );
-
-    expect(source).toContain('const isParentLocked = computed');
-    expect(source).toContain(':disabled="isParentLocked"');
-    expect(source).toContain('formatEmployeeOptionLabel');
-    expect(source).toContain("item.departmentName || '未分配部门'");
-    expect(source).toContain('return `${item.actualName}（${departmentName}）`;');
-    expect(source).not.toContain(
-      'return `${item.actualName} / ${departmentName} / ${item.loginName}`;',
-    );
   });
 
   it.each(modulePages)(

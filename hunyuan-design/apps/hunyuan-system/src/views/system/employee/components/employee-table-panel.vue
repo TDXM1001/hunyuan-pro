@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type {
-  DepartmentRecord,
   EmployeeRecord,
   PositionRecord,
   RoleRecord,
 } from '#/api/system/organization';
+import type { DepartmentRecord } from '@hunyuan/feature-organization';
 
 import { computed, onMounted, ref, watch } from 'vue';
 

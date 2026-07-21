@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OrgTreeNode } from '@vben/art-hooks/tree';
 
-import type { DepartmentRecord } from '#/api/system/organization';
+import type { DepartmentRecord } from '@hunyuan/feature-organization';
 
 import { computed } from 'vue';
 

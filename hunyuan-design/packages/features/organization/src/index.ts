@@ -14,3 +14,4 @@ export const organizationFeature = {
 
 export { createOrganizationDepartmentClient } from './department-directory/client';
 export { organizationDepartmentClientKey } from './department-directory/dependencies';
+export type { DepartmentRecord } from './department-directory/contract';

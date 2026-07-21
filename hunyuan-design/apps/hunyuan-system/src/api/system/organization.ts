@@ -28,17 +28,6 @@ export interface EmployeeRecord {
   roleNameList?: string[];
 }
 
-export interface DepartmentRecord {
-  departmentId: number;
-  departmentName: string;
-  managerId?: null | number;
-  managerName?: null | string;
-  parentId?: null | number;
-  sort?: null | number;
-  createTime?: null | string;
-  updateTime?: null | string;
-}
-
 export interface PositionRecord {
   positionId: number;
   positionLevel?: null | string;
@@ -54,31 +43,10 @@ export interface RoleRecord {
   roleName: string;
 }
 
-export interface DepartmentTreeRecord {
-  children?: DepartmentTreeRecord[];
-  departmentId: number;
-  departmentName: string;
-  managerId?: null | number;
-  managerName?: null | string;
-  parentId?: null | number;
-  sort?: null | number;
-}
-
 export interface PositionPageQueryParams {
   keywords?: string;
   pageNum: number;
   pageSize: number;
-}
-
-export interface DepartmentAddForm {
-  departmentName: string;
-  managerId?: null | number;
-  parentId?: null | number;
-  sort: number;
-}
-
-export interface DepartmentUpdateForm extends DepartmentAddForm {
-  departmentId: number;
 }
 
 export interface PositionAddForm {
@@ -176,31 +144,12 @@ export async function queryEmployeePage(params: EmployeeQueryParams) {
   });
 }
 
-export async function listDepartments() {
-  return requestClient.get<DepartmentRecord[]>('/department/listAll');
-}
-
-export async function listDepartmentTree() {
-  return requestClient.get<DepartmentTreeRecord[]>('/department/treeList');
-}
-
 export async function listPositions() {
   return requestClient.get<PositionRecord[]>('/position/queryList');
 }
 
 export async function listRoles() {
   return requestClient.get<RoleRecord[]>('/role/getAll');
-}
-
-export function buildDepartmentMutationPayload<
-  T extends DepartmentAddForm | DepartmentUpdateForm,
->(params: T): T {
-  return {
-    ...params,
-    departmentName: params.departmentName.trim(),
-    managerId: params.managerId ?? null,
-    parentId: params.parentId ?? 0,
-  };
 }
 
 export function buildPositionMutationPayload<
@@ -262,24 +211,6 @@ export function buildRoleEmployeeQueryPayload(params: RoleEmployeeQueryParams) {
     pageSize: params.pageSize,
     roleId: String(params.roleId),
   };
-}
-
-export async function addDepartment(params: DepartmentAddForm) {
-  return requestClient.post<string>(
-    '/department/add',
-    buildDepartmentMutationPayload(params),
-  );
-}
-
-export async function updateDepartment(params: DepartmentUpdateForm) {
-  return requestClient.post<string>(
-    '/department/update',
-    buildDepartmentMutationPayload(params),
-  );
-}
-
-export async function deleteDepartment(departmentId: number) {
-  return requestClient.get<string>(`/department/delete/${departmentId}`);
 }
 
 export async function queryPositionPage(params: PositionPageQueryParams) {

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type {
-  DepartmentRecord,
   EmployeeAddForm,
   EmployeeRecord,
   EmployeeUpdateForm,
   PositionRecord,
   RoleRecord,
 } from '#/api/system/organization';
+import type { DepartmentRecord } from '@hunyuan/feature-organization';
 
 import { computed, reactive, ref, watch } from 'vue';
 

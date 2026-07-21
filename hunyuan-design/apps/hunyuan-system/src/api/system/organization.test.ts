@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildDepartmentMutationPayload,
   buildEmployeeMutationPayload,
   buildPositionMutationPayload,
   buildRoleDataScopePayload,
@@ -61,22 +60,6 @@ describe('organization employee api payloads', () => {
 });
 
 describe('organization management api payloads', () => {
-  it('builds department payloads that match backend fields', () => {
-    expect(
-      buildDepartmentMutationPayload({
-        departmentName: ' 研发中心 ',
-        managerId: null,
-        parentId: null,
-        sort: 12,
-      }),
-    ).toEqual({
-      departmentName: '研发中心',
-      managerId: null,
-      parentId: 0,
-      sort: 12,
-    });
-  });
-
   it('builds position payloads with trimmed text fields', () => {
     expect(
       buildPositionMutationPayload({

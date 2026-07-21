@@ -1,22 +1,23 @@
 <script setup lang="ts">
 import type {
-  DepartmentRecord,
   EmployeeRecord,
   PositionRecord,
   RoleRecord,
 } from '#/api/system/organization';
+import type { DepartmentRecord } from '@hunyuan/feature-organization';
 
 import { onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { createOrganizationDepartmentClient } from '@hunyuan/feature-organization';
 
 import { ElMessage } from 'element-plus';
 
 import {
-  listDepartments,
   listPositions,
   listRoles,
 } from '#/api/system/organization';
+import { requestClient } from '#/api/request';
 
 import EmployeeForm from './components/employee-form.vue';
 import EmployeeOrgTree from './components/employee-org-tree.vue';
@@ -34,13 +35,14 @@ const formVisible = ref(false);
 const formMode = ref<'add' | 'edit'>('add');
 const currentEmployee = ref<EmployeeRecord>();
 const tablePanelRef = ref<InstanceType<typeof EmployeeTablePanel>>();
+const organizationDepartmentClient = createOrganizationDepartmentClient(requestClient);
 
 // 页面只负责装配基础字典和当前机构，表格查询由右侧组件自己维护。
 async function bootstrap() {
   bootstrapping.value = true;
   try {
     const [departmentList, positionList, roleList] = await Promise.all([
-      listDepartments(),
+      organizationDepartmentClient.list(),
       listPositions(),
       listRoles(),
     ]);
