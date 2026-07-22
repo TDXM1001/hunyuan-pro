@@ -61,6 +61,76 @@ class ArchitectureGuardTest {
                     "com.hunyuan.sa.admin.module.system..dao..",
                     "com.hunyuan.sa.admin.module.system..domain.entity..");
 
+    @ArchTest
+    static final ArchRule LOGIN_MUST_USE_ACCESS_AUTHORIZATION_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.login..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.system.role.service..",
+                    "com.hunyuan.sa.admin.module.system.role.dao..");
+
+    @ArchTest
+    static final ArchRule IDENTITY_MUST_USE_ACCESS_ROLE_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.identity..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.system.role.service..",
+                    "com.hunyuan.sa.admin.module.system.role.dao..");
+
+    @ArchTest
+    static final ArchRule ROLE_EMPLOYEE_MUST_USE_IDENTITY_PUBLIC_MODELS = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.role..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.employee..");
+
+    @ArchTest
+    static final ArchRule DATASCOPE_MUST_USE_ACCESS_DATA_SCOPE_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.datascope..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.system.role.dao..",
+                    "com.hunyuan.sa.admin.module.system.role.domain.entity..");
+
+    @ArchTest
+    static final ArchRule ORGANIZATION_SCOPE_ADAPTER_MUST_USE_ACCESS_DATA_SCOPE_API = noClasses()
+            .that().haveSimpleName("OrganizationDepartmentScopeAdapter")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.datascope..");
+
+    @ArchTest
+    static final ArchRule ROLE_CONTROLLER_MUST_USE_ACCESS_ROLE_LIFECYCLE_API = noClasses()
+            .that().haveSimpleName("RoleController")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.role.service..");
+
+    @ArchTest
+    static final ArchRule ROLE_MENU_CONTROLLER_MUST_USE_ACCESS_CAPABILITY_API = noClasses()
+            .that().haveSimpleName("RoleMenuController")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.role.service..");
+
+    @ArchTest
+    static final ArchRule ACCESS_AUTHORIZATION_ADAPTER_MUST_USE_ACCESS_CAPABILITY_QUERY_API =
+            noClasses()
+                    .that().haveSimpleName("AccessAuthorizationFacadeAdapter")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "com.hunyuan.sa.admin.module.system.menu..",
+                            "com.hunyuan.sa.admin.module.system.role.dao..");
+
+    @ArchTest
+    static final ArchRule MENU_CONTROLLER_MUST_USE_ACCESS_MENU_API = noClasses()
+            .that().haveSimpleName("MenuController")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.menu.service..");
+
+    @ArchTest
+    static final ArchRule ROLE_EMPLOYEE_CONTROLLER_MUST_USE_ACCESS_ROLE_API = noClasses()
+            .that().haveSimpleName("RoleEmployeeController")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.role.service..");
+
+    @ArchTest
+    static final ArchRule ACCESS_AUTHORIZATION_ADAPTER_MUST_USE_ROLE_MEMBERSHIP_API = noClasses()
+            .that().haveSimpleName("AccessAuthorizationFacadeAdapter")
+            .should().dependOnClassesThat().haveSimpleName("RoleEmployeeService");
+
     private static ArchCondition<JavaClass> notAccessAnotherModulePersistenceInternals() {
         return new ArchCondition<>("not access another admin module's DAO, Mapper, or Entity") {
             @Override

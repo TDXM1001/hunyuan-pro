@@ -1,11 +1,12 @@
 package com.hunyuan.sa.admin.module.identity.employee.application;
 
+import com.hunyuan.sa.admin.module.access.role.api.AccessRoleAssignmentFacade;
+import com.hunyuan.sa.admin.module.access.role.api.ReplaceEmployeeRolesCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCreateCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDeleteCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDepartmentAssignmentCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeOneTimeCredential;
-import com.hunyuan.sa.admin.module.identity.employee.application.port.EmployeeRoleAssignmentPort;
 import com.hunyuan.sa.admin.module.identity.employee.application.port.EmployeeSessionPort;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeCreateDraft;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
@@ -23,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,7 +43,7 @@ class EmployeeAdministrationApplicationServiceTest {
     @Mock
     private SecurityPasswordService securityPasswordService;
     @Mock
-    private EmployeeRoleAssignmentPort employeeRoleAssignmentPort;
+    private AccessRoleAssignmentFacade accessRoleAssignmentFacade;
     @Mock
     private EmployeeSessionPort employeeSessionPort;
 
@@ -53,7 +55,7 @@ class EmployeeAdministrationApplicationServiceTest {
         ReflectionTestUtils.setField(service, "employeeRepository", employeeRepository);
         ReflectionTestUtils.setField(service, "organizationDepartmentFacade", organizationDepartmentFacade);
         ReflectionTestUtils.setField(service, "securityPasswordService", securityPasswordService);
-        ReflectionTestUtils.setField(service, "employeeRoleAssignmentPort", employeeRoleAssignmentPort);
+        ReflectionTestUtils.setField(service, "accessRoleAssignmentFacade", accessRoleAssignmentFacade);
         ReflectionTestUtils.setField(service, "employeeSessionPort", employeeSessionPort);
     }
 
@@ -77,7 +79,8 @@ class EmployeeAdministrationApplicationServiceTest {
         assertThat(draftCaptor.getValue().passwordHash())
                 .isNotEqualTo("Temp-Password-1")
                 .doesNotContain("Temp-Password-1");
-        verify(employeeRoleAssignmentPort).replaceRoles(7L, List.of(3L, 4L));
+        verify(accessRoleAssignmentFacade).replaceEmployeeRoles(
+                new ReplaceEmployeeRolesCommand(7L, Set.of(3L, 4L)));
     }
 
     @Test

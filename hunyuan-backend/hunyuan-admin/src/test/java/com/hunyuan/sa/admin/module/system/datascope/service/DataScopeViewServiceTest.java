@@ -3,10 +3,9 @@ package com.hunyuan.sa.admin.module.system.datascope.service;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationProfile;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationDirectory;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeFacade;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
-import com.hunyuan.sa.admin.module.system.role.dao.RoleDataScopeDao;
-import com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,9 +25,7 @@ import static org.mockito.Mockito.when;
 class DataScopeViewServiceTest {
 
     @Mock
-    private RoleEmployeeDao roleEmployeeDao;
-    @Mock
-    private RoleDataScopeDao roleDataScopeDao;
+    private AccessDataScopeFacade accessDataScopeFacade;
     @Mock
     private EmployeeCollaborationDirectory employeeCollaborationDirectory;
     @Mock
@@ -39,8 +36,7 @@ class DataScopeViewServiceTest {
     @BeforeEach
     void setUp() {
         service = new DataScopeViewService();
-        ReflectionTestUtils.setField(service, "roleEmployeeDao", roleEmployeeDao);
-        ReflectionTestUtils.setField(service, "roleDataScopeDao", roleDataScopeDao);
+        ReflectionTestUtils.setField(service, "accessDataScopeFacade", accessDataScopeFacade);
         ReflectionTestUtils.setField(service, "employeeCollaborationDirectory", employeeCollaborationDirectory);
         ReflectionTestUtils.setField(service, "organizationDepartmentFacade", organizationDepartmentFacade);
     }
@@ -51,7 +47,7 @@ class DataScopeViewServiceTest {
 
         assertThat(service.getEmployeeDataScopeViewType(DataScopeTypeEnum.NOTICE, 7L))
                 .isEqualTo(DataScopeViewTypeEnum.ME);
-        verify(roleEmployeeDao, never()).selectRoleIdByEmployeeId(7L);
+        verify(accessDataScopeFacade, never()).resolveEmployeeViewType(7L, DataScopeTypeEnum.NOTICE.getValue());
     }
 
     @Test
@@ -61,7 +57,7 @@ class DataScopeViewServiceTest {
 
         assertThat(service.getEmployeeDataScopeViewType(DataScopeTypeEnum.NOTICE, 7L))
                 .isEqualTo(DataScopeViewTypeEnum.ALL);
-        verify(roleEmployeeDao, never()).selectRoleIdByEmployeeId(7L);
+        verify(accessDataScopeFacade, never()).resolveEmployeeViewType(7L, DataScopeTypeEnum.NOTICE.getValue());
     }
 
     @Test

@@ -1,9 +1,13 @@
 package com.hunyuan.sa.admin.module.system.login.manager;
 
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessAuthorizationFacade;
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessAuthorizationSnapshot;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
+import com.hunyuan.sa.base.common.domain.UserPermission;
 import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +17,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -24,6 +30,10 @@ class LoginManagerIdentityEmployeeTest {
     private OrganizationDepartmentFacade organizationDepartmentFacade;
     @Mock
     private IFileStorageService fileStorageService;
+    @Mock
+    private EmployeeDirectoryFacade employeeDirectoryFacade;
+    @Mock
+    private AccessAuthorizationFacade accessAuthorizationFacade;
 
     private LoginManager loginManager;
 
@@ -32,6 +42,8 @@ class LoginManagerIdentityEmployeeTest {
         loginManager = new LoginManager();
         ReflectionTestUtils.setField(loginManager, "organizationDepartmentFacade", organizationDepartmentFacade);
         ReflectionTestUtils.setField(loginManager, "fileStorageService", fileStorageService);
+        ReflectionTestUtils.setField(loginManager, "employeeDirectoryFacade", employeeDirectoryFacade);
+        ReflectionTestUtils.setField(loginManager, "accessAuthorizationFacade", accessAuthorizationFacade);
     }
 
     @Test
@@ -49,5 +61,24 @@ class LoginManagerIdentityEmployeeTest {
         assertThat(requestEmployee.getDepartmentName()).isEqualTo("研发部");
         assertThat(requestEmployee.getAdministratorFlag()).isTrue();
         assertThat(requestEmployee.getDisabledFlag()).isFalse();
+    }
+
+    @Test
+    void loadsPermissionsOnlyThroughAccessAuthorizationFacade() {
+        EmployeeAuthenticationAccount account = new EmployeeAuthenticationAccount(
+                7L, "uid", "zhangsan", "hash", "张三", null, 1,
+                "13800000000", "a@example.com", 20L, 30L, false, false, false, "备注");
+        when(employeeDirectoryFacade.findAuthenticationAccountById(7L))
+                .thenReturn(Optional.of(account));
+        when(accessAuthorizationFacade.loadEmployeeAuthorization(7L, false))
+                .thenReturn(new AccessAuthorizationSnapshot(
+                        Set.of("finance"),
+                        Set.of("invoice.read"),
+                        List.of()));
+
+        UserPermission permission = loginManager.loadUserPermission(7L);
+
+        assertThat(permission.getRoleList()).containsExactly("finance");
+        assertThat(permission.getPermissionList()).containsExactly("invoice.read");
     }
 }
