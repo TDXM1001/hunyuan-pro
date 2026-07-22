@@ -631,6 +631,9 @@ importers:
       '@form-create/element-ui':
         specifier: ^3.2.38
         version: 3.2.38(vue@3.5.38(typescript@6.0.3))
+      '@hunyuan/feature-identity-employee':
+        specifier: workspace:*
+        version: link:../../packages/features/identity-employee
       '@hunyuan/feature-organization':
         specifier: workspace:*
         version: link:../../packages/features/organization
@@ -1689,6 +1692,30 @@ importers:
       axios-mock-adapter:
         specifier: 'catalog:'
         version: 2.1.0(axios@1.18.0)
+
+  packages/features/identity-employee:
+    dependencies:
+      '@element-plus/icons-vue':
+        specifier: ^2.3.1
+        version: 2.3.2(vue@3.5.38(typescript@6.0.3))
+      '@vben/access':
+        specifier: workspace:*
+        version: link:../../effects/access
+      '@vben/art-hooks':
+        specifier: workspace:*
+        version: link:../../@vben/art-hooks
+      '@vben/common-ui':
+        specifier: workspace:*
+        version: link:../../effects/common-ui
+      '@vben/request':
+        specifier: workspace:*
+        version: link:../../effects/request
+      element-plus:
+        specifier: 'catalog:'
+        version: 2.14.2(vue@3.5.38(typescript@6.0.3))
+      vue:
+        specifier: ^3.5.38
+        version: 3.5.38(typescript@6.0.3)
 
   packages/features/organization:
     dependencies:

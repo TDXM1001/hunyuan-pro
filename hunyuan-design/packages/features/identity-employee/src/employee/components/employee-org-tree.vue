@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OrgTreeNode } from '@vben/art-hooks/tree';
 
-import type { DepartmentRecord } from '@hunyuan/feature-organization';
+import type { DepartmentOption } from '../contract';
 
 import { computed } from 'vue';
 
@@ -13,7 +13,7 @@ import { ElCard, ElIcon, ElSkeleton } from 'element-plus';
 defineOptions({ name: 'EmployeeOrgTree' });
 
 interface EmployeeOrgTreeProps {
-  departments: DepartmentRecord[];
+  departments: DepartmentOption[];
   currentDepartmentId: null | number;
   totalCount: number;
   loading?: boolean;
@@ -29,7 +29,7 @@ const emit = defineEmits<{
 
 const currentNodeKey = computed(() => props.currentDepartmentId ?? 0);
 
-function sortDepartments(a: DepartmentRecord, b: DepartmentRecord) {
+function sortDepartments(a: DepartmentOption, b: DepartmentOption) {
   return (b.sort ?? 0) - (a.sort ?? 0);
 }
 

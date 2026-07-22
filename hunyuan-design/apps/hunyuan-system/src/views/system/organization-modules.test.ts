@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -21,12 +21,14 @@ const legacyDepartmentPagePath =
   'apps/hunyuan-system/src/views/system/department/department-list.vue';
 const organizationApiPath =
   'apps/hunyuan-system/src/api/system/organization.ts';
+const legacyEmployeeComponentsPath =
+  'apps/hunyuan-system/src/views/system/employee/components';
 
 const actionPages = [
   {
     actionClass: 'employee-table-panel__actions',
     label: 'employee',
-    path: 'apps/hunyuan-system/src/views/system/employee/components/employee-table-panel.vue',
+    path: 'packages/features/identity-employee/src/employee/components/employee-table-panel.vue',
   },
   {
     actionClass: 'position-page__actions',
@@ -41,6 +43,27 @@ describe('organization backend menu docking pages', () => {
 
     const source = readFileSync(resolve(process.cwd(), organizationApiPath), 'utf8');
     expect(source).not.toContain('/department/');
+  });
+
+  it('retires legacy employee management clients and page components', () => {
+    const legacyComponentsDirectory = resolve(
+      process.cwd(),
+      legacyEmployeeComponentsPath,
+    );
+    expect(
+      existsSync(legacyComponentsDirectory)
+        ? readdirSync(legacyComponentsDirectory)
+        : [],
+    ).toEqual([]);
+
+    const source = readFileSync(resolve(process.cwd(), organizationApiPath), 'utf8');
+    expect(source).not.toContain("'/employee/query'");
+    expect(source).not.toContain("'/employee/add'");
+    expect(source).not.toContain("'/employee/update'");
+    expect(source).not.toContain('/employee/update/disabled/');
+    expect(source).not.toContain('/employee/update/batch/');
+    expect(source).toContain("'/role/employee/queryEmployee'");
+    expect(source).toContain("'/role/employee/queryCandidateEmployee'");
   });
 
   it.each(modulePages)('provides a real $label page', ({ path }) => {

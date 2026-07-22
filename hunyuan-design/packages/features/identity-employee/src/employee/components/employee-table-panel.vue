@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type {
+  DepartmentOption,
   EmployeeRecord,
-  PositionRecord,
-  RoleRecord,
-} from '#/api/system/organization';
-import type { DepartmentRecord } from '@hunyuan/feature-organization';
+  PositionOption,
+} from '../contract';
 
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 
+import { AccessControl } from '@vben/access';
 import { ArtSearchPanel } from '@vben/art-hooks/common';
 import {
   ArtTable,
@@ -33,17 +33,20 @@ import {
   ElTag,
 } from 'element-plus';
 
-import {
-  batchDeleteEmployees,
-  batchUpdateDepartment,
-  queryEmployeePage,
-  toggleEmployeeStatus,
-} from '#/api/system/organization';
+import { employeeClientKey } from '../dependencies';
 
 defineOptions({ name: 'EmployeeTablePanel' });
 
-const props = defineProps<EmployeeTablePanelProps>();
+interface EmployeeTablePanelProps {
+  departments: DepartmentOption[];
+  positions: PositionOption[];
+  selectedDepartmentId: null | number;
+  showDepartmentFilter?: boolean;
+}
 
+const props = withDefaults(defineProps<EmployeeTablePanelProps>(), {
+  showDepartmentFilter: false,
+});
 const emit = defineEmits<{
   add: [];
   'department-change': [departmentId: null | number];
@@ -51,12 +54,17 @@ const emit = defineEmits<{
   'total-change': [total: number];
 }>();
 
-interface EmployeeTablePanelProps {
-  departments: DepartmentRecord[];
-  positions: PositionRecord[];
-  roles: RoleRecord[];
-  selectedDepartmentId: null | number;
+function requireDependency<T>(dependency: T | undefined, name: string): T {
+  if (!dependency) {
+    throw new Error(`${name} is not registered`);
+  }
+  return dependency;
 }
+
+const client = requireDependency(
+  inject(employeeClientKey),
+  'identity employee client',
+);
 
 const showSearchBar = ref(true);
 const selectedRows = ref<EmployeeRecord[]>([]);
@@ -64,21 +72,16 @@ const searchParamsProxy = computed(() => searchParams as any);
 const transferDepartmentId = ref<null | number>(null);
 const transferDialogVisible = ref(false);
 const transferLoading = ref(false);
+const credentialDialogVisible = ref(false);
+const temporaryPassword = ref('');
 
 const departmentOptions = computed(() =>
   [...props.departments].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)),
 );
-
-const positionNameMap = computed(() =>
-  Object.fromEntries(
-    props.positions.map((item) => [item.positionId, item.positionName]),
-  ) as Record<number, string>,
-);
-
-const roleNameMap = computed(
+const positionNameMap = computed(
   () =>
     Object.fromEntries(
-      props.roles.map((item) => [item.roleId, item.roleName]),
+      props.positions.map((item) => [item.positionId, item.positionName]),
     ) as Record<number, string>,
 );
 
@@ -94,11 +97,11 @@ const columnsFactory = (): ColumnOption<EmployeeRecord>[] => [
     showOverflowTooltip: true,
   },
   { prop: 'positionName', label: '岗位', minWidth: 125, useSlot: true },
-  { prop: 'roleNameList', label: '角色', minWidth: 120, useSlot: true },
+  { prop: 'disabledFlag', label: '状态', minWidth: 90, useSlot: true },
   {
     prop: 'actions',
     label: '操作',
-    width: 180,
+    width: 310,
     align: 'center',
     fixed: 'right',
     useSlot: true,
@@ -119,22 +122,17 @@ const {
   resetSearchParams,
 } = useTable({
   core: {
-    apiFn: queryEmployeePage,
+    apiFn: client.query,
     apiParams: {
       keyword: '',
       departmentId: props.selectedDepartmentId,
     },
     columnsFactory,
     immediate: false,
-    paginationKey: {
-      current: 'pageNum',
-      size: 'pageSize',
-    },
+    paginationKey: { current: 'pageNum', size: 'pageSize' },
   },
   hooks: {
-    onError: (error: TableError) => {
-      ElMessage.error(error.message);
-    },
+    onError: (error: TableError) => ElMessage.error(error.message),
   },
 });
 
@@ -143,14 +141,10 @@ const tableHeight = computed(() =>
   hasPagination.value ? 'calc(100% - 44px)' : '100%',
 );
 
-// 左侧机构树是部门筛选的主入口；右侧下拉变化时也要同步回父页面，保持选中态一致。
 watch(
   () => props.selectedDepartmentId,
   async (departmentId) => {
-    replaceSearchParams({
-      departmentId,
-      pageNum: 1,
-    } as any);
+    replaceSearchParams({ departmentId, pageNum: 1 } as any);
     searchParamsProxy.value.departmentId = departmentId;
     selectedRows.value = [];
     await getData();
@@ -159,68 +153,18 @@ watch(
 
 watch(
   () => pagination.total,
-  (total) => {
-    emit('total-change', total);
-  },
+  (total) => emit('total-change', total),
   { immediate: true },
 );
 
 function formatPositionName(row: EmployeeRecord) {
-  if (row.positionName) {
-    return row.positionName;
-  }
-  if (row.positionId) {
-    return positionNameMap.value[row.positionId] || `#${row.positionId}`;
-  }
+  if (row.positionName) return row.positionName;
+  if (row.positionId) return positionNameMap.value[row.positionId] || `#${row.positionId}`;
   return '-';
 }
 
-function formatRoleNames(row: EmployeeRecord) {
-  if (row.roleNameList?.length) {
-    return row.roleNameList;
-  }
-  if (row.roleIdList?.length) {
-    return row.roleIdList.map((id) => roleNameMap.value[id] || `#${id}`);
-  }
-  return [];
-}
-
 function getAvatarText(row: EmployeeRecord) {
-  return (
-    row.actualName?.trim()?.slice(0, 1) || row.loginName?.slice(0, 1) || '-'
-  );
-}
-
-function getPrimaryRole(row: EmployeeRecord) {
-  return (
-    formatRoleNames(row)[0] || (row.administratorFlag ? '管理员' : '普通员工')
-  );
-}
-
-function getRoleTagType(roleName: string) {
-  if (roleName.includes('管理员')) {
-    return 'primary';
-  }
-  if (roleName.includes('产品')) {
-    return 'success';
-  }
-  if (roleName.includes('设计')) {
-    return 'info';
-  }
-  if (roleName.includes('销售') || roleName.includes('运营')) {
-    return 'warning';
-  }
-  return 'primary';
-}
-
-function getRoleTagClass(roleName: string) {
-  if (roleName.includes('设计')) {
-    return 'employee-table-panel__role-tag--design';
-  }
-  if (roleName.includes('开发') || roleName.includes('测试')) {
-    return 'employee-table-panel__role-tag--cyan';
-  }
-  return '';
+  return row.actualName?.trim()?.slice(0, 1) || row.loginName?.slice(0, 1) || '-';
 }
 
 async function reload() {
@@ -230,32 +174,22 @@ async function reload() {
 function handleSearch() {
   replaceSearchParams({
     departmentId: searchParamsProxy.value.departmentId ?? undefined,
-    disabledFlag: searchParamsProxy.value.disabledFlag,
+    disabled: searchParamsProxy.value.disabled,
     keyword: searchParamsProxy.value.keyword?.trim() || undefined,
-  });
+  } as any);
   void getData();
 }
 
 async function handleReset() {
   await resetSearchParams();
-  replaceSearchParams({
-    departmentId: props.selectedDepartmentId,
-  } as any);
+  replaceSearchParams({ departmentId: props.selectedDepartmentId } as any);
   searchParamsProxy.value.departmentId = props.selectedDepartmentId;
   selectedRows.value = [];
-  ElMessage.success('已重置筛选条件');
   await getData();
 }
 
-function handleToggleSearchBar() {
-  showSearchBar.value = !showSearchBar.value;
-}
-
 function handleDepartmentChange(value: number | string | undefined) {
-  emit(
-    'department-change',
-    value === undefined || value === '' ? null : Number(value),
-  );
+  emit('department-change', value === undefined || value === '' ? null : Number(value));
 }
 
 async function handleToggleStatus(row: EmployeeRecord) {
@@ -265,53 +199,68 @@ async function handleToggleStatus(row: EmployeeRecord) {
       '提示',
       { type: 'warning' },
     );
-    await toggleEmployeeStatus(row.employeeId);
+    if (row.disabledFlag) {
+      await client.enable(row.employeeId);
+    } else {
+      await client.disable(row.employeeId);
+    }
     ElMessage.success('操作成功');
     await getData();
   } catch {
-    // 用户取消操作
+    // The confirmation dialog is cancellable.
+  }
+}
+
+async function handleResetPassword(row: EmployeeRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要重置员工"${row.actualName}"的密码吗？`,
+      '重置密码',
+      { type: 'warning' },
+    );
+    const credential = await client.resetPassword(row.employeeId);
+    temporaryPassword.value = credential.temporaryPassword;
+    credentialDialogVisible.value = true;
+  } catch {
+    // The confirmation dialog is cancellable.
   }
 }
 
 async function handleDelete(row: EmployeeRecord) {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除员工"${row.actualName}"吗？此操作不可恢复。`,
-      '删除确认',
-      { type: 'warning' },
-    );
-    await batchDeleteEmployees([row.employeeId]);
+    await ElMessageBox.confirm(`确定要删除员工"${row.actualName}"吗？`, '删除确认', {
+      type: 'warning',
+    });
+    await client.delete([row.employeeId]);
     ElMessage.success('删除成功');
     await getData();
   } catch {
-    // 用户取消操作
+    // The confirmation dialog is cancellable.
   }
 }
 
 async function handleBatchDelete() {
-  if (selectedRows.value.length === 0) {
+  if (!selectedRows.value.length) {
     ElMessage.warning('请先选择要删除的员工');
     return;
   }
-
   try {
     await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedRows.value.length} 名员工吗？此操作不可恢复。`,
+      `确定要删除选中的 ${selectedRows.value.length} 名员工吗？`,
       '批量删除确认',
       { type: 'warning' },
     );
-    const ids = selectedRows.value.map((row) => row.employeeId);
-    await batchDeleteEmployees(ids);
-    ElMessage.success('批量删除成功');
+    await client.delete(selectedRows.value.map((row) => row.employeeId));
     selectedRows.value = [];
+    ElMessage.success('批量删除成功');
     await getData();
   } catch {
-    // 用户取消操作
+    // The confirmation dialog is cancellable.
   }
 }
 
 function handleOpenBatchTransfer() {
-  if (selectedRows.value.length === 0) {
+  if (!selectedRows.value.length) {
     ElMessage.warning('请先选择要转移部门的员工');
     return;
   }
@@ -324,16 +273,15 @@ async function handleBatchTransferDepartment() {
     ElMessage.warning('请选择目标部门');
     return;
   }
-
   transferLoading.value = true;
   try {
-    await batchUpdateDepartment({
+    await client.assignDepartment({
       departmentId: transferDepartmentId.value,
-      employeeIdList: selectedRows.value.map((row) => row.employeeId),
+      employeeIds: selectedRows.value.map((row) => row.employeeId),
     });
-    ElMessage.success('批量转移部门成功');
     selectedRows.value = [];
     transferDialogVisible.value = false;
+    ElMessage.success('批量转移部门成功');
     await getData();
   } finally {
     transferLoading.value = false;
@@ -344,22 +292,18 @@ function handleSelectionChange(rows: EmployeeRecord[]) {
   selectedRows.value = rows;
 }
 
-onMounted(() => {
-  void getData();
-});
+async function handleCopyPassword() {
+  await navigator.clipboard.writeText(temporaryPassword.value);
+  ElMessage.success('密码已复制');
+}
 
-defineExpose({
-  reload,
-});
+onMounted(() => void getData());
+defineExpose({ reload });
 </script>
 
 <template>
   <div class="employee-table-panel">
-    <ElCard
-      v-show="showSearchBar"
-      class="employee-table-panel__search-card"
-      shadow="never"
-    >
+    <ElCard v-show="showSearchBar" class="employee-table-panel__search-card" shadow="never">
       <ArtSearchPanel
         :loading="loading"
         reset-text="重置"
@@ -376,12 +320,15 @@ defineExpose({
             @keyup.enter="handleSearch"
           />
         </ElFormItem>
-        <ElFormItem class="employee-table-panel__department-item" label="所属部门">
+        <ElFormItem
+          v-if="showDepartmentFilter"
+          class="employee-table-panel__department-item"
+          label="所属部门"
+        >
           <ElSelect
             v-model="searchParamsProxy.departmentId"
             clearable
             filterable
-            placeholder="请选择部门"
             @change="handleDepartmentChange"
           >
             <ElOption
@@ -393,12 +340,7 @@ defineExpose({
           </ElSelect>
         </ElFormItem>
         <ElFormItem class="employee-table-panel__status-item" label="状态">
-          <ElSelect
-            v-model="searchParamsProxy.disabledFlag"
-            class="employee-table-panel__status-select"
-            clearable
-            placeholder="请选择状态"
-          >
+          <ElSelect v-model="searchParamsProxy.disabled" clearable>
             <ElOption :value="false" label="启用" />
             <ElOption :value="true" label="停用" />
           </ElSelect>
@@ -413,23 +355,29 @@ defineExpose({
           :loading="loading"
           :show-search-bar="showSearchBar"
           layout="search,size,fullscreen,columns,settings"
-          @search="handleToggleSearchBar"
+          @search="showSearchBar = !showSearchBar"
         >
           <template #left>
             <ElSpace>
-              <ElButton type="primary" @click="emit('add')">新增员工</ElButton>
-              <ElButton
-                :disabled="selectedRows.length === 0"
-                @click="handleBatchDelete"
+              <AccessControl :codes="['identity.employee.create']" type="code">
+                <ElButton type="primary" @click="emit('add')">新增员工</ElButton>
+              </AccessControl>
+              <AccessControl :codes="['identity.employee.delete']" type="code">
+                <ElButton :disabled="!selectedRows.length" @click="handleBatchDelete">
+                  批量删除
+                </ElButton>
+              </AccessControl>
+              <AccessControl
+                :codes="['identity.employee.department.assign']"
+                type="code"
               >
-                批量删除
-              </ElButton>
-              <ElButton
-                :disabled="selectedRows.length === 0"
-                @click="handleOpenBatchTransfer"
-              >
-                批量转移部门
-              </ElButton>
+                <ElButton
+                  :disabled="!selectedRows.length"
+                  @click="handleOpenBatchTransfer"
+                >
+                  批量转移部门
+                </ElButton>
+              </AccessControl>
             </ElSpace>
           </template>
         </ArtTableHeader>
@@ -454,84 +402,64 @@ defineExpose({
         >
           <template #actualName="{ row }">
             <div class="employee-table-panel__employee">
-              <ElAvatar
-                class="employee-table-panel__avatar"
-                :size="28"
-                :src="row.avatar || undefined"
-              >
+              <ElAvatar :size="28" :src="row.avatar || undefined">
                 {{ getAvatarText(row) }}
               </ElAvatar>
-              <span class="employee-table-panel__primary">
-                {{ row.actualName || '-' }}
-              </span>
+              <span class="employee-table-panel__primary">{{ row.actualName || '-' }}</span>
             </div>
           </template>
-
           <template #loginName="{ row }">
-            <span class="employee-table-panel__secondary">
-              {{ row.loginName || '-' }}
-            </span>
+            <span class="employee-table-panel__secondary">{{ row.loginName || '-' }}</span>
           </template>
-
           <template #positionName="{ row }">
             <span>{{ formatPositionName(row) }}</span>
           </template>
-
-          <template #roleNameList="{ row }">
-            <ElTag
-              :class="getRoleTagClass(getPrimaryRole(row))"
-              :type="getRoleTagType(getPrimaryRole(row))"
-              effect="light"
-              size="small"
-            >
-              {{ getPrimaryRole(row) }}
+          <template #disabledFlag="{ row }">
+            <ElTag :type="row.disabledFlag ? 'info' : 'success'" effect="light" size="small">
+              {{ row.disabledFlag ? '停用' : '启用' }}
             </ElTag>
           </template>
-
           <template #actions="{ row }">
             <ElSpace class="employee-table-panel__actions">
-              <ElButton
-                link
-                size="small"
-                type="primary"
-                @click="emit('edit', row)"
+              <AccessControl :codes="['identity.employee.update']" type="code">
+                <ElButton link size="small" type="primary" @click="emit('edit', row)">
+                  编辑
+                </ElButton>
+              </AccessControl>
+              <AccessControl
+                :codes="[
+                  row.disabledFlag
+                    ? 'identity.employee.enable'
+                    : 'identity.employee.disable',
+                ]"
+                type="code"
               >
-                编辑
-              </ElButton>
-              <ElButton
-                link
-                size="small"
-                :type="row.disabledFlag ? 'success' : 'warning'"
-                @click="handleToggleStatus(row)"
+                <ElButton link size="small" @click="handleToggleStatus(row)">
+                  {{ row.disabledFlag ? '启用' : '停用' }}
+                </ElButton>
+              </AccessControl>
+              <AccessControl
+                :codes="['identity.employee.password.reset']"
+                type="code"
               >
-                {{ row.disabledFlag ? '启用' : '停用' }}
-              </ElButton>
-              <ElButton
-                link
-                size="small"
-                type="danger"
-                @click="handleDelete(row)"
-              >
-                删除
-              </ElButton>
+                <ElButton link size="small" @click="handleResetPassword(row)">
+                  重置密码
+                </ElButton>
+              </AccessControl>
+              <AccessControl :codes="['identity.employee.delete']" type="code">
+                <ElButton link size="small" type="danger" @click="handleDelete(row)">
+                  删除
+                </ElButton>
+              </AccessControl>
             </ElSpace>
           </template>
         </ArtTable>
       </ArtTablePanel>
     </ElCard>
 
-    <ElDialog
-      v-model="transferDialogVisible"
-      title="批量转移部门"
-      width="420px"
-    >
+    <ElDialog v-model="transferDialogVisible" title="批量转移部门" width="420px">
       <ElFormItem label="目标部门">
-        <ElSelect
-          v-model="transferDepartmentId"
-          filterable
-          placeholder="请选择目标部门"
-          style="width: 100%"
-        >
+        <ElSelect v-model="transferDepartmentId" filterable style="width: 100%">
           <ElOption
             v-for="department in departmentOptions"
             :key="department.departmentId"
@@ -540,19 +468,22 @@ defineExpose({
           />
         </ElSelect>
       </ElFormItem>
-      <div class="employee-table-panel__transfer-tip">
-        将选中的 {{ selectedRows.length }} 名员工转移到目标部门。
-      </div>
       <template #footer>
         <ElSpace>
           <ElButton @click="transferDialogVisible = false">取消</ElButton>
-          <ElButton
-            :loading="transferLoading"
-            type="primary"
-            @click="handleBatchTransferDepartment"
-          >
+          <ElButton :loading="transferLoading" type="primary" @click="handleBatchTransferDepartment">
             确定转移
           </ElButton>
+        </ElSpace>
+      </template>
+    </ElDialog>
+
+    <ElDialog v-model="credentialDialogVisible" title="一次性密码" width="420px">
+      <div class="credential-value">{{ temporaryPassword }}</div>
+      <template #footer>
+        <ElSpace>
+          <ElButton @click="handleCopyPassword">复制密码</ElButton>
+          <ElButton type="primary" @click="credentialDialogVisible = false">关闭</ElButton>
         </ElSpace>
       </template>
     </ElDialog>
@@ -577,12 +508,7 @@ defineExpose({
 .employee-table-panel__search-card {
   background: var(--el-bg-color);
   border: 0;
-  border-radius: 8px;
   flex-shrink: 0;
-}
-
-.employee-table-panel__search-card :deep(.el-card__body) {
-  padding: 16px;
 }
 
 .employee-table-panel__table-card {
@@ -593,19 +519,12 @@ defineExpose({
 }
 
 .employee-table-panel__table-card :deep(.el-card__body) {
-  display: flex;
-  flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
   padding: 16px;
 }
 
 .employee-table-panel :deep(.art-search-panel .el-form-item) {
-  margin-bottom: 0;
-}
-
-.employee-table-panel :deep(.art-search-panel__actions) {
   margin-bottom: 0;
 }
 
@@ -615,32 +534,23 @@ defineExpose({
 }
 
 .employee-table-panel :deep(.employee-table-panel__keyword-item .el-form-item__content) {
-  flex: 0 0 216px;
   width: 216px;
 }
 
 .employee-table-panel :deep(.employee-table-panel__department-item .el-form-item__content),
 .employee-table-panel :deep(.employee-table-panel__status-item .el-form-item__content) {
-  flex: 0 0 168px;
   width: 168px;
 }
 
 .employee-table-panel :deep(.art-table-panel),
 .employee-table-panel :deep(.art-table) {
-  flex: 1;
   min-height: 0;
 }
 
-.employee-table-panel :deep(.art-table-header) {
-  margin-bottom: 18px;
-}
-
-.employee-table-panel :deep(.art-table) {
-  --art-table-section-gap: 8px;
-}
-
-.employee-table-panel__status-select {
-  width: 100%;
+.employee-table-panel__employee {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
 }
 
 .employee-table-panel__primary {
@@ -651,21 +561,6 @@ defineExpose({
 
 .employee-table-panel__secondary {
   color: var(--el-text-color-secondary);
-  font-size: 14px;
-}
-
-.employee-table-panel__employee {
-  align-items: center;
-  display: inline-flex;
-  gap: 10px;
-}
-
-.employee-table-panel__avatar {
-  background: var(--el-color-primary-light-8);
-  color: var(--el-color-primary);
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .employee-table-panel__actions {
@@ -686,45 +581,15 @@ defineExpose({
   margin-left: 0;
 }
 
-.employee-table-panel__transfer-tip {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  line-height: 22px;
-  margin-top: 8px;
-}
-
-.employee-table-panel :deep(.el-tag) {
-  border: 0;
+.credential-value {
+  background: var(--el-color-primary-light-9);
   border-radius: 4px;
-  font-weight: 500;
-}
-
-.employee-table-panel :deep(.employee-table-panel__role-tag--design) {
-  color: #7c3aed;
-  background-color: #f3e8ff;
-}
-
-.employee-table-panel :deep(.employee-table-panel__role-tag--cyan) {
-  color: #0284c7;
-  background-color: #e0f2fe;
-}
-
-@media (width <= 768px) {
-  .employee-table-panel :deep(.el-card__body) {
-    padding: 8px;
-  }
-
-  .employee-table-panel__keyword-item,
-  .employee-table-panel__department-item,
-  .employee-table-panel__status-item {
-    width: 100%;
-  }
-
-  .employee-table-panel :deep(.employee-table-panel__keyword-item .el-form-item__content),
-  .employee-table-panel :deep(.employee-table-panel__department-item .el-form-item__content),
-  .employee-table-panel :deep(.employee-table-panel__status-item .el-form-item__content) {
-    flex: 1 1 auto;
-    width: 100%;
-  }
+  color: var(--el-color-primary);
+  font-family: 'Courier New', monospace;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  padding: 14px;
+  text-align: center;
 }
 </style>

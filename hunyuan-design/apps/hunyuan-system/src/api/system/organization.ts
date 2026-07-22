@@ -126,24 +126,6 @@ export interface RoleEmployeeUpdateForm {
   roleId: number;
 }
 
-export interface EmployeeQueryParams {
-  departmentId?: null | number;
-  disabledFlag?: boolean;
-  keyword?: string;
-  pageNum: number;
-  pageSize: number;
-}
-
-export async function queryEmployeePage(params: EmployeeQueryParams) {
-  return requestClient.post<PageResult<EmployeeRecord>>('/employee/query', {
-    departmentId: params.departmentId ?? undefined,
-    disabledFlag: params.disabledFlag,
-    keyword: params.keyword?.trim() || undefined,
-    pageNum: params.pageNum,
-    pageSize: params.pageSize,
-  });
-}
-
 export async function listPositions() {
   return requestClient.get<PositionRecord[]>('/position/queryList');
 }
@@ -339,72 +321,4 @@ export async function batchAddRoleEmployees(params: RoleEmployeeUpdateForm) {
     '/role/employee/batchAddRoleEmployee',
     buildRoleEmployeePayload(params),
   );
-}
-
-export interface EmployeeAddForm {
-  actualName: string;
-  loginName: string;
-  departmentId: null | number;
-  disabledFlag?: boolean;
-  positionId?: null | number;
-  roleIdList?: number[];
-  phone: string;
-  email: string;
-  gender?: number;
-}
-
-export interface EmployeeUpdateForm {
-  employeeId: number;
-  actualName: string;
-  loginName: string;
-  departmentId: null | number;
-  disabledFlag?: boolean;
-  positionId?: null | number;
-  roleIdList?: number[];
-  phone: string;
-  email: string;
-  gender?: number;
-}
-
-export function buildEmployeeMutationPayload<
-  T extends EmployeeAddForm | EmployeeUpdateForm,
->(params: T): T {
-  return {
-    ...params,
-    actualName: params.actualName.trim(),
-    disabledFlag: params.disabledFlag ?? false,
-    email: params.email.trim(),
-    loginName: params.loginName.trim(),
-    phone: params.phone.trim(),
-    roleIdList: params.roleIdList ?? [],
-  };
-}
-
-export async function addEmployee(params: EmployeeAddForm) {
-  return requestClient.post<string>(
-    '/employee/add',
-    buildEmployeeMutationPayload(params),
-  );
-}
-
-export async function updateEmployee(params: EmployeeUpdateForm) {
-  return requestClient.post<string>(
-    '/employee/update',
-    buildEmployeeMutationPayload(params),
-  );
-}
-
-export async function toggleEmployeeStatus(employeeId: number) {
-  return requestClient.get<string>(`/employee/update/disabled/${employeeId}`);
-}
-
-export async function batchDeleteEmployees(employeeIds: number[]) {
-  return requestClient.post<string>('/employee/update/batch/delete', employeeIds);
-}
-
-export async function batchUpdateDepartment(params: {
-  departmentId: number;
-  employeeIdList: number[];
-}) {
-  return requestClient.post<string>('/employee/update/batch/department', params);
 }
