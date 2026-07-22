@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(5);
+        assertThat(migrations).hasSize(7);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -35,6 +35,10 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_66_1__a2_organization_permission_type.sql");
         assertThat(migrations.get(4).getFileName().toString())
                 .isEqualTo("V3_67_0__a2_1_retire_legacy_department_access.sql");
+        assertThat(migrations.get(5).getFileName().toString())
+                .isEqualTo("V3_68_0__a3_1_employee_capability_and_constraints.sql");
+        assertThat(migrations.get(6).getFileName().toString())
+                .isEqualTo("V3_69_0__a3_1_retire_legacy_employee_access.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -84,5 +88,27 @@ class FlywayMigrationContractTest {
                 .contains("'SYSTEM:DEPARTMENT:ADD'")
                 .contains("DELETE ROLE_MENU")
                 .contains("DELETE FROM `T_MENU`");
+
+        String employeeMigration = Files.readString(migrations.get(5), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(employeeMigration)
+                .contains("IDX_EMPLOYEE_DIRECTORY_STATE")
+                .contains("'IDENTITY.EMPLOYEE.READ'")
+                .contains("'IDENTITY.EMPLOYEE.CREATE'")
+                .contains("'IDENTITY.EMPLOYEE.UPDATE'")
+                .contains("'IDENTITY.EMPLOYEE.ENABLE'")
+                .contains("'IDENTITY.EMPLOYEE.DISABLE'")
+                .contains("'IDENTITY.EMPLOYEE.DEPARTMENT.ASSIGN'")
+                .contains("'IDENTITY.EMPLOYEE.DELETE'")
+                .contains("'IDENTITY.EMPLOYEE.PASSWORD.RESET'")
+                .contains("'SYSTEM:EMPLOYEE:DISABLED'");
+
+        String legacyEmployeeRetirement = Files.readString(migrations.get(6), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(legacyEmployeeRetirement)
+                .contains("'SYSTEM:EMPLOYEE:%'")
+                .contains("DELETE ROLE_MENU")
+                .contains("DELETE FROM `T_MENU`")
+                .doesNotContain("'/ORGANIZATION/EMPLOYEE'")
+                .doesNotContain("'IDENTITY.EMPLOYEE.%'")
+                .doesNotContain("DELETE FROM `T_EMPLOYEE`");
     }
 }

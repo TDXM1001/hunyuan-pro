@@ -10,13 +10,16 @@ import com.hunyuan.sa.base.common.domain.SystemEnvironment;
 import com.hunyuan.sa.base.common.enumeration.SystemEnvironmentEnum;
 import com.hunyuan.sa.base.common.exception.BusinessException;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -39,6 +42,13 @@ public class GlobalExceptionHandler {
 
     @Resource
     private SystemEnvironment systemEnvironment;
+
+    @ResponseBody
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseDTO<?> noResourceFoundExceptionHandler(NoResourceFoundException e) {
+        return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+    }
 
     /**
      * json 格式错误 缺少请求体

@@ -1,7 +1,6 @@
 package com.hunyuan.sa.admin.module.business.oa.notice.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.google.common.collect.Maps;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.admin.module.business.oa.notice.constant.NoticeVisibleRangeDataTypeEnum;
 import com.hunyuan.sa.admin.module.business.oa.notice.dao.NoticeDao;
@@ -15,10 +14,10 @@ import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.NoticeUpdateForm
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.NoticeVO;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.NoticeVisibleRangeVO;
 import com.hunyuan.sa.admin.module.business.oa.notice.manager.NoticeManager;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationProfile;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
-import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
-import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.base.common.constant.StringConst;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
@@ -33,7 +32,6 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -55,7 +53,7 @@ public class NoticeService {
     private NoticeManager noticeManager;
 
     @Resource
-    private EmployeeDao employeeDao;
+    private EmployeeDirectoryFacade employeeDirectoryFacade;
 
     @Resource
     private OrganizationDepartmentFacade organizationDepartmentFacade;
@@ -130,7 +128,10 @@ public class NoticeService {
                 .distinct().collect(Collectors.toList());
         if (CollectionUtils.isNotEmpty(employeeIdList)) {
             employeeIdList = employeeIdList.stream().distinct().collect(Collectors.toList());
-            List<Long> dbEmployeeIdList = employeeDao.selectBatchIds(employeeIdList).stream().map(EmployeeEntity::getEmployeeId).collect(Collectors.toList());
+            List<Long> dbEmployeeIdList = employeeDirectoryFacade.findCollaborationProfilesByIds(employeeIdList)
+                    .stream()
+                    .map(EmployeeCollaborationProfile::employeeId)
+                    .collect(Collectors.toList());
             Collection<Long> subtract = CollectionUtils.subtract(employeeIdList, dbEmployeeIdList);
             if (!subtract.isEmpty()) {
                 return ResponseDTO.userErrorParam("员工id不存在：" + subtract);
@@ -212,16 +213,13 @@ public class NoticeService {
                     .map(NoticeVisibleRangeVO::getDataId)
                     .collect(Collectors.toList());
 
-            Map<Long, EmployeeEntity> employeeMap = null;
-            if (CollectionUtils.isNotEmpty(employeeIdList)) {
-                employeeMap = employeeDao.selectBatchIds(employeeIdList).stream().collect(Collectors.toMap(EmployeeEntity::getEmployeeId, Function.identity()));
-            } else {
-                employeeMap = Maps.newHashMap();
-            }
+            Map<Long, EmployeeCollaborationProfile> employeeMap =
+                    employeeDirectoryFacade.findCollaborationProfilesByIds(employeeIdList).stream()
+                            .collect(Collectors.toMap(EmployeeCollaborationProfile::employeeId, profile -> profile));
             for (NoticeVisibleRangeVO noticeVisibleRange : noticeVisibleRangeList) {
                 if (noticeVisibleRange.getDataType().equals(NoticeVisibleRangeDataTypeEnum.EMPLOYEE.getValue())) {
-                    EmployeeEntity employeeEntity = employeeMap.get(noticeVisibleRange.getDataId());
-                    noticeVisibleRange.setDataName(employeeEntity == null ? StringConst.EMPTY : employeeEntity.getActualName());
+                    EmployeeCollaborationProfile employee = employeeMap.get(noticeVisibleRange.getDataId());
+                    noticeVisibleRange.setDataName(employee == null ? StringConst.EMPTY : employee.actualName());
                 } else {
                     Department department = organizationDepartmentFacade.findForCollaboration(noticeVisibleRange.getDataId()).orElse(null);
                     noticeVisibleRange.setDataName(department == null ? StringConst.EMPTY : department.departmentName());

@@ -8,9 +8,9 @@ import com.hunyuan.sa.admin.module.business.oa.notice.dao.NoticeDao;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.form.NoticeEmployeeQueryForm;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.form.NoticeViewRecordQueryForm;
 import com.hunyuan.sa.admin.module.business.oa.notice.domain.vo.*;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationProfile;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
-import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
-import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.util.SmartBeanUtil;
@@ -44,7 +44,7 @@ public class NoticeEmployeeService {
     private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
-    private EmployeeService employeeService;
+    private EmployeeDirectoryFacade employeeDirectoryFacade;
 
     /**
      * 查询我的 通知、公告清单
@@ -53,10 +53,10 @@ public class NoticeEmployeeService {
         Page<?> page = SmartPageUtil.convert2PageQuery(noticeEmployeeQueryForm);
 
         List<Long> employeeDepartmentIdList = Lists.newArrayList();
-        EmployeeEntity employeeEntity = employeeService.getById(requestEmployeeId);
+        EmployeeCollaborationProfile employee = getRequiredEmployee(requestEmployeeId);
         // 如果不是管理员 则获取请求人的 部门及其子部门
-        if (!employeeEntity.getAdministratorFlag() && employeeEntity.getDepartmentId() != null) {
-            employeeDepartmentIdList = organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employeeEntity.getDepartmentId());
+        if (!Boolean.TRUE.equals(employee.administrator()) && employee.departmentId() != null) {
+            employeeDepartmentIdList = organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employee.departmentId());
         }
 
         List<NoticeEmployeeVO> noticeList = null;
@@ -67,7 +67,7 @@ public class NoticeEmployeeService {
                     noticeEmployeeQueryForm,
                     employeeDepartmentIdList,
                     false,
-                    employeeEntity.getAdministratorFlag(),
+                    employee.administrator(),
                     NoticeVisibleRangeDataTypeEnum.DEPARTMENT.getValue(),
                     NoticeVisibleRangeDataTypeEnum.EMPLOYEE.getValue());
         } else {
@@ -77,7 +77,7 @@ public class NoticeEmployeeService {
                     noticeEmployeeQueryForm,
                     employeeDepartmentIdList,
                     false,
-                    employeeEntity.getAdministratorFlag(),
+                    employee.administrator(),
                     NoticeVisibleRangeDataTypeEnum.DEPARTMENT.getValue(),
                     NoticeVisibleRangeDataTypeEnum.EMPLOYEE.getValue());
         }
@@ -97,8 +97,9 @@ public class NoticeEmployeeService {
             return ResponseDTO.userErrorParam("通知公告不存在");
         }
 
-        EmployeeEntity employeeEntity = employeeService.getById(requestEmployeeId);
-        if (!updateFormVO.getAllVisibleFlag() && !checkVisibleRange(updateFormVO.getVisibleRangeList(), requestEmployeeId, employeeEntity.getDepartmentId())) {
+        EmployeeCollaborationProfile employee = getRequiredEmployee(requestEmployeeId);
+        if (!updateFormVO.getAllVisibleFlag() && !checkVisibleRange(
+                updateFormVO.getVisibleRangeList(), requestEmployeeId, employee.departmentId())) {
             return ResponseDTO.userErrorParam("对不起，您没有权限查看内容");
         }
 
@@ -151,5 +152,10 @@ public class NoticeEmployeeService {
         Page<?> page = SmartPageUtil.convert2PageQuery(noticeViewRecordQueryForm);
         List<NoticeViewRecordVO> noticeViewRecordList = noticeDao.queryNoticeViewRecordList(page, noticeViewRecordQueryForm);
         return SmartPageUtil.convert2PageResult(page, noticeViewRecordList);
+    }
+
+    private EmployeeCollaborationProfile getRequiredEmployee(Long employeeId) {
+        return employeeDirectoryFacade.findCollaborationProfileById(employeeId)
+                .orElseThrow(() -> new IllegalStateException("Employee does not exist: " + employeeId));
     }
 }

@@ -43,6 +43,12 @@ class ArchitectureGuardTest {
             .should(notAccessAnotherModulePersistenceInternals()));
 
     @ArchTest
+    static final ArchRule LEGACY_EMPLOYEE_DEPENDENCIES_MUST_NOT_GROW = freeze(noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.system.employee..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.employee.."));
+
+    @ArchTest
     static final ArchRule ORGANIZATION_DOMAIN_MUST_NOT_DEPEND_ON_FRAMEWORKS = noClasses()
             .that().resideInAPackage("com.hunyuan.sa.admin.module.organization..domain..")
             .should().dependOnClassesThat().resideInAnyPackage(

@@ -25,7 +25,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
 
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.67.0");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.69.0");
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 requiredEnvironment("HUNYUAN_IT_DB_URL"),
@@ -103,5 +103,37 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                   AND scope.data_scope_type = 2
                   AND scope.view_type = 10
                 """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = ?
+                  AND table_name = 't_employee'
+                  AND index_name = 'idx_employee_directory_state'
+                """, Integer.class, databaseName)).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = ?
+                  AND table_name = 't_employee'
+                  AND index_name IN ('uk_employee_login_name', 'employee_uid_index')
+                  AND non_unique = 0
+                """, Integer.class, databaseName)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE api_perms LIKE 'identity.employee.%' AND menu_type = 3",
+                Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE api_perms LIKE 'system:employee:%' OR web_perms LIKE 'system:employee:%'",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/employee' AND deleted_flag = 0",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_role role ON role.role_id = role_menu.role_id
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE role.role_code = 'platform_admin'
+                  AND menu.api_perms LIKE 'identity.employee.%'
+                """, Integer.class)).isEqualTo(8);
     }
 }

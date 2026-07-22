@@ -2,11 +2,11 @@ package com.hunyuan.sa.admin.module.system.datascope.service;
 
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationProfile;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationDirectory;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
-import com.hunyuan.sa.admin.module.system.employee.dao.EmployeeDao;
-import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDataScopeDao;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao;
 import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleDataScopeEntity;
@@ -39,7 +39,7 @@ public class DataScopeViewService {
     private RoleDataScopeDao roleDataScopeDao;
 
     @Resource
-    private EmployeeDao employeeDao;
+    private EmployeeCollaborationDirectory employeeCollaborationDirectory;
 
     @Resource
     // 延迟解析组织目录，避免数据范围适配器在启动阶段形成循环依赖。
@@ -82,26 +82,27 @@ public class DataScopeViewService {
     }
 
     public List<Long> getMeDepartmentIdList(Long employeeId) {
-        EmployeeEntity employeeEntity = employeeDao.selectById(employeeId);
-        return Lists.newArrayList(employeeEntity.getDepartmentId());
+        EmployeeCollaborationProfile employee = getRequiredEmployee(employeeId);
+        return Lists.newArrayList(employee.departmentId());
     }
 
     public List<Long> getDepartmentAndSubIdList(Long employeeId) {
-        EmployeeEntity employeeEntity = employeeDao.selectById(employeeId);
-        return organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employeeEntity.getDepartmentId());
+        EmployeeCollaborationProfile employee = getRequiredEmployee(employeeId);
+        return organizationDepartmentFacade.selfAndDescendantIdsForCollaboration(employee.departmentId());
     }
 
     /**
      * 根据员工id 获取各数据范围最大的可见范围 map<dataScopeType,viewType></>
      */
     public DataScopeViewTypeEnum getEmployeeDataScopeViewType(DataScopeTypeEnum dataScopeTypeEnum, Long employeeId) {
-        EmployeeEntity employeeEntity = employeeDao.selectById(employeeId);
-        if (employeeEntity == null || employeeEntity.getEmployeeId() == null) {
+        EmployeeCollaborationProfile employee = employeeCollaborationDirectory.findCollaborationProfileById(employeeId)
+                .orElse(null);
+        if (employee == null || employee.employeeId() == null) {
             return DataScopeViewTypeEnum.ME;
         }
 
         // 如果是超级管理员 则可查看全部
-        if (employeeEntity.getAdministratorFlag()) {
+        if (Boolean.TRUE.equals(employee.administrator())) {
             return DataScopeViewTypeEnum.ALL;
         }
 
@@ -135,8 +136,9 @@ public class DataScopeViewService {
      * 获取本部门相关 可查看员工id
      */
     private List<Long> getDepartmentEmployeeIdList(Long employeeId) {
-        EmployeeEntity employeeEntity = employeeDao.selectById(employeeId);
-        return employeeDao.getEmployeeIdByDepartmentId(employeeEntity.getDepartmentId(), false);
+        EmployeeCollaborationProfile employee = getRequiredEmployee(employeeId);
+        return employeeCollaborationDirectory.findNonDeletedEmployeeIdsByDepartmentIds(
+                Lists.newArrayList(employee.departmentId()));
     }
 
     /**
@@ -144,6 +146,11 @@ public class DataScopeViewService {
      */
     private List<Long> getDepartmentAndSubEmployeeIdList(Long employeeId) {
         List<Long> allDepartmentIds = getDepartmentAndSubIdList(employeeId);
-        return employeeDao.getEmployeeIdByDepartmentIdList(allDepartmentIds, false);
+        return employeeCollaborationDirectory.findNonDeletedEmployeeIdsByDepartmentIds(allDepartmentIds);
+    }
+
+    private EmployeeCollaborationProfile getRequiredEmployee(Long employeeId) {
+        return employeeCollaborationDirectory.findCollaborationProfileById(employeeId)
+                .orElseThrow(() -> new IllegalStateException("Employee does not exist: " + employeeId));
     }
 }

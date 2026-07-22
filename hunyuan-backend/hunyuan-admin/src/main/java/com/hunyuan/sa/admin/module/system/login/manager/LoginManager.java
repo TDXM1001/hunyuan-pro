@@ -3,10 +3,10 @@ package com.hunyuan.sa.admin.module.system.login.manager;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import com.hunyuan.sa.admin.constant.AdminCacheConst;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
-import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
-import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
 import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
 import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
@@ -16,7 +16,6 @@ import com.hunyuan.sa.base.common.constant.StringConst;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.domain.UserPermission;
 import com.hunyuan.sa.base.common.enumeration.UserTypeEnum;
-import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -51,7 +50,7 @@ public class LoginManager {
     private IFileStorageService fileStorageService;
 
     @Resource
-    private EmployeeService employeeService;
+    private EmployeeDirectoryFacade employeeDirectoryFacade;
 
     @Resource
     private RoleEmployeeService roleEmployeeService;
@@ -69,29 +68,42 @@ public class LoginManager {
             return null;
         }
         // 员工基本信息
-        EmployeeEntity employeeEntity = employeeService.getById(requestEmployeeId);
-        if (employeeEntity == null) {
+        EmployeeAuthenticationAccount employee = employeeDirectoryFacade
+                .findAuthenticationAccountById(requestEmployeeId)
+                .orElse(null);
+        if (employee == null) {
             return null;
         }
 
-        return this.loadLoginInfo(employeeEntity);
+        return this.loadLoginInfo(employee);
     }
 
     /**
      * 获取登录的用户信息
      */
-    @CachePut(value = AdminCacheConst.Login.REQUEST_EMPLOYEE, key = "#employeeEntity.employeeId")
-    public RequestEmployee loadLoginInfo(EmployeeEntity employeeEntity) {
-        // 基础信息
-        RequestEmployee requestEmployee = SmartBeanUtil.copy(employeeEntity, RequestEmployee.class);
+    @CachePut(value = AdminCacheConst.Login.REQUEST_EMPLOYEE, key = "#employee.employeeId")
+    public RequestEmployee loadLoginInfo(EmployeeAuthenticationAccount employee) {
+        RequestEmployee requestEmployee = new RequestEmployee();
+        requestEmployee.setEmployeeId(employee.employeeId());
+        requestEmployee.setLoginName(employee.loginName());
+        requestEmployee.setActualName(employee.actualName());
+        requestEmployee.setAvatar(employee.avatar());
+        requestEmployee.setGender(employee.gender());
+        requestEmployee.setPhone(employee.phone());
+        requestEmployee.setEmail(employee.email());
+        requestEmployee.setDepartmentId(employee.departmentId());
+        requestEmployee.setPositionId(employee.positionId());
+        requestEmployee.setDisabledFlag(employee.disabled());
+        requestEmployee.setAdministratorFlag(employee.administrator());
+        requestEmployee.setRemark(employee.remark());
         requestEmployee.setUserType(UserTypeEnum.ADMIN_EMPLOYEE);
 
         // 部门信息
-        Department department = organizationDepartmentFacade.findForCollaboration(employeeEntity.getDepartmentId()).orElse(null);
+        Department department = organizationDepartmentFacade.findForCollaboration(employee.departmentId()).orElse(null);
         requestEmployee.setDepartmentName(null == department ? StringConst.EMPTY : department.departmentName());
 
         // 头像信息
-        String avatar = employeeEntity.getAvatar();
+        String avatar = employee.avatar();
         if (StringUtils.isNotBlank(avatar)) {
             ResponseDTO<String> getFileUrl = fileStorageService.getFileUrl(avatar);
             if (BooleanUtils.isTrue(getFileUrl.getOk())) {
@@ -128,9 +140,16 @@ public class LoginManager {
         userPermission.getRoleList().addAll(roleList.stream().map(RoleVO::getRoleCode).collect(Collectors.toSet()));
 
         // 前端菜单和功能点清单
-        EmployeeEntity employeeEntity = employeeService.getById(employeeId);
+        EmployeeAuthenticationAccount employee = employeeDirectoryFacade
+                .findAuthenticationAccountById(employeeId)
+                .orElse(null);
+        if (employee == null) {
+            return userPermission;
+        }
 
-        List<MenuVO> menuAndPointsList = roleMenuService.getMenuList(roleList.stream().map(RoleVO::getRoleId).collect(Collectors.toList()), employeeEntity.getAdministratorFlag());
+        List<MenuVO> menuAndPointsList = roleMenuService.getMenuList(
+                roleList.stream().map(RoleVO::getRoleId).collect(Collectors.toList()),
+                employee.administrator());
 
         // 权限列表
         HashSet<String> permissionSet = new HashSet<>();

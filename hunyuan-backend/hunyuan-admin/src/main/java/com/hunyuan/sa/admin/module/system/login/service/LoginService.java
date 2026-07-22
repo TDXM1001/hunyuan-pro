@@ -9,8 +9,9 @@ import cn.hutool.extra.servlet.JakartaServletUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity;
-import com.hunyuan.sa.admin.module.system.employee.service.EmployeeService;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeePasswordSalt;
 import com.hunyuan.sa.admin.module.system.login.domain.LoginForm;
 import com.hunyuan.sa.admin.module.system.login.domain.LoginResultVO;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
@@ -83,7 +84,7 @@ public class LoginService implements StpInterface {
     private static final String SUPER_PASSWORD_LOGIN_ID_PREFIX = "S";
 
     @Resource
-    private EmployeeService employeeService;
+    private EmployeeDirectoryFacade employeeDirectoryFacade;
 
     @Resource
     private CaptchaService captchaService;
@@ -149,19 +150,21 @@ public class LoginService implements StpInterface {
         }
 
         // 验证登录名
-        EmployeeEntity employeeEntity = employeeService.getByLoginName(loginForm.getLoginName());
-        if (null == employeeEntity) {
+        EmployeeAuthenticationAccount employee = employeeDirectoryFacade
+                .findAuthenticationAccountByLoginName(loginForm.getLoginName())
+                .orElse(null);
+        if (employee == null) {
             return ResponseDTO.userErrorParam("登录名或密码错误！");
         }
 
         // 验证账号状态
-        if (employeeEntity.getDeletedFlag()) {
-            saveLoginLog(employeeEntity, ip, userAgent, "账号已删除", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
+        if (Boolean.TRUE.equals(employee.deleted())) {
+            saveLoginLog(employee, ip, userAgent, "账号已删除", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
             return ResponseDTO.userErrorParam("您的账号已被删除,请联系工作人员！");
         }
 
-        if (employeeEntity.getDisabledFlag()) {
-            saveLoginLog(employeeEntity, ip, userAgent, "账号已禁用", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
+        if (Boolean.TRUE.equals(employee.disabled())) {
+            saveLoginLog(employee, ip, userAgent, "账号已禁用", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
             return ResponseDTO.userErrorParam("您的账号已被禁用,请联系工作人员！");
         }
 
@@ -176,7 +179,7 @@ public class LoginService implements StpInterface {
         boolean superPasswordFlag = superPassword.equals(requestPassword);
 
         // 校验双因子登录
-        ResponseDTO<String> validateEmailCode = validateEmailCode(loginForm, employeeEntity, superPasswordFlag);
+        ResponseDTO<String> validateEmailCode = validateEmailCode(loginForm, employee, superPasswordFlag);
         if (!validateEmailCode.getOk()) {
             return ResponseDTO.error(validateEmailCode);
         }
@@ -185,54 +188,54 @@ public class LoginService implements StpInterface {
         if (superPasswordFlag) {
 
             // 对于万能密码：受限制sa token 要求loginId唯一，万能密码只能插入一段uuid
-            String saTokenLoginId = SUPER_PASSWORD_LOGIN_ID_PREFIX + StringConst.COLON + UUID.randomUUID().toString().replace("-", "") + StringConst.COLON + employeeEntity.getEmployeeId();
+            String saTokenLoginId = SUPER_PASSWORD_LOGIN_ID_PREFIX + StringConst.COLON + UUID.randomUUID().toString().replace("-", "") + StringConst.COLON + employee.employeeId();
             // 万能密码登录只能登录30分钟
             StpUtil.login(saTokenLoginId, 1800);
 
         } else {
 
             // 按照等保登录要求，进行登录失败次数校验
-            ResponseDTO<LoginFailEntity> loginFailEntityResponseDTO = securityLoginService.checkLogin(employeeEntity.getEmployeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
+            ResponseDTO<LoginFailEntity> loginFailEntityResponseDTO = securityLoginService.checkLogin(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
             if (!loginFailEntityResponseDTO.getOk()) {
                 return ResponseDTO.error(loginFailEntityResponseDTO);
             }
 
             // 密码错误
-            if (!SecurityPasswordService.matchesPwd(employeeService.generateSaltPassword(requestPassword, employeeEntity.getEmployeeUid()), employeeEntity.getLoginPwd())) {
+            if (!SecurityPasswordService.matchesPwd(EmployeePasswordSalt.apply(requestPassword, employee.employeeUid()), employee.passwordHash())) {
                 // 记录登录失败
-                saveLoginLog(employeeEntity, ip, userAgent, "密码错误", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
+                saveLoginLog(employee, ip, userAgent, "密码错误", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
                 // 记录等级保护次数
-                String msg = securityLoginService.recordLoginFail(employeeEntity.getEmployeeId(), UserTypeEnum.ADMIN_EMPLOYEE, employeeEntity.getLoginName(), loginFailEntityResponseDTO.getData());
+                String msg = securityLoginService.recordLoginFail(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE, employee.loginName(), loginFailEntityResponseDTO.getData());
                 return msg == null ? ResponseDTO.userErrorParam("登录名或密码错误！") : ResponseDTO.error(UserErrorCode.LOGIN_FAIL_WILL_LOCK, msg);
             }
 
-            String saTokenLoginId = UserTypeEnum.ADMIN_EMPLOYEE.getValue() + StringConst.COLON + employeeEntity.getEmployeeId();
+            String saTokenLoginId = UserTypeEnum.ADMIN_EMPLOYEE.getValue() + StringConst.COLON + employee.employeeId();
 
             // 登录
             StpUtil.login(saTokenLoginId, String.valueOf(loginDeviceEnum.getDesc()));
 
             // 移除邮箱验证码
-            deleteEmailCode(employeeEntity.getEmployeeId());
+            deleteEmailCode(employee.employeeId());
         }
 
         // 获取员工信息
-        RequestEmployee requestEmployee = loginManager.loadLoginInfo(employeeEntity);
+        RequestEmployee requestEmployee = loginManager.loadLoginInfo(employee);
 
         // 移除登录失败
-        securityLoginService.removeLoginFail(employeeEntity.getEmployeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
+        securityLoginService.removeLoginFail(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
 
         // 获取登录结果信息
         String token = StpUtil.getTokenValue();
         LoginResultVO loginResultVO = getLoginResult(requestEmployee, token);
 
         //保存登录记录
-        saveLoginLog(employeeEntity, ip, userAgent, superPasswordFlag ? "万能密码登录" : StringConst.EMPTY, LoginLogResultEnum.LOGIN_SUCCESS, loginDeviceEnum);
+        saveLoginLog(employee, ip, userAgent, superPasswordFlag ? "万能密码登录" : StringConst.EMPTY, LoginLogResultEnum.LOGIN_SUCCESS, loginDeviceEnum);
 
         // 设置 token
         loginResultVO.setToken(token);
 
         // 更新用户权限
-        loginManager.loadUserPermission(employeeEntity.getEmployeeId());
+        loginManager.loadUserPermission(employee.employeeId());
 
         return ResponseDTO.ok(loginResultVO);
     }
@@ -352,11 +355,11 @@ public class LoginService implements StpInterface {
     /**
      * 保存登录日志
      */
-    private void saveLoginLog(EmployeeEntity employeeEntity, String ip, String userAgent, String remark, LoginLogResultEnum result, LoginDeviceEnum loginDeviceEnum) {
+    private void saveLoginLog(EmployeeAuthenticationAccount employee, String ip, String userAgent, String remark, LoginLogResultEnum result, LoginDeviceEnum loginDeviceEnum) {
         LoginLogEntity loginEntity = LoginLogEntity.builder()
-                .userId(employeeEntity.getEmployeeId())
+                .userId(employee.employeeId())
                 .userType(UserTypeEnum.ADMIN_EMPLOYEE.getValue())
-                .userName(employeeEntity.getActualName())
+                .userName(employee.actualName())
                 .userAgent(userAgent)
                 .loginIp(ip)
                 .loginIpRegion(SmartIpUtil.getRegion(ip))
@@ -403,27 +406,29 @@ public class LoginService implements StpInterface {
         }
 
         // 验证登录名
-        EmployeeEntity employeeEntity = employeeService.getByLoginName(loginName);
-        if (null == employeeEntity) {
+        EmployeeAuthenticationAccount employee = employeeDirectoryFacade
+                .findAuthenticationAccountByLoginName(loginName)
+                .orElse(null);
+        if (employee == null) {
             return ResponseDTO.ok();
         }
 
         // 验证账号状态
-        if (employeeEntity.getDeletedFlag()) {
+        if (Boolean.TRUE.equals(employee.deleted())) {
             return ResponseDTO.userErrorParam("您的账号已被删除,请联系工作人员！");
         }
 
-        if (employeeEntity.getDisabledFlag()) {
+        if (Boolean.TRUE.equals(employee.disabled())) {
             return ResponseDTO.userErrorParam("您的账号已被禁用,请联系工作人员！");
         }
 
-        String mail = employeeEntity.getEmail();
+        String mail = employee.email();
         if (SmartStringUtil.isBlank(mail)) {
             return ResponseDTO.userErrorParam("您暂未配置邮箱地址，请联系管理员配置邮箱");
         }
 
         // 校验验证码发送时间，60秒内不能重复发生
-        String redisVerificationCodeKey = redisService.generateRedisKey(RedisKeyConst.Support.LOGIN_VERIFICATION_CODE, UserTypeEnum.ADMIN_EMPLOYEE.getValue() + RedisKeyConst.SEPARATOR + employeeEntity.getEmployeeId());
+        String redisVerificationCodeKey = redisService.generateRedisKey(RedisKeyConst.Support.LOGIN_VERIFICATION_CODE, UserTypeEnum.ADMIN_EMPLOYEE.getValue() + RedisKeyConst.SEPARATOR + employee.employeeId());
         String emailCode = redisService.get(redisVerificationCodeKey);
         long sendCodeTimeMills = -1;
         if (!SmartStringUtil.isEmpty(emailCode)) {
@@ -442,14 +447,14 @@ public class LoginService implements StpInterface {
         // 发送邮件验证码
         HashMap<String, Object> mailParams = new HashMap<>();
         mailParams.put("code", verificationCode);
-        return mailService.sendMail(MailTemplateCodeEnum.LOGIN_VERIFICATION_CODE, mailParams, Collections.singletonList(employeeEntity.getEmail()));
+        return mailService.sendMail(MailTemplateCodeEnum.LOGIN_VERIFICATION_CODE, mailParams, Collections.singletonList(employee.email()));
     }
 
 
     /**
      * 校验邮箱验证码
      */
-    private ResponseDTO<String> validateEmailCode(LoginForm loginForm, EmployeeEntity employeeEntity, boolean superPasswordFlag) {
+    private ResponseDTO<String> validateEmailCode(LoginForm loginForm, EmployeeAuthenticationAccount employee, boolean superPasswordFlag) {
         // 万能密码则不校验
         if (superPasswordFlag) {
             return ResponseDTO.ok();
@@ -465,7 +470,7 @@ public class LoginService implements StpInterface {
         }
 
         // 校验验证码
-        String redisVerificationCodeKey = redisService.generateRedisKey(RedisKeyConst.Support.LOGIN_VERIFICATION_CODE, UserTypeEnum.ADMIN_EMPLOYEE.getValue() + RedisKeyConst.SEPARATOR + employeeEntity.getEmployeeId());
+        String redisVerificationCodeKey = redisService.generateRedisKey(RedisKeyConst.Support.LOGIN_VERIFICATION_CODE, UserTypeEnum.ADMIN_EMPLOYEE.getValue() + RedisKeyConst.SEPARATOR + employee.employeeId());
         String emailCode = redisService.get(redisVerificationCodeKey);
         if (SmartStringUtil.isEmpty(emailCode)) {
             return ResponseDTO.userErrorParam("邮箱验证码已失效，请重新发送");
