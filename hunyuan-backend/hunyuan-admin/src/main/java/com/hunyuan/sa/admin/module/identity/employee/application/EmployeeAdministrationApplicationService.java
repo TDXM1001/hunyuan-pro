@@ -1,6 +1,8 @@
 package com.hunyuan.sa.admin.module.identity.employee.application;
 
 import cn.hutool.core.lang.UUID;
+import com.hunyuan.sa.admin.module.access.role.api.AccessRoleAssignmentFacade;
+import com.hunyuan.sa.admin.module.access.role.api.ReplaceEmployeeRolesCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAdministrationFacade;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCreateCommand;
@@ -9,7 +11,6 @@ import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDepartmentAssig
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeOneTimeCredential;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeePasswordSalt;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeUpdateCommand;
-import com.hunyuan.sa.admin.module.identity.employee.application.port.EmployeeRoleAssignmentPort;
 import com.hunyuan.sa.admin.module.identity.employee.application.port.EmployeeSessionPort;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeCreateDraft;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeProfileUpdate;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class EmployeeAdministrationApplicationService implements EmployeeAdministrationFacade {
@@ -39,7 +41,7 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
     private SecurityPasswordService securityPasswordService;
 
     @Resource
-    private EmployeeRoleAssignmentPort employeeRoleAssignmentPort;
+    private AccessRoleAssignmentFacade accessRoleAssignmentFacade;
 
     @Resource
     private EmployeeSessionPort employeeSessionPort;
@@ -186,7 +188,8 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
                 command.remark()
         ));
         if (legacyRoleIds != null) {
-            employeeRoleAssignmentPort.replaceRoles(employeeId, legacyRoleIds);
+            accessRoleAssignmentFacade.replaceEmployeeRoles(
+                    new ReplaceEmployeeRolesCommand(employeeId, Set.copyOf(legacyRoleIds)));
         }
         return ResponseDTO.ok(new EmployeeOneTimeCredential(employeeId, password));
     }
@@ -222,7 +225,8 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
                 command.remark()
         ));
         if (legacyRoleIds != null) {
-            employeeRoleAssignmentPort.replaceRoles(command.employeeId(), legacyRoleIds);
+            accessRoleAssignmentFacade.replaceEmployeeRoles(
+                    new ReplaceEmployeeRolesCommand(command.employeeId(), Set.copyOf(legacyRoleIds)));
         }
         if (legacyDisabled != null
                 && !Objects.equals(Boolean.TRUE.equals(account.get().disabled()), legacyDisabled)) {

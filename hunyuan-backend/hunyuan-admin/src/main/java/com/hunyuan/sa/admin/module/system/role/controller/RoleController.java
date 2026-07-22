@@ -1,67 +1,105 @@
 package com.hunyuan.sa.admin.module.system.role.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import com.hunyuan.sa.admin.constant.AdminSwaggerTagConst;
+import com.hunyuan.sa.admin.module.access.role.api.AccessRole;
+import com.hunyuan.sa.admin.module.access.role.api.AccessRoleFailure;
+import com.hunyuan.sa.admin.module.access.role.api.AccessRoleLifecycleFacade;
+import com.hunyuan.sa.admin.module.access.role.api.AccessRoleResult;
+import com.hunyuan.sa.admin.module.access.role.api.CreateAccessRoleCommand;
+import com.hunyuan.sa.admin.module.access.role.api.UpdateAccessRoleCommand;
+import com.hunyuan.sa.admin.module.system.role.domain.form.RoleAddForm;
+import com.hunyuan.sa.admin.module.system.role.domain.form.RoleUpdateForm;
+import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
+import com.hunyuan.sa.base.common.code.UserErrorCode;
+import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
-import com.hunyuan.sa.admin.constant.AdminSwaggerTagConst;
-import com.hunyuan.sa.admin.module.system.role.domain.form.RoleAddForm;
-import com.hunyuan.sa.admin.module.system.role.domain.form.RoleUpdateForm;
-import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
-import com.hunyuan.sa.admin.module.system.role.service.RoleService;
-import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
- * 角色
- *
- * @Author 1024创新实验室: 胡克
- * @Date 2021-12-14 19:40:28
- * @Wechat zhuoda1024
- * @Email lab1024@163.com
- * @Copyright  <a href="https://1024lab.net">1024创新实验室</a>
+ * 角色管理兼容入口。
  */
 @RestController
 @Tag(name = AdminSwaggerTagConst.System.SYSTEM_ROLE)
 public class RoleController {
 
     @Resource
-    private RoleService roleService;
+    private AccessRoleLifecycleFacade roleLifecycleFacade;
 
-    @Operation(summary = "添加角色 @author 卓大")
+    @Operation(summary = "添加角色")
     @PostMapping("/role/add")
     @SaCheckPermission("system:role:add")
     public ResponseDTO<String> addRole(@Valid @RequestBody RoleAddForm roleAddForm) {
-        return roleService.addRole(roleAddForm);
+        AccessRoleResult<Long> result = roleLifecycleFacade.create(new CreateAccessRoleCommand(
+                roleAddForm.getRoleName(),
+                roleAddForm.getRoleCode(),
+                roleAddForm.getRemark()));
+        return toMutationResponse(result);
     }
 
-    @Operation(summary = "删除角色 @author 卓大")
+    @Operation(summary = "删除角色")
     @GetMapping("/role/delete/{roleId}")
     @SaCheckPermission("system:role:delete")
     public ResponseDTO<String> deleteRole(@PathVariable Long roleId) {
-        return roleService.deleteRole(roleId);
+        return toMutationResponse(roleLifecycleFacade.delete(roleId));
     }
 
-    @Operation(summary = "更新角色 @author 卓大")
+    @Operation(summary = "更新角色")
     @PostMapping("/role/update")
     @SaCheckPermission("system:role:update")
-    public ResponseDTO<String> updateRole(@Valid @RequestBody RoleUpdateForm roleUpdateDTO) {
-        return roleService.updateRole(roleUpdateDTO);
+    public ResponseDTO<String> updateRole(@Valid @RequestBody RoleUpdateForm roleUpdateForm) {
+        return toMutationResponse(roleLifecycleFacade.update(new UpdateAccessRoleCommand(
+                roleUpdateForm.getRoleId(),
+                roleUpdateForm.getRoleName(),
+                roleUpdateForm.getRoleCode(),
+                roleUpdateForm.getRemark())));
     }
 
-    @Operation(summary = "获取角色数据 @author 卓大")
+    @Operation(summary = "获取角色数据")
     @GetMapping("/role/get/{roleId}")
     public ResponseDTO<RoleVO> getRole(@PathVariable("roleId") Long roleId) {
-        return roleService.getRoleById(roleId);
+        AccessRoleResult<AccessRole> result = roleLifecycleFacade.get(roleId);
+        if (!result.successful()) {
+            return errorResponse(result);
+        }
+        return ResponseDTO.ok(toLegacyRole(result.data()));
     }
 
-    @Operation(summary = "获取所有角色 @author 卓大")
+    @Operation(summary = "获取所有角色")
     @GetMapping("/role/getAll")
     public ResponseDTO<List<RoleVO>> getAllRole() {
-        return roleService.getAllRole();
+        return ResponseDTO.ok(roleLifecycleFacade.list().stream()
+                .map(this::toLegacyRole)
+                .toList());
+    }
+
+    private ResponseDTO<String> toMutationResponse(AccessRoleResult<?> result) {
+        return result.successful() ? ResponseDTO.ok() : errorResponse(result);
+    }
+
+    private <T> ResponseDTO<T> errorResponse(AccessRoleResult<?> result) {
+        AccessRoleFailure failure = result.failure();
+        if (failure == AccessRoleFailure.ROLE_NOT_FOUND) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST);
+        }
+        if (failure == AccessRoleFailure.ROLE_HAS_EMPLOYEES) {
+            return ResponseDTO.error(UserErrorCode.ALREADY_EXIST, result.message());
+        }
+        return ResponseDTO.userErrorParam(result.message());
+    }
+
+    private RoleVO toLegacyRole(AccessRole role) {
+        RoleVO roleVO = new RoleVO();
+        roleVO.setRoleId(role.roleId());
+        roleVO.setRoleName(role.roleName());
+        roleVO.setRoleCode(role.roleCode());
+        roleVO.setRemark(role.remark());
+        return roleVO;
     }
 
 }

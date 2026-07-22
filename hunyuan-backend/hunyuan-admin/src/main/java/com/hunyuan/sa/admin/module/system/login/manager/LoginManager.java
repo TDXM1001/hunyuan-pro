@@ -3,15 +3,13 @@ package com.hunyuan.sa.admin.module.system.login.manager;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import com.hunyuan.sa.admin.constant.AdminCacheConst;
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessAuthorizationFacade;
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessAuthorizationSnapshot;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
-import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
-import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
-import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
-import com.hunyuan.sa.admin.module.system.role.service.RoleMenuService;
 import com.hunyuan.sa.base.common.constant.StringConst;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.domain.UserPermission;
@@ -25,10 +23,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 登录Manager
@@ -53,10 +47,7 @@ public class LoginManager {
     private EmployeeDirectoryFacade employeeDirectoryFacade;
 
     @Resource
-    private RoleEmployeeService roleEmployeeService;
-
-    @Resource
-    private RoleMenuService roleMenuService;
+    private AccessAuthorizationFacade accessAuthorizationFacade;
 
 
     /**
@@ -135,11 +126,6 @@ public class LoginManager {
         userPermission.setPermissionList(new ArrayList<>());
         userPermission.setRoleList(new ArrayList<>());
 
-        // 角色列表
-        List<RoleVO> roleList = roleEmployeeService.getRoleIdList(employeeId);
-        userPermission.getRoleList().addAll(roleList.stream().map(RoleVO::getRoleCode).collect(Collectors.toSet()));
-
-        // 前端菜单和功能点清单
         EmployeeAuthenticationAccount employee = employeeDirectoryFacade
                 .findAuthenticationAccountById(employeeId)
                 .orElse(null);
@@ -147,26 +133,10 @@ public class LoginManager {
             return userPermission;
         }
 
-        List<MenuVO> menuAndPointsList = roleMenuService.getMenuList(
-                roleList.stream().map(RoleVO::getRoleId).collect(Collectors.toList()),
-                employee.administrator());
-
-        // 权限列表
-        HashSet<String> permissionSet = new HashSet<>();
-        for (MenuVO menu : menuAndPointsList) {
-            if (menu.getPermsType() == null) {
-                continue;
-            }
-
-            String perms = menu.getApiPerms();
-            if (StringUtils.isEmpty(perms)) {
-                continue;
-            }
-            //接口权限
-            String[] split = perms.split(",");
-            permissionSet.addAll(Arrays.asList(split));
-        }
-        userPermission.getPermissionList().addAll(permissionSet);
+        AccessAuthorizationSnapshot authorization = accessAuthorizationFacade.loadEmployeeAuthorization(
+                employeeId, employee.administrator());
+        userPermission.getRoleList().addAll(authorization.roleCodes());
+        userPermission.getPermissionList().addAll(authorization.capabilityCodes());
 
         return userPermission;
     }

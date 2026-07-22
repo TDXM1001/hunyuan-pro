@@ -2,8 +2,7 @@ package com.hunyuan.sa.admin.module.system.login.domain;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
-import net.minidev.json.annotate.JsonIgnore;
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessMenuItem;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,7 +23,7 @@ public class LoginResultVO extends RequestEmployee {
     private String token;
 
     @Schema(description = "菜单列表")
-    private List<MenuVO> menuList;
+    private List<AccessMenuItem> menuList;
 
     @Schema(description = "是否需要修改密码")
     private Boolean needUpdatePwdFlag;

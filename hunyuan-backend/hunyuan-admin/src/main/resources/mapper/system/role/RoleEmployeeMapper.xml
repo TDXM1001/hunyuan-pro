@@ -3,8 +3,10 @@
 <mapper namespace="com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao">
 
 
-    <resultMap id="EmployeeVO"
-               type="com.hunyuan.sa.admin.module.system.employee.domain.vo.EmployeeVO"></resultMap>
+    <resultMap id="RoleEmployeeSummary"
+               type="com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeSummaryRow">
+        <result property="disabled" column="disabled_flag"/>
+    </resultMap>
 
 
     <select id="selectRoleByEmployeeId" resultType="com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO">
@@ -21,17 +23,18 @@
     </select>
 
 
-    <select id="selectRoleEmployeeByName" resultMap="EmployeeVO">
+    <select id="selectRoleEmployeeByName" resultMap="RoleEmployeeSummary">
         SELECT
         t_employee.employee_id,
         t_employee.login_name,
-        t_employee.login_pwd,
         t_employee.actual_name,
+        t_employee.avatar,
+        t_employee.gender,
         t_employee.phone,
+        t_employee.email,
         t_employee.department_id,
+        t_employee.position_id,
         t_employee.disabled_flag,
-        t_employee.remark,
-        t_employee.update_time,
         t_employee.create_time
         FROM
         t_role_employee
@@ -48,20 +51,22 @@
             <if test="queryForm.roleId != null">
                 AND t_role_employee.role_id = #{queryForm.roleId}
             </if>
+            AND t_employee.deleted_flag = false
         </where>
     </select>
 
-    <select id="selectCandidateEmployeeByName" resultMap="EmployeeVO">
+    <select id="selectCandidateEmployeeByName" resultMap="RoleEmployeeSummary">
         SELECT
         t_employee.employee_id,
         t_employee.login_name,
-        t_employee.login_pwd,
         t_employee.actual_name,
+        t_employee.avatar,
+        t_employee.gender,
         t_employee.phone,
+        t_employee.email,
         t_employee.department_id,
+        t_employee.position_id,
         t_employee.disabled_flag,
-        t_employee.remark,
-        t_employee.update_time,
         t_employee.create_time
         FROM t_employee
         <where>
@@ -80,23 +85,26 @@
                 AND candidate_role_employee.employee_id = t_employee.employee_id
                 )
             </if>
+            AND t_employee.deleted_flag = false
         </where>
     </select>
 
-    <select id="selectEmployeeByRoleId" resultMap="EmployeeVO">
+    <select id="selectEmployeeByRoleId" resultMap="RoleEmployeeSummary">
         SELECT t_employee.employee_id,
                t_employee.login_name,
-               t_employee.login_pwd,
                t_employee.actual_name,
+               t_employee.avatar,
+               t_employee.gender,
                t_employee.phone,
+               t_employee.email,
                t_employee.department_id,
+               t_employee.position_id,
                t_employee.disabled_flag,
-               t_employee.remark,
-               t_employee.update_time,
                t_employee.create_time
         FROM t_role_employee
         left join t_employee  on t_role_employee.employee_id = t_employee.employee_id
         WHERE t_role_employee.role_id = #{roleId}
+          AND t_employee.deleted_flag = false
     </select>
 
     <select id="selectEmployeeIdByRoleIdList" resultType="java.lang.Long">

@@ -2,23 +2,17 @@ package com.hunyuan.sa.admin.module.system.datascope.service;
 
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeFacade;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationProfile;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationDirectory;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
-import com.hunyuan.sa.admin.module.system.role.dao.RoleDataScopeDao;
-import com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao;
-import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleDataScopeEntity;
 import com.hunyuan.sa.base.common.util.SmartEnumUtil;
-import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 数据范围
@@ -33,10 +27,7 @@ import java.util.stream.Collectors;
 public class DataScopeViewService {
 
     @Resource
-    private RoleEmployeeDao roleEmployeeDao;
-
-    @Resource
-    private RoleDataScopeDao roleDataScopeDao;
+    private AccessDataScopeFacade accessDataScopeFacade;
 
     @Resource
     private EmployeeCollaborationDirectory employeeCollaborationDirectory;
@@ -106,23 +97,11 @@ public class DataScopeViewService {
             return DataScopeViewTypeEnum.ALL;
         }
 
-        List<Long> roleIdList = roleEmployeeDao.selectRoleIdByEmployeeId(employeeId);
-        //未设置角色 默认本人
-        if (CollectionUtils.isEmpty(roleIdList)) {
-            return DataScopeViewTypeEnum.ME;
-        }
-        //未设置角色数据范围 默认本人
-        List<RoleDataScopeEntity> dataScopeRoleList = roleDataScopeDao.listByRoleIdList(roleIdList);
-        if (CollectionUtils.isEmpty(dataScopeRoleList)) {
-            return DataScopeViewTypeEnum.ME;
-        }
-        Map<Integer, List<RoleDataScopeEntity>> listMap = dataScopeRoleList.stream().collect(Collectors.groupingBy(RoleDataScopeEntity::getDataScopeType));
-        List<RoleDataScopeEntity> viewLevelList = listMap.getOrDefault(dataScopeTypeEnum.getValue(), Lists.newArrayList());
-        if (CollectionUtils.isEmpty(viewLevelList)) {
-            return DataScopeViewTypeEnum.ME;
-        }
-        RoleDataScopeEntity maxLevel = viewLevelList.stream().max(Comparator.comparing(e -> SmartEnumUtil.getEnumByValue(e.getViewType(), DataScopeViewTypeEnum.class).getLevel())).get();
-        return SmartEnumUtil.getEnumByValue(maxLevel.getViewType(), DataScopeViewTypeEnum.class);
+        Integer viewType = accessDataScopeFacade.resolveEmployeeViewType(
+                employeeId, dataScopeTypeEnum.getValue());
+        DataScopeViewTypeEnum resolvedViewType =
+                SmartEnumUtil.getEnumByValue(viewType, DataScopeViewTypeEnum.class);
+        return resolvedViewType == null ? DataScopeViewTypeEnum.ME : resolvedViewType;
     }
 
     /**

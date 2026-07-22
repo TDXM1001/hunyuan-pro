@@ -9,6 +9,8 @@ import cn.hutool.extra.servlet.JakartaServletUtil;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessAuthorizationFacade;
+import com.hunyuan.sa.admin.module.access.authorization.api.AccessAuthorizationSnapshot;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeAuthenticationAccount;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDirectoryFacade;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeePasswordSalt;
@@ -16,10 +18,6 @@ import com.hunyuan.sa.admin.module.system.login.domain.LoginForm;
 import com.hunyuan.sa.admin.module.system.login.domain.LoginResultVO;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
 import com.hunyuan.sa.admin.module.system.login.manager.LoginManager;
-import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
-import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
-import com.hunyuan.sa.admin.module.system.role.service.RoleEmployeeService;
-import com.hunyuan.sa.admin.module.system.role.service.RoleMenuService;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.constant.RequestHeaderConst;
 import com.hunyuan.sa.base.common.constant.StringConst;
@@ -57,7 +55,6 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 登录
@@ -96,10 +93,7 @@ public class LoginService implements StpInterface {
     private LoginLogService loginLogService;
 
     @Resource
-    private RoleEmployeeService roleEmployeeService;
-
-    @Resource
-    private RoleMenuService roleMenuService;
+    private AccessAuthorizationFacade accessAuthorizationFacade;
 
     @Resource
     private SecurityLoginService securityLoginService;
@@ -250,9 +244,9 @@ public class LoginService implements StpInterface {
         LoginResultVO loginResultVO = SmartBeanUtil.copy(requestEmployee, LoginResultVO.class);
 
         // 前端菜单和功能点清单
-        List<RoleVO> roleList = roleEmployeeService.getRoleIdList(requestEmployee.getEmployeeId());
-        List<MenuVO> menuAndPointsList = roleMenuService.getMenuList(roleList.stream().map(RoleVO::getRoleId).collect(Collectors.toList()), requestEmployee.getAdministratorFlag());
-        loginResultVO.setMenuList(menuAndPointsList);
+        AccessAuthorizationSnapshot authorization = accessAuthorizationFacade.loadEmployeeAuthorization(
+                requestEmployee.getEmployeeId(), requestEmployee.getAdministratorFlag());
+        loginResultVO.setMenuList(authorization.menuItems());
 
         // 上次登录信息
         LoginLogVO loginLogVO = loginLogService.queryLastByUserId(requestEmployee.getEmployeeId(), UserTypeEnum.ADMIN_EMPLOYEE, LoginLogResultEnum.LOGIN_SUCCESS);

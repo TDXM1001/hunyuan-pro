@@ -2,14 +2,14 @@ package com.hunyuan.sa.admin.module.system.role.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hunyuan.sa.admin.module.access.role.api.AccessRoleMemberQuery;
+import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleEmployeeEntity;
+import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeSummaryRow;
+import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeVO;
 import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.stereotype.Component;
-import com.hunyuan.sa.admin.module.system.employee.domain.vo.EmployeeVO;
-import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleEmployeeEntity;
-import com.hunyuan.sa.admin.module.system.role.domain.form.RoleEmployeeQueryForm;
-import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeVO;
 
 import java.util.List;
 import java.util.Set;
@@ -55,17 +55,19 @@ public interface RoleEmployeeDao extends BaseMapper<RoleEmployeeEntity> {
     /**
      *
      */
-    List<EmployeeVO> selectRoleEmployeeByName(Page page, @Param("queryForm") RoleEmployeeQueryForm roleEmployeeQueryForm);
+    List<RoleEmployeeSummaryRow> selectRoleEmployeeByName(
+            Page page, @Param("queryForm") AccessRoleMemberQuery query);
 
     /**
      * 查询角色可添加的候选员工
      */
-    List<EmployeeVO> selectCandidateEmployeeByName(Page page, @Param("queryForm") RoleEmployeeQueryForm roleEmployeeQueryForm);
+    List<RoleEmployeeSummaryRow> selectCandidateEmployeeByName(
+            Page page, @Param("queryForm") AccessRoleMemberQuery query);
 
     /**
      *
      */
-    List<EmployeeVO> selectEmployeeByRoleId(@Param("roleId") Long roleId);
+    List<RoleEmployeeSummaryRow> selectEmployeeByRoleId(@Param("roleId") Long roleId);
     /**
      * 根据员工信息删除
      */
