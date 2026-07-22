@@ -2,62 +2,65 @@
 
 ## 1. 状态与目标
 
-截至 2026-07-22，A3.1 已正式关闭，A3.2 进入实施。A3.2 由 `access` 统一拥有角色、员工角色分配、菜单与能力授权、数据范围以及登录授权装载边界。
+截至 2026-07-22，A3.1、A3.2 已正式关闭。A3.2 由 `access` 统一拥有角色、员工角色分配、菜单与能力授权、数据范围以及登录授权装载边界。
 
 本阶段保持 `t_role`、`t_menu`、`t_role_employee`、`t_role_menu`、`t_role_data_scope` 为唯一数据源，不创建镜像表，不建立新旧双写。
 
 ## 2. 所有权冻结
 
-| 对象 | 目标 owner | 决策 |
-| --- | --- | --- |
-| `t_role` | `access.role` | 角色生命周期和稳定角色编码 |
-| `t_role_employee` | `access.role` | 员工角色分配 |
-| `t_menu` | `access.capability` | 导航菜单、功能点和能力码目录 |
-| `t_role_menu` | `access.capability` | 角色菜单与能力授权 |
-| `t_role_data_scope` | `access.data-scope` | 角色数据范围 |
-| Sa-Token 会话与登录缓存 | `identity.authentication` | 只消费 access 公开授权快照 |
+| 对象                    | 目标 owner                | 决策                         |
+| ----------------------- | ------------------------- | ---------------------------- |
+| `t_role`                | `access.role`             | 角色生命周期和稳定角色编码   |
+| `t_role_employee`       | `access.role`             | 员工角色分配                 |
+| `t_menu`                | `access.capability`       | 导航菜单、功能点和能力码目录 |
+| `t_role_menu`           | `access.capability`       | 角色菜单与能力授权           |
+| `t_role_data_scope`     | `access.data-scope`       | 角色数据范围                 |
+| Sa-Token 会话与登录缓存 | `identity.authentication` | 只消费 access 公开授权快照   |
 
 ## 3. 现有入口冻结
 
-| 能力 | 当前入口 | 当前权限 | 处置 |
-| --- | --- | --- | --- |
-| 角色生命周期 | `/role/add`、`/role/update`、`/role/delete/{id}`、`/role/get/{id}`、`/role/getAll` | `system:role:add/update/delete` | 迁移到 `/api/admin/v1/access/roles` |
-| 员工角色分配 | `/role/employee/*` | `system:role:employee:*`，部分查询无显式权限 | 迁移并消除 `EmployeeVO` |
-| 角色菜单授权 | `/role/menu/*` | `system:role:menu:update`，查询无显式权限 | 迁移到 access capability 用例 |
-| 数据范围 | `/dataScope/list`、`/role/dataScope/*` | `system:role:dataScope:update`，查询无显式权限 | 迁移到 access data-scope 用例 |
-| 菜单目录 | `/menu/*` | `system:menu:*`，部分查询无显式权限 | 建立稳定 Admin API 和能力码 |
-| 登录授权装载 | `LoginService`、`LoginManager` 直接调用角色 Service | 无独立公开契约 | 第一批改为 `AccessAuthorizationFacade` |
+| 能力         | 当前入口                                                                           | 当前权限                                       | 处置                                   |
+| ------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------- |
+| 角色生命周期 | `/role/add`、`/role/update`、`/role/delete/{id}`、`/role/get/{id}`、`/role/getAll` | `system:role:add/update/delete`                | 迁移到 `/api/admin/v1/access/roles`    |
+| 员工角色分配 | `/role/employee/*`                                                                 | `system:role:employee:*`，部分查询无显式权限   | 迁移并消除 `EmployeeVO`                |
+| 角色菜单授权 | `/role/menu/*`                                                                     | `system:role:menu:update`，查询无显式权限      | 迁移到 access capability 用例          |
+| 数据范围     | `/dataScope/list`、`/role/dataScope/*`                                             | `system:role:dataScope:update`，查询无显式权限 | 迁移到 access data-scope 用例          |
+| 菜单目录     | `/menu/*`                                                                          | `system:menu:*`，部分查询无显式权限            | 建立稳定 Admin API 和能力码            |
+| 登录授权装载 | `LoginService`、`LoginManager` 直接调用角色 Service                                | 无独立公开契约                                 | 第一批改为 `AccessAuthorizationFacade` |
 
 前端当前由 `apps/hunyuan-system/src/views/system/role/index.vue` 和 `views/system/menu/menu-list.vue` 消费上述入口；API 仍集中在 `api/system/organization.ts` 与 `api/system/menu.ts`，后续迁入独立 access feature。
 
 ## 4. 内部消费者
 
-| 消费者 | 当前依赖 | 迁移决定 |
-| --- | --- | --- |
-| `system.login.LoginService` | 角色与菜单 Service | 已改用 `AccessAuthorizationFacade` |
-| `system.login.LoginManager` | 角色与菜单 Service | 已改用 `AccessAuthorizationFacade` |
-| `system.datascope.DataScopeViewService` | `AccessDataScopeFacade` | P2 第二子批已完成，不再直接依赖角色 DAO/实体 |
-| `identity.employee.OrganizationDepartmentScopeAdapter` | `AccessDepartmentScopeFacade` | P2 第三子批已完成，不再直接依赖旧 DataScope Service/枚举 |
-| `system.role.RoleController` | `AccessRoleLifecycleFacade` | P2 第四子批已完成，兼容入口与稳定 Admin API 共用角色生命周期用例 |
-| `system.role.RoleMenuController` | `AccessCapabilityGrantFacade` | P2 第五子批已完成，兼容入口与稳定 Admin API 共用角色能力授权用例 |
-| `system.role.AccessAuthorizationFacadeAdapter` | `AccessCapabilityQueryFacade` | P2 第六子批已完成，登录授权菜单查询不再依赖旧菜单模型或 `RoleMenuService` |
-| `system.menu.MenuController` | `AccessMenuCatalogFacade` | P2 第七子批已完成，兼容入口与稳定 Admin API 共用菜单目录生命周期用例 |
-| `system.role.RoleEmployeeController` | `AccessRoleMembershipFacade`、`AccessRoleAssignmentFacade` | P2 第八子批已完成，兼容入口只负责旧响应转换，不再依赖旧角色员工 Service |
-| `system.role.AccessAuthorizationFacadeAdapter` | `AccessRoleMembershipFacade` | P2 第八子批已完成，登录授权角色查询不再依赖旧角色员工 Service |
-| 角色员工查询 | access `AccessRoleMember` | P2 第八子批已完成，稳定边界不依赖 identity，且不投影密码字段或已删除员工 |
-| `identity.employee.EmployeeAdministrationApplicationService` | `AccessRoleAssignmentFacade` | P2 第一子批已完成，通过正式命令替换员工角色 |
+| 消费者                                                                                 | 当前依赖                                                   | 迁移决定                                                                               |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `system.login.LoginService`                                                            | 角色与菜单 Service                                         | 已改用 `AccessAuthorizationFacade`                                                     |
+| `system.login.LoginManager`                                                            | 角色与菜单 Service                                         | 已改用 `AccessAuthorizationFacade`                                                     |
+| `system.datascope.DataScopeViewService`                                                | `AccessDataScopeFacade`                                    | P2 第二子批已完成，不再直接依赖角色 DAO/实体                                           |
+| `identity.employee.OrganizationDepartmentScopeAdapter`                                 | `AccessDepartmentScopeFacade`                              | P2 第三子批已完成，不再直接依赖旧 DataScope Service/枚举                               |
+| `system.role.RoleController`                                                           | `AccessRoleLifecycleFacade`                                | P2 第四子批已完成，兼容入口与稳定 Admin API 共用角色生命周期用例                       |
+| `system.role.RoleMenuController`                                                       | `AccessCapabilityGrantFacade`                              | P2 第五子批已完成，兼容入口与稳定 Admin API 共用角色能力授权用例                       |
+| `system.role.AccessAuthorizationFacadeAdapter`                                         | `AccessCapabilityQueryFacade`                              | P2 第六子批已完成，登录授权菜单查询不再依赖旧菜单模型或 `RoleMenuService`              |
+| `system.menu.MenuController`                                                           | `AccessMenuCatalogFacade`                                  | P2 第七子批已完成，兼容入口与稳定 Admin API 共用菜单目录生命周期用例                   |
+| `system.role.RoleEmployeeController`                                                   | `AccessRoleMembershipFacade`、`AccessRoleAssignmentFacade` | P2 第八子批已完成，兼容入口只负责旧响应转换，不再依赖旧角色员工 Service                |
+| `system.role.AccessAuthorizationFacadeAdapter`                                         | `AccessRoleMembershipFacade`                               | P2 第八子批已完成，登录授权角色查询不再依赖旧角色员工 Service                          |
+| 角色员工查询                                                                           | access `AccessRoleMember`                                  | P2 第八子批已完成，稳定边界不依赖 identity，且不投影密码字段或已删除员工               |
+| `identity.employee.EmployeeAdministrationApplicationService`                           | `AccessRoleAssignmentFacade`                               | P2 第一子批已完成，通过正式命令替换员工角色                                            |
+| `system.role.AccessCapabilityGrantFacadeAdapter`、`AccessCapabilityQueryFacadeAdapter` | `AccessMenuQueryFacade`                                    | P2 第十子批已完成，角色能力适配器不再直接依赖菜单 DAO、VO 或实体                       |
+| `system.datascope` 运行时与配置                                                        | access `AccessDataScopeType`、`AccessDataScopeViewType`    | P2 第十一子批已完成，历史数值、排序、名称和描述保持不变，旧 datascope owner 枚举已删除 |
+| `system.role.RoleMenuController`、`RoleMenuTreeVO`                                     | 角色 owner `RoleCapabilityTreeNodeVO`                      | P2 第十一子批已完成，角色兼容响应不再复用菜单 owner 的 `MenuSimpleTreeVO`              |
 
 仓库外消费者沿用 A3.1 的事实判断：系统尚未投入生产，也未开放正式仓库外集成，因此当前外部消费者审计为 N/A。首次生产或外部集成前仍必须建立消费者登记、调用方标识和访问日志。
 
 ## 5. 稳定能力码草案
 
-| 分组 | 能力码 |
-| --- | --- |
-| 角色 | `access.role.read/create/update/delete` |
-| 员工角色 | `access.role.employee.read/assign/remove` |
-| 菜单与能力 | `access.capability.read/grant` |
-| 菜单目录 | `access.menu.read/create/update/delete` |
-| 数据范围 | `access.data-scope.read/update` |
+| 分组       | 能力码                                    |
+| ---------- | ----------------------------------------- |
+| 角色       | `access.role.read/create/update/delete`   |
+| 员工角色   | `access.role.employee.read/assign/remove` |
+| 菜单与能力 | `access.capability.read/grant`            |
+| 菜单目录   | `access.menu.read/create/update/delete`   |
+| 数据范围   | `access.data-scope.read/update`           |
 
 最终 Flyway 映射必须保证旧授权不丢失，并增加“Controller 校验能力码必须存在于能力目录”的一致性测试。
 
@@ -83,7 +86,7 @@ A3.2 只有同时满足以下条件才能正式关闭：
 
 ## 8. 当前执行记录
 
-2026-07-22，P0 已完成，P1 第一批和 P2 前八个子批已落地：
+2026-07-22，P0 已完成，P1 第一批和 P2 十一个子批已落地：
 
 - 新增 `access.authorization.api` 的公开授权快照契约。
 - 旧角色实现通过适配器提供角色码、能力码和菜单，不向登录暴露角色 Service/DAO。
@@ -123,5 +126,35 @@ A3.2 只有同时满足以下条件才能正式关闭：
 - `RoleEmployeeController` 已统一委托 `AccessRoleMembershipFacade` 与 `AccessRoleAssignmentFacade`，旧 `/role/employee/*` 路径、HTTP 方法、权限、响应模型和空 ID 校验保持兼容；`AccessAuthorizationFacadeAdapter` 的角色查询也已改用公开成员边界。
 - 删除已无生产消费者的 `RoleEmployeeService` 及其旧测试；新增 API 契约、适配器、SQL 和 ArchUnit 守卫，确认生产代码不存在旧 Service 引用，access 与 identity 不形成依赖环。
 - 第八子批聚焦运行 27 个测试全部通过，其中 ArchUnit 19 条；完整 Maven reactor 回归中 `hunyuan-base` 12 个测试、`hunyuan-admin` 125 个测试均无失败或错误，3 个集成测试按既有配置跳过；`hunyuan-admin` 编译 277 个主源码文件，`git diff --check` 通过。
+- 新增 `AccessDataScopeManagementFacade`、稳定数据范围目录、角色配置快照、全量替换命令与显式失败原因；继续复用 `t_role_data_scope`，未建立镜像表或双写。
+- 新增 `GET /api/admin/v1/access/data-scopes`、`GET/PUT /api/admin/v1/access/roles/{roleId}/data-scopes`，分别使用 `access.data-scope.read` 与 `access.data-scope.update`；角色不存在、非法枚举和重复配置均在稳定用例中显式拒绝。
+- `RoleDataScopeController` 与 `DataScopeController` 已统一委托数据范围稳定管理边界，旧路径、旧写权限和旧空配置错误保持兼容；稳定全量替换允许空集合清空配置，并在同一事务中先删除旧关系再写入新关系。
+- 删除已无生产消费者的 `RoleDataScopeService` 与 `DataScopeService`，新增两条 ArchUnit 守卫禁止兼容 Controller 重新依赖旧 Service；第九子批聚焦运行 34 个测试全部通过，其中 ArchUnit 21 条；完整 Maven reactor 回归中 `hunyuan-base` 12 个测试、`hunyuan-admin` 140 个测试均无失败或错误，3 个集成测试按既有配置跳过，`hunyuan-admin` 编译 285 个主源码文件。
+- P2 第十子批新增只读 `AccessMenuQueryFacade`，由菜单 owner 统一提供“全部启用菜单”和“指定角色未删除菜单”查询，准确保留管理员与普通角色的既有授权语义；`AccessCapabilityGrantFacadeAdapter`、`AccessCapabilityQueryFacadeAdapter` 改为只消费 access `AccessMenu` 稳定模型。
+- 角色菜单 DAO 删除跨 owner 返回 `MenuEntity` 的 `selectMenuListByRoleIdList`，对应联表查询迁入菜单 DAO；新增公开契约、菜单 owner 适配器测试及 ArchUnit 守卫，禁止两个角色能力适配器重新依赖菜单 DAO、VO 或实体。第十子批聚焦运行 38 个测试全部通过，其中 ArchUnit 22 条；完整 Maven reactor 回归中 `hunyuan-base` 12 个测试、`hunyuan-admin` 146 个测试均无失败或错误，3 个集成测试按既有配置跳过，`hunyuan-admin` 编译 287 个主源码文件。
+- P2 第十一子批新增 access owner 的 `AccessDataScopeType` 与 `AccessDataScopeViewType`，数据范围运行时、注解、SQL 配置和策略统一使用公开枚举；历史枚举值、排序、名称和描述保持不变，旧 `DataScopeTypeEnum` 与 `DataScopeViewTypeEnum` 已删除。
+- 角色菜单兼容响应新增角色 owner 自有的 `RoleCapabilityTreeNodeVO`，`RoleMenuController` 与 `RoleMenuTreeVO` 不再复用菜单 owner 的 `MenuSimpleTreeVO`；`RoleDataScopeEntity` 继续以整数保存类型值，不再通过文档引用 datascope owner 枚举。
+- 新增两条非冻结 ArchUnit 守卫，分别禁止 `system.role` 依赖 `system.menu` 和 `system.datascope`；新增枚举值与排序契约测试，并扩展角色能力兼容树 API 契约断言。第十一子批聚焦运行 51 个测试全部通过，其中 ArchUnit 24 条；完整 Maven reactor 回归中 `hunyuan-base` 12 个测试、`hunyuan-admin` 150 个测试均无失败或错误，3 个既有集成测试按配置跳过，`hunyuan-admin` 编译 288 个主源码文件。
+- codebase-memory 新索引 `E-my-project-hunyuan-pro-a3-2-p2-11-final-20260722` 包含 13,979 个节点和 37,474 条关系；源码关系复核确认 `system.role` 到 `system.menu`、`system.datascope` 的引用均为零，旧数据范围枚举节点为零，新 access 枚举、角色能力树模型及其消费者均可检索。
+- P3 新增 `V3.70.0`，在现有角色管理和菜单管理页面下建立 15 个 `access.*` 稳定能力节点，统一使用 `perms_type = 1`，并保持 `api_perms` 与 `web_perms` 一致。平台管理员获得全部稳定能力；既有角色页面、菜单页面和 `system:role:*`、`system:menu:*` 操作授权按冻结映射复制到新能力，旧权限码继续保留至 P5。
+- `t_role_menu(role_id, menu_id)` 与 `t_role_data_scope(role_id, data_scope_type)` 唯一约束已由 `V3.65.0` 建立；`V3.70.0` 增加历史重复数据清理与约束缺失时的幂等补建守卫，避免对已满足约束的数据库重复建索引。
+- 新增 `AccessCapabilityDirectoryContractTest`，反射扫描 5 个稳定 access Controller 的 `@SaCheckPermission`，并与冻结的 15 个能力码以及 `V3.70.0` 能力目录做严格集合对账；Flyway 契约测试同步冻结迁移顺序、旧授权映射、唯一约束与“不提前删除旧权限”边界。
+- P3 聚焦契约测试 3 个全部通过；完整 Maven reactor 回归中 `hunyuan-base` 12 个测试、`hunyuan-admin` 152 个测试均无失败或错误，3 个集成测试按默认配置跳过，ArchUnit 24 条通过。随后在全新的 `hunyuan_a3_2_p3_it` 隔离库执行真实集成验收，Flyway 成功迁移到 `3.70.0`，`FlywayMigrationTest`、`InitialAdminBootstrapIntegrationTest`、`RedisIsolationTest` 共 3 项全部通过。
+- codebase-memory 新索引 `E-my-project-hunyuan-pro-a3-2-p3-final-20260722` 包含 16,050 个节点和 40,866 条关系；新迁移、能力目录一致性守卫和 5 个稳定 access Controller 均可检索。
+- P4 新增 `@hunyuan/feature-access`，冻结 `access.management` feature 标识、角色与菜单两个应用路由以及 15 个稳定能力码；feature 统一拥有角色、能力授权、数据范围、角色成员、菜单页面、稳定契约类型和请求客户端。
+- 应用内 `views/system/role/index.vue` 与 `views/system/menu/menu-list.vue` 已收缩为薄入口，仅负责注入由 `requestClient` 创建的 access 客户端并渲染 feature 页面；原有密集布局、角色权限矩阵、数据范围、员工列表、菜单树、层级保护和紧凑操作区均保留在 feature 内。
+- 前端角色生命周期、能力授权、数据范围、角色成员和菜单生命周期统一调用 `/admin/v1/access/*`；DELETE 批量移除成员和菜单均通过请求 body 传递 ID 集合，角色、菜单文本字段和成员查询关键词在客户端边界裁剪，ID 集合在请求前去重。
+- 删除旧 `apps/hunyuan-system/src/api/system/menu.ts`；`api/system/organization.ts` 删除角色、角色能力、数据范围和角色成员兼容封装，只保留岗位 API。应用与 access feature 不再引用旧 `/role/*`、`/menu/*`、`/dataScope/*` 前端路径。
+- 新增 `packages/features/access/src/client.test.ts`，并更新岗位 payload 测试和组织模块页面边界测试；3 个测试文件共 21 项通过。`@hunyuan/system` 的 `vue-tsc --noEmit --skipLibCheck` 通过，P4 改动文件 ESLint 通过。
+- codebase-memory 新索引 `E-my-project-hunyuan-pro-a3-2-p4-final-20260722` 包含 16,064 个节点和 40,920 条关系；图检索确认角色与菜单应用入口均为 17 行薄装配，access 生产前端只使用 `/admin/v1/access`，冻结能力目录严格包含 15 个 `access.*` 能力码。
+- P5 删除 `RoleController`、`RoleEmployeeController`、`RoleMenuController`、`RoleDataScopeController`、`MenuController`、`DataScopeController` 六个旧 Controller，并删除无剩余生产消费者的旧角色、菜单和数据范围兼容 DTO、Service 与枚举；稳定 access Controller 和公开 Facade 保持唯一生产入口。
+- 新增 `V3.71.0` 退役迁移，删除旧角色授权关系及旧 `system:role:*`、`system:menu:*` 权限节点。开发库 `hunyuan` 已迁移至 Flyway `3.71.0`，对账结果为稳定 access 能力 15 个、旧权限节点 0 个、旧授权关系 0 条、`platform_admin` 稳定授权 15 个。
+- 旧 `/role/*`、`/menu/*`、`/dataScope/*` 代表路径运行验收均返回 HTTP 404；OpenAPI 中稳定 access 路由 13 条、旧路由 0 条，干净构建产物 `target/classes` 中旧 Controller 字节码为 0。
+- 角色管理和菜单管理已在真实浏览器中通过运行验收。角色页可正常展示角色列表、功能权限、数据范围和员工列表；菜单页可正常查询、新增和展示真实菜单树数据。两个页面均无控制台错误。
+- 工作区源包曾导致开发态加载多个 Vue 运行时，角色页出现 `inject() can only be used inside setup()`；应用 Vite 配置已通过 `resolve.dedupe` 统一复用 `vue` 与 `element-plus`，清理缓存并恢复工作区依赖后问题消失。
+- 仓库内生产消费者已归零。旧名称和路径仅保留在退役负向契约测试、Flyway 历史迁移与关闭文档中；`apps/web-ele` 和 backend-mock 的 `/menu/*` 属于非目标 demo/mock 示例，不是 `@hunyuan/system` 生产消费者或兼容入口。
+- 仓库外消费者继续基于“系统从未投入生产、未开放正式仓库外集成”的事实判定为不适用（N/A）；首次生产或外部集成前仍须建立消费者登记、调用方标识和访问日志机制。
+- P5 最终回归中，前端 3 个相关测试文件共 21 项通过，`@hunyuan/system` 类型检查和改动文件 ESLint 通过；完整 Maven reactor 中 `hunyuan-base` 12 项、`hunyuan-admin` 140 项均无失败或错误，3 个外部环境集成测试按配置跳过，ArchUnit 18 项通过。
+- 最终 codebase-memory 全量索引 `E-my-project-hunyuan-pro-a3-2-p5-closed-20260722` 已持久化到 `.codebase-memory/graph.db.zst`；反查确认生产稳定接口统一为 `/api/admin/v1/access/*`，旧 Controller、旧路径和旧权限码没有生产消费者。
 
-当前结论：**A3.2 已正式启动，P0、P1 第一批和 P2 前八个子批完成；A3.2 尚未关闭。下一步继续 P2，盘点并收口剩余跨边界 Service/DAO 消费。**
+当前结论：**A3.2 的 P0-P5 已全部完成并正式关闭。角色、员工角色分配、菜单与能力授权、数据范围及登录授权装载已统一收敛到 access 公开边界；下一步进入 A3.3 岗位目录迁移。**
