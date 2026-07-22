@@ -2,9 +2,9 @@ package com.hunyuan.sa.admin.module.system.role.service;
 
 import com.hunyuan.sa.admin.module.access.capability.api.AccessCapabilityGrantFailure;
 import com.hunyuan.sa.admin.module.access.capability.api.ReplaceRoleCapabilitiesCommand;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenu;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenuQueryFacade;
 import com.hunyuan.sa.admin.module.organization.OrganizationModuleAvailability;
-import com.hunyuan.sa.admin.module.system.menu.dao.MenuDao;
-import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDao;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleMenuDao;
 import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleEntity;
@@ -38,7 +38,7 @@ class AccessCapabilityGrantFacadeAdapterTest {
     private RoleMenuManager roleMenuManager;
 
     @Mock
-    private MenuDao menuDao;
+    private AccessMenuQueryFacade accessMenuQueryFacade;
 
     @Mock
     private OrganizationModuleAvailability organizationModuleAvailability;
@@ -51,7 +51,7 @@ class AccessCapabilityGrantFacadeAdapterTest {
         ReflectionTestUtils.setField(adapter, "roleDao", roleDao);
         ReflectionTestUtils.setField(adapter, "roleMenuDao", roleMenuDao);
         ReflectionTestUtils.setField(adapter, "roleMenuManager", roleMenuManager);
-        ReflectionTestUtils.setField(adapter, "menuDao", menuDao);
+        ReflectionTestUtils.setField(adapter, "accessMenuQueryFacade", accessMenuQueryFacade);
         ReflectionTestUtils.setField(adapter, "organizationModuleAvailability", organizationModuleAvailability);
     }
 
@@ -97,10 +97,10 @@ class AccessCapabilityGrantFacadeAdapterTest {
 
     @Test
     void queryBuildsCapabilityTreeAndPreservesSelectedIds() {
-        MenuVO root = menu(1L, 0L, "系统管理", null, null);
-        MenuVO child = menu(2L, 1L, "角色管理", "/system/role", null);
+        AccessMenu root = menu(1L, 0L, "系统管理", null, null);
+        AccessMenu child = menu(2L, 1L, "角色管理", "/system/role", null);
         when(roleMenuDao.queryMenuIdByRoleId(9L)).thenReturn(List.of(2L));
-        when(menuDao.queryMenuList(false, false, null)).thenReturn(List.of(root, child));
+        when(accessMenuQueryFacade.listEnabledMenus()).thenReturn(List.of(root, child));
         when(organizationModuleAvailability.enabled()).thenReturn(true);
 
         var grant = adapter.getRoleCapabilities(9L);
@@ -116,16 +116,16 @@ class AccessCapabilityGrantFacadeAdapterTest {
 
     @Test
     void queryFiltersOrganizationCapabilitiesWhenModuleIsDisabled() {
-        MenuVO systemRoot = menu(1L, 0L, "系统管理", null, null);
-        MenuVO organizationMenu = menu(2L, 0L, "组织架构", "/organization/directory", null);
-        MenuVO organizationAction = menu(
+        AccessMenu systemRoot = menu(1L, 0L, "系统管理", null, null);
+        AccessMenu organizationMenu = menu(2L, 0L, "组织架构", "/organization/directory", null);
+        AccessMenu organizationAction = menu(
                 3L,
                 1L,
                 "新增部门",
                 null,
                 "organization.department.create");
         when(roleMenuDao.queryMenuIdByRoleId(9L)).thenReturn(List.of(1L));
-        when(menuDao.queryMenuList(false, false, null))
+        when(accessMenuQueryFacade.listEnabledMenus())
                 .thenReturn(List.of(systemRoot, organizationMenu, organizationAction));
         when(organizationModuleAvailability.enabled()).thenReturn(false);
 
@@ -137,14 +137,28 @@ class AccessCapabilityGrantFacadeAdapterTest {
         assertThat(grant.capabilityTree().get(0).children()).isEmpty();
     }
 
-    private MenuVO menu(Long menuId, Long parentId, String name, String path, String apiPerms) {
-        MenuVO menu = new MenuVO();
-        menu.setMenuId(menuId);
-        menu.setParentId(parentId);
-        menu.setMenuName(name);
-        menu.setPath(path);
-        menu.setApiPerms(apiPerms);
-        menu.setMenuType(1);
-        return menu;
+    private AccessMenu menu(Long menuId, Long parentId, String name, String path, String apiPerms) {
+        return new AccessMenu(
+                menuId,
+                name,
+                1,
+                parentId,
+                null,
+                path,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                null,
+                null,
+                apiPerms,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 }

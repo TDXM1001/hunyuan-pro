@@ -1,7 +1,7 @@
 package com.hunyuan.sa.admin.module.system.datascope;
 
 
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeWhereInTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.strategy.AbstractDataScopeStrategy;
 
@@ -23,7 +23,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface DataScope {
 
-    DataScopeTypeEnum dataScopeType() ;
+    AccessDataScopeType dataScopeType() ;
 
     DataScopeWhereInTypeEnum whereInType() default DataScopeWhereInTypeEnum.EMPLOYEE;
 

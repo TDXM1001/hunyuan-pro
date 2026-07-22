@@ -1,8 +1,6 @@
 package com.hunyuan.sa.admin.module.access.role.api;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.hunyuan.sa.admin.module.system.role.controller.RoleController;
-import com.hunyuan.sa.admin.module.system.role.domain.form.RoleAddForm;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import org.junit.jupiter.api.Test;
@@ -13,7 +11,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,37 +59,26 @@ class AccessRoleApiContractTest {
     }
 
     @Test
-    void legacyControllerDependsOnAccessLifecycleFacade() throws Exception {
-        Field facadeField = RoleController.class.getDeclaredField("roleLifecycleFacade");
-
-        assertThat(facadeField.getType()).isEqualTo(AccessRoleLifecycleFacade.class);
-        assertThat(RoleController.class.getDeclaredFields())
-                .extracting(Field::getType)
-                .noneMatch(type -> type.getName().endsWith(".RoleService"));
-    }
-
-    @Test
-    void legacyControllerPreservesDuplicateAndNotFoundErrors() {
+    void stableControllerPreservesDuplicateAndNotFoundErrors() {
         AccessRoleLifecycleFacade facade = mock(AccessRoleLifecycleFacade.class);
-        RoleController controller = new RoleController();
+        AccessRoleController controller = new AccessRoleController();
         ReflectionTestUtils.setField(controller, "roleLifecycleFacade", facade);
 
-        RoleAddForm addForm = new RoleAddForm();
-        addForm.setRoleName("审计员");
-        addForm.setRoleCode("auditor");
+        AccessRoleController.AccessRoleRequest request =
+                new AccessRoleController.AccessRoleRequest("审计员", "auditor", null);
         when(facade.create(new CreateAccessRoleCommand("审计员", "auditor", null)))
                 .thenReturn(AccessRoleResult.failure(
                         AccessRoleFailure.ROLE_CODE_DUPLICATED,
-                        "角色编码重复，重复的角色为：旧审计员"));
+                        "角色编码重复"));
 
-        var duplicateResponse = controller.addRole(addForm);
+        var duplicateResponse = controller.create(request);
         assertThat(duplicateResponse.getCode()).isEqualTo(UserErrorCode.PARAM_ERROR.getCode());
-        assertThat(duplicateResponse.getMsg()).isEqualTo("角色编码重复，重复的角色为：旧审计员");
+        assertThat(duplicateResponse.getMsg()).isEqualTo("角色编码重复");
 
         when(facade.get(99L))
                 .thenReturn(AccessRoleResult.failure(AccessRoleFailure.ROLE_NOT_FOUND, null));
 
-        var missingResponse = controller.getRole(99L);
+        var missingResponse = controller.get(99L);
         assertThat(missingResponse.getCode()).isEqualTo(UserErrorCode.DATA_NOT_EXIST.getCode());
     }
 

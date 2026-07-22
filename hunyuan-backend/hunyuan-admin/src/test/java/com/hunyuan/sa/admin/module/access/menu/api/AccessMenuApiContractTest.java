@@ -1,8 +1,7 @@
 package com.hunyuan.sa.admin.module.access.menu.api;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.hunyuan.sa.admin.module.system.menu.controller.MenuController;
-import com.hunyuan.sa.base.common.code.SystemErrorCode;
+import com.hunyuan.sa.base.common.code.UserErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -12,9 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -75,61 +72,18 @@ class AccessMenuApiContractTest {
     }
 
     @Test
-    void legacyControllerDependsOnAccessMenuFacade() throws Exception {
-        Field facadeField = MenuController.class.getDeclaredField("menuCatalogFacade");
-
-        assertThat(facadeField.getType()).isEqualTo(AccessMenuCatalogFacade.class);
-        assertThat(MenuController.class.getDeclaredFields())
-                .extracting(Field::getType)
-                .noneMatch(type -> type.getName().endsWith(".MenuService"));
-    }
-
-    @Test
-    void legacyControllerPreservesDetailErrorAndResponseModel() {
+    void stableControllerMapsMissingMenuError() {
         AccessMenuCatalogFacade facade = mock(AccessMenuCatalogFacade.class);
-        MenuController controller = new MenuController();
+        AccessMenuController controller = new AccessMenuController();
         ReflectionTestUtils.setField(controller, "menuCatalogFacade", facade);
-
         when(facade.get(99L)).thenReturn(AccessMenuResult.failure(
                 AccessMenuFailure.MENU_NOT_FOUND,
                 "菜单不存在"));
 
-        var missingResponse = controller.getMenuDetail(99L);
-        assertThat(missingResponse.getCode()).isEqualTo(SystemErrorCode.SYSTEM_ERROR.getCode());
-        assertThat(missingResponse.getMsg()).isEqualTo("菜单不存在");
+        var response = controller.get(99L);
 
-        when(facade.list()).thenReturn(List.of(menu(1L, "系统管理", 0L)));
-        var listResponse = controller.queryMenuList();
-        assertThat(listResponse.getData()).singleElement()
-                .satisfies(menu -> {
-                    assertThat(menu.getMenuId()).isEqualTo(1L);
-                    assertThat(menu.getMenuName()).isEqualTo("系统管理");
-                });
-    }
-
-    private AccessMenu menu(Long menuId, String menuName, Long parentId) {
-        return new AccessMenu(
-                menuId,
-                menuName,
-                1,
-                parentId,
-                1,
-                null,
-                null,
-                false,
-                null,
-                false,
-                true,
-                false,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
+        assertThat(response.getCode()).isEqualTo(UserErrorCode.DATA_NOT_EXIST.getCode());
+        assertThat(response.getMsg()).isEqualTo("菜单不存在");
     }
 
     private void assertEndpoint(

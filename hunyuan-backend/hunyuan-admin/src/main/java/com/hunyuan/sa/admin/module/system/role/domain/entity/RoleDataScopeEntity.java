@@ -4,9 +4,6 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
-
 import java.time.LocalDateTime;
 
 /**
@@ -27,13 +24,11 @@ public class RoleDataScopeEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     /**
-     * 数据范围id
-     * {@link DataScopeTypeEnum}
+     * 数据范围类型值
      */
     private Integer dataScopeType;
     /**
-     * 数据范围类型
-     * {@link DataScopeViewTypeEnum}
+     * 数据可见范围值
      */
     private Integer viewType;
     /**

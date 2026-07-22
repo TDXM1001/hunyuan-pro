@@ -56,6 +56,11 @@ public interface MenuDao extends BaseMapper<MenuEntity> {
      */
     List<MenuVO> queryMenuList(@Param("deletedFlag") Boolean deletedFlag, @Param("disabledFlag") Boolean disabledFlag, @Param("menuTypeList") List<Integer> menuTypeList);
 
+    /**
+     * 查询指定角色拥有的未删除菜单和能力项。
+     */
+    List<MenuVO> queryAuthorizedMenuListByRoleIds(@Param("roleIds") List<Long> roleIds);
+
 
     /**
      * 根据菜单ID 查询功能点列表

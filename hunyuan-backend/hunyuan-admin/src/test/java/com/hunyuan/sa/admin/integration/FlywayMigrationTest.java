@@ -25,7 +25,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
 
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.69.0");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.71.0");
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 requiredEnvironment("HUNYUAN_IT_DB_URL"),
@@ -135,5 +135,69 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                 WHERE role.role_code = 'platform_admin'
                   AND menu.api_perms LIKE 'identity.employee.%'
                 """, Integer.class)).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE api_perms LIKE 'access.%'
+                  AND web_perms = api_perms
+                  AND menu_type = 3
+                  AND perms_type = 1
+                  AND deleted_flag = 0
+                """, Integer.class)).isEqualTo(15);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE api_perms LIKE 'system:role:%'
+                   OR web_perms LIKE 'system:role:%'
+                   OR api_perms LIKE 'system:menu:%'
+                   OR web_perms LIKE 'system:menu:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE menu.api_perms LIKE 'system:role:%'
+                   OR menu.web_perms LIKE 'system:role:%'
+                   OR menu.api_perms LIKE 'system:menu:%'
+                   OR menu.web_perms LIKE 'system:menu:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/role' AND deleted_flag = 0",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/menu/list' AND deleted_flag = 0",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_role role ON role.role_id = role_menu.role_id
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE role.role_code = 'platform_admin'
+                  AND menu.api_perms LIKE 'access.%'
+                """, Integer.class)).isEqualTo(15);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = ?
+                  AND table_name = 't_role_menu'
+                  AND index_name = 'uk_role_menu_role_menu'
+                  AND non_unique = 0
+                """, Integer.class, databaseName)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = ?
+                  AND table_name = 't_role_data_scope'
+                  AND index_name = 'uk_role_data_scope_type'
+                  AND non_unique = 0
+                """, Integer.class, databaseName)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_data_scope scope
+                JOIN t_role role ON role.role_id = scope.role_id
+                WHERE role.role_code = 'platform_admin'
+                  AND scope.data_scope_type = 1
+                  AND scope.view_type = 10
+                """, Integer.class)).isEqualTo(1);
     }
 }

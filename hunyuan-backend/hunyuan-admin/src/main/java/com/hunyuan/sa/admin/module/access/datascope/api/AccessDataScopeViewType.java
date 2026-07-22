@@ -1,47 +1,39 @@
-package com.hunyuan.sa.admin.module.system.datascope.constant;
-
+package com.hunyuan.sa.admin.module.access.datascope.api;
 
 import com.hunyuan.sa.base.common.enumeration.BaseEnum;
 
-
 /**
- * 数据可见范围类型
- *
- * @Author 1024创新实验室: 罗伊
- * @Date 2020/11/28  20:59:17
- * @Wechat zhuoda1024
- * @Email lab1024@163.com
- * @Copyright  <a href="https://1024lab.net">1024创新实验室</a>
+ * access 统一拥有的数据可见范围类型。
  */
-public enum DataScopeViewTypeEnum implements BaseEnum {
+public enum AccessDataScopeViewType implements BaseEnum {
 
     /**
-     * 本人
+     * 仅本人。
      */
     ME(0, 0, "本人"),
 
     /**
-     * 部门
+     * 本部门。
      */
     DEPARTMENT(1, 5, "本部门"),
 
     /**
-     * 本部门及下属子部门
+     * 本部门及下属子部门。
      */
     DEPARTMENT_AND_SUB(2, 10, "本部门及下属子部门"),
 
     /**
-     * 全部
+     * 全部数据。
      */
     ALL(10, 100, "全部");
 
-
-
     private final Integer value;
+
     private final Integer level;
+
     private final String desc;
 
-    DataScopeViewTypeEnum(Integer value, Integer level, String desc) {
+    AccessDataScopeViewType(Integer value, Integer level, String desc) {
         this.value = value;
         this.level = level;
         this.desc = desc;
@@ -60,6 +52,4 @@ public enum DataScopeViewTypeEnum implements BaseEnum {
     public String getDesc() {
         return desc;
     }
-
-
 }

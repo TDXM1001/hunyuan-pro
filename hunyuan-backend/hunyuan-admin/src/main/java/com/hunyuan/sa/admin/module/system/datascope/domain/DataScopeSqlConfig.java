@@ -1,7 +1,7 @@
 package com.hunyuan.sa.admin.module.system.datascope.domain;
 
 import lombok.Data;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeWhereInTypeEnum;
 
 /**
@@ -18,9 +18,9 @@ public class DataScopeSqlConfig {
 
     /**
      * 数据范围类型
-     * {@link DataScopeTypeEnum}
+     * {@link AccessDataScopeType}
      */
-    private DataScopeTypeEnum dataScopeType;
+    private AccessDataScopeType dataScopeType;
 
     /**
      * join sql 具体实现类

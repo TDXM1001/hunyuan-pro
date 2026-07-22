@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(7);
+        assertThat(migrations).hasSize(9);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -39,6 +39,10 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_68_0__a3_1_employee_capability_and_constraints.sql");
         assertThat(migrations.get(6).getFileName().toString())
                 .isEqualTo("V3_69_0__a3_1_retire_legacy_employee_access.sql");
+        assertThat(migrations.get(7).getFileName().toString())
+                .isEqualTo("V3_70_0__a3_2_access_capability_and_constraints.sql");
+        assertThat(migrations.get(8).getFileName().toString())
+                .isEqualTo("V3_71_0__a3_2_retire_legacy_access.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -110,5 +114,41 @@ class FlywayMigrationContractTest {
                 .doesNotContain("'/ORGANIZATION/EMPLOYEE'")
                 .doesNotContain("'IDENTITY.EMPLOYEE.%'")
                 .doesNotContain("DELETE FROM `T_EMPLOYEE`");
+
+        String accessMigration = Files.readString(migrations.get(7), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(accessMigration)
+                .contains("UK_ROLE_MENU_ROLE_MENU")
+                .contains("UK_ROLE_DATA_SCOPE_TYPE")
+                .contains("'ACCESS.ROLE.READ'")
+                .contains("'ACCESS.ROLE.CREATE'")
+                .contains("'ACCESS.ROLE.UPDATE'")
+                .contains("'ACCESS.ROLE.DELETE'")
+                .contains("'ACCESS.ROLE.EMPLOYEE.READ'")
+                .contains("'ACCESS.ROLE.EMPLOYEE.ASSIGN'")
+                .contains("'ACCESS.ROLE.EMPLOYEE.REMOVE'")
+                .contains("'ACCESS.CAPABILITY.READ'")
+                .contains("'ACCESS.CAPABILITY.GRANT'")
+                .contains("'ACCESS.MENU.READ'")
+                .contains("'ACCESS.MENU.CREATE'")
+                .contains("'ACCESS.MENU.UPDATE'")
+                .contains("'ACCESS.MENU.DELETE'")
+                .contains("'ACCESS.DATA-SCOPE.READ'")
+                .contains("'ACCESS.DATA-SCOPE.UPDATE'")
+                .contains("'SYSTEM:ROLE:EMPLOYEE:BATCH:DELETE'")
+                .contains("'SYSTEM:ROLE:MENU:UPDATE'")
+                .contains("'SYSTEM:ROLE:DATASCOPE:UPDATE'")
+                .contains("'SYSTEM:MENU:BATCHDELETE'")
+                .doesNotContain("DELETE FROM `T_MENU`");
+
+        String legacyAccessRetirement =
+                Files.readString(migrations.get(8), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(legacyAccessRetirement)
+                .contains("'SYSTEM:ROLE:%'")
+                .contains("'SYSTEM:MENU:%'")
+                .contains("DELETE ROLE_MENU")
+                .contains("DELETE FROM `T_MENU`")
+                .doesNotContain("'ACCESS.%'")
+                .doesNotContain("'/ORGANIZATION/ROLE'")
+                .doesNotContain("'/MENU/LIST'");
     }
 }

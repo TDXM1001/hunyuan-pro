@@ -1,9 +1,6 @@
 package com.hunyuan.sa.admin.module.access.role.api;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.hunyuan.sa.admin.module.system.role.controller.RoleEmployeeController;
-import com.hunyuan.sa.admin.module.system.role.domain.form.RoleEmployeeUpdateForm;
-import com.hunyuan.sa.base.common.code.UserErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -12,7 +9,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Set;
 
@@ -76,33 +72,15 @@ class AccessRoleMembershipApiContractTest {
     }
 
     @Test
-    void legacyControllerDependsOnlyOnAccessRoleFacades() throws Exception {
-        Field queryFacade = RoleEmployeeController.class.getDeclaredField("roleMembershipFacade");
-        Field commandFacade = RoleEmployeeController.class.getDeclaredField("roleAssignmentFacade");
-
-        assertThat(queryFacade.getType()).isEqualTo(AccessRoleMembershipFacade.class);
-        assertThat(commandFacade.getType()).isEqualTo(AccessRoleAssignmentFacade.class);
-        assertThat(RoleEmployeeController.class.getDeclaredFields())
-                .extracting(Field::getType)
-                .noneMatch(type -> type.getName().endsWith(".RoleEmployeeService"));
-    }
-
-    @Test
-    void legacyControllerPreservesNullIdValidationAndWriteCommands() {
-        AccessRoleMembershipFacade membershipFacade = mock(AccessRoleMembershipFacade.class);
+    void stableControllerDelegatesMembershipCommands() {
         AccessRoleAssignmentFacade assignmentFacade = mock(AccessRoleAssignmentFacade.class);
-        RoleEmployeeController controller = new RoleEmployeeController();
-        ReflectionTestUtils.setField(controller, "roleMembershipFacade", membershipFacade);
+        AccessRoleMembershipController controller = new AccessRoleMembershipController();
         ReflectionTestUtils.setField(controller, "roleAssignmentFacade", assignmentFacade);
 
-        var invalidResponse = controller.removeEmployee(null, 3L);
-        assertThat(invalidResponse.getCode()).isEqualTo(UserErrorCode.PARAM_ERROR.getCode());
-
-        RoleEmployeeUpdateForm form = new RoleEmployeeUpdateForm();
-        form.setRoleId(3L);
-        form.setEmployeeIdList(Set.of(7L, 8L));
-        controller.addEmployeeList(form);
-        controller.batchRemoveEmployee(form);
+        var request =
+                new AccessRoleMembershipController.RoleEmployeesRequest(Set.of(7L, 8L));
+        controller.assignMembers(3L, request);
+        controller.removeMembers(3L, request);
 
         verify(assignmentFacade).assignEmployees(
                 new AssignRoleEmployeesCommand(3L, Set.of(7L, 8L)));

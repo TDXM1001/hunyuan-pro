@@ -4,9 +4,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import com.hunyuan.sa.admin.AdminApplication;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeViewType;
 import com.hunyuan.sa.admin.module.system.datascope.DataScope;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeWhereInTypeEnum;
 import com.hunyuan.sa.admin.module.system.datascope.domain.DataScopeSqlConfig;
 import com.hunyuan.sa.admin.module.system.datascope.strategy.AbstractDataScopeStrategy;
@@ -103,11 +103,12 @@ public class DataScopeSqlConfigService {
             return "";
         }
 
-        DataScopeTypeEnum dataScopeTypeEnum = sqlConfigDTO.getDataScopeType();
-        DataScopeViewTypeEnum viewTypeEnum = dataScopeViewService.getEmployeeDataScopeViewType(dataScopeTypeEnum, employeeId);
+        AccessDataScopeType dataScopeType = sqlConfigDTO.getDataScopeType();
+        AccessDataScopeViewType viewType =
+                dataScopeViewService.getEmployeeDataScopeViewType(dataScopeType, employeeId);
 
         // 数据权限设置为仅本人可见时 直接返回 create_user_id = employeeId
-        if (DataScopeViewTypeEnum.ME == viewTypeEnum) {
+        if (AccessDataScopeViewType.ME == viewType) {
             return CREATE_USER_ID_EQUALS + employeeId;
         }
 
@@ -124,10 +125,10 @@ public class DataScopeSqlConfigService {
                 log.warn("data scope custom strategy class：{} ,bean is null", sqlConfigDTO.getJoinSqlImplClazz());
                 return "";
             }
-            return powerStrategy.getCondition(viewTypeEnum, paramMap, sqlConfigDTO);
+            return powerStrategy.getCondition(viewType, paramMap, sqlConfigDTO);
         }
         if (DataScopeWhereInTypeEnum.EMPLOYEE == sqlConfigDTO.getDataScopeWhereInType()) {
-            List<Long> canViewEmployeeIds = dataScopeViewService.getCanViewEmployeeId(viewTypeEnum, employeeId);
+            List<Long> canViewEmployeeIds = dataScopeViewService.getCanViewEmployeeId(viewType, employeeId);
             if (CollectionUtils.isEmpty(canViewEmployeeIds)) {
                 return "";
             }
@@ -136,7 +137,7 @@ public class DataScopeSqlConfigService {
             return sql;
         }
         if (DataScopeWhereInTypeEnum.DEPARTMENT == sqlConfigDTO.getDataScopeWhereInType()) {
-            List<Long> canViewDepartmentIds = dataScopeViewService.getCanViewDepartmentId(viewTypeEnum, employeeId);
+            List<Long> canViewDepartmentIds = dataScopeViewService.getCanViewDepartmentId(viewType, employeeId);
             if (CollectionUtils.isEmpty(canViewDepartmentIds)) {
                 return "";
             }

@@ -3,11 +3,11 @@ package com.hunyuan.sa.admin.module.system.datascope.service;
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeFacade;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeViewType;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationProfile;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCollaborationDirectory;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
 import com.hunyuan.sa.base.common.util.SmartEnumUtil;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -40,14 +40,14 @@ public class DataScopeViewService {
     /**
      * 获取某人可以查看的所有人员数据
      */
-    public List<Long> getCanViewEmployeeId(DataScopeViewTypeEnum viewType, Long employeeId) {
-        if (DataScopeViewTypeEnum.ME == viewType) {
+    public List<Long> getCanViewEmployeeId(AccessDataScopeViewType viewType, Long employeeId) {
+        if (AccessDataScopeViewType.ME == viewType) {
             return this.getMeEmployeeIdList(employeeId);
         }
-        if (DataScopeViewTypeEnum.DEPARTMENT == viewType) {
+        if (AccessDataScopeViewType.DEPARTMENT == viewType) {
             return this.getDepartmentEmployeeIdList(employeeId);
         }
-        if (DataScopeViewTypeEnum.DEPARTMENT_AND_SUB == viewType) {
+        if (AccessDataScopeViewType.DEPARTMENT_AND_SUB == viewType) {
             return this.getDepartmentAndSubEmployeeIdList(employeeId);
         }
         // 可以查看所有员工数据
@@ -57,15 +57,15 @@ public class DataScopeViewService {
     /**
      * 获取某人可以查看的所有部门数据
      */
-    public List<Long> getCanViewDepartmentId(DataScopeViewTypeEnum viewType, Long employeeId) {
-        if (DataScopeViewTypeEnum.ME == viewType) {
+    public List<Long> getCanViewDepartmentId(AccessDataScopeViewType viewType, Long employeeId) {
+        if (AccessDataScopeViewType.ME == viewType) {
             // 数据可见范围类型为本人时 不可以查看任何部门数据
             return Lists.newArrayList(0L);
         }
-        if (DataScopeViewTypeEnum.DEPARTMENT == viewType) {
+        if (AccessDataScopeViewType.DEPARTMENT == viewType) {
             return this.getMeDepartmentIdList(employeeId);
         }
-        if (DataScopeViewTypeEnum.DEPARTMENT_AND_SUB == viewType) {
+        if (AccessDataScopeViewType.DEPARTMENT_AND_SUB == viewType) {
             return this.getDepartmentAndSubIdList(employeeId);
         }
         // 可以查看所有部门数据
@@ -85,23 +85,24 @@ public class DataScopeViewService {
     /**
      * 根据员工id 获取各数据范围最大的可见范围 map<dataScopeType,viewType></>
      */
-    public DataScopeViewTypeEnum getEmployeeDataScopeViewType(DataScopeTypeEnum dataScopeTypeEnum, Long employeeId) {
+    public AccessDataScopeViewType getEmployeeDataScopeViewType(
+            AccessDataScopeType dataScopeType, Long employeeId) {
         EmployeeCollaborationProfile employee = employeeCollaborationDirectory.findCollaborationProfileById(employeeId)
                 .orElse(null);
         if (employee == null || employee.employeeId() == null) {
-            return DataScopeViewTypeEnum.ME;
+            return AccessDataScopeViewType.ME;
         }
 
         // 如果是超级管理员 则可查看全部
         if (Boolean.TRUE.equals(employee.administrator())) {
-            return DataScopeViewTypeEnum.ALL;
+            return AccessDataScopeViewType.ALL;
         }
 
         Integer viewType = accessDataScopeFacade.resolveEmployeeViewType(
-                employeeId, dataScopeTypeEnum.getValue());
-        DataScopeViewTypeEnum resolvedViewType =
-                SmartEnumUtil.getEnumByValue(viewType, DataScopeViewTypeEnum.class);
-        return resolvedViewType == null ? DataScopeViewTypeEnum.ME : resolvedViewType;
+                employeeId, dataScopeType.getValue());
+        AccessDataScopeViewType resolvedViewType =
+                SmartEnumUtil.getEnumByValue(viewType, AccessDataScopeViewType.class);
+        return resolvedViewType == null ? AccessDataScopeViewType.ME : resolvedViewType;
     }
 
     /**

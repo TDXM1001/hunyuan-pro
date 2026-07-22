@@ -2,11 +2,9 @@ package com.hunyuan.sa.admin.module.system.role.service;
 
 import com.hunyuan.sa.admin.module.access.authorization.api.AccessMenuItem;
 import com.hunyuan.sa.admin.module.access.capability.api.AccessCapabilityQueryFacade;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenu;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenuQueryFacade;
 import com.hunyuan.sa.admin.module.organization.OrganizationModuleAvailability;
-import com.hunyuan.sa.admin.module.system.menu.dao.MenuDao;
-import com.hunyuan.sa.admin.module.system.menu.domain.entity.MenuEntity;
-import com.hunyuan.sa.admin.module.system.role.dao.RoleMenuDao;
-import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import jakarta.annotation.Resource;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
@@ -23,10 +21,7 @@ public class AccessCapabilityQueryFacadeAdapter implements AccessCapabilityQuery
     private static final String ORGANIZATION_CAPABILITY_PREFIX = "organization.department.";
 
     @Resource
-    private RoleMenuDao roleMenuDao;
-
-    @Resource
-    private MenuDao menuDao;
+    private AccessMenuQueryFacade accessMenuQueryFacade;
 
     @Resource
     private OrganizationModuleAvailability organizationModuleAvailability;
@@ -36,16 +31,16 @@ public class AccessCapabilityQueryFacadeAdapter implements AccessCapabilityQuery
             List<Long> roleIds,
             Boolean administratorFlag) {
         if (administratorFlag) {
-            return filterDisabledModules(
-                    SmartBeanUtil.copyList(
-                            menuDao.queryMenuList(Boolean.FALSE, Boolean.FALSE, null),
-                            AccessMenuItem.class));
+            return filterDisabledModules(accessMenuQueryFacade.listEnabledMenus().stream()
+                    .map(this::toAccessMenuItem)
+                    .toList());
         }
         if (CollectionUtils.isEmpty(roleIds)) {
             return List.of();
         }
-        List<MenuEntity> menus = roleMenuDao.selectMenuListByRoleIdList(roleIds, Boolean.FALSE);
-        return filterDisabledModules(SmartBeanUtil.copyList(menus, AccessMenuItem.class));
+        return filterDisabledModules(accessMenuQueryFacade.listAuthorizedMenusByRoleIds(roleIds).stream()
+                .map(this::toAccessMenuItem)
+                .toList());
     }
 
     private List<AccessMenuItem> filterDisabledModules(List<AccessMenuItem> items) {
@@ -57,5 +52,31 @@ public class AccessCapabilityQueryFacadeAdapter implements AccessCapabilityQuery
                         && (item.getApiPerms() == null
                         || !item.getApiPerms().startsWith(ORGANIZATION_CAPABILITY_PREFIX)))
                 .toList();
+    }
+
+    private AccessMenuItem toAccessMenuItem(AccessMenu menu) {
+        AccessMenuItem item = new AccessMenuItem();
+        item.setMenuId(menu.menuId());
+        item.setMenuName(menu.menuName());
+        item.setMenuType(menu.menuType());
+        item.setParentId(menu.parentId());
+        item.setSort(menu.sort());
+        item.setPath(menu.path());
+        item.setComponent(menu.component());
+        item.setFrameFlag(menu.frameFlag());
+        item.setFrameUrl(menu.frameUrl());
+        item.setCacheFlag(menu.cacheFlag());
+        item.setVisibleFlag(menu.visibleFlag());
+        item.setDisabledFlag(menu.disabledFlag());
+        item.setPermsType(menu.permsType());
+        item.setWebPerms(menu.webPerms());
+        item.setApiPerms(menu.apiPerms());
+        item.setIcon(menu.icon());
+        item.setContextMenuId(menu.contextMenuId());
+        item.setCreateTime(menu.createTime());
+        item.setCreateUserId(menu.createUserId());
+        item.setUpdateTime(menu.updateTime());
+        item.setUpdateUserId(menu.updateUserId());
+        return item;
     }
 }

@@ -2,8 +2,8 @@ package com.hunyuan.sa.admin.module.system.datascope.service;
 
 import com.hunyuan.sa.admin.module.access.datascope.api.AccessDepartmentScope;
 import com.hunyuan.sa.admin.module.access.datascope.api.AccessDepartmentScopeFacade;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeViewType;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -20,8 +20,8 @@ public class AccessDepartmentScopeFacadeAdapter implements AccessDepartmentScope
 
     @Override
     public AccessDepartmentScope resolveOrganizationDirectoryScope(Long employeeId) {
-        DataScopeViewTypeEnum viewType = dataScopeViewService.getEmployeeDataScopeViewType(
-                DataScopeTypeEnum.ORGANIZATION_DIRECTORY, employeeId);
+        AccessDataScopeViewType viewType = dataScopeViewService.getEmployeeDataScopeViewType(
+                AccessDataScopeType.ORGANIZATION_DIRECTORY, employeeId);
         List<Long> departmentIds = dataScopeViewService.getCanViewDepartmentId(viewType, employeeId);
 
         // 旧服务用空列表表示不限制部门，公共接口在此转换为显式语义。

@@ -1,8 +1,8 @@
 package com.hunyuan.sa.admin.module.system.datascope.service;
 
 import com.hunyuan.sa.admin.module.access.datascope.api.AccessDepartmentScope;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeViewType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,9 +32,9 @@ class AccessDepartmentScopeFacadeAdapterTest {
     @Test
     void emptyLegacyDepartmentListBecomesUnrestrictedScope() {
         when(dataScopeViewService.getEmployeeDataScopeViewType(
-                DataScopeTypeEnum.ORGANIZATION_DIRECTORY, 7L))
-                .thenReturn(DataScopeViewTypeEnum.ALL);
-        when(dataScopeViewService.getCanViewDepartmentId(DataScopeViewTypeEnum.ALL, 7L))
+                AccessDataScopeType.ORGANIZATION_DIRECTORY, 7L))
+                .thenReturn(AccessDataScopeViewType.ALL);
+        when(dataScopeViewService.getCanViewDepartmentId(AccessDataScopeViewType.ALL, 7L))
                 .thenReturn(List.of());
 
         assertThat(adapter.resolveOrganizationDirectoryScope(7L))
@@ -44,9 +44,9 @@ class AccessDepartmentScopeFacadeAdapterTest {
     @Test
     void configuredDepartmentListBecomesRestrictedScope() {
         when(dataScopeViewService.getEmployeeDataScopeViewType(
-                DataScopeTypeEnum.ORGANIZATION_DIRECTORY, 7L))
-                .thenReturn(DataScopeViewTypeEnum.DEPARTMENT_AND_SUB);
-        when(dataScopeViewService.getCanViewDepartmentId(DataScopeViewTypeEnum.DEPARTMENT_AND_SUB, 7L))
+                AccessDataScopeType.ORGANIZATION_DIRECTORY, 7L))
+                .thenReturn(AccessDataScopeViewType.DEPARTMENT_AND_SUB);
+        when(dataScopeViewService.getCanViewDepartmentId(AccessDataScopeViewType.DEPARTMENT_AND_SUB, 7L))
                 .thenReturn(List.of(20L, 21L));
 
         assertThat(adapter.resolveOrganizationDirectoryScope(7L))

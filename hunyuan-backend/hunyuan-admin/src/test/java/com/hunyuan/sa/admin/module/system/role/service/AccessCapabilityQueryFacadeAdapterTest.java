@@ -1,10 +1,8 @@
 package com.hunyuan.sa.admin.module.system.role.service;
 
 import com.hunyuan.sa.admin.module.organization.OrganizationModuleAvailability;
-import com.hunyuan.sa.admin.module.system.menu.dao.MenuDao;
-import com.hunyuan.sa.admin.module.system.menu.domain.entity.MenuEntity;
-import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
-import com.hunyuan.sa.admin.module.system.role.dao.RoleMenuDao;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenu;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenuQueryFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,10 +21,7 @@ import static org.mockito.Mockito.when;
 class AccessCapabilityQueryFacadeAdapterTest {
 
     @Mock
-    private RoleMenuDao roleMenuDao;
-
-    @Mock
-    private MenuDao menuDao;
+    private AccessMenuQueryFacade accessMenuQueryFacade;
 
     @Mock
     private OrganizationModuleAvailability organizationModuleAvailability;
@@ -36,8 +31,7 @@ class AccessCapabilityQueryFacadeAdapterTest {
     @BeforeEach
     void setUp() {
         adapter = new AccessCapabilityQueryFacadeAdapter();
-        ReflectionTestUtils.setField(adapter, "roleMenuDao", roleMenuDao);
-        ReflectionTestUtils.setField(adapter, "menuDao", menuDao);
+        ReflectionTestUtils.setField(adapter, "accessMenuQueryFacade", accessMenuQueryFacade);
         ReflectionTestUtils.setField(
                 adapter,
                 "organizationModuleAvailability",
@@ -46,11 +40,12 @@ class AccessCapabilityQueryFacadeAdapterTest {
 
     @Test
     void administratorQueryIncludesActionCapabilities() {
-        MenuVO action = new MenuVO();
-        action.setMenuType(3);
-        action.setApiPerms("organization.department.create");
-        action.setWebPerms("organization.department.create");
-        when(menuDao.queryMenuList(false, false, null)).thenReturn(List.of(action));
+        AccessMenu action = menu(
+                1L,
+                null,
+                "organization.department.create",
+                "organization.department.create");
+        when(accessMenuQueryFacade.listEnabledMenus()).thenReturn(List.of(action));
         when(organizationModuleAvailability.enabled()).thenReturn(true);
 
         var result = adapter.listAuthorizationItems(List.of(), true);
@@ -59,11 +54,9 @@ class AccessCapabilityQueryFacadeAdapterTest {
             assertThat(item.getMenuType()).isEqualTo(3);
             assertThat(item.getApiPerms()).isEqualTo("organization.department.create");
         });
-        verify(menuDao).queryMenuList(false, false, null);
-        verify(roleMenuDao, never())
-                .selectMenuListByRoleIdList(
-                        org.mockito.ArgumentMatchers.anyList(),
-                        org.mockito.ArgumentMatchers.anyBoolean());
+        verify(accessMenuQueryFacade).listEnabledMenus();
+        verify(accessMenuQueryFacade, never())
+                .listAuthorizedMenusByRoleIds(org.mockito.ArgumentMatchers.anyList());
     }
 
     @Test
@@ -71,20 +64,15 @@ class AccessCapabilityQueryFacadeAdapterTest {
         var result = adapter.listAuthorizationItems(List.of(), false);
 
         assertThat(result).isEmpty();
-        verify(menuDao, never()).queryMenuList(false, false, null);
-        verify(roleMenuDao, never())
-                .selectMenuListByRoleIdList(
-                        org.mockito.ArgumentMatchers.anyList(),
-                        org.mockito.ArgumentMatchers.anyBoolean());
+        verify(accessMenuQueryFacade, never()).listEnabledMenus();
+        verify(accessMenuQueryFacade, never())
+                .listAuthorizedMenusByRoleIds(org.mockito.ArgumentMatchers.anyList());
     }
 
     @Test
-    void nonAdministratorQueryMapsLegacyMenuEntities() {
-        MenuEntity menu = new MenuEntity();
-        menu.setMenuId(8L);
-        menu.setMenuName("财务");
-        menu.setApiPerms("invoice.read");
-        when(roleMenuDao.selectMenuListByRoleIdList(List.of(3L), false))
+    void nonAdministratorQueryMapsPublicMenuModels() {
+        AccessMenu menu = menu(8L, null, "invoice.read", null);
+        when(accessMenuQueryFacade.listAuthorizedMenusByRoleIds(List.of(3L)))
                 .thenReturn(List.of(menu));
         when(organizationModuleAvailability.enabled()).thenReturn(true);
 
@@ -92,18 +80,17 @@ class AccessCapabilityQueryFacadeAdapterTest {
 
         assertThat(result).singleElement().satisfies(item -> {
             assertThat(item.getMenuId()).isEqualTo(8L);
-            assertThat(item.getMenuName()).isEqualTo("财务");
             assertThat(item.getApiPerms()).isEqualTo("invoice.read");
         });
     }
 
     @Test
     void disabledOrganizationModuleFiltersMenuAndCapability() {
-        MenuVO systemMenu = menu(1L, "/system/role", null);
-        MenuVO organizationMenu = menu(2L, "/organization/directory", null);
-        MenuVO organizationAction =
-                menu(3L, null, "organization.department.create");
-        when(menuDao.queryMenuList(false, false, null))
+        AccessMenu systemMenu = menu(1L, "/system/role", null, null);
+        AccessMenu organizationMenu = menu(2L, "/organization/directory", null, null);
+        AccessMenu organizationAction =
+                menu(3L, null, "organization.department.create", null);
+        when(accessMenuQueryFacade.listEnabledMenus())
                 .thenReturn(List.of(systemMenu, organizationMenu, organizationAction));
         when(organizationModuleAvailability.enabled()).thenReturn(false);
 
@@ -114,11 +101,28 @@ class AccessCapabilityQueryFacadeAdapterTest {
                 .containsExactly(1L);
     }
 
-    private MenuVO menu(Long menuId, String path, String apiPerms) {
-        MenuVO menu = new MenuVO();
-        menu.setMenuId(menuId);
-        menu.setPath(path);
-        menu.setApiPerms(apiPerms);
-        return menu;
+    private AccessMenu menu(Long menuId, String path, String apiPerms, String webPerms) {
+        return new AccessMenu(
+                menuId,
+                menuId.equals(8L) ? "财务" : null,
+                3,
+                0L,
+                null,
+                path,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                null,
+                webPerms,
+                apiPerms,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 }

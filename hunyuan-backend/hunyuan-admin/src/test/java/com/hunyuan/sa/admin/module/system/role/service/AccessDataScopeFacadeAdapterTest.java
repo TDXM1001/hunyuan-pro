@@ -1,7 +1,7 @@
 package com.hunyuan.sa.admin.module.system.role.service;
 
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeTypeEnum;
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeType;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeViewType;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDataScopeDao;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleEmployeeDao;
 import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleDataScopeEntity;
@@ -41,8 +41,8 @@ class AccessDataScopeFacadeAdapterTest {
     void missingRolesFallBackToPersonalView() {
         when(roleEmployeeDao.selectRoleIdByEmployeeId(7L)).thenReturn(List.of());
 
-        assertThat(adapter.resolveEmployeeViewType(7L, DataScopeTypeEnum.NOTICE.getValue()))
-                .isEqualTo(DataScopeViewTypeEnum.ME.getValue());
+        assertThat(adapter.resolveEmployeeViewType(7L, AccessDataScopeType.NOTICE.getValue()))
+                .isEqualTo(AccessDataScopeViewType.ME.getValue());
         verify(roleDataScopeDao, never()).listByRoleIdList(List.of());
     }
 
@@ -51,15 +51,15 @@ class AccessDataScopeFacadeAdapterTest {
         when(roleEmployeeDao.selectRoleIdByEmployeeId(7L)).thenReturn(List.of(3L, 4L));
         when(roleDataScopeDao.listByRoleIdList(List.of(3L, 4L)))
                 .thenReturn(List.of(
-                        dataScope(3L, DataScopeTypeEnum.NOTICE.getValue(),
-                                DataScopeViewTypeEnum.DEPARTMENT.getValue()),
-                        dataScope(4L, DataScopeTypeEnum.NOTICE.getValue(),
-                                DataScopeViewTypeEnum.DEPARTMENT_AND_SUB.getValue()),
-                        dataScope(4L, DataScopeTypeEnum.ORGANIZATION_DIRECTORY.getValue(),
-                                DataScopeViewTypeEnum.ALL.getValue())));
+                        dataScope(3L, AccessDataScopeType.NOTICE.getValue(),
+                                AccessDataScopeViewType.DEPARTMENT.getValue()),
+                        dataScope(4L, AccessDataScopeType.NOTICE.getValue(),
+                                AccessDataScopeViewType.DEPARTMENT_AND_SUB.getValue()),
+                        dataScope(4L, AccessDataScopeType.ORGANIZATION_DIRECTORY.getValue(),
+                                AccessDataScopeViewType.ALL.getValue())));
 
-        assertThat(adapter.resolveEmployeeViewType(7L, DataScopeTypeEnum.NOTICE.getValue()))
-                .isEqualTo(DataScopeViewTypeEnum.DEPARTMENT_AND_SUB.getValue());
+        assertThat(adapter.resolveEmployeeViewType(7L, AccessDataScopeType.NOTICE.getValue()))
+                .isEqualTo(AccessDataScopeViewType.DEPARTMENT_AND_SUB.getValue());
     }
 
     @Test
@@ -67,8 +67,8 @@ class AccessDataScopeFacadeAdapterTest {
         when(roleEmployeeDao.selectRoleIdByEmployeeId(7L)).thenReturn(List.of(3L));
         when(roleDataScopeDao.listByRoleIdList(List.of(3L))).thenReturn(List.of());
 
-        assertThat(adapter.resolveEmployeeViewType(7L, DataScopeTypeEnum.NOTICE.getValue()))
-                .isEqualTo(DataScopeViewTypeEnum.ME.getValue());
+        assertThat(adapter.resolveEmployeeViewType(7L, AccessDataScopeType.NOTICE.getValue()))
+                .isEqualTo(AccessDataScopeViewType.ME.getValue());
     }
 
     private RoleDataScopeEntity dataScope(Long roleId, Integer dataScopeType, Integer viewType) {

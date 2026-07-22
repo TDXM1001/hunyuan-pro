@@ -12,13 +12,15 @@ class RoleEmployeeCandidateSqlTest {
 
     @Test
     void roleEmployeeCandidateQueryExcludesEmployeesAlreadyInRole() throws IOException {
-        String controllerSource = Files.readString(Path.of("src/main/java/com/hunyuan/sa/admin/module/system/role/controller/RoleEmployeeController.java"));
+        String controllerSource = Files.readString(Path.of(
+                "src/main/java/com/hunyuan/sa/admin/module/access/role/api/"
+                        + "AccessRoleMembershipController.java"));
         String adapterSource = Files.readString(Path.of(
                 "src/main/java/com/hunyuan/sa/admin/module/system/role/service/"
                         + "AccessRoleMembershipFacadeAdapter.java"));
         String mapperSource = Files.readString(Path.of("src/main/resources/mapper/system/role/RoleEmployeeMapper.xml"));
 
-        assertThat(controllerSource).contains("queryCandidateEmployee");
+        assertThat(controllerSource).contains("queryCandidates");
         assertThat(adapterSource).contains("queryCandidates");
         assertThat(mapperSource).contains("selectCandidateEmployeeByName");
         assertThat(mapperSource).contains("NOT EXISTS");

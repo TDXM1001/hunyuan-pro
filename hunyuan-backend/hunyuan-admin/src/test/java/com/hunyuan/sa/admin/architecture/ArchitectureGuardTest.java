@@ -95,18 +95,6 @@ class ArchitectureGuardTest {
                     "com.hunyuan.sa.admin.module.system.datascope..");
 
     @ArchTest
-    static final ArchRule ROLE_CONTROLLER_MUST_USE_ACCESS_ROLE_LIFECYCLE_API = noClasses()
-            .that().haveSimpleName("RoleController")
-            .should().dependOnClassesThat().resideInAPackage(
-                    "com.hunyuan.sa.admin.module.system.role.service..");
-
-    @ArchTest
-    static final ArchRule ROLE_MENU_CONTROLLER_MUST_USE_ACCESS_CAPABILITY_API = noClasses()
-            .that().haveSimpleName("RoleMenuController")
-            .should().dependOnClassesThat().resideInAPackage(
-                    "com.hunyuan.sa.admin.module.system.role.service..");
-
-    @ArchTest
     static final ArchRule ACCESS_AUTHORIZATION_ADAPTER_MUST_USE_ACCESS_CAPABILITY_QUERY_API =
             noClasses()
                     .that().haveSimpleName("AccessAuthorizationFacadeAdapter")
@@ -115,21 +103,29 @@ class ArchitectureGuardTest {
                             "com.hunyuan.sa.admin.module.system.role.dao..");
 
     @ArchTest
-    static final ArchRule MENU_CONTROLLER_MUST_USE_ACCESS_MENU_API = noClasses()
-            .that().haveSimpleName("MenuController")
-            .should().dependOnClassesThat().resideInAPackage(
-                    "com.hunyuan.sa.admin.module.system.menu.service..");
-
-    @ArchTest
-    static final ArchRule ROLE_EMPLOYEE_CONTROLLER_MUST_USE_ACCESS_ROLE_API = noClasses()
-            .that().haveSimpleName("RoleEmployeeController")
-            .should().dependOnClassesThat().resideInAPackage(
-                    "com.hunyuan.sa.admin.module.system.role.service..");
-
-    @ArchTest
     static final ArchRule ACCESS_AUTHORIZATION_ADAPTER_MUST_USE_ROLE_MEMBERSHIP_API = noClasses()
             .that().haveSimpleName("AccessAuthorizationFacadeAdapter")
             .should().dependOnClassesThat().haveSimpleName("RoleEmployeeService");
+
+    @ArchTest
+    static final ArchRule ROLE_CAPABILITY_ADAPTERS_MUST_USE_ACCESS_MENU_QUERY_API = noClasses()
+            .that().haveSimpleNameEndingWith("CapabilityQueryFacadeAdapter")
+            .or().haveSimpleNameEndingWith("CapabilityGrantFacadeAdapter")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.system.menu.dao..",
+                    "com.hunyuan.sa.admin.module.system.menu.domain..");
+
+    @ArchTest
+    static final ArchRule ROLE_MUST_NOT_DEPEND_ON_MENU_OWNER = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.role..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.menu..");
+
+    @ArchTest
+    static final ArchRule ROLE_MUST_NOT_DEPEND_ON_DATA_SCOPE_OWNER = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.role..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.datascope..");
 
     private static ArchCondition<JavaClass> notAccessAnotherModulePersistenceInternals() {
         return new ArchCondition<>("not access another admin module's DAO, Mapper, or Entity") {

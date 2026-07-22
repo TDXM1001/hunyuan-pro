@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hunyuan.sa.admin.module.access.role.api.AccessRoleMemberQuery;
 import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleEmployeeEntity;
 import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeSummaryRow;
-import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeVO;
 import com.hunyuan.sa.admin.module.system.role.domain.vo.RoleVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -41,11 +40,6 @@ public interface RoleEmployeeDao extends BaseMapper<RoleEmployeeEntity> {
      * 根据员工id 查询所有的角色
      */
     List<RoleEmployeeEntity> selectRoleIdByEmployeeIdList(@Param("employeeIdList") List<Long> employeeIdList);
-
-    /**
-     * 根据员工id 查询所有的角色
-     */
-    List<RoleEmployeeVO> selectRoleByEmployeeIdList(@Param("employeeIdList") List<Long> employeeIdList);
 
     /**
      * 查询角色下的人员id

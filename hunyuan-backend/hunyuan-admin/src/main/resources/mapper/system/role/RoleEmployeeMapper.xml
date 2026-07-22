@@ -131,25 +131,6 @@
         </foreach>
     </select>
 
-    <select id="selectRoleByEmployeeIdList"
-            resultType="com.hunyuan.sa.admin.module.system.role.domain.vo.RoleEmployeeVO">
-        SELECT
-        t_role_employee.role_id,
-        t_role_employee.employee_id,
-        t_role.role_name
-        FROM
-        t_role_employee
-        LEFT JOIN t_role  ON t_role.role_id = t_role_employee.role_id
-        WHERE
-        employee_id in
-        <foreach collection="employeeIdList" item="item" open="(" close=")" separator=",">
-            #{item}
-        </foreach>
-    </select>
-
-
-
-
     <delete id="deleteByEmployeeId">
         DELETE
         FROM t_role_employee

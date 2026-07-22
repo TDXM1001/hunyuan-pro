@@ -7,9 +7,9 @@ import com.hunyuan.sa.admin.module.access.capability.api.AccessCapabilityGrantRe
 import com.hunyuan.sa.admin.module.access.capability.api.AccessCapabilityNode;
 import com.hunyuan.sa.admin.module.access.capability.api.AccessRoleCapabilityGrant;
 import com.hunyuan.sa.admin.module.access.capability.api.ReplaceRoleCapabilitiesCommand;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenu;
+import com.hunyuan.sa.admin.module.access.menu.api.AccessMenuQueryFacade;
 import com.hunyuan.sa.admin.module.organization.OrganizationModuleAvailability;
-import com.hunyuan.sa.admin.module.system.menu.dao.MenuDao;
-import com.hunyuan.sa.admin.module.system.menu.domain.vo.MenuVO;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleDao;
 import com.hunyuan.sa.admin.module.system.role.dao.RoleMenuDao;
 import com.hunyuan.sa.admin.module.system.role.domain.entity.RoleMenuEntity;
@@ -42,7 +42,7 @@ public class AccessCapabilityGrantFacadeAdapter implements AccessCapabilityGrant
     private RoleMenuManager roleMenuManager;
 
     @Resource
-    private MenuDao menuDao;
+    private AccessMenuQueryFacade accessMenuQueryFacade;
 
     @Resource
     private OrganizationModuleAvailability organizationModuleAvailability;
@@ -64,10 +64,10 @@ public class AccessCapabilityGrantFacadeAdapter implements AccessCapabilityGrant
     @Override
     public AccessRoleCapabilityGrant getRoleCapabilities(Long roleId) {
         List<Long> selectedCapabilityIds = roleMenuDao.queryMenuIdByRoleId(roleId);
-        List<MenuVO> capabilities = filterDisabledModules(
-                menuDao.queryMenuList(Boolean.FALSE, Boolean.FALSE, null));
-        Map<Long, List<MenuVO>> parentMap = capabilities.stream()
-                .collect(Collectors.groupingBy(MenuVO::getParentId));
+        List<AccessMenu> capabilities = filterDisabledModules(
+                accessMenuQueryFacade.listEnabledMenus());
+        Map<Long, List<AccessMenu>> parentMap = capabilities.stream()
+                .collect(Collectors.groupingBy(AccessMenu::parentId));
         return new AccessRoleCapabilityGrant(
                 roleId,
                 selectedCapabilityIds,
@@ -82,27 +82,27 @@ public class AccessCapabilityGrantFacadeAdapter implements AccessCapabilityGrant
     }
 
     private List<AccessCapabilityNode> buildCapabilityTree(
-            Map<Long, List<MenuVO>> parentMap,
+            Map<Long, List<AccessMenu>> parentMap,
             Long parentId) {
         return parentMap.getOrDefault(parentId, Lists.newArrayList()).stream()
                 .map(capability -> new AccessCapabilityNode(
-                        capability.getMenuId(),
-                        capability.getMenuName(),
-                        capability.getContextMenuId(),
-                        capability.getParentId(),
-                        capability.getMenuType(),
-                        buildCapabilityTree(parentMap, capability.getMenuId())))
+                        capability.menuId(),
+                        capability.menuName(),
+                        capability.contextMenuId(),
+                        capability.parentId(),
+                        capability.menuType(),
+                        buildCapabilityTree(parentMap, capability.menuId())))
                 .toList();
     }
 
-    private List<MenuVO> filterDisabledModules(List<MenuVO> capabilities) {
+    private List<AccessMenu> filterDisabledModules(List<AccessMenu> capabilities) {
         if (organizationModuleAvailability.enabled()) {
             return capabilities;
         }
         return capabilities.stream()
                 .filter(capability -> {
-                    String path = capability.getPath();
-                    String apiPerms = capability.getApiPerms();
+                    String path = capability.path();
+                    String apiPerms = capability.apiPerms();
                     return !ORGANIZATION_PATH.equals(path)
                             && (apiPerms == null
                             || !apiPerms.startsWith(ORGANIZATION_CAPABILITY_PREFIX));

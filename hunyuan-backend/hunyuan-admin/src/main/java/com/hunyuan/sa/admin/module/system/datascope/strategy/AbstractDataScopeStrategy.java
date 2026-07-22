@@ -1,6 +1,6 @@
 package com.hunyuan.sa.admin.module.system.datascope.strategy;
 
-import com.hunyuan.sa.admin.module.system.datascope.constant.DataScopeViewTypeEnum;
+import com.hunyuan.sa.admin.module.access.datascope.api.AccessDataScopeViewType;
 import com.hunyuan.sa.admin.module.system.datascope.domain.DataScopeSqlConfig;
 
 import java.util.Map;
@@ -19,5 +19,6 @@ public abstract class AbstractDataScopeStrategy {
     /**
      * 获取joinsql 字符串
      */
-    public abstract String getCondition(DataScopeViewTypeEnum viewTypeEnum, Map<String, Object> paramMap, DataScopeSqlConfig sqlConfigDTO);
+    public abstract String getCondition(
+            AccessDataScopeViewType viewType, Map<String, Object> paramMap, DataScopeSqlConfig sqlConfig);
 }
