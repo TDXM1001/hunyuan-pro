@@ -1,46 +1,11 @@
 import { requestClient } from '#/api/request';
 
-export interface PageResult<T> {
-  emptyFlag?: boolean;
-  list: T[];
-  pageNum: number;
-  pageSize: number;
-  pages: number;
-  total: number;
-}
-
-export interface EmployeeRecord {
-  actualName: string;
-  administratorFlag?: boolean;
-  avatar?: null | string;
-  createTime?: null | string;
-  departmentId?: null | number;
-  departmentName?: null | string;
-  disabledFlag?: boolean;
-  email?: null | string;
-  employeeId: number;
-  gender?: null | number;
-  loginName: string;
-  phone?: null | string;
-  positionId?: null | number;
-  positionName?: null | string;
-  roleIdList?: number[];
-  roleNameList?: string[];
-}
-
 export interface PositionRecord {
   positionId: number;
   positionLevel?: null | string;
   positionName: string;
   remark?: null | string;
   sort?: null | number;
-}
-
-export interface RoleRecord {
-  remark?: null | string;
-  roleCode?: null | string;
-  roleId: number;
-  roleName: string;
 }
 
 export interface PositionPageQueryParams {
@@ -60,78 +25,8 @@ export interface PositionUpdateForm extends PositionAddForm {
   positionId: number;
 }
 
-export interface RoleAddForm {
-  remark?: null | string;
-  roleCode: string;
-  roleName: string;
-}
-
-export interface RoleUpdateForm extends RoleAddForm {
-  roleId: number;
-}
-
-export interface MenuSimpleTreeRecord {
-  children?: MenuSimpleTreeRecord[];
-  contextMenuId?: null | number;
-  menuId: number;
-  menuName: string;
-  menuType: number;
-  parentId: number;
-}
-
-export interface RoleMenuTreeRecord {
-  menuTreeList: MenuSimpleTreeRecord[];
-  roleId: number;
-  selectedMenuId: number[];
-}
-
-export interface RoleMenuUpdateForm {
-  menuIdList: number[];
-  roleId: number;
-}
-
-export interface DataScopeViewTypeRecord {
-  viewType: number;
-  viewTypeLevel: number;
-  viewTypeName: string;
-}
-
-export interface DataScopeRecord {
-  dataScopeType: number;
-  dataScopeTypeDesc: string;
-  dataScopeTypeName: string;
-  dataScopeTypeSort: number;
-  viewTypeList: DataScopeViewTypeRecord[];
-}
-
-export interface RoleDataScopeRecord {
-  dataScopeType: number;
-  viewType: number;
-}
-
-export interface RoleDataScopeUpdateForm {
-  dataScopeItemList: RoleDataScopeRecord[];
-  roleId: number;
-}
-
-export interface RoleEmployeeQueryParams {
-  keywords?: string;
-  pageNum: number;
-  pageSize: number;
-  roleId: number;
-}
-
-export interface RoleEmployeeUpdateForm {
-  employeeIdList: number[];
-  roleId: number;
-}
-
 export async function listPositions() {
   return requestClient.get<PositionRecord[]>('/position/queryList');
-}
-
-export async function listRoles() {
-  return requestClient.get<RoleRecord[]>('/role/getAll');
 }
 
 export function buildPositionMutationPayload<
@@ -145,58 +40,15 @@ export function buildPositionMutationPayload<
   };
 }
 
-export function buildRoleMutationPayload<
-  T extends RoleAddForm | RoleUpdateForm,
->(params: T): T {
-  return {
-    ...params,
-    remark: params.remark?.trim() || '',
-    roleCode: params.roleCode.trim(),
-    roleName: params.roleName.trim(),
-  };
-}
-
-export function buildRoleMenuPayload(
-  params: RoleMenuUpdateForm,
-): RoleMenuUpdateForm {
-  return {
-    menuIdList: [...params.menuIdList],
-    roleId: params.roleId,
-  };
-}
-
-export function buildRoleDataScopePayload(
-  params: RoleDataScopeUpdateForm,
-): RoleDataScopeUpdateForm {
-  return {
-    dataScopeItemList: params.dataScopeItemList.map((item) => ({
-      dataScopeType: item.dataScopeType,
-      viewType: item.viewType,
-    })),
-    roleId: params.roleId,
-  };
-}
-
-export function buildRoleEmployeePayload(
-  params: RoleEmployeeUpdateForm,
-): RoleEmployeeUpdateForm {
-  return {
-    employeeIdList: [...new Set(params.employeeIdList)],
-    roleId: params.roleId,
-  };
-}
-
-export function buildRoleEmployeeQueryPayload(params: RoleEmployeeQueryParams) {
-  return {
-    keywords: params.keywords?.trim() || undefined,
-    pageNum: params.pageNum,
-    pageSize: params.pageSize,
-    roleId: String(params.roleId),
-  };
-}
-
 export async function queryPositionPage(params: PositionPageQueryParams) {
-  return requestClient.post<PageResult<PositionRecord>>('/position/queryPage', {
+  return requestClient.post<{
+    emptyFlag?: boolean;
+    list: PositionRecord[];
+    pageNum: number;
+    pages: number;
+    pageSize: number;
+    total: number;
+  }>('/position/queryPage', {
     keywords: params.keywords?.trim() || undefined,
     pageNum: params.pageNum,
     pageSize: params.pageSize,
@@ -223,102 +75,4 @@ export async function deletePosition(positionId: number) {
 
 export async function batchDeletePositions(positionIds: number[]) {
   return requestClient.post<string>('/position/batchDelete', positionIds);
-}
-
-export async function addRole(params: RoleAddForm) {
-  return requestClient.post<string>('/role/add', buildRoleMutationPayload(params));
-}
-
-export async function updateRole(params: RoleUpdateForm) {
-  return requestClient.post<string>(
-    '/role/update',
-    buildRoleMutationPayload(params),
-  );
-}
-
-export async function deleteRole(roleId: number) {
-  return requestClient.get<string>(`/role/delete/${roleId}`);
-}
-
-export async function getRole(roleId: number) {
-  return requestClient.get<RoleRecord>(`/role/get/${roleId}`);
-}
-
-export async function getRoleSelectedMenu(roleId: number) {
-  return requestClient.get<RoleMenuTreeRecord>(
-    `/role/menu/getRoleSelectedMenu/${roleId}`,
-  );
-}
-
-export async function updateRoleMenu(params: RoleMenuUpdateForm) {
-  return requestClient.post<string>(
-    '/role/menu/updateRoleMenu',
-    buildRoleMenuPayload(params),
-  );
-}
-
-export async function listDataScopes() {
-  return requestClient.get<DataScopeRecord[]>('/dataScope/list');
-}
-
-export async function getRoleDataScopeList(roleId: number) {
-  return requestClient.get<RoleDataScopeRecord[]>(
-    `/role/dataScope/getRoleDataScopeList/${roleId}`,
-  );
-}
-
-export async function updateRoleDataScopeList(
-  params: RoleDataScopeUpdateForm,
-) {
-  return requestClient.post<string>(
-    '/role/dataScope/updateRoleDataScopeList',
-    buildRoleDataScopePayload(params),
-  );
-}
-
-export async function queryRoleEmployees(params: RoleEmployeeQueryParams) {
-  return requestClient.post<PageResult<EmployeeRecord>>(
-    '/role/employee/queryEmployee',
-    buildRoleEmployeeQueryPayload(params),
-  );
-}
-
-export async function queryCandidateRoleEmployees(
-  params: RoleEmployeeQueryParams,
-) {
-  return requestClient.post<PageResult<EmployeeRecord>>(
-    '/role/employee/queryCandidateEmployee',
-    buildRoleEmployeeQueryPayload(params),
-  );
-}
-
-export async function listAllEmployeesByRoleId(roleId: number) {
-  return requestClient.get<EmployeeRecord[]>(
-    `/role/employee/getAllEmployeeByRoleId/${roleId}`,
-  );
-}
-
-export async function removeRoleEmployee(params: {
-  employeeId: number;
-  roleId: number;
-}) {
-  return requestClient.get<string>(
-    `/role/employee/removeEmployee?employeeId=${params.employeeId}&roleId=${params.roleId}`,
-  );
-}
-
-export async function batchRemoveRoleEmployees(
-  params: RoleEmployeeUpdateForm,
-) {
-  return requestClient.post<string>(
-    '/role/employee/batchRemoveRoleEmployee',
-    buildRoleEmployeePayload(params),
-  );
-}
-
-export async function batchAddRoleEmployees(params: RoleEmployeeUpdateForm) {
-  return requestClient.post<string>(
-    '/role/employee/batchAddRoleEmployee',
-    buildRoleEmployeePayload(params),
-  );
 }

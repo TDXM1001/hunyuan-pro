@@ -1,0 +1,29 @@
+{
+  "name": "@hunyuan/feature-access",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./menu-page": {
+      "types": "./src/menu/index.vue",
+      "default": "./src/menu/index.vue"
+    },
+    "./role-page": {
+      "types": "./src/role/index.vue",
+      "default": "./src/role/index.vue"
+    }
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@vben/access": "workspace:*",
+    "@vben/art-hooks": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "@vben/request": "workspace:*",
+    "element-plus": "catalog:",
+    "vue": "catalog:"
+  }
+}

@@ -11,6 +11,10 @@ export default defineConfig(async () => {
           format: 'esm',
         }),
       ],
+      resolve: {
+        // 工作区源包统一复用同一份 Vue 与 Element Plus，避免开发态出现多个运行时实例。
+        dedupe: ['vue', 'element-plus'],
+      },
       server: {
         proxy: {
           '/api/admin/v1': {
