@@ -33,6 +33,8 @@
 | [11-a2-organization-directory-vertical-slice.md](11-a2-organization-directory-vertical-slice.md) | A2 组织目录首个垂直切片的业务契约与验收边界 |
 | [12-local-database-inventory-and-usage.md](12-local-database-inventory-and-usage.md) | 本机开发库、隔离测试库、迁移样本与历史备份的用途和操作边界 |
 | [13-a2-1-organization-directory-compatibility-retirement.md](13-a2-1-organization-directory-compatibility-retirement.md) | A2.1 组织目录兼容入口退役、授权迁移与迁移链路收口 |
+| [14-a3-platform-capability-migration-roadmap.md](14-a3-platform-capability-migration-roadmap.md) | A3 平台能力盘点、迁移顺序、A3.1 关闭结论与 A3.2 后续边界 |
+| [15-a3-1-employee-contract-and-consumer-freeze.md](15-a3-1-employee-contract-and-consumer-freeze.md) | A3.1 冻结账本、P1-P4 执行记录与最终关闭证据 |
 
 ## 3. 当前架构摘要
 

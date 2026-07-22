@@ -65,6 +65,16 @@
 
 后续只迁移正在发生业务变更的模块，禁止为了目录整齐进行大规模搬迁。每个模块关闭自己的例外后，再从 ArchUnit 冻结清单中移除对应记录。
 
+范围决策（2026-07-21）：在尚未确定具体业务的情况下，A3 先建设通用管理平台能力，不虚构新的行业业务。执行顺序确定为能力账本、员工与账号、角色与访问控制、岗位目录、平台支持与示例模块处置。
+
+首个实施纵切选择 `identity.employee` 员工与账号管理。该纵切以现有 `t_employee` 为唯一数据源，建立新 application 用例、公开 Facade、`/api/admin/v1` 接口、稳定能力码和前端 feature；登录、角色、岗位、组织和 OA 消费者按所有权通过公开接口协作。A3.1 不重写角色授权、岗位目录或认证提供方，不建立镜像表和新旧双写。
+
+完整能力盘点、阶段顺序、A3.1 范围、兼容策略和关闭定义见 [14-a3-platform-capability-migration-roadmap.md](14-a3-platform-capability-migration-roadmap.md)。截至 2026-07-22，A3.1 P1-P4 已完成，员工与账号管理纵切正式关闭，下一步进入 A3.2 角色与访问控制迁移。
+
+A3.1 保持 `t_employee` 单一数据源，已完成新 application 用例、公开 Facade、`/api/admin/v1/identity/employees` 管理接口、稳定能力码和 `@hunyuan/feature-identity-employee` 前端纵切；登录、organization、数据范围和 OA 通知已改用公开边界。`V3.68.0` 完成数据库与新能力授权迁移，`V3.69.0` 退役旧 `system:employee:*` 权限。
+
+旧 `/employee/*` 管理入口、旧页面组件和无消费者兼容实现已经删除，旧路径运行态严格返回 HTTP 404；新员工管理入口、四个个人自助入口和 11 条开发库员工数据通过浏览器验收。系统从未投入生产且未开放正式仓库外集成，因此仓库外消费者审计判定为不适用（N/A）；首次生产或外部集成前必须建立消费者登记、调用方标识和访问日志机制。角色查询保留的 `/role/employee/*` 与 `EmployeeVO` 进入 A3.2 处置。详细冻结账本、执行记录和关闭证据见 [15-a3-1-employee-contract-and-consumer-freeze.md](15-a3-1-employee-contract-and-consumer-freeze.md)。
+
 ## 5. 遗留例外台账
 
 | 编号 | 当前例外 | 当前处置 | 关闭条件 |
