@@ -423,8 +423,10 @@ A3.1 只有同时满足以下条件才能关闭：
 
 ## 12. 当前结论与下一步
 
-当前状态（2026-07-22）：**A3.1 P1-P4 已完成，员工与账号管理纵切正式关闭；下一步进入 A3.2 角色与访问控制迁移。**
+当前状态（2026-07-22）：**A3.1 P1-P4 已完成并正式关闭；A3.2 已启动，P0 冻结、P1 第一批登录授权边界以及 P2 前八个子批已完成。**
 
 已建立 `identity.employee` 的员工摘要、专用认证账号 DTO、公开查询与管理 Facade、application 用例和 `t_employee` 持久化适配器；登录、organization、数据范围和 OA 通知已改用公开边界。新 Admin API 已覆盖查询、创建、资料更新、显式启停、部门分配、软删除和管理员密码重置，旧 `/employee/*` 对应写入口已委托同一 application 用例。角色兼容分配与登录缓存/会话失效分别通过窄端口协作，没有把角色或登录实现反向引入 identity。新接口的路径、operationId、能力码、说明、公开响应模型和一次性凭据禁缓存已在仓库注解/反射契约层收口。
 
 P2 已完成 `V3.68.0` 数据库与授权迁移；P3 已完成 `@hunyuan/feature-identity-employee` 前端纵切、权限交互、运行态 API 和浏览器闭环；P4 已通过 `V3.69.0` 退役旧 `system:employee:*` 权限、旧 `/employee/*` 管理入口、旧页面组件及无消费者兼容实现。旧管理路径严格返回 HTTP 404，新员工管理 API、四个个人自助入口、员工菜单和 `identity.employee.*` 能力保持有效。仓库外消费者审计基于系统从未投入生产、从未开放正式外部集成的事实判定为不适用（N/A）；首次生产或外部集成前须建立消费者登记、调用方标识和访问日志机制。`/role/employee/*` 与 `EmployeeVO` 保留给 A3.2 处理。完整冻结账本、分批执行与关闭证据见 [15-a3-1-employee-contract-and-consumer-freeze.md](15-a3-1-employee-contract-and-consumer-freeze.md)。
+
+A3.2 的所有权、入口、消费者、能力码草案、分批计划和关闭条件见 [16-a3-2-access-contract-and-consumer-freeze.md](16-a3-2-access-contract-and-consumer-freeze.md)。P1 第一批已建立 `AccessAuthorizationFacade`，登录不再直接依赖角色 Service/DAO；P2 第一子批已建立 `AccessRoleAssignmentFacade`，旧 identity 角色分配端口已删除；P2 第二子批已建立 `AccessDataScopeFacade`，`DataScopeViewService` 不再直接依赖角色 DAO/实体；P2 第三子批已建立 `AccessDepartmentScopeFacade`，organization 数据范围适配器不再依赖旧 DataScope Service/枚举；P2 第四子批已建立 `AccessRoleLifecycleFacade` 和 `/api/admin/v1/access/roles`，旧角色入口统一委托 access 用例，`RoleService` 已删除；P2 第五子批已建立 `AccessCapabilityGrantFacade` 和 `/api/admin/v1/access/roles/{roleId}/capabilities`，旧角色菜单授权入口统一委托 access 用例；P2 第六子批已建立 `AccessCapabilityQueryFacade`，登录授权菜单与能力查询不再暴露旧菜单模型，`RoleMenuService` 已删除；P2 第七子批已建立 `AccessMenuCatalogFacade` 和 `/api/admin/v1/access/menus`，旧菜单管理入口统一委托 access 用例，`MenuService` 已删除；P2 第八子批已建立 `AccessRoleMembershipFacade` 和稳定角色成员 Admin API，旧角色员工控制器及登录授权聚合统一委托 access 公开边界，`RoleEmployeeService` 已删除。下一步盘点并收口剩余跨边界 Service/DAO 消费；A3.2 尚未关闭。
