@@ -11,7 +11,11 @@ public enum OrganizationErrorCode implements ErrorCode {
     DEPARTMENT_NOT_FOUND(41002, "部门不存在"),
     INVALID_DEPARTMENT(41003, "部门参数不合法"),
     DEPARTMENT_NOT_EMPTY(41004, "部门仍有下级或在职员工"),
-    EMPLOYEE_NOT_FOUND(41005, "部门负责人不存在");
+    EMPLOYEE_NOT_FOUND(41005, "部门负责人不存在"),
+    POSITION_NOT_FOUND(41006, "岗位不存在"),
+    INVALID_POSITION(41007, "岗位参数不合法"),
+    POSITION_NAME_DUPLICATED(41008, "岗位名称已存在"),
+    POSITION_IN_USE(41009, "岗位仍被员工引用");
 
     private final int code;
     private final String msg;

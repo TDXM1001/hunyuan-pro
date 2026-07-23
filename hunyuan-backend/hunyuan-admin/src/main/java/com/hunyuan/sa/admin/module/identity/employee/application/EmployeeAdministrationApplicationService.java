@@ -16,6 +16,7 @@ import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeCreateDraft;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeProfileUpdate;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
+import com.hunyuan.sa.admin.module.organization.position.application.OrganizationPositionFacade;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
@@ -36,6 +37,9 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
 
     @Resource
     private OrganizationDepartmentFacade organizationDepartmentFacade;
+
+    @Resource
+    private OrganizationPositionFacade organizationPositionFacade;
 
     @Resource
     private SecurityPasswordService securityPasswordService;
@@ -169,6 +173,10 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
         if (organizationDepartmentFacade.findForCollaboration(command.departmentId()).isEmpty()) {
             return ResponseDTO.userErrorParam("部门不存在");
         }
+        if (command.positionId() != null
+                && organizationPositionFacade.findForCollaboration(command.positionId()).isEmpty()) {
+            return ResponseDTO.userErrorParam("岗位不存在");
+        }
 
         String employeeUid = UUID.randomUUID(true).toString(true);
         String password = securityPasswordService.randomPassword();
@@ -202,6 +210,10 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
         }
         if (organizationDepartmentFacade.findForCollaboration(command.departmentId()).isEmpty()) {
             return ResponseDTO.userErrorParam("部门不存在");
+        }
+        if (command.positionId() != null
+                && organizationPositionFacade.findForCollaboration(command.positionId()).isEmpty()) {
+            return ResponseDTO.userErrorParam("岗位不存在");
         }
 
         ResponseDTO<String> uniqueness = validateUniqueness(

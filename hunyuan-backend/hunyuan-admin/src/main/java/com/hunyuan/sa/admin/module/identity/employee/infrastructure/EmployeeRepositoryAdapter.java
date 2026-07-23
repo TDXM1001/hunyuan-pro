@@ -201,6 +201,13 @@ public class EmployeeRepositoryAdapter implements EmployeeRepository {
     }
 
     @Override
+    public int countNonDeletedByPositionId(Long positionId) {
+        return Math.toIntExact(mapper.selectCount(new LambdaQueryWrapper<EmployeePersistenceEntity>()
+                .eq(EmployeePersistenceEntity::getPositionId, positionId)
+                .eq(EmployeePersistenceEntity::getDeletedFlag, false)));
+    }
+
+    @Override
     public List<EmployeeSummary> findActive() {
         return mapper.selectList(new LambdaQueryWrapper<EmployeePersistenceEntity>()
                         .eq(EmployeePersistenceEntity::getDisabledFlag, false)

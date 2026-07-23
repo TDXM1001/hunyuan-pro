@@ -51,6 +51,9 @@ const { hasAccessByCodes } = useAccess();
 const canReadDepartments = computed(() =>
   hasAccessByCodes(['organization.department.read']),
 );
+const canReadPositions = computed(() =>
+  hasAccessByCodes(['organization.position.read']),
+);
 
 // 页面只负责装配基础字典和当前机构，表格查询由右侧组件自己维护。
 async function bootstrap() {
@@ -60,7 +63,7 @@ async function bootstrap() {
       canReadDepartments.value
         ? departmentProvider.list()
         : Promise.resolve([]),
-      positionProvider.list(),
+      canReadPositions.value ? positionProvider.list() : Promise.resolve([]),
     ]);
     departments.value = departmentList ?? [];
     positions.value = positionList ?? [];

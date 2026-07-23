@@ -11,6 +11,10 @@
     "./department-directory": {
       "types": "./src/department-directory/index.vue",
       "default": "./src/department-directory/index.vue"
+    },
+    "./position-directory": {
+      "types": "./src/position-directory/index.vue",
+      "default": "./src/position-directory/index.vue"
     }
   },
   "dependencies": {

@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 
 const positionPagePath =
   'apps/hunyuan-system/src/views/system/position/position-list.vue';
+const positionFeaturePath =
+  'packages/features/organization/src/position-directory/index.vue';
+const positionClientPath =
+  'packages/features/organization/src/position-directory/client.ts';
 const roleEntryPath = 'apps/hunyuan-system/src/views/system/role/index.vue';
 const menuEntryPath = 'apps/hunyuan-system/src/views/system/menu/menu-list.vue';
 const roleFeaturePath = 'packages/features/access/src/role/index.vue';
@@ -50,7 +54,7 @@ const actionPages = [
   {
     actionClass: 'position-page__actions',
     label: 'position',
-    path: positionPagePath,
+    path: positionFeaturePath,
   },
 ] as const;
 
@@ -59,7 +63,7 @@ function readWorkspaceFile(path: string) {
 }
 
 describe('组织与访问控制前端边界', () => {
-  it('退役旧部门页面和员工管理客户端', () => {
+  it('退役旧部门页面和员工管理页面组件', () => {
     expect(existsSync(resolve(process.cwd(), legacyDepartmentPagePath))).toBe(
       false,
     );
@@ -74,25 +78,27 @@ describe('组织与访问控制前端边界', () => {
         : [],
     ).toEqual([]);
 
-    const source = readWorkspaceFile(organizationApiPath);
-    expect(source).not.toContain('/department/');
-    expect(source).not.toContain("'/employee/query'");
-    expect(source).not.toContain("'/employee/add'");
-    expect(source).not.toContain("'/employee/update'");
-    expect(source).not.toContain('/employee/update/disabled/');
-    expect(source).not.toContain('/employee/update/batch/');
   });
 
-  it('组织兼容 API 只保留岗位能力', () => {
-    const source = readWorkspaceFile(organizationApiPath);
+  it('岗位前端只使用稳定版本化接口并退役旧应用 API 文件', () => {
+    expect(existsSync(resolve(process.cwd(), organizationApiPath))).toBe(false);
 
-    expect(source).toContain("'/position/queryList'");
-    expect(source).toContain("'/position/queryPage'");
-    expect(source).toContain("'/position/add'");
-    expect(source).toContain("'/position/update'");
-    expect(source).not.toContain('/role/');
-    expect(source).not.toContain('/menu/');
-    expect(source).not.toContain('/dataScope/');
+    const sources = [
+      readWorkspaceFile(positionClientPath),
+      readWorkspaceFile(positionFeaturePath),
+      readWorkspaceFile(positionPagePath),
+    ];
+    expect(sources[0]).toContain(
+      "const BASE_PATH = '/admin/v1/organization/positions';",
+    );
+    for (const source of sources) {
+      expect(source).not.toContain('/position/queryList');
+      expect(source).not.toContain('/position/queryPage');
+      expect(source).not.toContain('/position/add');
+      expect(source).not.toContain('/position/update');
+      expect(source).not.toContain('/position/delete/');
+      expect(source).not.toContain('/position/batchDelete');
+    }
   });
 
   it('角色和菜单应用页面保持为 feature 薄入口', () => {
@@ -255,8 +261,22 @@ describe('组织与访问控制前端边界', () => {
     expect(existsSync(resolve(process.cwd(), systemFaviconPath))).toBe(true);
   });
 
-  it('岗位页面保持真实表格与密集布局', () => {
+  it('岗位应用页面保持为 feature 薄入口', () => {
     const source = readWorkspaceFile(positionPagePath);
+
+    expect(source).toContain("from '@hunyuan/feature-organization'");
+    expect(source).toContain(
+      "from '@hunyuan/feature-organization/position-directory'",
+    );
+    expect(source).toContain(
+      'createOrganizationPositionClient(requestClient)',
+    );
+    expect(source).toContain('<OrganizationPositionDirectory />');
+    expect(source).not.toContain('ArtTable');
+  });
+
+  it('岗位 feature 保持真实表格、密集布局和稳定能力控制', () => {
+    const source = readWorkspaceFile(positionFeaturePath);
 
     expect(source).toContain('ArtTable');
     expect(source).not.toContain('position-page__title');
@@ -272,6 +292,10 @@ describe('组织与访问控制前端边界', () => {
     );
     expect(source).toContain('showSearchBar');
     expect(source).toContain('@search="handleToggleSearchBar"');
+    expect(source).toContain("['organization.position.create']");
+    expect(source).toContain("['organization.position.update']");
+    expect(source).toContain("['organization.position.delete']");
+    expect(source).toContain('<AccessControl');
   });
 
   it.each(actionPages)(

@@ -48,5 +48,7 @@ public interface EmployeeRepository {
 
     int countNonDeletedByDepartmentId(Long departmentId);
 
+    int countNonDeletedByPositionId(Long positionId);
+
     List<EmployeeSummary> findActive();
 }

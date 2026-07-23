@@ -7,14 +7,18 @@ import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeCreateCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDeleteCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeDepartmentAssignmentCommand;
 import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeOneTimeCredential;
+import com.hunyuan.sa.admin.module.identity.employee.api.EmployeeUpdateCommand;
 import com.hunyuan.sa.admin.module.identity.employee.application.port.EmployeeSessionPort;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeCreateDraft;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
+import com.hunyuan.sa.admin.module.organization.position.application.OrganizationPositionFacade;
+import com.hunyuan.sa.admin.module.organization.position.domain.Position;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -41,6 +45,8 @@ class EmployeeAdministrationApplicationServiceTest {
     @Mock
     private OrganizationDepartmentFacade organizationDepartmentFacade;
     @Mock
+    private OrganizationPositionFacade organizationPositionFacade;
+    @Mock
     private SecurityPasswordService securityPasswordService;
     @Mock
     private AccessRoleAssignmentFacade accessRoleAssignmentFacade;
@@ -54,16 +60,20 @@ class EmployeeAdministrationApplicationServiceTest {
         service = new EmployeeAdministrationApplicationService();
         ReflectionTestUtils.setField(service, "employeeRepository", employeeRepository);
         ReflectionTestUtils.setField(service, "organizationDepartmentFacade", organizationDepartmentFacade);
+        ReflectionTestUtils.setField(service, "organizationPositionFacade", organizationPositionFacade);
         ReflectionTestUtils.setField(service, "securityPasswordService", securityPasswordService);
         ReflectionTestUtils.setField(service, "accessRoleAssignmentFacade", accessRoleAssignmentFacade);
         ReflectionTestUtils.setField(service, "employeeSessionPort", employeeSessionPort);
     }
 
     @Test
+    @DisplayName("创建员工时校验岗位存在")
     void createsEmployeeAndReturnsPasswordOnlyAsOneTimeCredential() {
         EmployeeCreateCommand command = createCommand();
         when(organizationDepartmentFacade.findForCollaboration(10L))
                 .thenReturn(Optional.of(department(10L)));
+        when(organizationPositionFacade.findForCollaboration(20L))
+                .thenReturn(Optional.of(position(20L)));
         when(securityPasswordService.randomPassword()).thenReturn("Temp-Password-1");
         when(employeeRepository.create(any(EmployeeCreateDraft.class))).thenReturn(7L);
 
@@ -81,6 +91,47 @@ class EmployeeAdministrationApplicationServiceTest {
                 .doesNotContain("Temp-Password-1");
         verify(accessRoleAssignmentFacade).replaceEmployeeRoles(
                 new ReplaceEmployeeRolesCommand(7L, Set.of(3L, 4L)));
+    }
+
+    @Test
+    @DisplayName("创建员工引用不存在岗位时拒绝写入")
+    void creatingEmployeeRequiresExistingPosition() {
+        when(organizationDepartmentFacade.findForCollaboration(10L))
+                .thenReturn(Optional.of(department(10L)));
+        when(organizationPositionFacade.findForCollaboration(20L)).thenReturn(Optional.empty());
+
+        ResponseDTO<EmployeeOneTimeCredential> response =
+                service.createWithLegacyRoles(createCommand(), List.of());
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("岗位不存在");
+        verify(employeeRepository, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("更新员工引用不存在岗位时拒绝写入")
+    void updatingEmployeeRequiresExistingPosition() {
+        EmployeeUpdateCommand command = new EmployeeUpdateCommand(
+                7L,
+                "张三",
+                "zhangsan",
+                1,
+                10L,
+                "13800000000",
+                "zhangsan@example.com",
+                20L,
+                "备注");
+        when(employeeRepository.findAuthenticationAccountById(7L))
+                .thenReturn(Optional.of(account(7L, false, false, false)));
+        when(organizationDepartmentFacade.findForCollaboration(10L))
+                .thenReturn(Optional.of(department(10L)));
+        when(organizationPositionFacade.findForCollaboration(20L)).thenReturn(Optional.empty());
+
+        ResponseDTO<String> response = service.updateWithLegacyRoles(command, false, List.of());
+
+        assertThat(response.getOk()).isFalse();
+        assertThat(response.getMsg()).contains("岗位不存在");
+        verify(employeeRepository, never()).updateProfile(any());
     }
 
     @Test
@@ -245,5 +296,9 @@ class EmployeeAdministrationApplicationServiceTest {
 
     private Department department(Long departmentId) {
         return new Department(departmentId, "研发部", null, 0L, 1, null, null, null);
+    }
+
+    private Position position(Long positionId) {
+        return new Position(positionId, "研发工程师", "P5", 10, null, null, null);
     }
 }

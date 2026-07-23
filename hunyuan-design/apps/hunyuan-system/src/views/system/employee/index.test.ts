@@ -37,4 +37,16 @@ describe('employee feature assembly and permission boundary', () => {
       ':show-department-filter="canReadDepartments"',
     );
   });
+
+  it('只在具备稳定岗位读取能力时加载岗位选项', () => {
+    const featureSource = readFileSync(featurePagePath, 'utf8');
+
+    expect(featureSource).toContain(
+      "hasAccessByCodes(['organization.position.read'])",
+    );
+    expect(featureSource).toContain('canReadPositions.value');
+    expect(featureSource).toContain(
+      'canReadPositions.value ? positionProvider.list() : Promise.resolve([])',
+    );
+  });
 });
