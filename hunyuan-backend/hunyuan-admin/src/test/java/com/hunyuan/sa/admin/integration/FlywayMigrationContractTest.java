@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(9);
+        assertThat(migrations).hasSize(16);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -43,6 +43,20 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_70_0__a3_2_access_capability_and_constraints.sql");
         assertThat(migrations.get(8).getFileName().toString())
                 .isEqualTo("V3_71_0__a3_2_retire_legacy_access.sql");
+        assertThat(migrations.get(9).getFileName().toString())
+                .isEqualTo("V3_72_0__a3_3_repair_dangling_position_references.sql");
+        assertThat(migrations.get(10).getFileName().toString())
+                .isEqualTo("V3_72_1__a3_3_position_capability_and_constraints.sql");
+        assertThat(migrations.get(11).getFileName().toString())
+                .isEqualTo("V3_73_0__a3_3_retire_legacy_position_access.sql");
+        assertThat(migrations.get(12).getFileName().toString())
+                .isEqualTo("V3_74_0__a3_4_retire_goods_and_category_examples.sql");
+        assertThat(migrations.get(13).getFileName().toString())
+                .isEqualTo("V3_75_0__a3_4_retire_oa_master_data.sql");
+        assertThat(migrations.get(14).getFileName().toString())
+                .isEqualTo("V3_76_0__a3_4_retire_oa_notice.sql");
+        assertThat(migrations.get(15).getFileName().toString())
+                .isEqualTo("V3_76_1__a3_4_remove_retired_oa_notice_parent_grants.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -150,5 +164,95 @@ class FlywayMigrationContractTest {
                 .doesNotContain("'ACCESS.%'")
                 .doesNotContain("'/ORGANIZATION/ROLE'")
                 .doesNotContain("'/MENU/LIST'");
+
+        String positionReferenceRepair =
+                Files.readString(migrations.get(9), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(positionReferenceRepair)
+                .contains("`EMPLOYEE_ID` = 66")
+                .contains("`EMPLOYEE_ID` = 67")
+                .contains("`DISABLED_FLAG` = 1")
+                .contains("`POSITION_ID` = 2")
+                .contains("SET `POSITION_ID` = NULL")
+                .doesNotContain("SET `POSITION_ID` = 3")
+                .doesNotContain("INSERT INTO `T_EMPLOYEE`")
+                .doesNotContain("DELETE FROM `T_EMPLOYEE`");
+
+        String positionCapabilityMigration =
+                Files.readString(migrations.get(10), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(positionCapabilityMigration)
+                .contains("ACTIVE_POSITION_NAME")
+                .contains("UK_POSITION_ACTIVE_NAME")
+                .contains("'ORGANIZATION.POSITION.READ'")
+                .contains("'ORGANIZATION.POSITION.CREATE'")
+                .contains("'ORGANIZATION.POSITION.UPDATE'")
+                .contains("'ORGANIZATION.POSITION.DELETE'")
+                .contains("'SYSTEM:POSITION:ADD'")
+                .contains("'SYSTEM:POSITION:UPDATE'")
+                .contains("'SYSTEM:POSITION:DELETE'")
+                .doesNotContain("DELETE FROM `T_MENU`")
+                .doesNotContain("DELETE FROM `T_POSITION`");
+
+        String legacyPositionRetirement =
+                Files.readString(migrations.get(11), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(legacyPositionRetirement)
+                .contains("'SYSTEM:POSITION:%'")
+                .contains("DELETE ROLE_MENU")
+                .contains("DELETE FROM `T_MENU`")
+                .doesNotContain("'ORGANIZATION.POSITION.%'")
+                .doesNotContain("'/ORGANIZATION/POSITION'")
+                .doesNotContain("DELETE FROM `T_POSITION`");
+
+        String legacyExampleRetirement =
+                Files.readString(migrations.get(12), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(legacyExampleRetirement)
+                .contains("'GOODS:%'")
+                .contains("'CATEGORY:%'")
+                .contains("'CUSTOM:CATEGORY:%'")
+                .contains("'GOODS_PLACE'")
+                .contains("DELETE ROLE_MENU")
+                .contains("DELETE FROM `T_MENU`")
+                .contains("DROP TABLE IF EXISTS `T_GOODS`")
+                .contains("DROP TABLE IF EXISTS `T_CATEGORY`")
+                .doesNotContain("'OA:%'")
+                .doesNotContain("'SUPPORT:%'");
+
+        String oaMasterDataRetirement =
+                Files.readString(migrations.get(13), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(oaMasterDataRetirement)
+                .contains("'OA:ENTERPRISE:QUERY'")
+                .contains("'OA:BANK:QUERY'")
+                .contains("'OA:INVOICE:QUERY'")
+                .contains("`MENU_ID` IN (144, 145)")
+                .contains("WHERE `TYPE` = 3")
+                .contains("DROP TABLE IF EXISTS `T_OA_BANK`")
+                .contains("DROP TABLE IF EXISTS `T_OA_INVOICE`")
+                .contains("DROP TABLE IF EXISTS `T_OA_ENTERPRISE_EMPLOYEE`")
+                .contains("DROP TABLE IF EXISTS `T_OA_ENTERPRISE`")
+                .doesNotContain("'OA:NOTICE:")
+                .doesNotContain("DROP TABLE IF EXISTS `T_NOTICE")
+                .doesNotContain("`MENU_ID` = 138");
+
+        String oaNoticeRetirement =
+                Files.readString(migrations.get(14), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(oaNoticeRetirement)
+                .contains("'OA:NOTICE:%'")
+                .contains("`MENU_ID` IN (132, 142, 149, 150, 185, 186, 187, 188)")
+                .contains("PARENT.`MENU_ID` = 138")
+                .contains("WHERE `TYPE` = 2")
+                .contains("DROP TABLE IF EXISTS `T_NOTICE_VISIBLE_RANGE`")
+                .contains("DROP TABLE IF EXISTS `T_NOTICE_VIEW_RECORD`")
+                .contains("DROP TABLE IF EXISTS `T_NOTICE`")
+                .contains("DROP TABLE IF EXISTS `T_NOTICE_TYPE`")
+                .doesNotContain("DROP TABLE IF EXISTS `T_MESSAGE")
+                .doesNotContain("'SUPPORT:MESSAGE:")
+                .doesNotContain("'SUPPORT:SMS:");
+
+        String oaNoticeParentGrantCleanup =
+                Files.readString(migrations.get(15), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(oaNoticeParentGrantCleanup)
+                .contains("ROLE_MENU.`MENU_ID` = 138")
+                .contains("MENU.`MENU_ID` IS NULL")
+                .doesNotContain("DELETE FROM `T_MENU`")
+                .doesNotContain("DROP TABLE");
     }
 }

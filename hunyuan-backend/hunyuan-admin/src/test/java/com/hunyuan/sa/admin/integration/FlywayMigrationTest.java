@@ -1,6 +1,7 @@
 package com.hunyuan.sa.admin.integration;
 
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +14,41 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
 
     @Test
     void emptyDatabaseShouldMigrateToPlatformSeedWithoutCredentialsOrBpmTables() {
+        Flyway prePositionMigrationFlyway = Flyway.configure()
+                .dataSource(
+                        requiredEnvironment("HUNYUAN_IT_DB_URL"),
+                        requiredEnvironment("HUNYUAN_IT_DB_USERNAME"),
+                        requiredEnvironment("HUNYUAN_IT_DB_PASSWORD"))
+                .locations("classpath:db/migration")
+                .placeholderReplacement(false)
+                .cleanDisabled(true)
+                .target(MigrationVersion.fromVersion("3.71.0"))
+                .load();
+
+        prePositionMigrationFlyway.migrate();
+
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                requiredEnvironment("HUNYUAN_IT_DB_URL"),
+                requiredEnvironment("HUNYUAN_IT_DB_USERNAME"),
+                requiredEnvironment("HUNYUAN_IT_DB_PASSWORD"));
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+        // 在 3.71.0 隔离库中复制最小悬空样本，同时验证引用修复和最终权限退役。
+        jdbcTemplate.update("""
+                INSERT INTO t_employee
+                    (employee_id, employee_uid, login_name, login_pwd, actual_name,
+                     department_id, position_id, disabled_flag, deleted_flag)
+                VALUES
+                    (66, 'a3-3-it-employee-66', 'luoyi', '仅用于隔离迁移测试', '罗伊',
+                     4, 2, 1, 0),
+                    (67, 'a3-3-it-employee-67', 'chuxiao', '仅用于隔离迁移测试', '初晓',
+                     1, 2, 1, 0)
+                """);
+        jdbcTemplate.update("""
+                INSERT IGNORE INTO t_role_menu (role_id, menu_id, create_time, update_time)
+                VALUES (1, 138, NOW(), NOW())
+                """);
+
         Flyway flyway = Flyway.configure()
                 .dataSource(
                         requiredEnvironment("HUNYUAN_IT_DB_URL"),
@@ -22,16 +58,16 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                 .placeholderReplacement(false)
                 .cleanDisabled(true)
                 .load();
-
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.71.0");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.76.1");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_employee
+                WHERE employee_id IN (66, 67)
+                  AND position_id IS NULL
+                """, Integer.class)).isEqualTo(2);
 
-        DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                requiredEnvironment("HUNYUAN_IT_DB_URL"),
-                requiredEnvironment("HUNYUAN_IT_DB_USERNAME"),
-                requiredEnvironment("HUNYUAN_IT_DB_PASSWORD"));
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         String databaseName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertThat(databaseName).endsWith("_it");
         Integer retiredTableCount = jdbcTemplate.queryForObject("""
@@ -68,7 +104,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                 Integer.class)).isEqualTo(14);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_employee",
-                Integer.class)).isZero();
+                Integer.class)).isEqualTo(2);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT config_value FROM t_config WHERE config_key = 'module.organization.directory.enabled'",
                 String.class)).isEqualTo("true");
@@ -161,6 +197,11 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                    OR menu.api_perms LIKE 'system:menu:%'
                    OR menu.web_perms LIKE 'system:menu:%'
                 """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu
+                WHERE menu_id IN (132, 138, 142, 149, 150, 185, 186, 187, 188)
+                """, Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/role' AND deleted_flag = 0",
                 Integer.class)).isEqualTo(1);
@@ -199,5 +240,114 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                   AND scope.data_scope_type = 1
                   AND scope.view_type = 10
                 """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE api_perms LIKE 'organization.position.%'
+                  AND web_perms = api_perms
+                  AND menu_type IN (2, 3)
+                  AND perms_type = 1
+                  AND deleted_flag = 0
+                """, Integer.class)).isEqualTo(4);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_role role ON role.role_id = role_menu.role_id
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE role.role_code = 'platform_admin'
+                  AND menu.api_perms LIKE 'organization.position.%'
+                """, Integer.class)).isEqualTo(4);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE api_perms LIKE 'system:position:%'
+                   OR web_perms LIKE 'system:position:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE menu.api_perms LIKE 'system:position:%'
+                   OR menu.web_perms LIKE 'system:position:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_menu WHERE path = '/organization/position' AND deleted_flag = 0",
+                Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_position",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = ?
+                  AND table_name = 't_position'
+                  AND index_name = 'uk_position_active_name'
+                  AND non_unique = 0
+                """, Integer.class, databaseName)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = ?
+                  AND table_name IN ('t_goods', 't_category')
+                """, Integer.class, databaseName)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE path IN ('/goods', '/erp/goods/list', '/erp/catalog/goods', '/erp/catalog/custom')
+                   OR api_perms LIKE 'goods:%'
+                   OR web_perms LIKE 'goods:%'
+                   OR api_perms LIKE 'category:%'
+                   OR web_perms LIKE 'category:%'
+                   OR web_perms LIKE 'custom:category:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_dict WHERE dict_code = 'GOODS_PLACE'",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = ?
+                  AND table_name IN (
+                      't_oa_enterprise',
+                      't_oa_enterprise_employee',
+                      't_oa_bank',
+                      't_oa_invoice'
+                  )
+                """, Integer.class, databaseName)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE menu_id IN (144, 145)
+                   OR api_perms LIKE 'oa:enterprise:%'
+                   OR web_perms LIKE 'oa:enterprise:%'
+                   OR api_perms LIKE 'oa:bank:%'
+                   OR web_perms LIKE 'oa:bank:%'
+                   OR api_perms LIKE 'oa:invoice:%'
+                   OR web_perms LIKE 'oa:invoice:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_data_tracer WHERE type = 3",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = ?
+                  AND table_name IN (
+                      't_notice',
+                      't_notice_type',
+                      't_notice_view_record',
+                      't_notice_visible_range'
+                  )
+                """, Integer.class, databaseName)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE menu_id IN (132, 138, 142, 149, 150, 185, 186, 187, 188)
+                   OR api_perms LIKE 'oa:notice:%'
+                   OR web_perms LIKE 'oa:notice:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_data_tracer WHERE type = 2",
+                Integer.class)).isZero();
     }
 }
