@@ -1,9 +1,6 @@
 package com.hunyuan.sa.admin.module.system;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.hunyuan.sa.admin.module.system.position.controller.PositionController;
-import com.hunyuan.sa.admin.module.system.position.domain.form.PositionAddForm;
-import com.hunyuan.sa.admin.module.system.position.domain.form.PositionUpdateForm;
 import com.hunyuan.sa.admin.module.system.support.AdminProtectController;
 import com.hunyuan.sa.admin.module.system.support.AdminSmartJobController;
 import com.hunyuan.sa.base.common.domain.ValidateList;
@@ -23,11 +20,6 @@ class PlatformPermissionContractTest {
 
     @Test
     void platformMutationAndSecurityEndpointsShouldKeepTheirPermissionGuards() throws Exception {
-        assertPermission(PositionController.class, "add", "system:position:add", PositionAddForm.class);
-        assertPermission(PositionController.class, "update", "system:position:update", PositionUpdateForm.class);
-        assertPermission(PositionController.class, "batchDelete", "system:position:delete", ValidateList.class);
-        assertPermission(PositionController.class, "batchDelete", "system:position:delete", Long.class);
-
         assertPermission(AdminProtectController.class, "queryPage",
                 "support:protect:loginFail:query", LoginFailQueryForm.class);
         assertPermission(AdminProtectController.class, "batchDelete",

@@ -38,18 +38,6 @@ public class AdminCacheConst extends CacheKeyConst {
     }
 
     /**
-     * 分类相关缓存
-     */
-    public static class Category {
-
-        public static final String CATEGORY_ENTITY = "category_cache";
-
-        public static final String CATEGORY_SUB = "category_sub_cache";
-
-        public static final String CATEGORY_TREE = "category_tree_cache";
-    }
-
-    /**
      * 登录相关
      */
     public static class Login {
