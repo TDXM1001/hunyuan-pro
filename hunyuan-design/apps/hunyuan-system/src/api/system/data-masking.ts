@@ -1,6 +1,6 @@
 import { requestClient } from '#/api/request';
 
-export interface DataMaskingDemoRecord {
+export interface DataMaskingRecord {
   address?: null | string;
   bankCard?: null | string;
   carLicense?: null | string;
@@ -12,10 +12,10 @@ export interface DataMaskingDemoRecord {
   userId?: null | number;
 }
 
-export function buildDataMaskingDemoPath() {
+export function buildDataMaskingPath() {
   return '/support/dataMasking/demo/query';
 }
 
-export async function queryDataMaskingDemoList() {
-  return requestClient.get<DataMaskingDemoRecord[]>(buildDataMaskingDemoPath());
+export async function queryDataMaskingList() {
+  return requestClient.get<DataMaskingRecord[]>(buildDataMaskingPath());
 }

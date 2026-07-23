@@ -3,6 +3,7 @@ package com.hunyuan.sa.admin.module.system;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.hunyuan.sa.admin.module.system.support.AdminProtectController;
 import com.hunyuan.sa.admin.module.system.support.AdminSmartJobController;
+import com.hunyuan.sa.admin.module.system.support.AdminDataMaskingController;
 import com.hunyuan.sa.base.common.domain.ValidateList;
 import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobAddForm;
 import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobEnabledUpdateForm;
@@ -20,6 +21,8 @@ class PlatformPermissionContractTest {
 
     @Test
     void platformMutationAndSecurityEndpointsShouldKeepTheirPermissionGuards() throws Exception {
+        assertPermission(AdminDataMaskingController.class, "query",
+                "support:protect:dataMasking:query");
         assertPermission(AdminProtectController.class, "queryPage",
                 "support:protect:loginFail:query", LoginFailQueryForm.class);
         assertPermission(AdminProtectController.class, "batchDelete",

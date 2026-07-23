@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DataMaskingDemoRecord } from '#/api/system/data-masking';
+import type { DataMaskingRecord } from '#/api/system/data-masking';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { onMounted, ref } from 'vue';
@@ -17,14 +17,14 @@ import {
   ElCard,
 } from 'element-plus';
 
-import { queryDataMaskingDemoList } from '#/api/system/data-masking';
+import { queryDataMaskingList } from '#/api/system/data-masking';
 
 defineOptions({ name: 'SystemNetworkSecurityDataMaskingList' });
 
 const loading = ref(false);
-const rows = ref<DataMaskingDemoRecord[]>([]);
+const rows = ref<DataMaskingRecord[]>([]);
 
-const columnsFactory = (): ColumnOption<DataMaskingDemoRecord>[] => [
+const columnsFactory = (): ColumnOption<DataMaskingRecord>[] => [
   { type: 'globalIndex', label: '序号', width: 70, align: 'center' },
   {
     prop: 'userId',
@@ -81,7 +81,7 @@ const { columns, columnChecks } = useTableColumns(columnsFactory);
 async function loadData() {
   loading.value = true;
   try {
-    rows.value = (await queryDataMaskingDemoList()) ?? [];
+    rows.value = (await queryDataMaskingList()) ?? [];
   } finally {
     loading.value = false;
   }
@@ -103,7 +103,7 @@ onMounted(() => {
             layout="fullscreen,columns,settings"
           >
             <template #left>
-              <ElButton type="primary" @click="loadData">刷新演示数据</ElButton>
+              <ElButton type="primary" @click="loadData">刷新验证数据</ElButton>
             </template>
           </ArtTableHeader>
 

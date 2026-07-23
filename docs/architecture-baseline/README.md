@@ -42,6 +42,7 @@
 | [20-a3-4-oa-and-demo-retirement-decision.md](20-a3-4-oa-and-demo-retirement-decision.md) | A3.4 OA、商品、分类及 Demo 的产品退役决定、依赖矩阵与执行批次 |
 | [21-a3-4-oa-master-data-retirement-freeze.md](21-a3-4-oa-master-data-retirement-freeze.md) | A3.4 P2 企业、企业员工关联、银行和发票的退役冻结、实施记录与最终关闭证据 |
 | [22-a3-4-oa-notice-retirement-closeout.md](22-a3-4-oa-notice-retirement-closeout.md) | A3.4 P3 OA 通知直接退役、数据备份、迁移、运行态与代码图关闭证据 |
+| [23-a3-4-demo-production-isolation-closeout.md](23-a3-4-demo-production-isolation-closeout.md) | A3.4 P4 Demo 生产隔离、数据脱敏权限治理与 P5 最终关闭证据 |
 
 ## 3. 当前架构摘要
 

@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(16);
+        assertThat(migrations).hasSize(17);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -57,6 +57,8 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_76_0__a3_4_retire_oa_notice.sql");
         assertThat(migrations.get(15).getFileName().toString())
                 .isEqualTo("V3_76_1__a3_4_remove_retired_oa_notice_parent_grants.sql");
+        assertThat(migrations.get(16).getFileName().toString())
+                .isEqualTo("V3_77_0__a3_4_data_masking_validation_permission.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -254,5 +256,17 @@ class FlywayMigrationContractTest {
                 .contains("MENU.`MENU_ID` IS NULL")
                 .doesNotContain("DELETE FROM `T_MENU`")
                 .doesNotContain("DROP TABLE");
+
+        String dataMaskingValidationPermission =
+                Files.readString(migrations.get(16), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(dataMaskingValidationPermission)
+                .contains("'/SUPPORT/LEVEL3PROTECT/DATA-MASKING-LIST'")
+                .contains("'/SUPPORT/LEVEL3PROTECT/DATA-MASKING-LIST.VUE'")
+                .contains("'SUPPORT:PROTECT:DATAMASKING:QUERY'")
+                .contains("'PLATFORM_ADMIN'")
+                .contains("MENU.`MENU_TYPE` = 2")
+                .contains("MENU.`MENU_TYPE` = 3")
+                .doesNotContain("DROP TABLE")
+                .doesNotContain("DELETE FROM `T_MENU`");
     }
 }

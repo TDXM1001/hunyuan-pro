@@ -478,8 +478,14 @@ ESLint 和严格 UTF-8 检查通过；真实浏览器确认岗位页和员工编
 稳定 `OrganizationPositionController` 图节点为 1。完整统计和反查证据见
 [17-a3-3-position-contract-and-consumer-freeze.md](17-a3-3-position-contract-and-consumer-freeze.md)。
 
-**A3.3 已正式关闭。A3.4 P1 已退役商品与分类历史示例簇；P2 企业、员工关联、银行和
-发票已通过 `V3.75.0` 关闭；P3 OA 通知已通过 `V3.76.0` 和 `V3.76.1` 直接退役，
-未迁移到 `message`。商品、分类、OA 与空 `功能Demo` 菜单外壳均已关闭，A3.4
-业务示例与 OA 退役范围为 `RETIRE_CLOSED`。工程 Demo 按独立工程资产治理，不随
-OA 或业务示例批量删除。**
+**A3.3、A3.4 已正式关闭。A3.4 P1 已退役商品与分类历史示例簇；P2 企业、员工关联、
+银行和发票已通过 `V3.75.0` 关闭；P3 OA 通知已通过 `V3.76.0` 和 `V3.76.1`
+直接退役，未迁移到 `message`；P4 已完成工程 Demo 生产隔离、数据脱敏验证权限治理和
+backend-mock 开发边界冻结；P5 已完成完整构建、隔离运行态与代码图验收。商品、分类、
+OA 与空 `功能Demo` 菜单外壳均已关闭，业务示例与 OA 退役范围为 `RETIRE_CLOSED`。
+工程 Demo 按独立工程资产保留，不进入生产业务菜单。最终 codebase-memory 全量索引
+`E-my-project-hunyuan-pro-a3-4-p5-closed-20260723` 状态为 `indexed`，包含
+15,059 个节点和 37,284 条关系。完整关闭证据见
+[20-a3-4-oa-and-demo-retirement-decision.md](20-a3-4-oa-and-demo-retirement-decision.md)
+和
+[23-a3-4-demo-production-isolation-closeout.md](23-a3-4-demo-production-isolation-closeout.md)。**

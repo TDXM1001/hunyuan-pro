@@ -60,7 +60,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                 .load();
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.76.1");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.77.0");
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM t_employee
@@ -101,7 +101,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                 Integer.class)).isEqualTo(2);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_menu WHERE deleted_flag = 0 AND menu_type IN (1, 2)",
-                Integer.class)).isEqualTo(14);
+                Integer.class)).isEqualTo(15);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_employee",
                 Integer.class)).isEqualTo(2);
@@ -349,5 +349,33 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM t_data_tracer WHERE type = 2",
                 Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE menu_type = 2
+                  AND path = '/support/level3protect/data-masking-list'
+                  AND component = '/support/level3protect/data-masking-list.vue'
+                  AND deleted_flag = 0
+                """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE menu_type = 3
+                  AND perms_type = 1
+                  AND api_perms = 'support:protect:dataMasking:query'
+                  AND web_perms = api_perms
+                  AND deleted_flag = 0
+                """, Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_role_menu role_menu
+                JOIN t_role role ON role.role_id = role_menu.role_id
+                JOIN t_menu menu ON menu.menu_id = role_menu.menu_id
+                WHERE role.role_code = 'platform_admin'
+                  AND (
+                       (menu.menu_type = 2 AND menu.path = '/support/level3protect/data-masking-list')
+                    OR (menu.menu_type = 3 AND menu.api_perms = 'support:protect:dataMasking:query')
+                  )
+                """, Integer.class)).isEqualTo(2);
     }
 }

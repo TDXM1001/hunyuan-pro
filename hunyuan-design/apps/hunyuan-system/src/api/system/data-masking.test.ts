@@ -15,9 +15,10 @@ async function loadModule() {
 }
 
 describe('data masking api paths', () => {
-  it('targets the backend demo endpoint under the support prefix', async () => {
+  it('保留兼容接口路径并使用验证能力命名', async () => {
     const module = await loadModule();
 
-    expect(module.buildDataMaskingDemoPath()).toBe('/support/dataMasking/demo/query');
+    expect(module.buildDataMaskingPath()).toBe('/support/dataMasking/demo/query');
+    expect(module.queryDataMaskingList).toBeTypeOf('function');
   });
 });

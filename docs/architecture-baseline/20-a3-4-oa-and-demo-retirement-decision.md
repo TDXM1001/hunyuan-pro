@@ -107,7 +107,7 @@ hunyuan-design/apps/web-ele/src/locales/langs/en-US/demos.json
 以下代码虽然含有 Demo 命名，但存在真实页面、接口和测试消费者：
 
 ```text
-hunyuan-backend/hunyuan-admin/src/main/java/com/hunyuan/sa/admin/module/system/support/AdminDataMaskingDemoController.java
+hunyuan-backend/hunyuan-admin/src/main/java/com/hunyuan/sa/admin/module/system/support/AdminDataMaskingController.java
 hunyuan-design/apps/hunyuan-system/src/views/support/level3protect/data-masking-list.vue
 hunyuan-design/apps/hunyuan-system/src/api/system/data-masking.ts
 ```
@@ -140,7 +140,7 @@ hunyuan-design/apps/backend-mock/utils/mock-data.ts
 | OA 通知 | 历史 `module.business.oa.notice`（已删除） | 四张通知表、菜单和权限已由 `V3.76.0`、`V3.76.1` 处理 | 仓库内外正式消费者均为 0 或 `N/A` | 未迁移；未来有需求时独立建设公告 | P3，已关闭 |
 | 平台 message | `module.support.message` | 消息表、消息权限 | 管理端消息 API 和前端客户端 | 平台站内消息 | 保留 |
 | `web-ele` Demo | `apps/web-ele/src/views/demos` | Demo 路由和本地化资源 | `web-ele` 默认 dev/preview | 独立开发验收入口 | P4 |
-| 数据脱敏 Demo | `AdminDataMaskingDemoController` 及系统页面 | 数据脱敏权限和接口 | 真实页面、API、测试 | 数据脱敏诊断 | P4 |
+| 数据脱敏验证 | `AdminDataMaskingController` 及系统页面 | 数据脱敏权限和接口 | 真实页面、API、测试 | 数据脱敏诊断 | P4 |
 | backend-mock | `apps/backend-mock/api/demo` | Mock 环境配置 | 本地 Mock 和开发测试 | 无 | P4 |
 
 ## 6. 执行批次与关闭门禁
@@ -175,7 +175,11 @@ hunyuan-design/apps/backend-mock/utils/mock-data.ts
 
 范围：`web-ele` 工程验收页、数据脱敏验证页和 backend-mock。
 
-关闭条件：
+2026-07-23 已完成生产隔离、命名治理、权限迁移和运行态验收，状态为
+`P4_CLOSED`。完整证据见
+[23-a3-4-demo-production-isolation-closeout.md](23-a3-4-demo-production-isolation-closeout.md)。
+
+已通过的关闭条件：
 
 - 工程 Demo 不再出现在生产业务菜单和正式导航。
 - 数据脱敏能力保留明确管理员/开发权限和直接 API 防护。
@@ -185,9 +189,19 @@ hunyuan-design/apps/backend-mock/utils/mock-data.ts
 
 ### P5：最终验收
 
-- 刷新 Codebase Memory 并记录索引名称、状态、节点和关系统计。
-- 对源码、Flyway、数据库、权限、OpenAPI、浏览器和构建产物逐项对账。
-- 仅在全部关闭条件通过后，才把对应批次标记为 `CLOSED`。
+2026-07-23 已完成最终验收，状态为 `P5_CLOSED`：
+
+- 后端完整 `clean verify` 通过：`hunyuan-base` 12 项、`hunyuan-admin` 155 项，
+  0 失败、0 错误，3 项外部环境测试按配置跳过，ArchUnit 18 项通过。
+- 前端数据脱敏 API 契约测试 1 项通过，`@hunyuan/system` 类型检查和生产构建通过。
+- 隔离运行态使用随机数据库和随机管理员完成全量 Flyway、登录与权限验收；未登录请求
+  返回业务码 `30007`，授权请求返回 11 条数据且手机号、密码字段均已脱敏。
+- OpenAPI 保留兼容路由 `/support/dataMasking/demo/query`，控制器直接权限注解为
+  `support:protect:dataMasking:query`。
+- Codebase Memory 全量索引
+  `E-my-project-hunyuan-pro-a3-4-p5-closed-20260723` 状态为 `indexed`，包含
+  15,059 个节点和 37,284 条关系；新 `AdminDataMaskingController` 存在，旧
+  `AdminDataMaskingDemoController` 节点为 0。
 
 ## 7. 当前状态与下一步
 
@@ -197,9 +211,11 @@ hunyuan-design/apps/backend-mock/utils/mock-data.ts
 - OA 企业、企业员工关联、银行、发票：`RETIRE_CLOSED`。
 - OA 通知：`RETIRE_CLOSED`，直接退役且未迁移到 `message`。
 - message：`KEEP`，不承担无损公告替代。
-- 工程 Demo：`RETAIN_PRIVATE`、`ADAPT` 或 `RETAIN_DEV_ONLY`，不按业务示例批量删除。
+- 工程 Demo：`RETAIN_PRIVATE`、`ADAPT` 或 `RETAIN_DEV_ONLY`，生产隔离已关闭。
 - OA 整体：`RETIRE_CLOSED`。
 - A3.4 业务示例与 OA 退役范围：`RETIRE_CLOSED`。
+- A3.4：`CLOSED`。
 
-P1、P2、P3 均已关闭。后续如治理工程 Demo，只能按本文件定义的私有工程资产边界
-单独实施，不能恢复已经退役的商品、分类或 OA 业务能力。
+P1-P5 均已关闭。后续如治理工程 Demo，只能按本文件定义的私有工程资产边界单独实施，
+不能恢复已经退役的商品、分类或 OA 业务能力。新的业务建设必须先明确业务 owner、
+目标用户、流程和验收标准，不从现存 Demo 代码反推业务需求。
