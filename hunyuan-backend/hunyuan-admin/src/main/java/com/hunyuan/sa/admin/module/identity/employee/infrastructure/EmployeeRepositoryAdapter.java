@@ -10,6 +10,7 @@ import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeCreateDraft;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeePage;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeProfileUpdate;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
+import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeSelfProfileUpdate;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Repository;
@@ -154,6 +155,28 @@ public class EmployeeRepositoryAdapter implements EmployeeRepository {
         entity.setDepartmentId(update.departmentId());
         entity.setPositionId(update.positionId());
         entity.setRemark(update.remark());
+        mapper.updateById(entity);
+    }
+
+    @Override
+    public void updateSelfProfile(EmployeeSelfProfileUpdate update) {
+        EmployeePersistenceEntity entity = new EmployeePersistenceEntity();
+        entity.setEmployeeId(update.employeeId());
+        entity.setActualName(update.actualName());
+        entity.setGender(update.gender());
+        entity.setPhone(update.phone());
+        entity.setEmail(update.email());
+        entity.setPositionId(update.positionId());
+        entity.setAvatar(update.avatar());
+        entity.setRemark(update.remark());
+        mapper.updateById(entity);
+    }
+
+    @Override
+    public void updateAvatar(Long employeeId, String avatar) {
+        EmployeePersistenceEntity entity = new EmployeePersistenceEntity();
+        entity.setEmployeeId(employeeId);
+        entity.setAvatar(avatar);
         mapper.updateById(entity);
     }
 

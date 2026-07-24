@@ -36,6 +36,10 @@ public interface EmployeeRepository {
 
     void updateProfile(EmployeeProfileUpdate update);
 
+    void updateSelfProfile(EmployeeSelfProfileUpdate update);
+
+    void updateAvatar(Long employeeId, String avatar);
+
     void updateDisabled(Long employeeId, boolean disabled);
 
     void assignDepartment(List<Long> employeeIds, Long departmentId);

@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import type { VbenFormSchema } from '#/adapter/form';
 
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import { ProfilePasswordSetting, z } from '@vben/common-ui';
 
 import { ElMessage } from 'element-plus';
+
+import {
+  changeCurrentAccountPasswordApi,
+  getCurrentAccountPasswordPolicyApi,
+} from '#/api';
+
+const passwordPolicyText = ref('正在读取密码策略...');
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
@@ -50,14 +57,27 @@ const formSchema = computed((): VbenFormSchema[] => {
   ];
 });
 
-function handleSubmit() {
+onMounted(async () => {
+  const complexityEnabled = await getCurrentAccountPasswordPolicyApi();
+  passwordPolicyText.value = complexityEnabled
+    ? '密码复杂度校验已启用'
+    : '密码复杂度校验未启用';
+});
+
+async function handleSubmit(values: Record<string, string>) {
+  await changeCurrentAccountPasswordApi({
+    newPassword: values.newPassword ?? '',
+    oldPassword: values.oldPassword ?? '',
+  });
   ElMessage.success('密码修改成功');
 }
 </script>
 <template>
-  <ProfilePasswordSetting
-    class="w-1/3"
-    :form-schema="formSchema"
-    @submit="handleSubmit"
-  />
+  <div class="w-1/3">
+    <p class="mb-4 text-sm text-muted-foreground">{{ passwordPolicyText }}</p>
+    <ProfilePasswordSetting
+      :form-schema="formSchema"
+      @submit="handleSubmit"
+    />
+  </div>
 </template>

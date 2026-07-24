@@ -41,8 +41,9 @@ import com.hunyuan.sa.base.module.support.loginlog.LoginLogResultEnum;
 import com.hunyuan.sa.base.module.support.loginlog.LoginLogService;
 import com.hunyuan.sa.base.module.support.loginlog.domain.LoginLogEntity;
 import com.hunyuan.sa.base.module.support.loginlog.domain.LoginLogVO;
-import com.hunyuan.sa.base.module.support.mail.MailService;
-import com.hunyuan.sa.base.module.support.mail.constant.MailTemplateCodeEnum;
+import com.hunyuan.sa.base.module.support.mail.api.PlatformMailFacade;
+import com.hunyuan.sa.base.module.support.mail.api.PlatformMailTemplateCode;
+import com.hunyuan.sa.base.module.support.mail.api.PlatformTemplateMailCommand;
 import com.hunyuan.sa.base.module.support.redis.RedisService;
 import com.hunyuan.sa.base.module.support.securityprotect.domain.LoginFailEntity;
 import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
@@ -53,8 +54,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 登录
@@ -108,7 +109,7 @@ public class LoginService implements StpInterface {
     private Level3ProtectConfigService level3ProtectConfigService;
 
     @Resource
-    private MailService mailService;
+    private PlatformMailFacade platformMailFacade;
 
     @Resource
     private RedisService redisService;
@@ -439,9 +440,11 @@ public class LoginService implements StpInterface {
         redisService.set(redisVerificationCodeKey, verificationCode + StringConst.UNDERLINE + currentTimeMillis, 300);
 
         // 发送邮件验证码
-        HashMap<String, Object> mailParams = new HashMap<>();
-        mailParams.put("code", verificationCode);
-        return mailService.sendMail(MailTemplateCodeEnum.LOGIN_VERIFICATION_CODE, mailParams, Collections.singletonList(employee.email()));
+        PlatformTemplateMailCommand mailCommand = new PlatformTemplateMailCommand(
+                PlatformMailTemplateCode.LOGIN_VERIFICATION_CODE,
+                Map.of("code", verificationCode),
+                List.of(employee.email()));
+        return platformMailFacade.sendTemplateMail(mailCommand);
     }
 
 

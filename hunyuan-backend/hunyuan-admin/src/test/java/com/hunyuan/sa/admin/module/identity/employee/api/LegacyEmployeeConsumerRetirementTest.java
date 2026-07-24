@@ -37,24 +37,18 @@ class LegacyEmployeeConsumerRetirementTest {
         Path legacyController = Path.of(
                 "src", "main", "java", "com", "hunyuan", "sa", "admin",
                 "module", "system", "employee", "controller", "EmployeeController.java");
-        String legacyControllerSource = Files.readString(legacyController, StandardCharsets.UTF_8);
+        Path legacyService = Path.of(
+                "src", "main", "java", "com", "hunyuan", "sa", "admin",
+                "module", "system", "employee", "service", "EmployeeService.java");
+        Path legacyFormDirectory = Path.of(
+                "src", "main", "java", "com", "hunyuan", "sa", "admin",
+                "module", "system", "employee", "domain", "form");
 
-        assertThat(legacyControllerSource)
-                .contains(
-                        "\"/employee/update/center\"",
-                        "\"/employee/update/avatar\"",
-                        "\"/employee/update/password\"",
-                        "\"/employee/getPasswordComplexityEnabled\"")
-                .doesNotContain(
-                        "\"/employee/query\"",
-                        "\"/employee/add\"",
-                        "\"/employee/update\"",
-                        "\"/employee/update/disabled/",
-                        "\"/employee/update/batch/delete\"",
-                        "\"/employee/update/batch/department\"",
-                        "\"/employee/update/password/reset/",
-                        "\"/employee/getAllEmployeeByDepartmentId/",
-                        "\"/employee/queryAll\"");
+        assertThat(legacyController).doesNotExist();
+        assertThat(legacyService).doesNotExist();
+        assertThat(legacyFormDirectory.resolve("EmployeeUpdateCenterForm.java")).doesNotExist();
+        assertThat(legacyFormDirectory.resolve("EmployeeUpdateAvatarForm.java")).doesNotExist();
+        assertThat(legacyFormDirectory.resolve("EmployeeUpdatePasswordForm.java")).doesNotExist();
 
         Path identityController = Path.of(
                 "src", "main", "java", "com", "hunyuan", "sa", "admin",
@@ -73,12 +67,18 @@ class LegacyEmployeeConsumerRetirementTest {
                         "@PostMapping(\"/{employeeId}/password/reset\")");
 
         List<Path> sourceRoots = List.of(Path.of("src", "main", "java"));
+        List<String> retiredSelfServiceRoutes = List.of(
+                "\"/employee/update/center\"",
+                "\"/employee/update/avatar\"",
+                "\"/employee/update/password\"",
+                "\"/employee/getPasswordComplexityEnabled\"");
         for (Path root : sourceRoots) {
             try (var files = Files.walk(root)) {
                 for (Path sourceFile : files.filter(Files::isRegularFile).toList()) {
                     assertThat(Files.readString(sourceFile, StandardCharsets.UTF_8))
                             .as("legacy employee permission must stay retired: %s", sourceFile)
-                            .doesNotContain("system:employee:");
+                            .doesNotContain("system:employee:")
+                            .doesNotContain(retiredSelfServiceRoutes);
                 }
             }
         }

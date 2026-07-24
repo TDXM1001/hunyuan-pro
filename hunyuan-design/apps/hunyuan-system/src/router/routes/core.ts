@@ -92,6 +92,16 @@ const coreRoutes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    name: 'Profile',
+    path: '/profile',
+    component: () => import('#/views/_core/profile/index.vue'),
+    meta: {
+      hideInMenu: true,
+      icon: 'lucide:user',
+      title: $t('page.auth.profile'),
+    },
+  },
 ];
 
 export { coreRoutes, fallbackNotFoundRoute };

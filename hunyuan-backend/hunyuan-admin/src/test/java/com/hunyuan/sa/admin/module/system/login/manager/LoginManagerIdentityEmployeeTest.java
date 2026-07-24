@@ -8,7 +8,7 @@ import com.hunyuan.sa.admin.module.organization.department.application.Organizat
 import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.system.login.domain.RequestEmployee;
 import com.hunyuan.sa.base.common.domain.UserPermission;
-import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class LoginManagerIdentityEmployeeTest {
     @Mock
     private OrganizationDepartmentFacade organizationDepartmentFacade;
     @Mock
-    private IFileStorageService fileStorageService;
+    private PlatformFileFacade platformFileFacade;
     @Mock
     private EmployeeDirectoryFacade employeeDirectoryFacade;
     @Mock
@@ -41,7 +41,7 @@ class LoginManagerIdentityEmployeeTest {
     void setUp() {
         loginManager = new LoginManager();
         ReflectionTestUtils.setField(loginManager, "organizationDepartmentFacade", organizationDepartmentFacade);
-        ReflectionTestUtils.setField(loginManager, "fileStorageService", fileStorageService);
+        ReflectionTestUtils.setField(loginManager, "platformFileFacade", platformFileFacade);
         ReflectionTestUtils.setField(loginManager, "employeeDirectoryFacade", employeeDirectoryFacade);
         ReflectionTestUtils.setField(loginManager, "accessAuthorizationFacade", accessAuthorizationFacade);
     }

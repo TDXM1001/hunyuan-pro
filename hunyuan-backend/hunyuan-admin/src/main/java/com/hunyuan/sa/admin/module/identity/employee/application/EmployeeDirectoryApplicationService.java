@@ -10,7 +10,7 @@ import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
 import jakarta.annotation.Resource;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -29,7 +29,7 @@ public class EmployeeDirectoryApplicationService implements EmployeeDirectoryFac
     private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
-    private IFileStorageService fileStorageService;
+    private PlatformFileFacade platformFileFacade;
 
     @Override
     @Transactional(readOnly = true)
@@ -128,7 +128,7 @@ public class EmployeeDirectoryApplicationService implements EmployeeDirectoryFac
         if (StringUtils.isBlank(employee.avatar())) {
             return enriched;
         }
-        ResponseDTO<String> avatarResponse = fileStorageService.getFileUrl(employee.avatar());
+        ResponseDTO<String> avatarResponse = platformFileFacade.resolveUrl(employee.avatar());
         return Boolean.TRUE.equals(avatarResponse.getOk())
                 ? enriched.withAvatar(avatarResponse.getData())
                 : enriched;

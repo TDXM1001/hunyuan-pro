@@ -6,7 +6,7 @@ import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeePage;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
 import com.hunyuan.sa.admin.module.organization.department.application.OrganizationDepartmentFacade;
 import com.hunyuan.sa.base.common.domain.PageResult;
-import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +29,7 @@ class EmployeeDirectoryApplicationServiceTest {
     @Mock
     private OrganizationDepartmentFacade organizationDepartmentFacade;
     @Mock
-    private IFileStorageService fileStorageService;
+    private PlatformFileFacade platformFileFacade;
 
     private EmployeeDirectoryApplicationService service;
 
@@ -38,7 +38,7 @@ class EmployeeDirectoryApplicationServiceTest {
         service = new EmployeeDirectoryApplicationService();
         ReflectionTestUtils.setField(service, "employeeRepository", employeeRepository);
         ReflectionTestUtils.setField(service, "organizationDepartmentFacade", organizationDepartmentFacade);
-        ReflectionTestUtils.setField(service, "fileStorageService", fileStorageService);
+        ReflectionTestUtils.setField(service, "platformFileFacade", platformFileFacade);
     }
 
     @Test

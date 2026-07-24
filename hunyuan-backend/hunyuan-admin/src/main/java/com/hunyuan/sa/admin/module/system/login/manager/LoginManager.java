@@ -14,7 +14,7 @@ import com.hunyuan.sa.base.common.constant.StringConst;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.domain.UserPermission;
 import com.hunyuan.sa.base.common.enumeration.UserTypeEnum;
-import com.hunyuan.sa.base.module.support.file.service.IFileStorageService;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.annotation.CacheEvict;
@@ -41,7 +41,7 @@ public class LoginManager {
     private OrganizationDepartmentFacade organizationDepartmentFacade;
 
     @Resource
-    private IFileStorageService fileStorageService;
+    private PlatformFileFacade platformFileFacade;
 
     @Resource
     private EmployeeDirectoryFacade employeeDirectoryFacade;
@@ -96,7 +96,7 @@ public class LoginManager {
         // 头像信息
         String avatar = employee.avatar();
         if (StringUtils.isNotBlank(avatar)) {
-            ResponseDTO<String> getFileUrl = fileStorageService.getFileUrl(avatar);
+            ResponseDTO<String> getFileUrl = platformFileFacade.resolveUrl(avatar);
             if (BooleanUtils.isTrue(getFileUrl.getOk())) {
                 requestEmployee.setAvatar(getFileUrl.getData());
             }

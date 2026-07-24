@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 
-/** Public employee summary without authentication secrets or administrator state. */
+/** 不包含认证秘密和管理员状态的员工公开摘要。 */
 @Schema(description = "员工管理公开摘要，不包含认证秘密、删除标记和超级管理员标记")
 public record EmployeeSummary(
         @Schema(description = "员工id")
