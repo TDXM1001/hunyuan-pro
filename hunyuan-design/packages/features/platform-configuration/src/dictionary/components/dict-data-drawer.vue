@@ -3,7 +3,7 @@ import type {
   DictDataAddForm,
   DictDataRecord,
   DictRecord,
-} from '#/api/system/dict';
+} from '../client';
 import type { ColumnOption } from '@vben/art-hooks/table';
 import type { FormInstance, FormRules } from 'element-plus';
 
@@ -42,9 +42,13 @@ import {
   queryDictDataList,
   toggleDictDataDisabled,
   updateDictData,
-} from '#/api/system/dict';
+} from '../client';
 
-defineOptions({ name: 'SystemSupportDictDataDrawer' });
+import { usePlatformConfigurationRequestClient } from '../../dependencies';
+
+defineOptions({ name: 'PlatformConfigurationDictDataDrawer' });
+
+const requestClient = usePlatformConfigurationRequestClient();
 
 interface DictDataFormModel extends DictDataAddForm {
   dictCode?: string;
@@ -199,7 +203,9 @@ async function loadDictData() {
 
   dictDataLoading.value = true;
   try {
-    dictDataRows.value = (await queryDictDataList(props.dict.dictId)) ?? [];
+    dictDataRows.value = (
+      await queryDictDataList(requestClient, props.dict.dictId)
+    ) ?? [];
     selectedDictDataRows.value = [];
   } finally {
     dictDataLoading.value = false;
@@ -252,7 +258,7 @@ async function handleSubmitDictData() {
   }
 
   if (dictDataDialogMode.value === 'add') {
-    await addDictData({
+    await addDictData(requestClient, {
       dictId: dictDataFormData.dictId,
       dataLabel: dictDataFormData.dataLabel,
       dataStyle: dictDataFormData.dataStyle,
@@ -262,7 +268,7 @@ async function handleSubmitDictData() {
     });
     ElMessage.success('新增字典项成功');
   } else {
-    await updateDictData({
+    await updateDictData(requestClient, {
       dictCode: dictDataFormData.dictCode as string,
       dictDataId: dictDataFormData.dictDataId as number,
       dictId: dictDataFormData.dictId,
@@ -286,7 +292,7 @@ async function handleToggleDictDataDisabled(row: DictDataRecord) {
       '状态确认',
       { type: 'warning' },
     );
-    await toggleDictDataDisabled(row.dictDataId);
+    await toggleDictDataDisabled(requestClient, row.dictDataId);
     ElMessage.success('字典项状态已更新');
     await loadDictData();
   } catch {
@@ -301,7 +307,7 @@ async function handleDeleteDictData(row: DictDataRecord) {
       '删除确认',
       { type: 'warning' },
     );
-    await deleteDictData(row.dictDataId);
+    await deleteDictData(requestClient, row.dictDataId);
     ElMessage.success('字典项删除成功');
     await loadDictData();
   } catch {
@@ -322,6 +328,7 @@ async function handleBatchDeleteDictData() {
       { type: 'warning' },
     );
     await batchDeleteDictData(
+      requestClient,
       selectedDictDataRows.value.map((item) => item.dictDataId),
     );
     selectedDictDataRows.value = [];

@@ -1,10 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-const modulePath = resolve(process.cwd(), 'apps/hunyuan-system/src/api/system/login-log.ts');
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
+
+const modulePath = resolveWorkspacePath(
+  'apps/hunyuan-system/src/api/system/login-log.ts',
+);
 
 async function loadModule() {
   expect(existsSync(modulePath)).toBe(true);

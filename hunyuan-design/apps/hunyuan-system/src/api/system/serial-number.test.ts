@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 import {
   buildSerialNumberGeneratePayload,
@@ -37,8 +38,7 @@ describe('serial number api payloads', () => {
 
   it('uses stable platform runtime routes without legacy endpoints', () => {
     const apiSource = readFileSync(
-      resolve(
-        process.cwd(),
+      resolveWorkspacePath(
         'apps/hunyuan-system/src/api/system/serial-number.ts',
       ),
       'utf8',

@@ -65,7 +65,7 @@ describe('组织岗位稳定客户端契约', () => {
     );
   });
 
-  it('声明岗位路由和四个稳定能力码', () => {
+  it('声明岗位稳定 routeId 和四个能力码', () => {
     expect(organizationPositionFeature).toEqual({
       capabilities: [
         'organization.position.read',
@@ -74,10 +74,12 @@ describe('组织岗位稳定客户端契约', () => {
         'organization.position.delete',
       ],
       id: 'organization.position',
-      route: {
-        component: '/system/position/position-list.vue',
-        path: '/organization/position',
-      },
+      routes: [
+        {
+          path: '/organization/position',
+          routeId: 'organization.position.directory',
+        },
+      ],
     });
   });
 });

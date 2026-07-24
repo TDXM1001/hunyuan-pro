@@ -67,7 +67,12 @@ describe('organization department generated client adapter', () => {
 
   it('declares the stable module route and capabilities', () => {
     expect(organizationFeature.id).toBe('organization.directory');
-    expect(organizationFeature.route.path).toBe('/organization/directory');
+    expect(organizationFeature.routes).toEqual([
+      {
+        path: '/organization/directory',
+        routeId: 'organization.department.directory',
+      },
+    ]);
     expect(organizationFeature.capabilities).toEqual([
       'organization.department.read',
       'organization.department.create',

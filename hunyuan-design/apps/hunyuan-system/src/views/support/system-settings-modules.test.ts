@@ -1,16 +1,21 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const configPagePath = 'apps/hunyuan-system/src/views/support/config/config-list.vue';
-const configApiPath = 'apps/hunyuan-system/src/api/system/config.ts';
-const dictPagePath = 'apps/hunyuan-system/src/views/support/dict/index.vue';
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
+
+const configPagePath =
+  'packages/features/platform-configuration/src/configuration/index.vue';
+const configApiPath =
+  'packages/features/platform-configuration/src/configuration/client.ts';
+const dictPagePath =
+  'packages/features/platform-configuration/src/dictionary/index.vue';
 const dictDrawerPath =
-  'apps/hunyuan-system/src/views/support/dict/components/dict-data-drawer.vue';
-const dictApiPath = 'apps/hunyuan-system/src/api/system/dict.ts';
-const filePagePath = 'apps/hunyuan-system/src/views/support/file/file-list.vue';
-const fileApiPath = 'apps/hunyuan-system/src/api/system/file.ts';
+  'packages/features/platform-configuration/src/dictionary/components/dict-data-drawer.vue';
+const dictApiPath =
+  'packages/features/platform-configuration/src/dictionary/client.ts';
+const filePagePath = 'packages/features/platform-file/src/management/index.vue';
+const fileApiPath = 'packages/features/platform-file/src/management/client.ts';
 const messagePagePath =
   'apps/hunyuan-system/src/views/support/message/message-list.vue';
 const messageApiPath = 'apps/hunyuan-system/src/api/system/message.ts';
@@ -24,7 +29,8 @@ const serialNumberDrawerPath =
   'apps/hunyuan-system/src/views/support/serial-number/components/serial-number-record-drawer.vue';
 const serialNumberApiPath =
   'apps/hunyuan-system/src/api/system/serial-number.ts';
-const cachePagePath = 'apps/hunyuan-system/src/views/support/cache/cache-list.vue';
+const cachePagePath =
+  'apps/hunyuan-system/src/views/support/cache/cache-list.vue';
 const cacheDrawerPath =
   'apps/hunyuan-system/src/views/support/cache/components/cache-key-drawer.vue';
 const cacheApiPath = 'apps/hunyuan-system/src/api/system/cache.ts';
@@ -42,7 +48,7 @@ const smsMenuPatchSqlPath = '../数据库SQL脚本/mysql/sql-update-log/v3.33.0.
 
 describe('system settings support modules', () => {
   it('provides a real parameter config page at the backend-defined component path', () => {
-    const pagePath = resolve(process.cwd(), configPagePath);
+    const pagePath = resolveWorkspacePath(configPagePath);
 
     expect(existsSync(pagePath)).toBe(true);
 
@@ -51,11 +57,11 @@ describe('system settings support modules', () => {
     expect(source).toContain('ArtTablePanel');
     expect(source).toContain('ArtTableHeader');
     expect(source).toContain('ArtTable');
-    expect(source).toContain('SystemSupportConfigList');
+    expect(source).toContain('PlatformConfigurationPage');
   });
 
   it('keeps the parameter config page dense without extra hero or explainer copy', () => {
-    const source = readFileSync(resolve(process.cwd(), configPagePath), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(configPagePath), 'utf8');
 
     expect(source).not.toContain('config-page__title');
     expect(source).not.toContain('config-page__hero');
@@ -64,20 +70,22 @@ describe('system settings support modules', () => {
   });
 
   it('wires the parameter config api module to the backend config endpoints', () => {
-    const apiPath = resolve(process.cwd(), configApiPath);
+    const apiPath = resolveWorkspacePath(configApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
     expect(source).toContain("'/admin/v1/platform/configurations/query'");
     expect(source).toContain("'/admin/v1/platform/configurations'");
-    expect(source).toContain('`/admin/v1/platform/configurations/${params.configId}`');
+    expect(source).toContain(
+      '`/admin/v1/platform/configurations/${params.configId}`',
+    );
     expect(source).toContain('buildConfigPageQueryPayload');
     expect(source).toContain('buildConfigMutationPayload');
   });
 
   it('surfaces the config key, name, value, and remark fields on the page', () => {
-    const source = readFileSync(resolve(process.cwd(), configPagePath), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(configPagePath), 'utf8');
 
     expect(source).toContain('configKey');
     expect(source).toContain('configName');
@@ -86,7 +94,7 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real dictionary management page at the backend-defined component path', () => {
-    const pagePath = resolve(process.cwd(), dictPagePath);
+    const pagePath = resolveWorkspacePath(dictPagePath);
 
     expect(existsSync(pagePath)).toBe(true);
 
@@ -95,11 +103,11 @@ describe('system settings support modules', () => {
     expect(source).toContain('ArtTablePanel');
     expect(source).toContain('ArtTableHeader');
     expect(source).toContain('ArtTable');
-    expect(source).toContain('SystemSupportDictIndex');
+    expect(source).toContain('PlatformConfigurationDictionaryPage');
   });
 
   it('keeps the dictionary page dense without extra hero or explainer copy', () => {
-    const source = readFileSync(resolve(process.cwd(), dictPagePath), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(dictPagePath), 'utf8');
 
     expect(source).not.toContain('dict-page__title');
     expect(source).not.toContain('dict-page__hero');
@@ -111,7 +119,7 @@ describe('system settings support modules', () => {
   });
 
   it('provides a dedicated drawer-based dictionary value surface', () => {
-    const drawerPath = resolve(process.cwd(), dictDrawerPath);
+    const drawerPath = resolveWorkspacePath(dictDrawerPath);
 
     expect(existsSync(drawerPath)).toBe(true);
 
@@ -120,11 +128,11 @@ describe('system settings support modules', () => {
     expect(source).toContain('ArtTablePanel');
     expect(source).toContain('ArtTableHeader');
     expect(source).toContain('ArtTable');
-    expect(source).toContain('SystemSupportDictDataDrawer');
+    expect(source).toContain('PlatformConfigurationDictDataDrawer');
   });
 
   it('wires the dictionary api module to the backend dict and dictData endpoints', () => {
-    const apiPath = resolve(process.cwd(), dictApiPath);
+    const apiPath = resolveWorkspacePath(dictApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -132,17 +140,24 @@ describe('system settings support modules', () => {
     expect(source).toContain("'/admin/v1/platform/dictionaries/query'");
     expect(source).toContain("'/admin/v1/platform/dictionaries'");
     expect(source).toContain('`/admin/v1/platform/dictionaries/${dictId}`');
-    expect(source).toContain('`/admin/v1/platform/dictionaries/${dictId}/items`');
+    expect(source).toContain(
+      '`/admin/v1/platform/dictionaries/${dictId}/items`',
+    );
     expect(source).toContain("'/admin/v1/platform/dictionaries/items'");
-    expect(source).toContain('`/admin/v1/platform/dictionaries/${params.dictId}/items/${params.dictDataId}`');
+    expect(source).toContain(
+      '`/admin/v1/platform/dictionaries/${params.dictId}/items/${params.dictDataId}`',
+    );
     expect(source).toContain('buildDictPageQueryPayload');
     expect(source).toContain('buildDictMutationPayload');
     expect(source).toContain('buildDictDataMutationPayload');
   });
 
   it('surfaces dictionary key fields on the page and dictionary-item key fields in the drawer', () => {
-    const pageSource = readFileSync(resolve(process.cwd(), dictPagePath), 'utf8');
-    const drawerSource = readFileSync(resolve(process.cwd(), dictDrawerPath), 'utf8');
+    const pageSource = readFileSync(resolveWorkspacePath(dictPagePath), 'utf8');
+    const drawerSource = readFileSync(
+      resolveWorkspacePath(dictDrawerPath),
+      'utf8',
+    );
 
     expect(pageSource).toContain('dictName');
     expect(pageSource).toContain('dictCode');
@@ -154,12 +169,12 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real file management page and keeps the page dense', () => {
-    const pagePath = resolve(process.cwd(), filePagePath);
+    const pagePath = resolveWorkspacePath(filePagePath);
 
     expect(existsSync(pagePath)).toBe(true);
 
     const source = readFileSync(pagePath, 'utf8');
-    expect(source).toContain('SystemSupportFileList');
+    expect(source).toContain('PlatformFileManagementPage');
     expect(source).toContain('ArtSearchPanel');
     expect(source).toContain('ArtTablePanel');
     expect(source).toContain('ArtTableHeader');
@@ -172,7 +187,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the file api module to the backend file endpoints', () => {
-    const apiPath = resolve(process.cwd(), fileApiPath);
+    const apiPath = resolveWorkspacePath(fileApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -186,7 +201,7 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces file query and row-action fields on the file page', () => {
-    const source = readFileSync(resolve(process.cwd(), filePagePath), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(filePagePath), 'utf8');
 
     expect(source).toContain('fileName');
     expect(source).toContain('fileType');
@@ -198,7 +213,7 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real message management page and keeps the page dense', () => {
-    const pagePath = resolve(process.cwd(), messagePagePath);
+    const pagePath = resolveWorkspacePath(messagePagePath);
 
     expect(existsSync(pagePath)).toBe(true);
 
@@ -216,7 +231,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the message api module to the backend message endpoints', () => {
-    const apiPath = resolve(process.cwd(), messageApiPath);
+    const apiPath = resolveWorkspacePath(messageApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -232,7 +247,7 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces message query and send fields on the message page', () => {
-    const source = readFileSync(resolve(process.cwd(), messagePagePath), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(messagePagePath), 'utf8');
 
     expect(source).toContain('searchWord');
     expect(source).toContain('messageType');
@@ -244,8 +259,8 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real job page and dedicated log drawer surface', () => {
-    const pagePath = resolve(process.cwd(), jobPagePath);
-    const drawerPath = resolve(process.cwd(), jobDrawerPath);
+    const pagePath = resolveWorkspacePath(jobPagePath);
+    const drawerPath = resolveWorkspacePath(jobDrawerPath);
 
     expect(existsSync(pagePath)).toBe(true);
     expect(existsSync(drawerPath)).toBe(true);
@@ -271,7 +286,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the job api module to the backend job endpoints', () => {
-    const apiPath = resolve(process.cwd(), jobApiPath);
+    const apiPath = resolveWorkspacePath(jobApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -290,7 +305,7 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces job query and operation fields on the job page', () => {
-    const source = readFileSync(resolve(process.cwd(), jobPagePath), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(jobPagePath), 'utf8');
 
     expect(source).toContain('searchWord');
     expect(source).toContain('triggerType');
@@ -304,8 +319,8 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real serial-number page and dedicated record drawer surface', () => {
-    const pagePath = resolve(process.cwd(), serialNumberPagePath);
-    const drawerPath = resolve(process.cwd(), serialNumberDrawerPath);
+    const pagePath = resolveWorkspacePath(serialNumberPagePath);
+    const drawerPath = resolveWorkspacePath(serialNumberDrawerPath);
 
     expect(existsSync(pagePath)).toBe(true);
     expect(existsSync(drawerPath)).toBe(true);
@@ -327,7 +342,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the serial-number api module to stable platform runtime endpoints', () => {
-    const apiPath = resolve(process.cwd(), serialNumberApiPath);
+    const apiPath = resolveWorkspacePath(serialNumberApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -346,11 +361,11 @@ describe('system settings support modules', () => {
 
   it('surfaces serial-number list, record, and generate fields on the page', () => {
     const pageSource = readFileSync(
-      resolve(process.cwd(), serialNumberPagePath),
+      resolveWorkspacePath(serialNumberPagePath),
       'utf8',
     );
     const drawerSource = readFileSync(
-      resolve(process.cwd(), serialNumberDrawerPath),
+      resolveWorkspacePath(serialNumberDrawerPath),
       'utf8',
     );
 
@@ -365,8 +380,8 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real cache page and dedicated cache-key drawer surface', () => {
-    const pagePath = resolve(process.cwd(), cachePagePath);
-    const drawerPath = resolve(process.cwd(), cacheDrawerPath);
+    const pagePath = resolveWorkspacePath(cachePagePath);
+    const drawerPath = resolveWorkspacePath(cacheDrawerPath);
 
     expect(existsSync(pagePath)).toBe(true);
     expect(existsSync(drawerPath)).toBe(true);
@@ -388,7 +403,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the cache api module to the backend cache endpoints', () => {
-    const apiPath = resolve(process.cwd(), cacheApiPath);
+    const apiPath = resolveWorkspacePath(cacheApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -405,9 +420,12 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces cache name and key fields on the cache page and drawer', () => {
-    const pageSource = readFileSync(resolve(process.cwd(), cachePagePath), 'utf8');
+    const pageSource = readFileSync(
+      resolveWorkspacePath(cachePagePath),
+      'utf8',
+    );
     const drawerSource = readFileSync(
-      resolve(process.cwd(), cacheDrawerPath),
+      resolveWorkspacePath(cacheDrawerPath),
       'utf8',
     );
 
@@ -418,8 +436,8 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real reload page and dedicated result drawer surface', () => {
-    const pagePath = resolve(process.cwd(), reloadPagePath);
-    const drawerPath = resolve(process.cwd(), reloadDrawerPath);
+    const pagePath = resolveWorkspacePath(reloadPagePath);
+    const drawerPath = resolveWorkspacePath(reloadDrawerPath);
 
     expect(existsSync(pagePath)).toBe(true);
     expect(existsSync(drawerPath)).toBe(true);
@@ -441,7 +459,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the reload api module to the backend reload endpoints', () => {
-    const apiPath = resolve(process.cwd(), reloadApiPath);
+    const apiPath = resolveWorkspacePath(reloadApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -457,9 +475,12 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces reload list and result fields on the page and drawer', () => {
-    const pageSource = readFileSync(resolve(process.cwd(), reloadPagePath), 'utf8');
+    const pageSource = readFileSync(
+      resolveWorkspacePath(reloadPagePath),
+      'utf8',
+    );
     const drawerSource = readFileSync(
-      resolve(process.cwd(), reloadDrawerPath),
+      resolveWorkspacePath(reloadDrawerPath),
       'utf8',
     );
 
@@ -473,7 +494,7 @@ describe('system settings support modules', () => {
   });
 
   it('wires the sms api module to the stable platform endpoints', () => {
-    const apiPath = resolve(process.cwd(), smsApiPath);
+    const apiPath = resolveWorkspacePath(smsApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
@@ -499,7 +520,7 @@ describe('system settings support modules', () => {
   });
 
   it('provides an incremental sql patch that flattens sms pages under system settings', () => {
-    const sqlPath = resolve(process.cwd(), smsMenuPatchSqlPath);
+    const sqlPath = resolveWorkspacePath(smsMenuPatchSqlPath);
 
     expect(existsSync(sqlPath)).toBe(true);
 
@@ -512,7 +533,7 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real sms template page at the backend-defined component path', () => {
-    const pagePath = resolve(process.cwd(), smsTemplatePagePath);
+    const pagePath = resolveWorkspacePath(smsTemplatePagePath);
 
     expect(existsSync(pagePath)).toBe(true);
 
@@ -525,7 +546,10 @@ describe('system settings support modules', () => {
   });
 
   it('keeps the sms template page dense and single-row search only', () => {
-    const source = readFileSync(resolve(process.cwd(), smsTemplatePagePath), 'utf8');
+    const source = readFileSync(
+      resolveWorkspacePath(smsTemplatePagePath),
+      'utf8',
+    );
 
     expect(source).toContain(':collapsible="false"');
     expect(source).not.toContain('template-page__title');
@@ -534,7 +558,10 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces sms template query and mutation fields on the page', () => {
-    const source = readFileSync(resolve(process.cwd(), smsTemplatePagePath), 'utf8');
+    const source = readFileSync(
+      resolveWorkspacePath(smsTemplatePagePath),
+      'utf8',
+    );
 
     expect(source).toContain('templateCode');
     expect(source).toContain('templateName');
@@ -545,7 +572,7 @@ describe('system settings support modules', () => {
   });
 
   it('provides a real sms send-log page at the backend-defined component path', () => {
-    const pagePath = resolve(process.cwd(), smsSendLogPagePath);
+    const pagePath = resolveWorkspacePath(smsSendLogPagePath);
 
     expect(existsSync(pagePath)).toBe(true);
 
@@ -558,7 +585,10 @@ describe('system settings support modules', () => {
   });
 
   it('keeps the sms send-log page dense and preserves collapsible multi-filter search', () => {
-    const source = readFileSync(resolve(process.cwd(), smsSendLogPagePath), 'utf8');
+    const source = readFileSync(
+      resolveWorkspacePath(smsSendLogPagePath),
+      'utf8',
+    );
 
     expect(source).not.toContain(':collapsible="false"');
     expect(source).not.toContain('send-log-page__title');
@@ -567,7 +597,10 @@ describe('system settings support modules', () => {
   });
 
   it('surfaces sms send-log filter and table fields on the page', () => {
-    const source = readFileSync(resolve(process.cwd(), smsSendLogPagePath), 'utf8');
+    const source = readFileSync(
+      resolveWorkspacePath(smsSendLogPagePath),
+      'utf8',
+    );
 
     expect(source).toContain('phone');
     expect(source).toContain('templateCode');

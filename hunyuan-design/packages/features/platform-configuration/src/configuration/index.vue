@@ -3,7 +3,7 @@ import type {
   ConfigAddForm,
   ConfigRecord,
   ConfigUpdateForm,
-} from '#/api/system/config';
+} from './client';
 import type { ColumnOption } from '@vben/art-hooks/table';
 import type { FormInstance, FormRules } from 'element-plus';
 
@@ -33,9 +33,13 @@ import {
   addConfig,
   queryConfigPage,
   updateConfig,
-} from '#/api/system/config';
+} from './client';
 
-defineOptions({ name: 'SystemSupportConfigList' });
+import { usePlatformConfigurationRequestClient } from '../dependencies';
+
+defineOptions({ name: 'PlatformConfigurationPage' });
+
+const requestClient = usePlatformConfigurationRequestClient();
 
 interface ConfigFormModel extends ConfigAddForm {
   configId?: number;
@@ -106,10 +110,11 @@ function resetForm() {
   formData.configId = undefined;
 }
 
+// 查询结果与分页总数必须在同一请求中回写，避免筛选或翻页后表格状态不同步。
 async function loadData() {
   loading.value = true;
   try {
-    const result = await queryConfigPage({
+    const result = await queryConfigPage(requestClient, {
       configKey: keyword.value,
       pageNum: pagination.current,
       pageSize: pagination.size,
@@ -161,10 +166,10 @@ async function handleSubmit() {
   }
 
   if (dialogMode.value === 'add') {
-    await addConfig(formData as ConfigAddForm);
+    await addConfig(requestClient, formData as ConfigAddForm);
     ElMessage.success('新增参数配置成功');
   } else {
-    await updateConfig(formData as ConfigUpdateForm);
+    await updateConfig(requestClient, formData as ConfigUpdateForm);
     ElMessage.success('更新参数配置成功');
   }
 

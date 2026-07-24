@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FilePageQueryParams, FileRecord } from '#/api/system/file';
+import type { FilePageQueryParams, FileRecord } from './client';
 import type { ColumnOption } from '@vben/art-hooks/table';
 
 import { computed, onMounted, reactive, ref } from 'vue';
@@ -28,9 +28,13 @@ import {
   buildFileDownloadPath,
   getFileUrl,
   queryFilePage,
-} from '#/api/system/file';
+} from './client';
 
-defineOptions({ name: 'SystemSupportFileList' });
+import { usePlatformFileRequestClient } from '../dependencies';
+
+defineOptions({ name: 'PlatformFileManagementPage' });
+
+const requestClient = usePlatformFileRequestClient();
 
 const folderTypeOptions = [
   { label: '通用', value: 1 },
@@ -103,10 +107,11 @@ const tableHeight = computed(() =>
   hasPagination.value ? 'calc(100% - 44px)' : '100%',
 );
 
+// 每次查询都以当前筛选条件和分页状态为准，保证翻页后不会复用上一页数据。
 async function loadData() {
   loading.value = true;
   try {
-    const result = await queryFilePage({
+    const result = await queryFilePage(requestClient, {
       ...searchForm,
       pageNum: pagination.current,
       pageSize: pagination.size,
@@ -145,7 +150,7 @@ async function handlePreview(row: FileRecord) {
     return;
   }
 
-  const fileUrl = await getFileUrl(row.fileKey);
+  const fileUrl = await getFileUrl(requestClient, row.fileKey);
   if (!fileUrl) {
     ElMessage.warning('未获取到文件地址');
     return;

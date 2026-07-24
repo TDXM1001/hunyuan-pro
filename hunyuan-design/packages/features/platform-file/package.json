@@ -1,0 +1,24 @@
+{
+  "name": "@hunyuan/feature-platform-file",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./management-page": {
+      "types": "./src/management/index.vue",
+      "default": "./src/management/index.vue"
+    }
+  },
+  "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*",
+    "@vben/art-hooks": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "@vben/request": "workspace:*",
+    "element-plus": "catalog:",
+    "vue": "catalog:"
+  }
+}

@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-const modulePath = resolve(
-  process.cwd(),
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
+
+const modulePath = resolveWorkspacePath(
   'apps/hunyuan-system/src/api/system/network-protect.ts',
 );
 

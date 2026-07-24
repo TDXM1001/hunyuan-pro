@@ -1,22 +1,25 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const entryPath = resolve(
-  process.cwd(),
+import { resolveWorkspacePath } from '../../../test-utils/workspace-path';
+
+const entryPath = resolveWorkspacePath(
   'apps/hunyuan-system/src/views/organization/directory/index.vue',
 );
-const featurePath = resolve(
-  process.cwd(),
+const featurePath = resolveWorkspacePath(
   'packages/features/organization/src/department-directory/index.vue',
 );
 
 describe('organization directory feature assembly', () => {
   it('keeps the app view as a thin feature adapter', () => {
     const source = readFileSync(entryPath, 'utf8');
-    expect(source).toContain('@hunyuan/feature-organization/department-directory');
-    expect(source).toContain('createOrganizationDepartmentClient(requestClient)');
+    expect(source).toContain(
+      '@hunyuan/feature-organization/department-directory',
+    );
+    expect(source).toContain(
+      'createOrganizationDepartmentClient(requestClient)',
+    );
     expect(source).not.toContain('ElTableColumn');
   });
 

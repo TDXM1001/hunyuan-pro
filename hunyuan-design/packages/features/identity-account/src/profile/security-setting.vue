@@ -3,6 +3,7 @@ import { computed } from 'vue';
 
 import { ProfileSecuritySetting } from '@vben/common-ui';
 
+// 安全设置的展示 schema 归账号 feature，避免个人中心壳层持有业务字段定义。
 const formSchema = computed(() => {
   return [
     {

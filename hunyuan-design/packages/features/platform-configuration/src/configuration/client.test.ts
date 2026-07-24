@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -6,12 +6,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildConfigMutationPayload,
   buildConfigPageQueryPayload,
-} from './config';
+} from './client';
 
-const appRelativePath = 'apps/hunyuan-system/src/api/system/config.ts';
-const modulePath = existsSync(resolve(process.cwd(), appRelativePath))
-  ? resolve(process.cwd(), appRelativePath)
-  : resolve(process.cwd(), 'src/api/system/config.ts');
+// 读取客户端源码，锁定迁移后的平台接口并阻止历史 support/config 路由回流。
+const modulePath = resolve(__dirname, 'client.ts');
 
 describe('parameter config api payloads', () => {
   it('trims config query keywords and preserves paging fields', () => {
@@ -65,7 +63,9 @@ describe('parameter config api payloads', () => {
 
     expect(source).toContain("'/admin/v1/platform/configurations/query'");
     expect(source).toContain("'/admin/v1/platform/configurations'");
-    expect(source).toContain('`/admin/v1/platform/configurations/${params.configId}`');
+    expect(source).toContain(
+      '`/admin/v1/platform/configurations/${params.configId}`',
+    );
     expect(source).not.toContain("'/support/config/query'");
     expect(source).not.toContain("'/support/config/add'");
     expect(source).not.toContain("'/support/config/update'");

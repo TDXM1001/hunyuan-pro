@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VbenFormSchema } from '#/adapter/form';
+import type { VbenFormSchema } from '@vben-core/form-ui';
 
 import { computed, onMounted, ref } from 'vue';
 
@@ -7,12 +7,10 @@ import { ProfilePasswordSetting, z } from '@vben/common-ui';
 
 import { ElMessage } from 'element-plus';
 
-import {
-  changeCurrentAccountPasswordApi,
-  getCurrentAccountPasswordPolicyApi,
-} from '#/api';
+import { useIdentityAccountClient } from '../dependencies';
 
 const passwordPolicyText = ref('正在读取密码策略...');
+const accountClient = useIdentityAccountClient();
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
@@ -57,15 +55,16 @@ const formSchema = computed((): VbenFormSchema[] => {
   ];
 });
 
+// 密码复杂度由服务端配置决定，页面初始化后再展示当前生效策略。
 onMounted(async () => {
-  const complexityEnabled = await getCurrentAccountPasswordPolicyApi();
+  const complexityEnabled = await accountClient.getPasswordPolicy();
   passwordPolicyText.value = complexityEnabled
     ? '密码复杂度校验已启用'
     : '密码复杂度校验未启用';
 });
 
 async function handleSubmit(values: Record<string, string>) {
-  await changeCurrentAccountPasswordApi({
+  await accountClient.changePassword({
     newPassword: values.newPassword ?? '',
     oldPassword: values.oldPassword ?? '',
   });

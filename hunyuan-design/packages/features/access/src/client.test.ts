@@ -221,16 +221,16 @@ describe('access feature 客户端契约', () => {
     expect(buildMenuPayload(command)).toEqual(expected);
   });
 
-  it('冻结两个应用路由和十五个稳定能力码', () => {
+  it('冻结两个稳定 routeId 和十五个能力码', () => {
     expect(accessFeature.id).toBe('access.management');
     expect(accessFeature.routes).toEqual([
       {
-        component: '/system/role/index.vue',
         path: '/system/role',
+        routeId: 'access.role.management',
       },
       {
-        component: '/system/menu/menu-list.vue',
         path: '/system/menu',
+        routeId: 'access.menu.management',
       },
     ]);
     expect(accessFeature.capabilities).toEqual([

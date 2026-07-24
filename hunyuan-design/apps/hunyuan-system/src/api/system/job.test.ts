@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
+
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 import {
   buildJobEnabledPayload,
@@ -88,7 +92,7 @@ describe('job api payloads', () => {
 
   it('uses stable platform runtime routes without legacy endpoints', () => {
     const apiSource = readFileSync(
-      resolve(process.cwd(), 'apps/hunyuan-system/src/api/system/job.ts'),
+      resolveWorkspacePath('apps/hunyuan-system/src/api/system/job.ts'),
       'utf8',
     );
 
@@ -97,5 +101,3 @@ describe('job api payloads', () => {
     expect(apiSource).not.toContain('`/support/job/');
   });
 });
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';

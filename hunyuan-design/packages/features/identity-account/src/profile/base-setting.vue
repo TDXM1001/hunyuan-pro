@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VbenFormSchema } from '#/adapter/form';
+import type { VbenFormSchema } from '@vben-core/form-ui';
 
 import type { UploadRequestOptions } from 'element-plus';
 
@@ -10,16 +10,12 @@ import { useUserStore } from '@vben/stores';
 
 import { ElAvatar, ElButton, ElMessage, ElUpload } from 'element-plus';
 
-import {
-  getCurrentAccountApi,
-  updateCurrentAccountAvatarApi,
-  updateCurrentAccountProfileApi,
-  uploadAccountAvatarFileApi,
-} from '#/api';
+import { useIdentityAccountClient } from '../dependencies';
 
 const profileBaseSettingRef = ref();
 const avatarUrl = ref('');
 const userStore = useUserStore();
+const accountClient = useIdentityAccountClient();
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
@@ -55,15 +51,15 @@ const formSchema = computed((): VbenFormSchema[] => {
 });
 
 onMounted(async () => {
-  const data = await getCurrentAccountApi();
+  const data = await accountClient.getCurrentProfile();
   avatarUrl.value = data.avatar ?? '';
   profileBaseSettingRef.value.getFormApi().setValues(data);
 });
 
 /** 上传头像并在文件服务成功后保存账号头像引用。 */
 async function handleAvatarUpload(options: UploadRequestOptions) {
-  const uploadedFile = await uploadAccountAvatarFileApi(options.file);
-  await updateCurrentAccountAvatarApi(uploadedFile.fileKey);
+  const uploadedFile = await accountClient.uploadAvatar(options.file);
+  await accountClient.updateAvatar(uploadedFile.fileKey);
   avatarUrl.value = uploadedFile.fileUrl ?? avatarUrl.value;
   if (userStore.userInfo && avatarUrl.value) {
     userStore.setUserInfo({
@@ -76,7 +72,7 @@ async function handleAvatarUpload(options: UploadRequestOptions) {
 }
 
 async function handleSubmit(values: Record<string, unknown>) {
-  await updateCurrentAccountProfileApi({
+  await accountClient.updateProfile({
     actualName: String(values.actualName ?? ''),
     email: String(values.email ?? ''),
     phone: String(values.phone ?? ''),

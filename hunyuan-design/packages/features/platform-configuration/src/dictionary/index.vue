@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DictAddForm, DictRecord } from '#/api/system/dict';
+import type { DictAddForm, DictRecord } from './client';
 import type { ColumnOption } from '@vben/art-hooks/table';
 import type { FormInstance, FormRules } from 'element-plus';
 
@@ -36,11 +36,14 @@ import {
   queryDictPage,
   toggleDictDisabled,
   updateDict,
-} from '#/api/system/dict';
+} from './client';
 
 import DictDataDrawerPanel from './components/dict-data-drawer.vue';
+import { usePlatformConfigurationRequestClient } from '../dependencies';
 
-defineOptions({ name: 'SystemSupportDictIndex' });
+defineOptions({ name: 'PlatformConfigurationDictionaryPage' });
+
+const requestClient = usePlatformConfigurationRequestClient();
 
 interface DictFormModel extends DictAddForm {
   dictId?: number;
@@ -153,7 +156,7 @@ function syncDrawerDict(rows: DictRecord[]) {
 async function loadDictPage() {
   dictLoading.value = true;
   try {
-    const result = await queryDictPage({
+    const result = await queryDictPage(requestClient, {
       disabledFlag: dictSearchDisabledFlag.value,
       keywords: dictSearchKeyword.value,
       pageNum: dictPagination.current,
@@ -216,14 +219,14 @@ async function handleSubmitDict() {
   }
 
   if (dictDialogMode.value === 'add') {
-    await addDict({
+    await addDict(requestClient, {
       dictCode: dictFormData.dictCode,
       dictName: dictFormData.dictName,
       remark: dictFormData.remark,
     });
     ElMessage.success('新增字典成功');
   } else {
-    await updateDict({
+    await updateDict(requestClient, {
       dictCode: dictFormData.dictCode,
       dictId: dictFormData.dictId as number,
       dictName: dictFormData.dictName,
@@ -243,7 +246,7 @@ async function handleToggleDictDisabled(row: DictRecord) {
       '状态确认',
       { type: 'warning' },
     );
-    await toggleDictDisabled(row.dictId);
+    await toggleDictDisabled(requestClient, row.dictId);
     ElMessage.success('字典状态已更新');
     await loadDictPage();
   } catch {
@@ -258,7 +261,7 @@ async function handleDeleteDict(row: DictRecord) {
       '删除确认',
       { type: 'warning' },
     );
-    await deleteDict(row.dictId);
+    await deleteDict(requestClient, row.dictId);
     ElMessage.success('字典删除成功');
     await loadDictPage();
   } catch {
@@ -280,7 +283,7 @@ async function handleBatchDeleteDicts() {
     );
 
     const deletingIds = new Set(selectedDictRows.value.map((item) => item.dictId));
-    await batchDeleteDicts([...deletingIds]);
+    await batchDeleteDicts(requestClient, [...deletingIds]);
     selectedDictRows.value = [];
 
     if (drawerDict.value?.dictId && deletingIds.has(drawerDict.value.dictId)) {

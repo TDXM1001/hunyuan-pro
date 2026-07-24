@@ -174,13 +174,15 @@ infrastructure/
 - 后端菜单契约增加稳定 route ID，保持历史 component 只读兼容。
 - 完成管理员、受限角色、模块关闭和直达 URL 浏览器验收。
 
-实施状态（2026-07-24）：App Kernel、四个模块声明、五个稳定 routeId、后端双读契约和 `V3_79_0` 已完成。管理员五个页面、直达 URL 与未注册模块 404 已通过浏览器验收；受限角色当前通过后端授权查询与前端菜单映射自动化测试覆盖，尚缺独立受限测试账号的真实浏览器复验。完整证据见 [29-f1-app-kernel-and-stable-route-delivery.md](29-f1-app-kernel-and-stable-route-delivery.md)。在补齐该浏览器复验前，F1 保持“实现完成、验收未完全关闭”。
+关闭状态（2026-07-25）：App Kernel、四个模块声明、五个稳定 routeId、后端双读契约和 `V3_79_0` 已完成。管理员五个页面、直达 URL、未注册模块 404 与独立受限角色均已通过真实浏览器验收；全量前端单元测试为 68 个文件、454 项通过。完整证据见 [29-f1-app-kernel-and-stable-route-delivery.md](29-f1-app-kernel-and-stable-route-delivery.md)。F1 已关闭，下一阶段进入 F2。
 
 ### F2：配置、文件与账号功能归位
 
 - 抽取 identity-account、platform-configuration 和 platform-file feature。
 - 迁移个人资料、密码、配置、字典和文件的页面、API、类型、能力和测试。
 - 删除应用内对应实现，只保留应用装配。
+
+关闭状态（2026-07-25）：identity-account、platform-configuration 和 platform-file 已完成 feature 归位；应用只保留请求客户端注入、页面薄入口和注册表装配。`V3_80_0__f2_platform_feature_route_ids.sql` 已在本机开发库执行，配置、字典和文件菜单均通过稳定 `routeId` 装配真实 feature 页面。全量前端单元测试为 68 个文件、456 项通过，TypeScript 检查、生产构建、后端打包、Flyway 与管理员浏览器验收均通过。使用新 Codebase Memory 项目重建图谱后，三个 feature 到应用的反向导入为 0，旧应用 API/页面路径仅保留在负向守卫测试中。完整证据见 [30-f2-platform-feature-extraction-delivery.md](30-f2-platform-feature-extraction-delivery.md)。F2 已关闭，下一阶段进入 F3。
 
 ### F3：审计、通知与安全功能归位
 

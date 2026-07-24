@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 const level3ProtectPagePath =
   'apps/hunyuan-system/src/views/support/level3protect/level3-protect-config-index.vue';
@@ -19,7 +20,7 @@ const apiEncryptPagePath =
   'apps/hunyuan-system/src/views/support/api-encrypt/api-encrypt-index.vue';
 
 function readSource(path: string) {
-  const resolvedPath = resolve(process.cwd(), path);
+  const resolvedPath = resolveWorkspacePath(path);
   expect(existsSync(resolvedPath)).toBe(true);
   return readFileSync(resolvedPath, 'utf8');
 }
@@ -47,11 +48,15 @@ describe('network security backend menu docking pages', () => {
   });
 
   it('provides a real login-log page', () => {
-    expect(readSource(loginLogPagePath)).toContain('SystemNetworkSecurityLoginLogList');
+    expect(readSource(loginLogPagePath)).toContain(
+      'SystemNetworkSecurityLoginLogList',
+    );
   });
 
   it('provides a real operate-log page and operate-log drawer', () => {
-    expect(readSource(operateLogPagePath)).toContain('SystemNetworkSecurityOperateLogList');
+    expect(readSource(operateLogPagePath)).toContain(
+      'SystemNetworkSecurityOperateLogList',
+    );
     expect(readSource(operateLogDrawerPath)).toContain(
       'SystemNetworkSecurityOperateLogDetailDrawer',
     );

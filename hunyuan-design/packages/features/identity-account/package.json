@@ -1,0 +1,25 @@
+{
+  "name": "@hunyuan/feature-identity-account",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./profile-page": {
+      "types": "./src/profile/index.vue",
+      "default": "./src/profile/index.vue"
+    }
+  },
+  "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*",
+    "@vben-core/form-ui": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "@vben/request": "workspace:*",
+    "@vben/stores": "workspace:*",
+    "element-plus": "catalog:",
+    "vue": "catalog:"
+  }
+}

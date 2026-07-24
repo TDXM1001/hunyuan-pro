@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 import {
   buildMessagePageQueryPayload,
@@ -59,13 +60,15 @@ describe('message api payloads', () => {
 
   it('exposes stable current-user inbox routes without legacy endpoints', () => {
     const source = readFileSync(
-      resolve(process.cwd(), 'apps/hunyuan-system/src/api/system/message.ts'),
+      resolveWorkspacePath('apps/hunyuan-system/src/api/system/message.ts'),
       'utf8',
     );
 
     expect(source).toContain("'/admin/v1/platform/message-inbox/query'");
     expect(source).toContain("'/admin/v1/platform/message-inbox/unread-count'");
-    expect(source).toContain('/admin/v1/platform/message-inbox/${messageId}/read');
+    expect(source).toContain(
+      '/admin/v1/platform/message-inbox/${messageId}/read',
+    );
     expect(source).not.toContain("'/message/queryMyMessage'");
     expect(source).not.toContain("'/message/getUnreadCount'");
     expect(source).not.toContain('/message/read/${messageId}');

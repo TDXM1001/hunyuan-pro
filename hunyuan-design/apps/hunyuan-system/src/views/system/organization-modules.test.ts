@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 const positionPagePath =
   'apps/hunyuan-system/src/views/system/position/position-list.vue';
@@ -59,17 +60,16 @@ const actionPages = [
 ] as const;
 
 function readWorkspaceFile(path: string) {
-  return readFileSync(resolve(process.cwd(), path), 'utf8');
+  return readFileSync(resolveWorkspacePath(path), 'utf8');
 }
 
 describe('组织与访问控制前端边界', () => {
   it('退役旧部门页面和员工管理页面组件', () => {
-    expect(existsSync(resolve(process.cwd(), legacyDepartmentPagePath))).toBe(
+    expect(existsSync(resolveWorkspacePath(legacyDepartmentPagePath))).toBe(
       false,
     );
 
-    const legacyComponentsDirectory = resolve(
-      process.cwd(),
+    const legacyComponentsDirectory = resolveWorkspacePath(
       legacyEmployeeComponentsPath,
     );
     expect(
@@ -80,7 +80,7 @@ describe('组织与访问控制前端边界', () => {
   });
 
   it('岗位前端只使用稳定版本化接口并退役旧应用 API 文件', () => {
-    expect(existsSync(resolve(process.cwd(), organizationApiPath))).toBe(false);
+    expect(existsSync(resolveWorkspacePath(organizationApiPath))).toBe(false);
 
     const sources = [
       readWorkspaceFile(positionClientPath),
@@ -214,7 +214,7 @@ describe('组织与访问控制前端边界', () => {
   });
 
   it('access 客户端只使用稳定版本化路径并退役旧菜单 API 文件', () => {
-    expect(existsSync(resolve(process.cwd(), menuApiPath))).toBe(false);
+    expect(existsSync(resolveWorkspacePath(menuApiPath))).toBe(false);
 
     const sources = [
       readWorkspaceFile(accessClientPath),
@@ -264,7 +264,7 @@ describe('组织与访问控制前端边界', () => {
     const source = readWorkspaceFile(systemIndexPath);
 
     expect(source).toContain('<link rel="icon" href="/favicon.svg" />');
-    expect(existsSync(resolve(process.cwd(), systemFaviconPath))).toBe(true);
+    expect(existsSync(resolveWorkspacePath(systemFaviconPath))).toBe(true);
   });
 
   it('岗位应用页面保持为 feature 薄入口', () => {

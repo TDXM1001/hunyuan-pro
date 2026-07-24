@@ -1,24 +1,17 @@
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const workspaceRoot = resolve(process.cwd());
+import { workspaceRoot } from '../test-utils/workspace-path';
+
 const appRoot = resolve(workspaceRoot, 'apps/hunyuan-system');
 const featureRoot = resolve(workspaceRoot, 'packages/features');
 
 const legacySystemApiFiles = new Set([
   'apps/hunyuan-system/src/api/system/api-encrypt.ts',
   'apps/hunyuan-system/src/api/system/cache.ts',
-  'apps/hunyuan-system/src/api/system/config.ts',
   'apps/hunyuan-system/src/api/system/data-masking.ts',
-  'apps/hunyuan-system/src/api/system/dict.ts',
-  'apps/hunyuan-system/src/api/system/file.ts',
   'apps/hunyuan-system/src/api/system/job.ts',
   'apps/hunyuan-system/src/api/system/login-log.ts',
   'apps/hunyuan-system/src/api/system/message.ts',
@@ -33,10 +26,6 @@ const legacySupportViewFiles = new Set([
   'apps/hunyuan-system/src/views/support/api-encrypt/api-encrypt-index.vue',
   'apps/hunyuan-system/src/views/support/cache/cache-list.vue',
   'apps/hunyuan-system/src/views/support/cache/components/cache-key-drawer.vue',
-  'apps/hunyuan-system/src/views/support/config/config-list.vue',
-  'apps/hunyuan-system/src/views/support/dict/components/dict-data-drawer.vue',
-  'apps/hunyuan-system/src/views/support/dict/index.vue',
-  'apps/hunyuan-system/src/views/support/file/file-list.vue',
   'apps/hunyuan-system/src/views/support/job/components/job-log-drawer.vue',
   'apps/hunyuan-system/src/views/support/job/job-list.vue',
   'apps/hunyuan-system/src/views/support/level3protect/data-masking-list.vue',
@@ -53,6 +42,24 @@ const legacySupportViewFiles = new Set([
   'apps/hunyuan-system/src/views/support/sms/send-log-list.vue',
   'apps/hunyuan-system/src/views/support/sms/template-list.vue',
 ]);
+
+const f2RetiredAppEntries = [
+  'src/api/core/account.ts',
+  'src/api/system/config.ts',
+  'src/api/system/dict.ts',
+  'src/api/system/file.ts',
+  'src/views/support/config/config-list.vue',
+  'src/views/support/dict/components/dict-data-drawer.vue',
+  'src/views/support/dict/index.vue',
+  'src/views/support/file/file-list.vue',
+];
+
+const f2ThinEntryFiles = [
+  'src/feature-entries/platform-configuration/configuration-page.vue',
+  'src/feature-entries/platform-configuration/dictionary-page.vue',
+  'src/feature-entries/platform-file/management-page.vue',
+  'src/views/_core/profile/index.vue',
+];
 
 function normalizePath(path: string) {
   return relative(workspaceRoot, path).replaceAll('\\', '/');
@@ -106,6 +113,19 @@ describe('底座前端结构边界', () => {
     );
 
     expect(unexpectedFiles(files, legacySupportViewFiles)).toEqual([]);
+  });
+
+  it('F2 仅保留应用装配入口，不保留账号、配置、字典和文件实现', () => {
+    for (const entry of f2RetiredAppEntries) {
+      expect(existsSync(resolve(appRoot, entry))).toBe(false);
+    }
+
+    for (const entry of f2ThinEntryFiles) {
+      const source = readFileSync(resolve(appRoot, entry), 'utf8');
+      expect(source).toContain('requestClient');
+      expect(source).toContain('provide');
+      expect(source).not.toContain('ArtTable');
+    }
   });
 
   it('feature 不得反向依赖应用实现', () => {

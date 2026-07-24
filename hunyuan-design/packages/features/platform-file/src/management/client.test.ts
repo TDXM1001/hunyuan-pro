@@ -4,8 +4,9 @@ import {
   buildFileDownloadPath,
   buildFilePageQueryPayload,
   buildFilePreviewPath,
-} from './file';
+} from './client';
 
+// 文件 key 必须在预览和下载前编码，防止空格、目录分隔符破坏平台文件路由。
 describe('file api payloads', () => {
   it('trims file page query fields and preserves paging values', () => {
     expect(

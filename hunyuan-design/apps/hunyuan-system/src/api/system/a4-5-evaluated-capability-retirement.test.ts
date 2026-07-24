@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
+
 describe('A4.5 评估能力退役边界', () => {
   it('管理端不再恢复帮助、反馈和数据追踪消费者', () => {
     const retiredEntries = [
@@ -21,7 +23,9 @@ describe('A4.5 评估能力退役边界', () => {
 
   it('文件查询不再暴露已退役的目录类型', () => {
     const fileList = readFileSync(
-      resolve(__dirname, '../../views/support/file/file-list.vue'),
+      resolveWorkspacePath(
+        'packages/features/platform-file/src/management/index.vue',
+      ),
       'utf8',
     );
 

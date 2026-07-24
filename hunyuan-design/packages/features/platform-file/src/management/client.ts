@@ -1,4 +1,4 @@
-import { requestClient } from '#/api/request';
+import type { RequestClient } from '@vben/request';
 
 export interface PageResult<T> {
   emptyFlag?: boolean;
@@ -64,13 +64,19 @@ export function buildFileDownloadPath(fileKey: string) {
   return `${apiPrefix}/admin/v1/platform/files/download?fileKey=${encodeURIComponent(fileKey.trim())}`;
 }
 
-export async function queryFilePage(params: FilePageQueryParams) {
+export async function queryFilePage(
+  requestClient: RequestClient,
+  params: FilePageQueryParams,
+) {
   return requestClient.post<PageResult<FileRecord>>(
     '/admin/v1/platform/files/query',
     buildFilePageQueryPayload(params),
   );
 }
 
-export async function getFileUrl(fileKey: string) {
+export async function getFileUrl(
+  requestClient: RequestClient,
+  fileKey: string,
+) {
   return requestClient.get<string>(buildFilePreviewPath(fileKey));
 }

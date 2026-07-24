@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [Vue(), VueJsx()],
   test: {
     environment: 'happy-dom',
+    // Windows 全量并行转换 API 模块时可能超过 Vitest 默认的 5 秒预算。
+    testTimeout: 30_000,
     environmentOptions: {
       happyDOM: {
         settings: {

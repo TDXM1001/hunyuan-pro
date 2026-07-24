@@ -1,4 +1,4 @@
-import { requestClient } from '#/api/request';
+import type { RequestClient } from '@vben/request';
 
 export interface PageResult<T> {
   emptyFlag?: boolean;
@@ -36,6 +36,7 @@ export interface ConfigUpdateForm extends ConfigAddForm {
   configId: number;
 }
 
+// 查询条件和备注字段的空白值统一归一为可省略值，避免后端收到无意义筛选条件。
 function cleanText(value?: null | string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : '';
@@ -63,21 +64,30 @@ export function buildConfigMutationPayload<
   };
 }
 
-export async function queryConfigPage(params: ConfigPageQueryParams) {
+export async function queryConfigPage(
+  requestClient: RequestClient,
+  params: ConfigPageQueryParams,
+) {
   return requestClient.post<PageResult<ConfigRecord>>(
     '/admin/v1/platform/configurations/query',
     buildConfigPageQueryPayload(params),
   );
 }
 
-export async function addConfig(params: ConfigAddForm) {
+export async function addConfig(
+  requestClient: RequestClient,
+  params: ConfigAddForm,
+) {
   return requestClient.post<string>(
     '/admin/v1/platform/configurations',
     buildConfigMutationPayload(params),
   );
 }
 
-export async function updateConfig(params: ConfigUpdateForm) {
+export async function updateConfig(
+  requestClient: RequestClient,
+  params: ConfigUpdateForm,
+) {
   return requestClient.put<string>(
     `/admin/v1/platform/configurations/${params.configId}`,
     buildConfigMutationPayload(params),
