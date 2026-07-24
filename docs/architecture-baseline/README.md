@@ -43,6 +43,7 @@
 | [21-a3-4-oa-master-data-retirement-freeze.md](21-a3-4-oa-master-data-retirement-freeze.md) | A3.4 P2 企业、企业员工关联、银行和发票的退役冻结、实施记录与最终关闭证据 |
 | [22-a3-4-oa-notice-retirement-closeout.md](22-a3-4-oa-notice-retirement-closeout.md) | A3.4 P3 OA 通知直接退役、数据备份、迁移、运行态与代码图关闭证据 |
 | [23-a3-4-demo-production-isolation-closeout.md](23-a3-4-demo-production-isolation-closeout.md) | A3.4 P4 Demo 生产隔离、数据脱敏权限治理与 P5 最终关闭证据 |
+| [24-a4-0-platform-support-capability-inventory.md](24-a4-0-platform-support-capability-inventory.md) | A4.0 平台支持能力总盘点、A4.1 认证账号中心关闭、A4.2 文件配置字典稳定接口关闭及 A4.3 消息与审计日志实施记录 |
 
 ## 3. 当前架构摘要
 
