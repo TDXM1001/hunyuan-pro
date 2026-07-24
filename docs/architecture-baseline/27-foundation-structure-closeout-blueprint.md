@@ -174,6 +174,8 @@ infrastructure/
 - 后端菜单契约增加稳定 route ID，保持历史 component 只读兼容。
 - 完成管理员、受限角色、模块关闭和直达 URL 浏览器验收。
 
+实施状态（2026-07-24）：App Kernel、四个模块声明、五个稳定 routeId、后端双读契约和 `V3_79_0` 已完成。管理员五个页面、直达 URL 与未注册模块 404 已通过浏览器验收；受限角色当前通过后端授权查询与前端菜单映射自动化测试覆盖，尚缺独立受限测试账号的真实浏览器复验。完整证据见 [29-f1-app-kernel-and-stable-route-delivery.md](29-f1-app-kernel-and-stable-route-delivery.md)。在补齐该浏览器复验前，F1 保持“实现完成、验收未完全关闭”。
+
 ### F2：配置、文件与账号功能归位
 
 - 抽取 identity-account、platform-configuration 和 platform-file feature。
