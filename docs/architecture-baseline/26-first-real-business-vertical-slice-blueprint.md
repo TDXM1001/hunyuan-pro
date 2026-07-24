@@ -4,9 +4,9 @@
 
 截至 2026-07-24，平台架构迁移和既有能力处置已完成阶段性收口，但产品服务的真实用户、业务目标和核心业务对象仍未确定。因此，下一阶段不再新增平台迁移编号，也不从仓库中的历史模块名称反推产品需求。
 
-本蓝图是首个真实业务纵切的准入模板。只有第 3 节的业务契约得到真实业务方确认后，才能填写具体模块名称、创建数据库迁移或进入功能编码。
+本蓝图是首个真实业务纵切的准入模板。只有底座结构收口完成，并且第 3 节的业务契约得到真实业务方确认后，才能填写具体模块名称、创建数据库迁移或进入功能编码。底座结构的关闭范围和完成定义见 [27-foundation-structure-closeout-blueprint.md](27-foundation-structure-closeout-blueprint.md)。
 
-当前结论：`WAITING_FOR_BUSINESS_SELECTION`。
+当前结论：`BLOCKED_BY_FOUNDATION_STRUCTURE_CLOSEOUT`。
 
 ## 2. 选题原则
 
