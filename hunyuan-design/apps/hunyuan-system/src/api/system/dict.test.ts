@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +9,11 @@ import {
   buildDictMutationPayload,
   buildDictPageQueryPayload,
 } from './dict';
+
+const appRelativePath = 'apps/hunyuan-system/src/api/system/dict.ts';
+const modulePath = existsSync(resolve(process.cwd(), appRelativePath))
+  ? resolve(process.cwd(), appRelativePath)
+  : resolve(process.cwd(), 'src/api/system/dict.ts');
 
 describe('dictionary api payloads', () => {
   it('trims dictionary page query keywords and preserves paging fields', () => {
@@ -131,5 +139,32 @@ describe('dictionary api payloads', () => {
       { label: '差旅报销', value: 'EXPENSE' },
       { label: '通用申请', value: 'GENERIC_APPLICATION' },
     ]);
+  });
+
+  it('uses stable platform routes for reads and dictionary creation or updates', () => {
+    const source = readFileSync(modulePath, 'utf8');
+
+    expect(source).toContain("'/admin/v1/platform/dictionaries/query'");
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${dictId}/items`');
+    expect(source).toContain("'/admin/v1/platform/dictionaries/items'");
+    expect(source).toContain("'/admin/v1/platform/dictionaries'");
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${params.dictId}`');
+    expect(source).not.toContain("'/support/dict/queryPage'");
+    expect(source).not.toContain("'/support/dict/getAllDictData'");
+    expect(source).not.toContain("'/support/dict/add'");
+    expect(source).not.toContain("'/support/dict/update'");
+    expect(source).not.toContain('`/support/dict/updateDisabled/${dictId}`');
+    expect(source).not.toContain("'/support/dict/batchDelete'");
+    expect(source).not.toContain('`/support/dict/delete/${dictId}`');
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${dictId}/toggle-disabled`');
+    expect(source).toContain("'/admin/v1/platform/dictionaries/batch-delete'");
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${params.dictId}/items`');
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${params.dictId}/items/${params.dictDataId}`');
+    expect(source).toContain('`/admin/v1/platform/dictionaries/items/${dictDataId}/toggle-disabled`');
+    expect(source).toContain("'/admin/v1/platform/dictionaries/items/batch-delete'");
+    expect(source).toContain('`/admin/v1/platform/dictionaries/items/${dictDataId}`');
+    expect(source).not.toContain("'/support/dict/dictData/add'");
+    expect(source).not.toContain("'/support/dict/dictData/update'");
+    expect(source).not.toContain("'/support/dict/dictData/batchDelete'");
   });
 });

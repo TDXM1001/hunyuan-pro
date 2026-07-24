@@ -55,18 +55,18 @@ export function buildFilePageQueryPayload(params: FilePageQueryParams) {
 }
 
 export function buildFilePreviewPath(fileKey: string) {
-  return `/support/file/getFileUrl?fileKey=${encodeURIComponent(fileKey.trim())}`;
+  return `/admin/v1/platform/files/url?fileKey=${encodeURIComponent(fileKey.trim())}`;
 }
 
 export function buildFileDownloadPath(fileKey: string) {
   // 下载链接由浏览器直接打开，需要显式走前端 /api 代理。
   const apiPrefix = import.meta.env.VITE_GLOB_API_URL || '/api';
-  return `${apiPrefix}/support/file/downLoad?fileKey=${encodeURIComponent(fileKey.trim())}`;
+  return `${apiPrefix}/admin/v1/platform/files/download?fileKey=${encodeURIComponent(fileKey.trim())}`;
 }
 
 export async function queryFilePage(params: FilePageQueryParams) {
   return requestClient.post<PageResult<FileRecord>>(
-    '/support/file/queryPage',
+    '/admin/v1/platform/files/query',
     buildFilePageQueryPayload(params),
   );
 }

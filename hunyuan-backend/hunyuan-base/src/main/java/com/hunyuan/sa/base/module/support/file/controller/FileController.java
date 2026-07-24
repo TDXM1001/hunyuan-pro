@@ -13,9 +13,10 @@ import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.util.SmartRequestUtil;
 import com.hunyuan.sa.base.common.util.SmartResponseUtil;
 import com.hunyuan.sa.base.constant.SwaggerTagConst;
-import com.hunyuan.sa.base.module.support.file.domain.vo.FileDownloadVO;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileDownloadResult;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileUploadResult;
 import com.hunyuan.sa.base.module.support.file.domain.vo.FileUploadVO;
-import com.hunyuan.sa.base.module.support.file.service.FileService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,36 +39,48 @@ import java.io.IOException;
 public class FileController extends SupportBaseController {
 
     @Resource
-    private FileService fileService;
+    private PlatformFileFacade platformFileFacade;
 
 
     @Operation(summary = "文件上传 @author 胡克")
     @PostMapping("/file/upload")
     public ResponseDTO<FileUploadVO> upload(@RequestParam MultipartFile file, @RequestParam Integer folder) {
         RequestUser requestUser = SmartRequestUtil.getRequestUser();
-        return fileService.fileUpload(file, folder, requestUser);
+        ResponseDTO<PlatformFileUploadResult> response = platformFileFacade.upload(file, folder, requestUser);
+        if (!Boolean.TRUE.equals(response.getOk())) {
+            return ResponseDTO.error(response);
+        }
+        PlatformFileUploadResult upload = response.getData();
+        FileUploadVO legacyResult = new FileUploadVO();
+        legacyResult.setFileId(upload.fileId());
+        legacyResult.setFileName(upload.fileName());
+        legacyResult.setFileUrl(upload.fileUrl());
+        legacyResult.setFileKey(upload.fileKey());
+        legacyResult.setFileSize(upload.fileSize());
+        legacyResult.setFileType(upload.fileType());
+        return new ResponseDTO<>(response.getCode(), response.getLevel(), true, response.getMsg(), legacyResult);
     }
 
     @Operation(summary = "获取文件URL：根据fileKey @author 胡克")
     @GetMapping("/file/getFileUrl")
     public ResponseDTO<String> getUrl(@RequestParam String fileKey) {
-        return fileService.getFileUrl(fileKey);
+        return platformFileFacade.resolveUrl(fileKey);
     }
 
     @Operation(summary = "下载文件流（根据fileKey） @author 胡克")
     @GetMapping("/file/downLoad")
     public void downLoad(@RequestParam String fileKey, HttpServletRequest request, HttpServletResponse response) throws IOException {
         String userAgent = JakartaServletUtil.getHeaderIgnoreCase(request, RequestHeaderConst.USER_AGENT);
-        ResponseDTO<FileDownloadVO> downloadFileResult = fileService.getDownloadFile(fileKey, userAgent);
+        ResponseDTO<PlatformFileDownloadResult> downloadFileResult = platformFileFacade.download(fileKey, userAgent);
         if (!downloadFileResult.getOk()) {
             SmartResponseUtil.write(response, downloadFileResult);
             return;
         }
         // 下载文件信息
-        FileDownloadVO fileDownloadVO = downloadFileResult.getData();
+        PlatformFileDownloadResult fileDownloadVO = downloadFileResult.getData();
         // 设置下载消息头
-        SmartResponseUtil.setDownloadFileHeader(response, fileDownloadVO.getMetadata().getFileName(), fileDownloadVO.getMetadata().getFileSize());
+        SmartResponseUtil.setDownloadFileHeader(response, fileDownloadVO.fileName(), fileDownloadVO.fileSize());
         // 下载
-        response.getOutputStream().write(fileDownloadVO.getData());
+        response.getOutputStream().write(fileDownloadVO.data());
     }
 }

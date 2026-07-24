@@ -1,9 +1,17 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
   buildConfigMutationPayload,
   buildConfigPageQueryPayload,
 } from './config';
+
+const appRelativePath = 'apps/hunyuan-system/src/api/system/config.ts';
+const modulePath = existsSync(resolve(process.cwd(), appRelativePath))
+  ? resolve(process.cwd(), appRelativePath)
+  : resolve(process.cwd(), 'src/api/system/config.ts');
 
 describe('parameter config api payloads', () => {
   it('trims config query keywords and preserves paging fields', () => {
@@ -50,5 +58,16 @@ describe('parameter config api payloads', () => {
       configValue: '欢迎使用混元系统',
       remark: '首页配置',
     });
+  });
+
+  it('uses stable platform routes for configuration management', () => {
+    const source = readFileSync(modulePath, 'utf8');
+
+    expect(source).toContain("'/admin/v1/platform/configurations/query'");
+    expect(source).toContain("'/admin/v1/platform/configurations'");
+    expect(source).toContain('`/admin/v1/platform/configurations/${params.configId}`');
+    expect(source).not.toContain("'/support/config/query'");
+    expect(source).not.toContain("'/support/config/add'");
+    expect(source).not.toContain("'/support/config/update'");
   });
 });

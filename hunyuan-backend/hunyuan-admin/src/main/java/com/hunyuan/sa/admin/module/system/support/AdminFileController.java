@@ -8,10 +8,13 @@ import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.controller.SupportBaseController;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
+import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import com.hunyuan.sa.base.constant.SwaggerTagConst;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFilePageQuery;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileSummary;
 import com.hunyuan.sa.base.module.support.file.domain.form.FileQueryForm;
 import com.hunyuan.sa.base.module.support.file.domain.vo.FileVO;
-import com.hunyuan.sa.base.module.support.file.service.FileService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,13 +33,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminFileController extends SupportBaseController {
 
     @Resource
-    private FileService fileService;
+    private PlatformFileFacade platformFileFacade;
 
     @Operation(summary = "分页查询 @author 1024创新实验室-主任-卓大")
     @PostMapping("/file/queryPage")
     @SaCheckPermission("support:file:query")
     public ResponseDTO<PageResult<FileVO>> queryPage(@RequestBody @Valid FileQueryForm queryForm) {
-        return ResponseDTO.ok(fileService.queryPage(queryForm));
+        PlatformFilePageQuery query = SmartBeanUtil.copy(queryForm, PlatformFilePageQuery.class);
+        PageResult<PlatformFileSummary> result = platformFileFacade.queryPage(query);
+        PageResult<FileVO> legacyResult = new PageResult<>();
+        legacyResult.setPageNum(result.getPageNum());
+        legacyResult.setPageSize(result.getPageSize());
+        legacyResult.setTotal(result.getTotal());
+        legacyResult.setPages(result.getPages());
+        legacyResult.setEmptyFlag(result.getEmptyFlag());
+        legacyResult.setList(SmartBeanUtil.copyList(result.getList(), FileVO.class));
+        return ResponseDTO.ok(legacyResult);
     }
 
 }

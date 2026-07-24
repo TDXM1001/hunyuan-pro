@@ -35,10 +35,10 @@ describe('file api payloads', () => {
 
   it('builds encoded preview and download paths', () => {
     expect(buildFilePreviewPath(' private/common/demo 1.png ')).toBe(
-      '/support/file/getFileUrl?fileKey=private%2Fcommon%2Fdemo%201.png',
+      '/admin/v1/platform/files/url?fileKey=private%2Fcommon%2Fdemo%201.png',
     );
     expect(buildFileDownloadPath(' private/common/demo 1.png ')).toBe(
-      '/api/support/file/downLoad?fileKey=private%2Fcommon%2Fdemo%201.png',
+      '/api/admin/v1/platform/files/download?fileKey=private%2Fcommon%2Fdemo%201.png',
     );
   });
 });

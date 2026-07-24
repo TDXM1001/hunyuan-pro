@@ -65,21 +65,21 @@ export function buildConfigMutationPayload<
 
 export async function queryConfigPage(params: ConfigPageQueryParams) {
   return requestClient.post<PageResult<ConfigRecord>>(
-    '/support/config/query',
+    '/admin/v1/platform/configurations/query',
     buildConfigPageQueryPayload(params),
   );
 }
 
 export async function addConfig(params: ConfigAddForm) {
   return requestClient.post<string>(
-    '/support/config/add',
+    '/admin/v1/platform/configurations',
     buildConfigMutationPayload(params),
   );
 }
 
 export async function updateConfig(params: ConfigUpdateForm) {
-  return requestClient.post<string>(
-    '/support/config/update',
+  return requestClient.put<string>(
+    `/admin/v1/platform/configurations/${params.configId}`,
     buildConfigMutationPayload(params),
   );
 }
