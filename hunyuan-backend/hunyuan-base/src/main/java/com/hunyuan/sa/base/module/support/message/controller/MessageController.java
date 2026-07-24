@@ -9,10 +9,13 @@ import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.RequestUser;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.util.SmartRequestUtil;
+import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import com.hunyuan.sa.base.constant.SwaggerTagConst;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessageInboxFacade;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessageInboxPageQuery;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessageSummary;
 import com.hunyuan.sa.base.module.support.message.domain.MessageQueryForm;
 import com.hunyuan.sa.base.module.support.message.domain.MessageVO;
-import com.hunyuan.sa.base.module.support.message.service.MessageService;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -26,7 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class MessageController extends SupportBaseController {
 
     @Resource
-    private MessageService messageService;
+    private PlatformMessageInboxFacade platformMessageInboxFacade;
 
     @Operation(summary = "分页查询我的消息 @luoyi")
     @PostMapping("/message/queryMyMessage")
@@ -36,10 +39,18 @@ public class MessageController extends SupportBaseController {
             return ResponseDTO.userErrorParam("用户未登录");
         }
 
-        queryForm.setSearchCount(false);
-        queryForm.setReceiverUserId(user.getUserId());
-        queryForm.setReceiverUserType(user.getUserType().getValue());
-        return ResponseDTO.ok(messageService.query(queryForm));
+        PlatformMessageInboxPageQuery query = SmartBeanUtil.copy(
+                queryForm, PlatformMessageInboxPageQuery.class);
+        PageResult<PlatformMessageSummary> result = platformMessageInboxFacade.queryPage(
+                query, user.getUserType(), user.getUserId());
+        PageResult<MessageVO> legacyResult = new PageResult<>();
+        legacyResult.setPageNum(result.getPageNum());
+        legacyResult.setPageSize(result.getPageSize());
+        legacyResult.setTotal(result.getTotal());
+        legacyResult.setPages(result.getPages());
+        legacyResult.setEmptyFlag(result.getEmptyFlag());
+        legacyResult.setList(SmartBeanUtil.copyList(result.getList(), MessageVO.class));
+        return ResponseDTO.ok(legacyResult);
     }
 
     @Operation(summary = "查询未读消息数量 @luoyi")
@@ -49,7 +60,8 @@ public class MessageController extends SupportBaseController {
         if(user == null){
             return ResponseDTO.userErrorParam("用户未登录");
         }
-        return ResponseDTO.ok(messageService.getUnreadCount(user.getUserType(), user.getUserId()));
+        return ResponseDTO.ok(platformMessageInboxFacade.getUnreadCount(
+                user.getUserType(), user.getUserId()));
     }
 
     @Operation(summary = "更新已读 @luoyi")
@@ -60,7 +72,7 @@ public class MessageController extends SupportBaseController {
             return ResponseDTO.userErrorParam("用户未登录");
         }
 
-        messageService.updateReadFlag(messageId, user.getUserType(), user.getUserId());
+        platformMessageInboxFacade.markRead(messageId, user.getUserType(), user.getUserId());
         return ResponseDTO.ok();
     }
 

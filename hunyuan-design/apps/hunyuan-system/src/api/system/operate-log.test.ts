@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -41,6 +41,17 @@ describe('operate log api payloads', () => {
   it('builds the operate-log detail path from the row id', async () => {
     const module = await loadModule();
 
-    expect(module.buildOperateLogDetailPath(12)).toBe('/support/operateLog/detail/12');
+    expect(module.buildOperateLogDetailPath(12)).toBe(
+      '/admin/v1/platform/audit/operation-logs/12',
+    );
+  });
+
+  it('uses stable platform audit routes', () => {
+    const source = readFileSync(modulePath, 'utf8');
+
+    expect(source).toContain("'/admin/v1/platform/audit/operation-logs/query'");
+    expect(source).toContain('/admin/v1/platform/audit/operation-logs/${operateLogId}');
+    expect(source).not.toContain("'/support/operateLog/page/query'");
+    expect(source).not.toContain('/support/operateLog/detail/${operateLogId}');
   });
 });

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -32,5 +32,12 @@ describe('login log api payloads', () => {
       startDate: '2026-07-01',
       userName: 'admin',
     });
+  });
+
+  it('uses the stable platform login-log route', () => {
+    const source = readFileSync(modulePath, 'utf8');
+
+    expect(source).toContain("'/admin/v1/platform/audit/login-logs/query'");
+    expect(source).not.toContain("'/support/loginLog/page/query'");
   });
 });

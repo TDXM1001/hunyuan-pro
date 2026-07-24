@@ -43,6 +43,11 @@ export interface MessageSendFormModel {
   title: string;
 }
 
+export type MessageInboxPageQueryParams = Omit<
+  MessagePageQueryParams,
+  'receiverUserId' | 'receiverUserType'
+>;
+
 function cleanText(value?: null | string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : '';
@@ -77,18 +82,44 @@ export function buildMessageSendPayload(params: MessageSendFormModel) {
 
 export async function queryMessagePage(params: MessagePageQueryParams) {
   return requestClient.post<PageResult<MessageRecord>>(
-    '/message/query',
+    '/admin/v1/platform/messages/query',
     buildMessagePageQueryPayload(params),
   );
 }
 
 export async function sendMessage(params: MessageSendFormModel) {
   return requestClient.post<string>(
-    '/message/sendMessages',
+    '/admin/v1/platform/messages',
     buildMessageSendPayload(params),
   );
 }
 
 export async function deleteMessage(messageId: number) {
-  return requestClient.get<string>(`/message/delete/${messageId}`);
+  return requestClient.delete<string>(
+    `/admin/v1/platform/messages/${messageId}`,
+  );
+}
+
+/**
+ * 当前用户消息箱接口不接收接收人参数，用户范围由后端登录态强制限定。
+ */
+export async function queryCurrentMessageInbox(
+  params: MessageInboxPageQueryParams,
+) {
+  return requestClient.post<PageResult<MessageRecord>>(
+    '/admin/v1/platform/message-inbox/query',
+    buildMessagePageQueryPayload(params),
+  );
+}
+
+export async function getCurrentMessageUnreadCount() {
+  return requestClient.get<number>(
+    '/admin/v1/platform/message-inbox/unread-count',
+  );
+}
+
+export async function markCurrentMessageRead(messageId: number) {
+  return requestClient.put<string>(
+    `/admin/v1/platform/message-inbox/${messageId}/read`,
+  );
 }

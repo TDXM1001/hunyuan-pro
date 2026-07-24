@@ -59,12 +59,12 @@ export function buildOperateLogPageQueryPayload(params: OperateLogPageQueryParam
 }
 
 export function buildOperateLogDetailPath(operateLogId: number) {
-  return `/support/operateLog/detail/${operateLogId}`;
+  return `/admin/v1/platform/audit/operation-logs/${operateLogId}`;
 }
 
 export async function queryOperateLogPage(params: OperateLogPageQueryParams) {
   return requestClient.post<PageResult<OperateLogRecord>>(
-    '/support/operateLog/page/query',
+    '/admin/v1/platform/audit/operation-logs/query',
     buildOperateLogPageQueryPayload(params),
   );
 }

@@ -8,12 +8,18 @@ import com.hunyuan.sa.admin.constant.AdminSwaggerTagConst;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.domain.ValidateList;
+import com.hunyuan.sa.base.common.util.SmartBeanUtil;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessageFacade;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessagePageQuery;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessageSendCommand;
+import com.hunyuan.sa.base.module.support.message.api.PlatformMessageSummary;
 import com.hunyuan.sa.base.module.support.message.domain.MessageQueryForm;
 import com.hunyuan.sa.base.module.support.message.domain.MessageSendForm;
 import com.hunyuan.sa.base.module.support.message.domain.MessageVO;
-import com.hunyuan.sa.base.module.support.message.service.MessageService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 
 /**
@@ -26,14 +32,20 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 public class AdminMessageController {
 
-    @Autowired
-    private MessageService messageService;
+    @Resource
+    private PlatformMessageFacade platformMessageFacade;
 
     @Operation(summary = "通知消息-新建  @author 卓大")
     @PostMapping("/message/sendMessages")
     @SaCheckPermission("system:message:send")
     public ResponseDTO<String> sendMessages(@RequestBody @Valid ValidateList<MessageSendForm> messageList) {
-        messageService.sendMessage(messageList);
+        List<PlatformMessageSendCommand> commands = messageList.stream().map(message -> {
+            PlatformMessageSendCommand command = SmartBeanUtil.copy(
+                    message, PlatformMessageSendCommand.class);
+            command.setDataId(message.getDataId() == null ? null : String.valueOf(message.getDataId()));
+            return command;
+        }).toList();
+        platformMessageFacade.send(commands);
         return ResponseDTO.ok();
     }
 
@@ -41,14 +53,23 @@ public class AdminMessageController {
     @PostMapping("/message/query")
     @SaCheckPermission("system:message:query")
     public ResponseDTO<PageResult<MessageVO>> query(@RequestBody @Valid MessageQueryForm queryForm) {
-        return ResponseDTO.ok(messageService.query(queryForm));
+        PlatformMessagePageQuery query = SmartBeanUtil.copy(queryForm, PlatformMessagePageQuery.class);
+        PageResult<PlatformMessageSummary> result = platformMessageFacade.queryPage(query);
+        PageResult<MessageVO> legacyResult = new PageResult<>();
+        legacyResult.setPageNum(result.getPageNum());
+        legacyResult.setPageSize(result.getPageSize());
+        legacyResult.setTotal(result.getTotal());
+        legacyResult.setPages(result.getPages());
+        legacyResult.setEmptyFlag(result.getEmptyFlag());
+        legacyResult.setList(SmartBeanUtil.copyList(result.getList(), MessageVO.class));
+        return ResponseDTO.ok(legacyResult);
     }
 
     @Operation(summary = "通知消息-删除   @author 卓大")
     @GetMapping("/message/delete/{messageId}")
     @SaCheckPermission("system:message:delete")
     public ResponseDTO<String> delete(@PathVariable Long messageId) {
-        return messageService.delete(messageId);
+        return platformMessageFacade.delete(messageId);
     }
 
 }

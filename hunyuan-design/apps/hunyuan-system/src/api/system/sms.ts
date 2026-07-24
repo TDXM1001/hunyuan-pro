@@ -90,12 +90,21 @@ export function buildSmsTemplateMutationPayload<
   };
 }
 
-// 模板编码是后端主键路径参数，这里统一做 trim + URL 编码，并补齐支撑模块前缀。
+// 模板编码是稳定接口的路径主键，这里统一做 trim 和 URL 编码。
 export function buildSmsTemplateDisabledPath(
   templateCode: string,
-  disableFlag: boolean,
 ) {
-  return `/support/sms/template/updateDisabled/${encodeURIComponent(templateCode.trim())}/${disableFlag}`;
+  return `/admin/v1/platform/notifications/sms/templates/${encodeURIComponent(templateCode.trim())}/disabled`;
+}
+
+// 更新接口以路径中的模板编码为准，请求体只携带可修改字段。
+export function buildSmsTemplateUpdateRequest(params: SmsTemplateUpdateForm) {
+  const payload = buildSmsTemplateMutationPayload(params);
+  const { templateCode, ...body } = payload;
+  return {
+    body,
+    path: `/admin/v1/platform/notifications/sms/templates/${encodeURIComponent(templateCode)}`,
+  };
 }
 
 export function buildSmsSendLogQueryPayload(params: SmsSendLogPageQueryParams) {
@@ -112,37 +121,36 @@ export function buildSmsSendLogQueryPayload(params: SmsSendLogPageQueryParams) {
 
 export async function querySmsTemplatePage(params: SmsTemplatePageQueryParams) {
   return requestClient.post<PageResult<SmsTemplateRecord>>(
-    '/support/sms/template/query',
+    '/admin/v1/platform/notifications/sms/templates/query',
     buildSmsTemplateQueryPayload(params),
   );
 }
 
 export async function addSmsTemplate(params: SmsTemplateAddForm) {
   return requestClient.post<string>(
-    '/support/sms/template/add',
+    '/admin/v1/platform/notifications/sms/templates',
     buildSmsTemplateMutationPayload(params),
   );
 }
 
 export async function updateSmsTemplate(params: SmsTemplateUpdateForm) {
-  return requestClient.post<string>(
-    '/support/sms/template/update',
-    buildSmsTemplateMutationPayload(params),
-  );
+  const request = buildSmsTemplateUpdateRequest(params);
+  return requestClient.put<string>(request.path, request.body);
 }
 
 export async function updateSmsTemplateDisabled(
   templateCode: string,
   disableFlag: boolean,
 ) {
-  return requestClient.get<string>(
-    buildSmsTemplateDisabledPath(templateCode, disableFlag),
+  return requestClient.put<string>(
+    buildSmsTemplateDisabledPath(templateCode),
+    { disableFlag },
   );
 }
 
 export async function querySmsSendLogPage(params: SmsSendLogPageQueryParams) {
   return requestClient.post<PageResult<SmsSendLogRecord>>(
-    '/support/sms/sendLog/query',
+    '/admin/v1/platform/notifications/sms/send-logs/query',
     buildSmsSendLogQueryPayload(params),
   );
 }

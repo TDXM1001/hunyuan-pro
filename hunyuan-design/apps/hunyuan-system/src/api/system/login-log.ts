@@ -50,7 +50,7 @@ export function buildLoginLogPageQueryPayload(params: LoginLogPageQueryParams) {
 
 export async function queryLoginLogPage(params: LoginLogPageQueryParams) {
   return requestClient.post<PageResult<LoginLogRecord>>(
-    '/support/loginLog/page/query',
+    '/admin/v1/platform/audit/login-logs/query',
     buildLoginLogPageQueryPayload(params),
   );
 }

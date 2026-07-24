@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -52,5 +55,19 @@ describe('message api payloads', () => {
         title: '审批提醒',
       },
     ]);
+  });
+
+  it('exposes stable current-user inbox routes without legacy endpoints', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'apps/hunyuan-system/src/api/system/message.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain("'/admin/v1/platform/message-inbox/query'");
+    expect(source).toContain("'/admin/v1/platform/message-inbox/unread-count'");
+    expect(source).toContain('/admin/v1/platform/message-inbox/${messageId}/read');
+    expect(source).not.toContain("'/message/queryMyMessage'");
+    expect(source).not.toContain("'/message/getUnreadCount'");
+    expect(source).not.toContain('/message/read/${messageId}');
   });
 });

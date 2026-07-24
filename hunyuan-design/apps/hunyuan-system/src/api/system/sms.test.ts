@@ -5,6 +5,7 @@ import {
   buildSmsTemplateDisabledPath,
   buildSmsTemplateMutationPayload,
   buildSmsTemplateQueryPayload,
+  buildSmsTemplateUpdateRequest,
 } from './sms';
 
 describe('sms api payloads', () => {
@@ -46,8 +47,30 @@ describe('sms api payloads', () => {
 
   it('builds the sms template disabled path with encoded templateCode', () => {
     expect(
-      buildSmsTemplateDisabledPath('  login code/test  ', true),
-    ).toBe('/support/sms/template/updateDisabled/login%20code%2Ftest/true');
+      buildSmsTemplateDisabledPath('  login code/test  '),
+    ).toBe(
+      '/admin/v1/platform/notifications/sms/templates/login%20code%2Ftest/disabled',
+    );
+  });
+
+  it('builds the stable sms template update request', () => {
+    expect(
+      buildSmsTemplateUpdateRequest({
+        disableFlag: false,
+        remark: '  登录模板  ',
+        templateCode: ' login code/test ',
+        templateContent: ' 验证码 ${code} ',
+        templateName: ' 登录验证码 ',
+      }),
+    ).toEqual({
+      body: {
+        disableFlag: false,
+        remark: '登录模板',
+        templateContent: '验证码 ${code}',
+        templateName: '登录验证码',
+      },
+      path: '/admin/v1/platform/notifications/sms/templates/login%20code%2Ftest',
+    });
   });
 
   it('trims sms send-log query fields and preserves status and date filters', () => {
