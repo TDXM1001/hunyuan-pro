@@ -1,5 +1,7 @@
 import type { RouteRecordStringComponent, UserInfo } from '@vben/types';
 
+import { appFeatureRegistry } from '#/app-kernel/feature-registry';
+
 const DEFAULT_HOME_PATH = '/system/home';
 const MENU_TYPE_CATALOG = 1;
 const MENU_TYPE_MENU = 2;
@@ -26,6 +28,7 @@ export interface BackendMenuItem {
   parentId?: null | number;
   path?: null | string;
   permsType?: null | number;
+  routeId?: null | string;
   sort?: null | number;
   visibleFlag?: boolean;
   webPerms?: null | string;
@@ -159,6 +162,7 @@ function createBridgeMeta(node: MenuNode, routePath: string) {
       menuId: node.menuId,
       menuType: node.menuType ?? null,
       parentId: node.parentId ?? null,
+      routeId: node.routeId || '',
       title: node.menuName,
     },
   };
@@ -199,6 +203,26 @@ function mapNodeToRoute(node: MenuNode): null | RouteRecordStringComponent {
         ...createBaseMeta(node, routePath),
         link: node.component || undefined,
       },
+      name: `BackendMenu${node.menuId}`,
+      path: routePath,
+    };
+  }
+
+  if (node.routeId) {
+    const registeredComponent = appFeatureRegistry.resolveComponent(
+      node.routeId,
+    );
+    if (registeredComponent) {
+      return {
+        component: registeredComponent,
+        meta: createBaseMeta(node, routePath),
+        name: `BackendMenu${node.menuId}`,
+        path: routePath,
+      };
+    }
+    return {
+      component: MODULE_BRIDGE_COMPONENT,
+      meta: createBridgeMeta(node, routePath),
       name: `BackendMenu${node.menuId}`,
       path: routePath,
     };

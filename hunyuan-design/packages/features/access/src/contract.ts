@@ -97,6 +97,7 @@ export interface AccessMenuRecord {
   parentId: number;
   path?: null | string;
   permsType?: null | number;
+  routeId?: null | string;
   sort?: null | number;
   updateTime?: null | string;
   updateUserId?: null | number;
@@ -122,6 +123,7 @@ export interface AccessMenuCommand {
   parentId: number;
   path?: null | string;
   permsType?: null | number;
+  routeId?: null | string;
   sort?: null | number;
   visibleFlag: boolean;
   webPerms?: null | string;

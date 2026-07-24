@@ -77,7 +77,6 @@ describe('组织与访问控制前端边界', () => {
         ? readdirSync(legacyComponentsDirectory)
         : [],
     ).toEqual([]);
-
   });
 
   it('岗位前端只使用稳定版本化接口并退役旧应用 API 文件', () => {
@@ -233,19 +232,26 @@ describe('组织与访问控制前端边界', () => {
     }
   });
 
-  it('冻结十五个稳定能力码和两个应用路由', () => {
+  it('冻结十五个稳定能力码和两个稳定 routeId', () => {
     const source = readWorkspaceFile(accessIndexPath);
     const capabilityMatches =
       source
         .match(/'access\.[^']+'/g)
-        ?.filter((item) => item !== "'access.management'") ?? [];
+        ?.filter(
+          (item) =>
+            item !== "'access.management'" &&
+            item !== "'access.role.management'" &&
+            item !== "'access.menu.management'",
+        ) ?? [];
 
     expect(new Set(capabilityMatches).size).toBe(15);
     expect(source).toContain("id: 'access.management'");
     expect(source).toContain("path: '/system/role'");
-    expect(source).toContain("component: '/system/role/index.vue'");
+    expect(source).toContain("routeId: 'access.role.management'");
     expect(source).toContain("path: '/system/menu'");
-    expect(source).toContain("component: '/system/menu/menu-list.vue'");
+    expect(source).toContain("routeId: 'access.menu.management'");
+    expect(source).not.toContain("component: '/system/role/index.vue'");
+    expect(source).not.toContain("component: '/system/menu/menu-list.vue'");
   });
 
   it('共享组织树注册 Element Plus 输入组件', () => {
@@ -268,9 +274,7 @@ describe('组织与访问控制前端边界', () => {
     expect(source).toContain(
       "from '@hunyuan/feature-organization/position-directory'",
     );
-    expect(source).toContain(
-      'createOrganizationPositionClient(requestClient)',
-    );
+    expect(source).toContain('createOrganizationPositionClient(requestClient)');
     expect(source).toContain('<OrganizationPositionDirectory />');
     expect(source).not.toContain('ArtTable');
   });

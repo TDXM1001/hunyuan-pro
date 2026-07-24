@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@hunyuan/app-kernel": "workspace:*",
     "@vben/access": "workspace:*",
     "@vben/art-hooks": "workspace:*",
     "@vben/common-ui": "workspace:*",

@@ -94,6 +94,7 @@ const formData = reactive<MenuFormModel>({
   parentId: 0,
   path: '',
   permsType: 0,
+  routeId: '',
   sort: 100,
   visibleFlag: true,
   webPerms: '',
@@ -108,6 +109,22 @@ const rules: FormRules<MenuFormModel> = {
   menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
   menuType: [{ required: true, message: '请选择菜单类型', trigger: 'change' }],
   parentId: [{ required: true, message: '请选择上级菜单', trigger: 'change' }],
+  routeId: [
+    {
+      validator: (_rule, value, callback) => {
+        const requiresRouteId =
+          dialogMode.value === 'add' &&
+          formData.menuType === 2 &&
+          !formData.frameFlag;
+        if (requiresRouteId && !String(value || '').trim()) {
+          callback(new Error('请输入稳定路由标识'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'blur',
+    },
+  ],
   visibleFlag: [
     { required: true, message: '请选择显示状态', trigger: 'change' },
   ],
@@ -121,6 +138,12 @@ const columnsFactory = (): ColumnOption<MenuTreeRow>[] => [
     label: '路由路径',
     minWidth: 180,
     formatter: (row) => row.path || '-',
+  },
+  {
+    prop: 'routeId',
+    label: '稳定路由标识',
+    minWidth: 240,
+    formatter: (row) => row.routeId || '-',
   },
   {
     prop: 'component',
@@ -263,6 +286,7 @@ function resetForm() {
     parentId: 0,
     path: '',
     permsType: 0,
+    routeId: '',
     sort: 100,
     visibleFlag: true,
     webPerms: '',
@@ -330,6 +354,7 @@ function openEditDialog(row: MenuTreeRow) {
     parentId: row.parentId ?? 0,
     path: row.path || '',
     permsType: row.permsType ?? 0,
+    routeId: row.routeId || '',
     sort: row.sort ?? 0,
     visibleFlag: row.visibleFlag,
     webPerms: row.webPerms || '',
@@ -444,10 +469,8 @@ onMounted(() => {
               >
                 <span class="menu-page__tree-label">{{ row.menuName }}</span>
                 <ElTag effect="plain" size="small">
-{{
-                  getMenuTypeLabel(row.menuType)
-                }}
-</ElTag>
+                  {{ getMenuTypeLabel(row.menuType) }}
+                </ElTag>
               </div>
             </template>
 
@@ -565,6 +588,12 @@ onMounted(() => {
           </ElFormItem>
           <ElFormItem label="路由路径" prop="path">
             <ElInput v-model="formData.path" placeholder="例如 /system/menu" />
+          </ElFormItem>
+          <ElFormItem label="稳定路由标识" prop="routeId">
+            <ElInput
+              v-model="formData.routeId"
+              placeholder="例如 access.menu.management"
+            />
           </ElFormItem>
           <ElFormItem label="组件路径" prop="component">
             <ElInput

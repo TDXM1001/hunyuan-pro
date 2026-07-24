@@ -1,3 +1,5 @@
+import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
+
 export const accessFeature = {
   capabilities: [
     'access.role.read',
@@ -19,15 +21,15 @@ export const accessFeature = {
   id: 'access.management',
   routes: [
     {
-      component: '/system/role/index.vue',
       path: '/system/role',
+      routeId: 'access.role.management',
     },
     {
-      component: '/system/menu/menu-list.vue',
       path: '/system/menu',
+      routeId: 'access.menu.management',
     },
   ],
-} as const;
+} as const satisfies AppFeatureDefinition;
 
 export { createAccessClient } from './client';
 export type {

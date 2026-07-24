@@ -1,3 +1,5 @@
+import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
+
 export const identityEmployeeFeature = {
   capabilities: [
     'identity.employee.read',
@@ -9,12 +11,15 @@ export const identityEmployeeFeature = {
     'identity.employee.delete',
     'identity.employee.password.reset',
   ],
+  dependencies: ['organization.directory', 'organization.position'],
   id: 'identity.employee',
-  route: {
-    component: '/system/employee/index.vue',
-    path: '/organization/employee',
-  },
-} as const;
+  routes: [
+    {
+      path: '/organization/employee',
+      routeId: 'identity.employee.management',
+    },
+  ],
+} as const satisfies AppFeatureDefinition;
 
 export { createIdentityEmployeeClient } from './employee/client';
 export {

@@ -7,12 +7,14 @@ import { generateAccessible } from '@vben/access';
 import { preferences } from '@vben/preferences';
 
 import { getAllMenusApi } from '#/api';
+import { appFeatureRegistry } from '#/app-kernel/feature-registry';
 import { BasicLayout, IFrameView } from '#/layouts';
 
 const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
 
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const pageMap: ComponentRecordType = import.meta.glob('../views/**/*.vue');
+  Object.assign(pageMap, appFeatureRegistry.createPageMap());
 
   const layoutMap: ComponentRecordType = {
     BasicLayout,

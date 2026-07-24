@@ -631,6 +631,9 @@ importers:
       '@form-create/element-ui':
         specifier: ^3.2.38
         version: 3.2.38(vue@3.5.38(typescript@6.0.3))
+      '@hunyuan/app-kernel':
+        specifier: workspace:*
+        version: link:../../packages/app-kernel
       '@hunyuan/feature-access':
         specifier: workspace:*
         version: link:../../packages/features/access
@@ -1394,6 +1397,8 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  packages/app-kernel: {}
+
   packages/constants:
     dependencies:
       '@vben-core/shared':
@@ -1701,6 +1706,9 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.38(typescript@6.0.3))
+      '@hunyuan/app-kernel':
+        specifier: workspace:*
+        version: link:../../app-kernel
       '@vben/access':
         specifier: workspace:*
         version: link:../../effects/access
@@ -1725,6 +1733,9 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.38(typescript@6.0.3))
+      '@hunyuan/app-kernel':
+        specifier: workspace:*
+        version: link:../../app-kernel
       '@vben/access':
         specifier: workspace:*
         version: link:../../effects/access
@@ -1746,6 +1757,9 @@ importers:
 
   packages/features/organization:
     dependencies:
+      '@hunyuan/app-kernel':
+        specifier: workspace:*
+        version: link:../../app-kernel
       '@vben/access':
         specifier: workspace:*
         version: link:../../effects/access

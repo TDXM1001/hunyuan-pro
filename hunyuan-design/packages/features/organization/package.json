@@ -18,6 +18,7 @@
     }
   },
   "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*",
     "@vben/access": "workspace:*",
     "@vben/art-hooks": "workspace:*",
     "@vben/common-ui": "workspace:*",
