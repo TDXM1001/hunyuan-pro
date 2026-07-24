@@ -85,4 +85,17 @@ describe('job api payloads', () => {
       successFlag: false,
     });
   });
+
+  it('uses stable platform runtime routes without legacy endpoints', () => {
+    const apiSource = readFileSync(
+      resolve(process.cwd(), 'apps/hunyuan-system/src/api/system/job.ts'),
+      'utf8',
+    );
+
+    expect(apiSource).toContain("'/admin/v1/platform/runtime/jobs'");
+    expect(apiSource).not.toContain("'/support/job/");
+    expect(apiSource).not.toContain('`/support/job/');
+  });
 });
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';

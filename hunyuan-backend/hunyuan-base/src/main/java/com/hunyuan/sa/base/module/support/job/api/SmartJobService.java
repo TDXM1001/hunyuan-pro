@@ -281,6 +281,17 @@ public class SmartJobService {
      * @author huke
      */
     public synchronized ResponseDTO<String> deleteJob(Integer jobId, RequestUser requestUser) {
+        return deleteJob(jobId, requestUser.getUserName());
+    }
+
+    /**
+     * 按服务端确认的操作人名称删除任务，供平台稳定边界调用。
+     *
+     * @param jobId 任务 ID
+     * @param operatorName 操作人名称
+     * @return 删除结果
+     */
+    public synchronized ResponseDTO<String> deleteJob(Integer jobId, String operatorName) {
         // 删除任务
         jobDao.updateDeletedFlag(jobId, Boolean.TRUE);
 
@@ -288,7 +299,7 @@ public class SmartJobService {
         SmartJobMsg jobMsg = new SmartJobMsg();
         jobMsg.setJobId(jobId);
         jobMsg.setMsgType(SmartJobMsg.MsgTypeEnum.UPDATE_JOB);
-        jobMsg.setUpdateName(requestUser.getUserName());
+        jobMsg.setUpdateName(operatorName);
         jobClientManager.publishToClient(jobMsg);
         return ResponseDTO.ok();
     }

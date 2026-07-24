@@ -64,21 +64,23 @@ export function buildSerialNumberGeneratePayload(
 }
 
 export async function querySerialNumberList() {
-  return requestClient.get<SerialNumberDefinition[]>('/support/serialNumber/all');
+  return requestClient.get<SerialNumberDefinition[]>(
+    '/admin/v1/platform/runtime/serial-numbers',
+  );
 }
 
 export async function querySerialNumberRecords(
   params: SerialNumberRecordQueryParams,
 ) {
   return requestClient.post<PageResult<SerialNumberRecord>>(
-    '/support/serialNumber/queryRecord',
+    '/admin/v1/platform/runtime/serial-numbers/records/query',
     buildSerialNumberRecordQueryPayload(params),
   );
 }
 
 export async function generateSerialNumbers(params: SerialNumberGenerateParams) {
   return requestClient.post<string[]>(
-    '/support/serialNumber/generate',
+    '/admin/v1/platform/runtime/serial-numbers/generate',
     buildSerialNumberGeneratePayload(params),
   );
 }

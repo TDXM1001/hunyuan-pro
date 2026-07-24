@@ -68,6 +68,128 @@ class ArchitectureGuardTest {
                     "com.hunyuan.sa.admin.module.system.role.service..",
                     "com.hunyuan.sa.admin.module.system.role.dao..");
 
+    /**
+     * 登录认证只能通过身份员工公开接口读取账号，禁止回退到旧员工内部实现。
+     */
+    @ArchTest
+    static final ArchRule LOGIN_MUST_USE_IDENTITY_EMPLOYEE_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.login..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.system.employee.service..",
+                    "com.hunyuan.sa.admin.module.system.employee.dao..",
+                    "com.hunyuan.sa.admin.module.system.employee.domain.entity..");
+
+    /**
+     * 登录模块只能通过平台邮件公开边界发送验证码，不能依赖底层邮件服务。
+     */
+    @ArchTest
+    static final ArchRule LOGIN_MUST_USE_PLATFORM_MAIL_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.login..")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.mail.MailService");
+
+    /**
+     * 身份和登录模块只能通过平台文件公开接口解析头像，不能依赖具体存储实现。
+     */
+    @ArchTest
+    static final ArchRule IDENTITY_AND_LOGIN_MUST_USE_PLATFORM_FILE_API = noClasses()
+            .that().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.identity..",
+                    "com.hunyuan.sa.admin.module.system.login..")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.file.service.IFileStorageService");
+
+    /**
+     * 管理端消息控制器只能通过平台消息公开边界访问消息能力。
+     */
+    @ArchTest
+    static final ArchRule ADMIN_MESSAGE_CONTROLLERS_MUST_USE_PLATFORM_MESSAGE_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.message..")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.message.service.MessageService");
+
+    /**
+     * 历史个人消息控制器只能通过消息箱公开边界访问消息能力。
+     */
+    @ArchTest
+    static final ArchRule LEGACY_MESSAGE_CONTROLLER_MUST_USE_INBOX_API = noClasses()
+            .that().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.message.controller.MessageController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.message.service.MessageService");
+
+    /**
+     * 历史审计日志控制器只能通过平台审计公开边界查询日志。
+     */
+    @ArchTest
+    static final ArchRule OPERATE_LOG_CONTROLLER_MUST_USE_PLATFORM_AUDIT_API = noClasses()
+            .that().haveSimpleName("AdminOperateLogController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.operatelog.OperateLogService");
+
+    @ArchTest
+    static final ArchRule LOGIN_LOG_CONTROLLER_MUST_USE_PLATFORM_AUDIT_API = noClasses()
+            .that().haveSimpleName("AdminLoginLogController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.loginlog.LoginLogService");
+
+    /**
+     * 历史短信管理控制器只能通过平台短信公开边界访问短信能力。
+     */
+    @ArchTest
+    static final ArchRule SMS_CONTROLLER_MUST_USE_PLATFORM_SMS_API = noClasses()
+            .that().haveSimpleName("AdminSmsController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.sms.service.SmsService");
+
+    /**
+     * 历史序列号控制器只能通过平台运行时公开边界访问序列号能力。
+     */
+    @ArchTest
+    static final ArchRule SERIAL_NUMBER_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
+            .that().haveSimpleName("AdminSerialNumberController")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.base.module.support.serialnumber.dao..",
+                    "com.hunyuan.sa.base.module.support.serialnumber.service..");
+
+    /**
+     * 历史定时任务控制器只能通过平台运行时公开边界访问任务能力。
+     */
+    @ArchTest
+    static final ArchRule JOB_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
+            .that().haveSimpleName("AdminSmartJobController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.job.api.SmartJobService");
+
+    /**
+     * 历史代码生成器控制器只能通过开发工具公开边界访问生成能力。
+     */
+    @ArchTest
+    static final ArchRule CODE_GENERATOR_CONTROLLER_MUST_USE_DEVTOOLS_API = noClasses()
+            .that().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.codegenerator.controller.CodeGeneratorController")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.base.module.support.codegenerator.service..",
+                    "com.hunyuan.sa.base.module.support.codegenerator.dao..");
+
+    /**
+     * 历史重载控制器只能通过平台运行时公开边界访问重载能力。
+     */
+    @ArchTest
+    static final ArchRule RELOAD_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
+            .that().haveSimpleName("AdminReloadController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.reload.ReloadService");
+
+    /**
+     * 历史心跳控制器只能通过平台运行时公开边界查询心跳记录。
+     */
+    @ArchTest
+    static final ArchRule HEARTBEAT_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
+            .that().haveSimpleName("AdminHeartBeatController")
+            .should().dependOnClassesThat().haveFullyQualifiedName(
+                    "com.hunyuan.sa.base.module.support.heartbeat.HeartBeatService");
+
     @ArchTest
     static final ArchRule IDENTITY_MUST_USE_ACCESS_ROLE_API = noClasses()
             .that().resideInAPackage("com.hunyuan.sa.admin.module.identity..")

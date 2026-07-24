@@ -1,5 +1,7 @@
 import { requestClient } from '#/api/request';
 
+const RELOAD_BASE_PATH = '/admin/v1/platform/runtime/reloads';
+
 export interface ReloadItemRecord {
   args?: null | string;
   createTime?: null | string;
@@ -36,16 +38,16 @@ export function buildReloadMutationPayload(params: ReloadFormModel) {
 }
 
 export function buildReloadResultPath(tag: string) {
-  return `/support/reload/result/${encodeURIComponent(tag.trim())}`;
+  return `${RELOAD_BASE_PATH}/${encodeURIComponent(tag.trim())}/results`;
 }
 
 export async function queryReloadItems() {
-  return requestClient.get<ReloadItemRecord[]>('/support/reload/query');
+  return requestClient.get<ReloadItemRecord[]>(RELOAD_BASE_PATH);
 }
 
 export async function updateReloadItem(params: ReloadFormModel) {
-  return requestClient.post<string>(
-    '/support/reload/update',
+  return requestClient.put<string>(
+    RELOAD_BASE_PATH,
     buildReloadMutationPayload(params),
   );
 }

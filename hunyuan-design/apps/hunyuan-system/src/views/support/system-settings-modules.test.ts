@@ -69,9 +69,9 @@ describe('system settings support modules', () => {
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/config/query'");
-    expect(source).toContain("'/support/config/add'");
-    expect(source).toContain("'/support/config/update'");
+    expect(source).toContain("'/admin/v1/platform/configurations/query'");
+    expect(source).toContain("'/admin/v1/platform/configurations'");
+    expect(source).toContain('`/admin/v1/platform/configurations/${params.configId}`');
     expect(source).toContain('buildConfigPageQueryPayload');
     expect(source).toContain('buildConfigMutationPayload');
   });
@@ -129,12 +129,12 @@ describe('system settings support modules', () => {
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/dict/queryPage'");
-    expect(source).toContain("'/support/dict/add'");
-    expect(source).toContain("'/support/dict/update'");
-    expect(source).toContain('/support/dict/dictData/queryDictData/${dictId}');
-    expect(source).toContain("'/support/dict/dictData/add'");
-    expect(source).toContain("'/support/dict/dictData/update'");
+    expect(source).toContain("'/admin/v1/platform/dictionaries/query'");
+    expect(source).toContain("'/admin/v1/platform/dictionaries'");
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${dictId}`');
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${dictId}/items`');
+    expect(source).toContain("'/admin/v1/platform/dictionaries/items'");
+    expect(source).toContain('`/admin/v1/platform/dictionaries/${params.dictId}/items/${params.dictDataId}`');
     expect(source).toContain('buildDictPageQueryPayload');
     expect(source).toContain('buildDictMutationPayload');
     expect(source).toContain('buildDictDataMutationPayload');
@@ -177,9 +177,9 @@ describe('system settings support modules', () => {
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/file/queryPage'");
-    expect(source).toContain('/support/file/getFileUrl?fileKey=');
-    expect(source).toContain('/support/file/downLoad?fileKey=');
+    expect(source).toContain("'/admin/v1/platform/files/query'");
+    expect(source).toContain('/admin/v1/platform/files/url?fileKey=');
+    expect(source).toContain('/admin/v1/platform/files/download?fileKey=');
     expect(source).toContain('buildFilePageQueryPayload');
     expect(source).toContain('buildFilePreviewPath');
     expect(source).toContain('buildFileDownloadPath');
@@ -221,9 +221,12 @@ describe('system settings support modules', () => {
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/message/query'");
-    expect(source).toContain("'/message/sendMessages'");
-    expect(source).toContain('/message/delete/${messageId}');
+    expect(source).toContain("'/admin/v1/platform/messages/query'");
+    expect(source).toContain("'/admin/v1/platform/messages'");
+    expect(source).toContain('/admin/v1/platform/messages/${messageId}');
+    expect(source).not.toContain("'/message/query'");
+    expect(source).not.toContain("'/message/sendMessages'");
+    expect(source).not.toContain('/message/delete/${messageId}');
     expect(source).toContain('buildMessagePageQueryPayload');
     expect(source).toContain('buildMessageSendPayload');
   });
@@ -273,13 +276,13 @@ describe('system settings support modules', () => {
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/job/query'");
-    expect(source).toContain("'/support/job/add'");
-    expect(source).toContain("'/support/job/update'");
-    expect(source).toContain("'/support/job/update/enabled'");
-    expect(source).toContain("'/support/job/execute'");
-    expect(source).toContain('/support/job/delete?jobId=');
-    expect(source).toContain("'/support/job/log/query'");
+    expect(source).toContain("'/admin/v1/platform/runtime/jobs'");
+    expect(source).toContain('`${JOB_BASE_PATH}/query`');
+    expect(source).toContain('`${JOB_BASE_PATH}/enabled`');
+    expect(source).toContain('`${JOB_BASE_PATH}/execute`');
+    expect(source).toContain('`${JOB_BASE_PATH}/logs/query`');
+    expect(source).not.toContain("'/support/job/");
+    expect(source).not.toContain('`/support/job/');
     expect(source).toContain('buildJobPageQueryPayload');
     expect(source).toContain('buildJobMutationPayload');
     expect(source).toContain('buildJobEnabledPayload');
@@ -323,15 +326,20 @@ describe('system settings support modules', () => {
     expect(drawerSource).not.toContain('ElMessage.error(error?.message');
   });
 
-  it('wires the serial-number api module to the backend serial-number endpoints', () => {
+  it('wires the serial-number api module to stable platform runtime endpoints', () => {
     const apiPath = resolve(process.cwd(), serialNumberApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/serialNumber/all'");
-    expect(source).toContain("'/support/serialNumber/queryRecord'");
-    expect(source).toContain("'/support/serialNumber/generate'");
+    expect(source).toContain("'/admin/v1/platform/runtime/serial-numbers'");
+    expect(source).toContain(
+      "'/admin/v1/platform/runtime/serial-numbers/records/query'",
+    );
+    expect(source).toContain(
+      "'/admin/v1/platform/runtime/serial-numbers/generate'",
+    );
+    expect(source).not.toContain("'/support/serialNumber/");
     expect(source).toContain('buildSerialNumberRecordQueryPayload');
     expect(source).toContain('buildSerialNumberGeneratePayload');
   });
@@ -438,11 +446,12 @@ describe('system settings support modules', () => {
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/reload/query'");
-    expect(source).toContain("'/support/reload/update'");
+    expect(source).toContain("'/admin/v1/platform/runtime/reloads'");
     expect(source).toContain(
-      '/support/reload/result/${encodeURIComponent(tag.trim())}',
+      '${RELOAD_BASE_PATH}/${encodeURIComponent(tag.trim())}/results',
     );
+    expect(source).not.toContain("'/support/reload/");
+    expect(source).not.toContain('`/support/reload/');
     expect(source).toContain('buildReloadMutationPayload');
     expect(source).toContain('buildReloadResultPath');
   });
@@ -463,19 +472,26 @@ describe('system settings support modules', () => {
     expect(drawerSource).toContain('exception');
   });
 
-  it('wires the sms api module to the backend sms endpoints', () => {
+  it('wires the sms api module to the stable platform endpoints', () => {
     const apiPath = resolve(process.cwd(), smsApiPath);
 
     expect(existsSync(apiPath)).toBe(true);
 
     const source = readFileSync(apiPath, 'utf8');
-    expect(source).toContain("'/support/sms/template/query'");
-    expect(source).toContain("'/support/sms/template/add'");
-    expect(source).toContain("'/support/sms/template/update'");
     expect(source).toContain(
-      '/support/sms/template/updateDisabled/${encodeURIComponent(',
+      "'/admin/v1/platform/notifications/sms/templates/query'",
     );
-    expect(source).toContain("'/support/sms/sendLog/query'");
+    expect(source).toContain(
+      "'/admin/v1/platform/notifications/sms/templates'",
+    );
+    expect(source).toContain(
+      '/admin/v1/platform/notifications/sms/templates/${encodeURIComponent(',
+    );
+    expect(source).toContain(
+      "'/admin/v1/platform/notifications/sms/send-logs/query'",
+    );
+    expect(source).not.toContain("'/support/sms/");
+    expect(source).not.toContain("'/api/admin/v1/platform/notifications/sms/");
     expect(source).toContain('buildSmsTemplateQueryPayload');
     expect(source).toContain('buildSmsTemplateMutationPayload');
     expect(source).toContain('buildSmsTemplateDisabledPath');

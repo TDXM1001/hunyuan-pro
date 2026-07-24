@@ -6,8 +6,8 @@ import jakarta.annotation.Resource;
 import com.hunyuan.sa.base.config.CacheConfig;
 import com.hunyuan.sa.base.constant.ReloadConst;
 import com.hunyuan.sa.base.module.support.reload.core.annoation.SmartReload;
+import com.hunyuan.sa.base.module.support.redis.CustomRedisCacheManager;
 import org.springframework.data.redis.cache.RedisCache;
-import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 public class RedisCacheServiceImpl implements CacheService {
 
     @Resource
-    private RedisCacheManager redisCacheManager;
+    private CustomRedisCacheManager redisCacheManager;
 
     @Resource
     private RedisConnectionFactory redisConnectionFactory;

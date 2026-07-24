@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -30,5 +33,24 @@ describe('serial number api payloads', () => {
       count: 3,
       serialNumberId: 5,
     });
+  });
+
+  it('uses stable platform runtime routes without legacy endpoints', () => {
+    const apiSource = readFileSync(
+      resolve(
+        process.cwd(),
+        'apps/hunyuan-system/src/api/system/serial-number.ts',
+      ),
+      'utf8',
+    );
+
+    expect(apiSource).toContain("'/admin/v1/platform/runtime/serial-numbers'");
+    expect(apiSource).toContain(
+      "'/admin/v1/platform/runtime/serial-numbers/records/query'",
+    );
+    expect(apiSource).toContain(
+      "'/admin/v1/platform/runtime/serial-numbers/generate'",
+    );
+    expect(apiSource).not.toContain("'/support/serialNumber/");
   });
 });

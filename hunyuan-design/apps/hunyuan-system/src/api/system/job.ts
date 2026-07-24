@@ -1,5 +1,7 @@
 import { requestClient } from '#/api/request';
 
+const JOB_BASE_PATH = '/admin/v1/platform/runtime/jobs';
+
 export interface PageResult<T> {
   emptyFlag?: boolean;
   list: T[];
@@ -142,51 +144,51 @@ export function buildJobLogQueryPayload(params: JobLogQueryParams) {
 }
 
 export function buildJobDeletePath(jobId: number) {
-  return `/support/job/delete?jobId=${jobId}`;
+  return `${JOB_BASE_PATH}/${jobId}`;
 }
 
 export async function queryJobPage(params: JobPageQueryParams) {
   return requestClient.post<PageResult<JobRecord>>(
-    '/support/job/query',
+    `${JOB_BASE_PATH}/query`,
     buildJobPageQueryPayload(params),
   );
 }
 
 export async function addJob(params: JobMutationFormModel) {
   return requestClient.post<string>(
-    '/support/job/add',
+    JOB_BASE_PATH,
     buildJobMutationPayload(params),
   );
 }
 
 export async function updateJob(params: JobMutationFormModel) {
-  return requestClient.post<string>(
-    '/support/job/update',
+  return requestClient.put<string>(
+    JOB_BASE_PATH,
     buildJobMutationPayload(params),
   );
 }
 
 export async function updateJobEnabled(params: JobEnabledFormModel) {
-  return requestClient.post<string>(
-    '/support/job/update/enabled',
+  return requestClient.put<string>(
+    `${JOB_BASE_PATH}/enabled`,
     buildJobEnabledPayload(params),
   );
 }
 
 export async function executeJob(params: JobExecuteFormModel) {
   return requestClient.post<string>(
-    '/support/job/execute',
+    `${JOB_BASE_PATH}/execute`,
     buildJobExecutePayload(params),
   );
 }
 
 export async function deleteJob(jobId: number) {
-  return requestClient.get<string>(buildJobDeletePath(jobId));
+  return requestClient.delete<string>(buildJobDeletePath(jobId));
 }
 
 export async function queryJobLogs(params: JobLogQueryParams) {
   return requestClient.post<PageResult<JobLogRecord>>(
-    '/support/job/log/query',
+    `${JOB_BASE_PATH}/logs/query`,
     buildJobLogQueryPayload(params),
   );
 }

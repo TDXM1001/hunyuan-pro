@@ -8,16 +8,17 @@ import jakarta.validation.Valid;
 import com.hunyuan.sa.base.common.controller.SupportBaseController;
 import com.hunyuan.sa.base.common.domain.PageResult;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.common.util.SmartEnumUtil;
+import com.hunyuan.sa.base.common.util.SmartBeanUtil;
 import com.hunyuan.sa.base.constant.SwaggerTagConst;
-import com.hunyuan.sa.base.module.support.serialnumber.constant.SerialNumberIdEnum;
-import com.hunyuan.sa.base.module.support.serialnumber.dao.SerialNumberDao;
+import com.hunyuan.sa.base.module.support.serialnumber.api.PlatformSerialNumberDefinition;
+import com.hunyuan.sa.base.module.support.serialnumber.api.PlatformSerialNumberFacade;
+import com.hunyuan.sa.base.module.support.serialnumber.api.PlatformSerialNumberGenerateCommand;
+import com.hunyuan.sa.base.module.support.serialnumber.api.PlatformSerialNumberRecord;
+import com.hunyuan.sa.base.module.support.serialnumber.api.PlatformSerialNumberRecordPageQuery;
 import com.hunyuan.sa.base.module.support.serialnumber.domain.SerialNumberEntity;
 import com.hunyuan.sa.base.module.support.serialnumber.domain.SerialNumberGenerateForm;
 import com.hunyuan.sa.base.module.support.serialnumber.domain.SerialNumberRecordEntity;
 import com.hunyuan.sa.base.module.support.serialnumber.domain.SerialNumberRecordQueryForm;
-import com.hunyuan.sa.base.module.support.serialnumber.service.SerialNumberRecordService;
-import com.hunyuan.sa.base.module.support.serialnumber.service.SerialNumberService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,36 +40,48 @@ import java.util.List;
 public class AdminSerialNumberController extends SupportBaseController {
 
     @Resource
-    private SerialNumberDao serialNumberDao;
-
-    @Resource
-    private SerialNumberService serialNumberService;
-
-    @Resource
-    private SerialNumberRecordService serialNumberRecordService;
+    private PlatformSerialNumberFacade platformSerialNumberFacade;
 
     @Operation(summary = "生成单号 @author 卓大")
     @PostMapping("/serialNumber/generate")
     @SaCheckPermission("support:serialNumber:generate")
     public ResponseDTO<List<String>> generate(@RequestBody @Valid SerialNumberGenerateForm generateForm) {
-        SerialNumberIdEnum serialNumberIdEnum = SmartEnumUtil.getEnumByValue(generateForm.getSerialNumberId(), SerialNumberIdEnum.class);
-        if (null == serialNumberIdEnum) {
-            return ResponseDTO.userErrorParam("SerialNumberId，不存在" + generateForm.getSerialNumberId());
-        }
-        return ResponseDTO.ok(serialNumberService.generate(serialNumberIdEnum, generateForm.getCount()));
+        return platformSerialNumberFacade.generate(SmartBeanUtil.copy(
+                generateForm, PlatformSerialNumberGenerateCommand.class));
     }
 
     @Operation(summary = "获取所有单号定义 @author 卓大")
     @GetMapping("/serialNumber/all")
     public ResponseDTO<List<SerialNumberEntity>> getAll() {
-        return ResponseDTO.ok(serialNumberDao.selectList(null));
+        ResponseDTO<List<PlatformSerialNumberDefinition>> response =
+                platformSerialNumberFacade.listDefinitions();
+        if (!Boolean.TRUE.equals(response.getOk())) {
+            return ResponseDTO.error(response);
+        }
+        return ResponseDTO.ok(SmartBeanUtil.copyList(
+                response.getData(), SerialNumberEntity.class));
     }
 
     @Operation(summary = "获取生成记录 @author 卓大")
     @PostMapping("/serialNumber/queryRecord")
     @SaCheckPermission("support:serialNumber:record")
     public ResponseDTO<PageResult<SerialNumberRecordEntity>> queryRecord(@RequestBody @Valid SerialNumberRecordQueryForm queryForm) {
-        return ResponseDTO.ok(serialNumberRecordService.query(queryForm));
+        ResponseDTO<PageResult<PlatformSerialNumberRecord>> response =
+                platformSerialNumberFacade.queryRecords(SmartBeanUtil.copy(
+                        queryForm, PlatformSerialNumberRecordPageQuery.class));
+        if (!Boolean.TRUE.equals(response.getOk())) {
+            return ResponseDTO.error(response);
+        }
+        PageResult<PlatformSerialNumberRecord> source = response.getData();
+        PageResult<SerialNumberRecordEntity> result = new PageResult<>();
+        result.setPageNum(source.getPageNum());
+        result.setPageSize(source.getPageSize());
+        result.setTotal(source.getTotal());
+        result.setPages(source.getPages());
+        result.setEmptyFlag(source.getEmptyFlag());
+        result.setList(SmartBeanUtil.copyList(
+                source.getList(), SerialNumberRecordEntity.class));
+        return ResponseDTO.ok(result);
     }
 
 }
