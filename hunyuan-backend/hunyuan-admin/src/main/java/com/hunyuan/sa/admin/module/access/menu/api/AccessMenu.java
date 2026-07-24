@@ -12,6 +12,7 @@ public record AccessMenu(
         Long parentId,
         Integer sort,
         String path,
+        String routeId,
         String component,
         Boolean frameFlag,
         String frameUrl,

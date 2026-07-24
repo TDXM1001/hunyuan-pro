@@ -62,6 +62,7 @@ public class AccessCapabilityQueryFacadeAdapter implements AccessCapabilityQuery
         item.setParentId(menu.parentId());
         item.setSort(menu.sort());
         item.setPath(menu.path());
+        item.setRouteId(menu.routeId());
         item.setComponent(menu.component());
         item.setFrameFlag(menu.frameFlag());
         item.setFrameUrl(menu.frameUrl());

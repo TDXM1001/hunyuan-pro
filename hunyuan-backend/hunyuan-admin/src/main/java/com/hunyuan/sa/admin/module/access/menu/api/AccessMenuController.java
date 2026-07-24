@@ -125,6 +125,8 @@ public class AccessMenuController {
             Long parentId,
             Integer sort,
             String path,
+            @Size(max = 160, message = "稳定路由标识最多160个字符")
+            String routeId,
             String component,
             @NotNull(message = "是否为外链不能为空")
             Boolean frameFlag,
@@ -149,6 +151,7 @@ public class AccessMenuController {
                     parentId,
                     sort,
                     path,
+                    routeId,
                     component,
                     frameFlag,
                     frameUrl,
@@ -171,6 +174,7 @@ public class AccessMenuController {
                     parentId,
                     sort,
                     path,
+                    routeId,
                     component,
                     frameFlag,
                     frameUrl,

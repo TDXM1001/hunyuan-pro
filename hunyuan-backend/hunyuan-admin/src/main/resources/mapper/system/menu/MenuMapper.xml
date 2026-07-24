@@ -79,6 +79,12 @@
         where web_perms = #{webPerms}
           and deleted_flag = #{deletedFlag} limit 1
     </select>
+    <select id="getByRouteId" resultType="com.hunyuan.sa.admin.module.system.menu.domain.entity.MenuEntity">
+        select *
+        from t_menu
+        where route_id = #{routeId}
+          and deleted_flag = #{deletedFlag} limit 1
+    </select>
     <select id="selectMenuIdByParentIdList" resultType="java.lang.Long">
         <if test="menuIdList != null and menuIdList.size > 0">
             select menu_id from t_menu where parent_id in

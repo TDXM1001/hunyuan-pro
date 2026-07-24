@@ -73,6 +73,7 @@ class AccessMenuCatalogFacadeAdapterTest {
     void createReturnsGeneratedMenuIdAndOperator() {
         when(menuDao.getByMenuName("用户管理", 1L, false)).thenReturn(null);
         when(menuDao.getByWebPerms("system:user", false)).thenReturn(null);
+        when(menuDao.getByRouteId("access.user.management", false)).thenReturn(null);
         org.mockito.Mockito.doAnswer(invocation -> {
             MenuEntity entity = invocation.getArgument(0);
             entity.setMenuId(9L);
@@ -116,6 +117,29 @@ class AccessMenuCatalogFacadeAdapterTest {
         assertThat(result.failure()).isEqualTo(AccessMenuFailure.MENU_PARENT_SELF);
         assertThat(result.message()).isEqualTo("上级菜单不能为自己");
         verify(menuDao, never()).updateById(any(MenuEntity.class));
+    }
+
+    @Test
+    void createRequiresStableRouteIdForNormalPageMenu() {
+        var result = adapter.create(createCommand("用户管理", "system:user", null));
+
+        assertThat(result.failure()).isEqualTo(AccessMenuFailure.ROUTE_ID_REQUIRED);
+        assertThat(result.message()).isEqualTo("普通页面菜单必须填写稳定路由标识");
+        verify(menuDao, never()).insert(any(MenuEntity.class));
+    }
+
+    @Test
+    void createRejectsDuplicatedStableRouteId() {
+        when(menuDao.getByMenuName("用户管理", 1L, false)).thenReturn(null);
+        when(menuDao.getByWebPerms("system:user", false)).thenReturn(null);
+        when(menuDao.getByRouteId("access.user.management", false))
+                .thenReturn(entity(8L, "旧用户管理", 1L, false));
+
+        var result = adapter.create(createCommand("用户管理", "system:user"));
+
+        assertThat(result.failure()).isEqualTo(AccessMenuFailure.ROUTE_ID_DUPLICATED);
+        assertThat(result.message()).isEqualTo("稳定路由标识已存在");
+        verify(menuDao, never()).insert(any(MenuEntity.class));
     }
 
     @Test
@@ -198,12 +222,17 @@ class AccessMenuCatalogFacadeAdapterTest {
     }
 
     private CreateAccessMenuCommand createCommand(String menuName, String webPerms) {
+        return createCommand(menuName, webPerms, "access.user.management");
+    }
+
+    private CreateAccessMenuCommand createCommand(String menuName, String webPerms, String routeId) {
         return new CreateAccessMenuCommand(
                 menuName,
                 2,
                 1L,
                 1,
                 "/users",
+                routeId,
                 "system/user/index",
                 false,
                 null,
@@ -226,6 +255,7 @@ class AccessMenuCatalogFacadeAdapterTest {
                 parentId,
                 1,
                 "/users",
+                "access.user.management",
                 "system/user/index",
                 false,
                 null,

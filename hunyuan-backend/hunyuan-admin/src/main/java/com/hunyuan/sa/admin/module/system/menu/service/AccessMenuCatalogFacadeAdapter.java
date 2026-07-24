@@ -38,6 +38,12 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
 
     @Override
     public synchronized AccessMenuResult<Long> create(CreateAccessMenuCommand command) {
+        if (isRouteIdRequired(command.menuType(), command.frameFlag())
+                && SmartStringUtil.isEmpty(command.routeId())) {
+            return AccessMenuResult.failure(
+                    AccessMenuFailure.ROUTE_ID_REQUIRED,
+                    "普通页面菜单必须填写稳定路由标识");
+        }
         if (hasDuplicatedMenuName(command.menuName(), command.parentId(), null)) {
             return AccessMenuResult.failure(
                     AccessMenuFailure.MENU_NAME_DUPLICATED,
@@ -47,6 +53,11 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
             return AccessMenuResult.failure(
                     AccessMenuFailure.WEB_PERMISSION_DUPLICATED,
                     "前端权限字符串已存在");
+        }
+        if (hasDuplicatedRouteId(command.routeId(), null)) {
+            return AccessMenuResult.failure(
+                    AccessMenuFailure.ROUTE_ID_DUPLICATED,
+                    "稳定路由标识已存在");
         }
 
         MenuEntity menuEntity = toEntity(command);
@@ -72,6 +83,11 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
             return AccessMenuResult.failure(
                     AccessMenuFailure.WEB_PERMISSION_DUPLICATED,
                     "前端权限字符串已存在");
+        }
+        if (hasDuplicatedRouteId(command.routeId(), command.menuId())) {
+            return AccessMenuResult.failure(
+                    AccessMenuFailure.ROUTE_ID_DUPLICATED,
+                    "稳定路由标识已存在");
         }
         if (command.menuId().equals(command.parentId())) {
             return AccessMenuResult.failure(
@@ -162,6 +178,19 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
                 && (currentMenuId == null || !sameWebPermsMenu.getMenuId().equals(currentMenuId));
     }
 
+    private boolean hasDuplicatedRouteId(String routeId, Long currentMenuId) {
+        if (SmartStringUtil.isEmpty(routeId)) {
+            return false;
+        }
+        MenuEntity sameRouteMenu = menuDao.getByRouteId(routeId, Boolean.FALSE);
+        return sameRouteMenu != null
+                && (currentMenuId == null || !sameRouteMenu.getMenuId().equals(currentMenuId));
+    }
+
+    private boolean isRouteIdRequired(Integer menuType, Boolean frameFlag) {
+        return MenuTypeEnum.MENU.getValue().equals(menuType) && !Boolean.TRUE.equals(frameFlag);
+    }
+
     private List<MenuVO> flattenReachableMenus(
             Map<Long, List<MenuVO>> parentMap,
             Long parentId) {
@@ -192,6 +221,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
                 command.parentId(),
                 command.sort(),
                 command.path(),
+                command.routeId(),
                 command.component(),
                 command.frameFlag(),
                 command.frameUrl(),
@@ -217,6 +247,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
                 command.parentId(),
                 command.sort(),
                 command.path(),
+                command.routeId(),
                 command.component(),
                 command.frameFlag(),
                 command.frameUrl(),
@@ -239,6 +270,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
             Long parentId,
             Integer sort,
             String path,
+            String routeId,
             String component,
             Boolean frameFlag,
             String frameUrl,
@@ -255,6 +287,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
         entity.setParentId(parentId);
         entity.setSort(sort);
         entity.setPath(path);
+        entity.setRouteId(routeId);
         entity.setComponent(component);
         entity.setFrameFlag(frameFlag);
         entity.setFrameUrl(frameUrl);
@@ -276,6 +309,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
                 menu.getParentId(),
                 menu.getSort(),
                 menu.getPath(),
+                menu.getRouteId(),
                 menu.getComponent(),
                 menu.getFrameFlag(),
                 menu.getFrameUrl(),
@@ -301,6 +335,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
                 menu.getParentId(),
                 menu.getSort(),
                 menu.getPath(),
+                menu.getRouteId(),
                 menu.getComponent(),
                 menu.getFrameFlag(),
                 menu.getFrameUrl(),
@@ -328,6 +363,7 @@ public class AccessMenuCatalogFacadeAdapter implements AccessMenuCatalogFacade {
                 menu.getParentId(),
                 menu.getSort(),
                 menu.getPath(),
+                menu.getRouteId(),
                 menu.getComponent(),
                 menu.getFrameFlag(),
                 menu.getFrameUrl(),

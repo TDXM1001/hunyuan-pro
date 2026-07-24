@@ -55,6 +55,11 @@ public class MenuEntity {
     private String path;
 
     /**
+     * 稳定路由标识
+     */
+    private String routeId;
+
+    /**
      * 组件路径
      */
     private String component;

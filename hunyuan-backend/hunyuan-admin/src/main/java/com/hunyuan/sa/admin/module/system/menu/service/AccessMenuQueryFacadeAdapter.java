@@ -44,6 +44,7 @@ public class AccessMenuQueryFacadeAdapter implements AccessMenuQueryFacade {
                 menu.getParentId(),
                 menu.getSort(),
                 menu.getPath(),
+                menu.getRouteId(),
                 menu.getComponent(),
                 menu.getFrameFlag(),
                 menu.getFrameUrl(),

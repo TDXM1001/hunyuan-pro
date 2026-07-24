@@ -39,6 +39,11 @@ public interface MenuDao extends BaseMapper<MenuEntity> {
     MenuEntity getByWebPerms(@Param("webPerms") String webPerms, @Param("deletedFlag") Boolean deletedFlag);
 
     /**
+     * 根据稳定路由标识查询菜单。
+     */
+    MenuEntity getByRouteId(@Param("routeId") String routeId, @Param("deletedFlag") Boolean deletedFlag);
+
+    /**
      * 根据菜单ID删除菜单（逻辑删除）
      *
      * @param menuIdList   菜单id集合

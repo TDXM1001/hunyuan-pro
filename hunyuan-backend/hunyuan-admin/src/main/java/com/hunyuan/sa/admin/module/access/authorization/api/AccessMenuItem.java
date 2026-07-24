@@ -26,6 +26,9 @@ public class AccessMenuItem {
     @Schema(description = "路由地址")
     private String path;
 
+    @Schema(description = "稳定路由标识")
+    private String routeId;
+
     @Schema(description = "组件路径")
     private String component;
 

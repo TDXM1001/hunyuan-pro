@@ -114,6 +114,7 @@ class AccessCapabilityQueryFacadeAdapterTest {
                 null,
                 null,
                 null,
+                null,
                 false,
                 null,
                 webPerms,
