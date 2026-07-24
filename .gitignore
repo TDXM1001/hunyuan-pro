@@ -76,3 +76,5 @@ skills-lock.json
 playwright
 playwright-mcp-runtime
 test-results
+/.codex-runtime/
+/数据库SQL脚本/mysql/backups/
