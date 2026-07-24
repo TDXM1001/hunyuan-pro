@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(17);
+        assertThat(migrations).hasSize(18);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -59,6 +59,8 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_76_1__a3_4_remove_retired_oa_notice_parent_grants.sql");
         assertThat(migrations.get(16).getFileName().toString())
                 .isEqualTo("V3_77_0__a3_4_data_masking_validation_permission.sql");
+        assertThat(migrations.get(17).getFileName().toString())
+                .isEqualTo("V3_78_0__a4_5_retire_unadopted_support_capabilities.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -268,5 +270,21 @@ class FlywayMigrationContractTest {
                 .contains("MENU.`MENU_TYPE` = 3")
                 .doesNotContain("DROP TABLE")
                 .doesNotContain("DELETE FROM `T_MENU`");
+
+        String evaluatedSupportRetirement =
+                Files.readString(migrations.get(17), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(evaluatedSupportRetirement)
+                .contains("'/HELP-DOC/HELP-DOC-MANAGE-LIST'")
+                .contains("'/FEEDBACK/FEEDBACK-LIST'")
+                .contains("'SUPPORT:HELPDOC:%'")
+                .contains("DELETE ROLE_MENU")
+                .contains("DROP TABLE IF EXISTS `T_HELP_DOC_VIEW_RECORD`")
+                .contains("DROP TABLE IF EXISTS `T_HELP_DOC_RELATION`")
+                .contains("DROP TABLE IF EXISTS `T_HELP_DOC`")
+                .contains("DROP TABLE IF EXISTS `T_HELP_DOC_CATALOG`")
+                .contains("DROP TABLE IF EXISTS `T_FEEDBACK`")
+                .contains("DROP TABLE IF EXISTS `T_DATA_TRACER`")
+                .doesNotContain("DROP TABLE IF EXISTS `T_MAIL_TEMPLATE`")
+                .doesNotContain("DELETE FROM `T_MAIL_TEMPLATE`");
     }
 }

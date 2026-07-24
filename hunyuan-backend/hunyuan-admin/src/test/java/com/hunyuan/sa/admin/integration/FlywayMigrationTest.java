@@ -60,7 +60,7 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                 .load();
         flyway.migrate();
 
-        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.77.0");
+        assertThat(flyway.info().current().getVersion().toString()).isEqualTo("3.78.0");
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM t_employee
@@ -325,9 +325,6 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                    OR api_perms LIKE 'oa:invoice:%'
                    OR web_perms LIKE 'oa:invoice:%'
                 """, Integer.class)).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM t_data_tracer WHERE type = 3",
-                Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.tables
@@ -346,9 +343,37 @@ class FlywayMigrationTest extends IsolatedInfrastructureTestSupport {
                    OR api_perms LIKE 'oa:notice:%'
                    OR web_perms LIKE 'oa:notice:%'
                 """, Integer.class)).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM t_data_tracer WHERE type = 2",
-                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = ?
+                  AND table_name IN (
+                      't_help_doc',
+                      't_help_doc_catalog',
+                      't_help_doc_relation',
+                      't_help_doc_view_record',
+                      't_feedback',
+                      't_data_tracer'
+                  )
+                """, Integer.class, databaseName)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM t_menu
+                WHERE path IN (
+                        '/help-doc/help-doc-manage-list',
+                        '/feedback/feedback-list'
+                    )
+                   OR api_perms LIKE 'support:helpDoc:%'
+                   OR api_perms LIKE 'support:helpDocCatalog:%'
+                   OR web_perms LIKE 'support:helpDoc:%'
+                   OR web_perms LIKE 'support:helpDocCatalog:%'
+                """, Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = ?
+                  AND table_name = 't_mail_template'
+                """, Integer.class, databaseName)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM t_menu

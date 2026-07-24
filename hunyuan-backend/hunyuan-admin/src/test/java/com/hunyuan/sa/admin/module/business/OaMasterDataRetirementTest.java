@@ -1,7 +1,6 @@
 package com.hunyuan.sa.admin.module.business;
 
 import com.hunyuan.sa.admin.constant.AdminSwaggerTagConst;
-import com.hunyuan.sa.base.module.support.datatracer.constant.DataTracerTypeEnum;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -80,9 +79,5 @@ class OaMasterDataRetirementTest {
         assertThat(AdminSwaggerTagConst.Business.class.getDeclaredFields())
                 .extracting(java.lang.reflect.Field::getName)
                 .doesNotContain("OA_ENTERPRISE", "OA_BANK", "OA_INVOICE", "OA_NOTICE");
-
-        assertThat(DataTracerTypeEnum.values())
-                .extracting(DataTracerTypeEnum::getValue)
-                .doesNotContain(2, 3);
     }
 }

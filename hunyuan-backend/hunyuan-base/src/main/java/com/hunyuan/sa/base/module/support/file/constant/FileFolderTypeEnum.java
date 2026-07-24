@@ -27,16 +27,6 @@ public enum FileFolderTypeEnum implements BaseEnum {
      */
     NOTICE(2, FileFolderTypeEnum.FOLDER_PRIVATE + "/notice/", "公告"),
 
-    /**
-     * 帮助中心
-     */
-    HELP_DOC(3, FileFolderTypeEnum.FOLDER_PRIVATE + "/help-doc/", "帮助中心"),
-
-    /**
-     * 意见反馈
-     */
-    FEEDBACK(4, FileFolderTypeEnum.FOLDER_PRIVATE + "/feedback/", "意见反馈"),
-
     ;
 
     /**
@@ -55,4 +45,3 @@ public enum FileFolderTypeEnum implements BaseEnum {
 
     private final String desc;
 }
-

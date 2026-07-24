@@ -33,17 +33,11 @@ public class SwaggerTagConst {
 
         public static final String CONFIG = "业务支撑-系统参数";
 
-        public static final String DATA_TRACER = "业务支撑-数据变动记录";
-
         public static final String DICT = "业务支撑-数据字典";
 
         public static final String CODE_GENERATOR = "业务支撑-代码生成";
 
         public static final String CHANGE_LOG = "业务支撑-更新日志";
-
-        public static final String HELP_DOC = "业务支撑-帮助文档";
-
-        public static final String FEEDBACK = "业务支撑-意见反馈";
 
         public static final String TABLE_COLUMN = "业务支撑-列自定义";
 

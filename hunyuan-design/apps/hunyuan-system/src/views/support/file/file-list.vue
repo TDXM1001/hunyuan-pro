@@ -35,8 +35,6 @@ defineOptions({ name: 'SystemSupportFileList' });
 const folderTypeOptions = [
   { label: '通用', value: 1 },
   { label: '公告', value: 2 },
-  { label: '帮助中心', value: 3 },
-  { label: '意见反馈', value: 4 },
 ] as const;
 
 const loading = ref(false);
