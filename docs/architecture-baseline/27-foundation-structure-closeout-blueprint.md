@@ -165,6 +165,8 @@ infrastructure/
 - 建立后端 base Route、跨模块持久化访问和公开 DTO 泄漏基线。
 - 记录全部菜单 component、前端页面、客户端和后端 owner 的一一映射。
 
+关闭状态（2026-07-24）：F0 已建立前端遗留文件递减守卫、feature 反向依赖守卫、base HTTP Route 冻结、平台支撑跨 owner 持久化守卫和公开 Facade 模型泄漏守卫；开发库 26 个页面菜单已逐项映射目标 owner 与稳定 routeId/处置决定。测试和完整账本见 [28-f0-foundation-contract-and-ownership-freeze.md](28-f0-foundation-contract-and-ownership-freeze.md)。下一阶段进入 F1。
+
 ### F1：App Kernel 与稳定路由注册
 
 - 建立统一 `AppFeatureModule`、注册表、依赖校验和稳定 route ID。

@@ -47,6 +47,7 @@
 | [25-a4-5-evaluated-support-capability-closeout.md](25-a4-5-evaluated-support-capability-closeout.md) | A4.5 帮助、反馈、邮件与数据追踪的采用审计、退役或保留决策及关闭证据 |
 | [26-first-real-business-vertical-slice-blueprint.md](26-first-real-business-vertical-slice-blueprint.md) | 首个真实业务纵切的选题准入、业务契约、实施闭环与完成定义 |
 | [27-foundation-structure-closeout-blueprint.md](27-foundation-structure-closeout-blueprint.md) | 可复用管理后台底座的前后端职责归位、模块注册、稳定路由与分批关闭蓝图 |
+| [28-f0-foundation-contract-and-ownership-freeze.md](28-f0-foundation-contract-and-ownership-freeze.md) | F0 前后端遗留边界冻结、菜单 owner、稳定 routeId 账本与架构守卫结果 |
 
 ## 3. 当前架构摘要
 

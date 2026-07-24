@@ -1,6 +1,9 @@
 #
-#Tue Jul 21 09:36:18 CST 2026
+#Fri Jul 24 21:41:53 CST 2026
+no\ classes\ that\ reside\ in\ a\ package\ 'com.hunyuan.sa.base.module.support..'\ should\ \u4E0D\u8BBF\u95EE\u5176\u4ED6\u5E73\u53F0\u652F\u6491\u6A21\u5757\u7684\ DAO\u3001Mapper\ \u6216\ Entity=0205e524-851f-49da-9e97-dc189a015785
 no\ classes\ that\ reside\ in\ a\ package\ 'com.hunyuan.sa.admin.module..'\ should\ not\ access\ another\ admin\ module's\ DAO,\ Mapper,\ or\ Entity=da0b64fc-556b-431f-91a3-2322cd8fc4e2
 no\ classes\ that\ reside\ outside\ of\ package\ 'com.hunyuan.sa.admin.module.system.employee..'\ should\ depend\ on\ classes\ that\ reside\ in\ a\ package\ 'com.hunyuan.sa.admin.module.system.employee..'=ab7e54b0-9a31-4a68-a276-ed3b679e90f6
+classes\ that\ have\ simple\ name\ ending\ with\ 'Facade'\ and\ reside\ in\ any\ package\ ['com.hunyuan.sa.admin.module..',\ 'com.hunyuan.sa.base.module.support..']\ should\ \u516C\u5F00\u65B9\u6CD5\u7B7E\u540D\u4E0D\u66B4\u9732\u5185\u90E8\u6301\u4E45\u5316\u6216\u5386\u53F2\u534F\u8BAE\u6A21\u578B=5d6cadbe-2cc9-4ef0-9009-77f5c5109944
 slices\ matching\ 'com.hunyuan.sa.admin.module.(*)..'\ should\ be\ free\ of\ cycles=4f9abc74-8671-43ca-9a43-cf91ef061dd4
 slices\ matching\ 'com.hunyuan.sa.base.module.support.(*)..'\ should\ be\ free\ of\ cycles=10681e6b-26f0-4c8e-8d07-4a4b0e61298f
+no\ classes\ that\ reside\ in\ a\ package\ 'com.hunyuan.sa.base..'\ should\ be\ annotated\ with\ @RestController=4c1fcccf-7dcc-4aa3-88c0-58a097a2df94

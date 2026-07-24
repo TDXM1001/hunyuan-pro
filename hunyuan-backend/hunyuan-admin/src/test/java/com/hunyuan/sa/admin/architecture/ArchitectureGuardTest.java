@@ -2,6 +2,8 @@ package com.hunyuan.sa.admin.architecture;
 
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -12,6 +14,7 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 
 import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 @AnalyzeClasses(packages = "com.hunyuan.sa", importOptions = ImportOption.DoNotIncludeTests.class)
@@ -41,6 +44,33 @@ class ArchitectureGuardTest {
     static final ArchRule CROSS_MODULE_PERSISTENCE_ACCESS_MUST_NOT_GROW = freeze(noClasses()
             .that().resideInAPackage("com.hunyuan.sa.admin.module..")
             .should(notAccessAnotherModulePersistenceInternals()));
+
+    /**
+     * 基础工程中的 HTTP 入口属于待归位遗留项，只允许逐步减少，禁止继续新增。
+     */
+    @ArchTest
+    static final ArchRule BASE_HTTP_ROUTES_MUST_NOT_GROW = freeze(noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.base..")
+            .should().beAnnotatedWith("org.springframework.web.bind.annotation.RestController"));
+
+    /**
+     * 平台支撑模块不能新增对其他 owner 持久化内部实现的直接访问。
+     */
+    @ArchTest
+    static final ArchRule SUPPORT_CROSS_MODULE_PERSISTENCE_ACCESS_MUST_NOT_GROW = freeze(noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.base.module.support..")
+            .should(notAccessAnotherSupportModulePersistenceInternals()));
+
+    /**
+     * 公开 Facade 的方法签名不能继续暴露 Entity、DAO、Mapper 或历史 Form/VO。
+     */
+    @ArchTest
+    static final ArchRule PUBLIC_FACADE_MODEL_LEAKS_MUST_NOT_GROW = freeze(classes()
+            .that().haveSimpleNameEndingWith("Facade")
+            .and().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module..",
+                    "com.hunyuan.sa.base.module.support..")
+            .should(notExposeInternalModels()));
 
     @ArchTest
     static final ArchRule LEGACY_EMPLOYEE_DEPENDENCIES_MUST_NOT_GROW = freeze(noClasses()
@@ -275,8 +305,79 @@ class ArchitectureGuardTest {
         };
     }
 
+    private static ArchCondition<JavaClass> notAccessAnotherSupportModulePersistenceInternals() {
+        return new ArchCondition<>("不访问其他平台支撑模块的 DAO、Mapper 或 Entity") {
+            @Override
+            public void check(JavaClass source, ConditionEvents events) {
+                String sourceModule = supportModuleName(source.getPackageName());
+                if (sourceModule == null) {
+                    return;
+                }
+                for (Dependency dependency : source.getDirectDependenciesFromSelf()) {
+                    JavaClass target = dependency.getTargetClass();
+                    String targetPackage = target.getPackageName();
+                    String targetModule = supportModuleName(targetPackage);
+                    if (targetModule == null || sourceModule.equals(targetModule)) {
+                        continue;
+                    }
+                    if (isPersistenceInternal(targetPackage)) {
+                        String message = source.getName() + " 直接依赖 " + target.getName();
+                        events.add(SimpleConditionEvent.violated(source, message));
+                    }
+                }
+            }
+        };
+    }
+
+    private static ArchCondition<JavaClass> notExposeInternalModels() {
+        return new ArchCondition<>("公开方法签名不暴露内部持久化或历史协议模型") {
+            @Override
+            public void check(JavaClass source, ConditionEvents events) {
+                for (JavaMethod method : source.getMethods()) {
+                    if (!method.getOwner().equals(source)
+                            || !method.getModifiers().contains(JavaModifier.PUBLIC)) {
+                        continue;
+                    }
+                    for (JavaClass involvedType : method.getAllInvolvedRawTypes()) {
+                        if (isInternalModel(involvedType.getPackageName())) {
+                            String message = method.getFullName() + " 暴露 " + involvedType.getName();
+                            events.add(SimpleConditionEvent.violated(method, message));
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private static boolean isPersistenceInternal(String packageName) {
+        return packageName.contains(".dao.")
+                || packageName.endsWith(".dao")
+                || packageName.contains(".mapper.")
+                || packageName.endsWith(".mapper")
+                || packageName.contains(".domain.entity.")
+                || packageName.endsWith(".domain.entity");
+    }
+
+    private static boolean isInternalModel(String packageName) {
+        return isPersistenceInternal(packageName)
+                || packageName.contains(".domain.form.")
+                || packageName.endsWith(".domain.form")
+                || packageName.contains(".domain.vo.")
+                || packageName.endsWith(".domain.vo");
+    }
+
     private static String adminModuleName(String packageName) {
         String prefix = "com.hunyuan.sa.admin.module.";
+        if (!packageName.startsWith(prefix)) {
+            return null;
+        }
+        String remainder = packageName.substring(prefix.length());
+        int separator = remainder.indexOf('.');
+        return separator < 0 ? remainder : remainder.substring(0, separator);
+    }
+
+    private static String supportModuleName(String packageName) {
+        String prefix = "com.hunyuan.sa.base.module.support.";
         if (!packageName.startsWith(prefix)) {
             return null;
         }
