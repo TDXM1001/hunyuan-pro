@@ -8,6 +8,8 @@
 
 当前状态：`FOUNDATION_STRUCTURE_CLOSEOUT_REQUIRED`。
 
+截至 2026-07-25，前端 F0 至 F4 及前端侧 F6 已完成代码、菜单契约、开发库迁移、自动化门禁及管理员和受限角色浏览器验收，状态为 `FRONTEND_FULL_MIGRATION_CLOSED`。该关闭结论只覆盖前端迁移，不改变完整底座仍需实施后端 F5 的结论。
+
 在本蓝图关闭前，不启动首个真实业务纵切。底座结构关闭后，再回到真实业务选题和纵切实施。
 
 ## 2. 现状证据
@@ -190,11 +192,15 @@ infrastructure/
 - 迁移消息、日志、短信、安全设置、登录失败和数据脱敏验证入口。
 - 事务邮件继续保持内部后端能力，不虚构前端管理模块。
 
+交付状态（2026-07-25）：platform-audit、platform-notification、platform-security 已完成 feature 归位，8 个保留页面通过稳定 `routeId` 注册，更新日志菜单及其授权已退役。应用内对应完整页面和客户端已删除，开发库已成功执行 `V3_81_0`。自动化、数据库与图谱证据见 [32-frontend-full-migration-delivery.md](32-frontend-full-migration-delivery.md)。
+
 ### F4：运行时与开发工具归位
 
 - 抽取 platform-runtime 和 platform-devtools feature。
 - 迁移任务、序列号、重载、缓存和协议验证工具。
 - 开发工具与生产导航、权限和发布边界保持隔离。
+
+交付状态（2026-07-25）：platform-runtime、platform-devtools 已完成 feature 归位，5 个本地页面通过稳定 `routeId` 注册；Swagger 保持外链，心跳监控、代码生成和组件演示菜单及其授权已退役。开发库已成功执行 `V3_82_0`。自动化、数据库与图谱证据见 [32-frontend-full-migration-delivery.md](32-frontend-full-migration-delivery.md)。
 
 ### F5：后端平台模块归位与 base 收缩
 
@@ -209,6 +215,8 @@ infrastructure/
 - 删除应用中的业务页面扫描、历史 API 和无消费者薄入口。
 - 新建一个最小验收 feature，证明模块可以通过公开协议接入，不依赖应用内部实现。
 - 完成 Codebase Memory、OpenAPI、数据库、测试、生产构建和浏览器总验收。
+
+前端交付状态（2026-07-25）：登录菜单适配器已删除历史 `component` 双读和业务页面扫描，后端登录菜单 DTO 已停止输出 `component`；开发库 21 个有效本地页面均有稳定 `routeId` 且 `component` 已清空，4 个退役菜单的角色授权为 0。无消费者模块桥接已删除，最小验收 feature 已接入。Codebase Memory、TypeScript、Vitest、生产构建、Maven、Flyway、数据库实值以及管理员和受限角色浏览器验收均已通过，前端状态关闭为 `FRONTEND_FULL_MIGRATION_CLOSED`；完整底座仍保持 `FOUNDATION_STRUCTURE_CLOSEOUT_REQUIRED`，直到后端 F5 完成。
 
 ## 8. 每批关闭门
 

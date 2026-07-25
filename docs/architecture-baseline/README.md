@@ -48,6 +48,10 @@
 | [26-first-real-business-vertical-slice-blueprint.md](26-first-real-business-vertical-slice-blueprint.md) | 首个真实业务纵切的选题准入、业务契约、实施闭环与完成定义 |
 | [27-foundation-structure-closeout-blueprint.md](27-foundation-structure-closeout-blueprint.md) | 可复用管理后台底座的前后端职责归位、模块注册、稳定路由与分批关闭蓝图 |
 | [28-f0-foundation-contract-and-ownership-freeze.md](28-f0-foundation-contract-and-ownership-freeze.md) | F0 前后端遗留边界冻结、菜单 owner、稳定 routeId 账本与架构守卫结果 |
+| [29-f1-app-kernel-and-stable-route-delivery.md](29-f1-app-kernel-and-stable-route-delivery.md) | F1 App Kernel、稳定 routeId、菜单双读迁移与浏览器关闭证据 |
+| [30-f2-platform-feature-extraction-delivery.md](30-f2-platform-feature-extraction-delivery.md) | F2 配置、文件与账号 feature 抽取、开发库迁移和浏览器关闭证据 |
+| [31-frontend-full-migration-execution-plan.md](31-frontend-full-migration-execution-plan.md) | F3、F4、F6 前端完整迁移执行账本、验证门与人工浏览器验收步骤 |
+| [32-frontend-full-migration-delivery.md](32-frontend-full-migration-delivery.md) | F3、F4、前端侧 F6 的实现、图谱、数据库、自动化及浏览器关闭证据 |
 
 ## 3. 当前架构摘要
 

@@ -164,7 +164,7 @@ UseCase Coordinator
 ```text
 Java 17
 Spring Boot 3
-Spring Security
+Sa-Token（会话与授权）+ Spring Security Crypto（密码与加密工具）
 Spring Validation
 Spring Transaction
 Spring Modulith 和/或 ArchUnit
