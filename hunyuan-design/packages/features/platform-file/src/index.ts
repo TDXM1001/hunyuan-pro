@@ -6,7 +6,6 @@ export const platformFileFeature = {
   id: 'platform.file',
   routes: [
     {
-      path: '/support/file/file-list',
       routeId: 'platform.file.management',
     },
   ],

@@ -1,22 +1,22 @@
 import type { RouteRecordStringComponent, UserInfo } from '@vben/types';
 
+import { useAppConfig } from '@vben/hooks';
+
 import { appFeatureRegistry } from '#/app-kernel/feature-registry';
 
 const DEFAULT_HOME_PATH = '/system/home';
 const MENU_TYPE_CATALOG = 1;
 const MENU_TYPE_MENU = 2;
-const LOCAL_API_ORIGIN = 'http://127.0.0.1:1024';
-const MODULE_BRIDGE_COMPONENT = '/system/module-bridge/index';
-
-const localViewModules = import.meta.glob('../../views/**/*.vue');
-const localViewPathSet = new Set(
-  Object.keys(localViewModules).map((path) => normalizeViewModulePath(path)),
+const NOT_FOUND_COMPONENT = '/_core/fallback/not-found';
+const { apiURL: configuredApiUrl } = useAppConfig(
+  import.meta.env,
+  import.meta.env.PROD,
 );
+const API_BASE_URL = configuredApiUrl || '/api';
 
 export interface BackendMenuItem {
   apiPerms?: null | string;
   cacheFlag?: boolean;
-  component?: null | string;
   contextMenuId?: null | number;
   disabledFlag?: boolean;
   frameFlag?: boolean;
@@ -50,32 +50,24 @@ interface MenuNode extends BackendMenuItem {
   children: MenuNode[];
 }
 
-function normalizeViewModulePath(path: string) {
-  return path
-    .replace(/\\/g, '/')
-    .replace(/^.*?views\//, '/')
-    .replace(/\.vue$/i, '');
-}
-
-function normalizeComponentPath(component?: null | string) {
-  if (!component) {
-    return '';
-  }
-
-  const normalized = component
-    .replace(/^#\//, '')
-    .replace(/^\/?views\//, '')
-    .replace(/^\//, '')
-    .replace(/\.vue$/i, '');
-
-  return normalized ? `/${normalized}` : '';
-}
-
 function normalizeRoutePath(path?: null | string, fallbackId?: number) {
   if (!path) {
     return fallbackId ? `/system/menu-${fallbackId}` : DEFAULT_HOME_PATH;
   }
   return path.startsWith('/') ? path : `/${path}`;
+}
+
+function joinApiUrl(resourcePath: string) {
+  const apiBase = API_BASE_URL.replace(/\/+$/, '');
+  const normalizedPath = `/${resourcePath.replace(/^\/+/, '')}`;
+
+  if (
+    apiBase.startsWith('/') &&
+    (normalizedPath === apiBase || normalizedPath.startsWith(`${apiBase}/`))
+  ) {
+    return normalizedPath;
+  }
+  return `${apiBase}${normalizedPath}`;
 }
 
 function normalizeAvatarUrl(url?: null | string) {
@@ -85,12 +77,16 @@ function normalizeAvatarUrl(url?: null | string) {
 
   try {
     const parsed = new URL(url);
-    if (parsed.hostname === '198.18.0.1') {
-      return `${LOCAL_API_ORIGIN}${parsed.pathname}${parsed.search}`;
+    // 本地文件服务会返回其进程可见的绝对地址；浏览器必须经部署时 API 入口访问，不能绑定开发机地址。
+    if (
+      parsed.protocol === 'http:' &&
+      (parsed.pathname === '/upload' || parsed.pathname.startsWith('/upload/'))
+    ) {
+      return joinApiUrl(`${parsed.pathname}${parsed.search}${parsed.hash}`);
     }
     return url;
   } catch {
-    return url.startsWith('/') ? `${LOCAL_API_ORIGIN}${url}` : url;
+    return url.startsWith('/') ? joinApiUrl(url) : url;
   }
 }
 
@@ -102,14 +98,6 @@ function splitPerms(perms?: null | string) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function isExternalLink(value?: null | string) {
-  return Boolean(value && /^https?:\/\//i.test(value));
-}
-
-function hasLocalView(componentPath: string) {
-  return localViewPathSet.has(componentPath);
 }
 
 function buildMenuTree(menuList: BackendMenuItem[]) {
@@ -152,22 +140,6 @@ function createBaseMeta(node: MenuNode, routePath: string) {
   };
 }
 
-function createBridgeMeta(node: MenuNode, routePath: string) {
-  return {
-    ...createBaseMeta(node, routePath),
-    backendMenu: {
-      backendComponent: node.component || '',
-      backendFrameUrl: node.frameUrl || '',
-      backendPath: routePath,
-      menuId: node.menuId,
-      menuType: node.menuType ?? null,
-      parentId: node.parentId ?? null,
-      routeId: node.routeId || '',
-      title: node.menuName,
-    },
-  };
-}
-
 function mapNodeToRoute(node: MenuNode): null | RouteRecordStringComponent {
   const routePath = normalizeRoutePath(node.path, node.menuId);
   const childRoutes = node.children
@@ -196,18 +168,6 @@ function mapNodeToRoute(node: MenuNode): null | RouteRecordStringComponent {
     };
   }
 
-  if (isExternalLink(node.component)) {
-    return {
-      component: 'IFrameView',
-      meta: {
-        ...createBaseMeta(node, routePath),
-        link: node.component || undefined,
-      },
-      name: `BackendMenu${node.menuId}`,
-      path: routePath,
-    };
-  }
-
   if (node.routeId) {
     const registeredComponent = appFeatureRegistry.resolveComponent(
       node.routeId,
@@ -221,17 +181,7 @@ function mapNodeToRoute(node: MenuNode): null | RouteRecordStringComponent {
       };
     }
     return {
-      component: MODULE_BRIDGE_COMPONENT,
-      meta: createBridgeMeta(node, routePath),
-      name: `BackendMenu${node.menuId}`,
-      path: routePath,
-    };
-  }
-
-  const componentPath = normalizeComponentPath(node.component);
-  if (componentPath && hasLocalView(componentPath)) {
-    return {
-      component: componentPath,
+      component: NOT_FOUND_COMPONENT,
       meta: createBaseMeta(node, routePath),
       name: `BackendMenu${node.menuId}`,
       path: routePath,
@@ -239,8 +189,8 @@ function mapNodeToRoute(node: MenuNode): null | RouteRecordStringComponent {
   }
 
   return {
-    component: MODULE_BRIDGE_COMPONENT,
-    meta: createBridgeMeta(node, routePath),
+    component: NOT_FOUND_COMPONENT,
+    meta: createBaseMeta(node, routePath),
     name: `BackendMenu${node.menuId}`,
     path: routePath,
   };

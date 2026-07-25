@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 interface BoundaryExpectation {
   file: string;
@@ -12,7 +12,7 @@ interface BoundaryExpectation {
 // 聚合检查 A4.3 的仓内消费者，防止稳定接口迁移后又回退到历史兼容路由。
 const boundaries: BoundaryExpectation[] = [
   {
-    file: 'message.ts',
+    file: 'packages/features/platform-notification/src/message/client.ts',
     forbidden: [
       '/message/query',
       '/message/sendMessages',
@@ -30,7 +30,7 @@ const boundaries: BoundaryExpectation[] = [
     ],
   },
   {
-    file: 'operate-log.ts',
+    file: 'packages/features/platform-audit/src/operation-log/client.ts',
     forbidden: ['/support/operateLog/'],
     required: [
       '/admin/v1/platform/audit/operation-logs/query',
@@ -38,12 +38,12 @@ const boundaries: BoundaryExpectation[] = [
     ],
   },
   {
-    file: 'login-log.ts',
+    file: 'packages/features/platform-audit/src/login-log/client.ts',
     forbidden: ['/support/loginLog/'],
     required: ['/admin/v1/platform/audit/login-logs/query'],
   },
   {
-    file: 'sms.ts',
+    file: 'packages/features/platform-notification/src/sms/client.ts',
     forbidden: [
       '/support/sms/',
       '/api/admin/v1/platform/notifications/sms/',
@@ -58,7 +58,7 @@ const boundaries: BoundaryExpectation[] = [
 
 describe('A4.3 平台边界', () => {
   it.each(boundaries)('$file 只使用稳定平台路由', ({ file, forbidden, required }) => {
-    const source = readFileSync(resolve(__dirname, file), 'utf8');
+    const source = readFileSync(resolveWorkspacePath(file), 'utf8');
 
     required.forEach((route) => expect(source).toContain(route));
     forbidden.forEach((route) => expect(source).not.toContain(route));

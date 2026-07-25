@@ -1,0 +1,15 @@
+{
+  "name": "@hunyuan/feature-platform-notification",
+  "version": "0.1.0", "private": true, "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./message-page": { "types": "./src/message/index.vue", "default": "./src/message/index.vue" },
+    "./sms-template-page": { "types": "./src/sms/template-list.vue", "default": "./src/sms/template-list.vue" },
+    "./sms-send-log-page": { "types": "./src/sms/send-log-list.vue", "default": "./src/sms/send-log-list.vue" }
+  },
+  "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*", "@vben/art-hooks": "workspace:*",
+    "@vben/common-ui": "workspace:*", "@vben/request": "workspace:*",
+    "element-plus": "catalog:", "vue": "catalog:"
+  }
+}

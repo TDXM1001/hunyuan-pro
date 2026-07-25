@@ -15,7 +15,6 @@ export const identityEmployeeFeature = {
   id: 'identity.employee',
   routes: [
     {
-      path: '/organization/employee',
       routeId: 'identity.employee.management',
     },
   ],

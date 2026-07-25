@@ -10,7 +10,6 @@ export const organizationFeature = {
   id: 'organization.directory',
   routes: [
     {
-      path: '/organization/directory',
       routeId: 'organization.department.directory',
     },
   ],
@@ -26,7 +25,6 @@ export const organizationPositionFeature = {
   id: 'organization.position',
   routes: [
     {
-      path: '/organization/position',
       routeId: 'organization.position.directory',
     },
   ],

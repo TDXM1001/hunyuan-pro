@@ -1,0 +1,16 @@
+{
+  "name": "@hunyuan/feature-platform-audit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./login-log-page": { "types": "./src/login-log/index.vue", "default": "./src/login-log/index.vue" },
+    "./operation-log-page": { "types": "./src/operation-log/index.vue", "default": "./src/operation-log/index.vue" }
+  },
+  "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*", "@vben/art-hooks": "workspace:*",
+    "@vben/common-ui": "workspace:*", "@vben/request": "workspace:*",
+    "element-plus": "catalog:", "vue": "catalog:"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@hunyuan/feature-platform-security",
+  "version": "0.1.0", "private": true, "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./settings-page": { "types": "./src/protection/settings-page.vue", "default": "./src/protection/settings-page.vue" },
+    "./login-failure-page": { "types": "./src/protection/login-failure-page.vue", "default": "./src/protection/login-failure-page.vue" },
+    "./data-masking-page": { "types": "./src/data-masking/index.vue", "default": "./src/data-masking/index.vue" }
+  },
+  "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*", "@vben/art-hooks": "workspace:*",
+    "@vben/common-ui": "workspace:*", "@vben/request": "workspace:*",
+    "element-plus": "catalog:", "vue": "catalog:"
+  }
+}

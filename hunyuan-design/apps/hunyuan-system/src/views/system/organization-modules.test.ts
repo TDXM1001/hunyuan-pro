@@ -246,9 +246,8 @@ describe('组织与访问控制前端边界', () => {
 
     expect(new Set(capabilityMatches).size).toBe(15);
     expect(source).toContain("id: 'access.management'");
-    expect(source).toContain("path: '/system/role'");
+    expect(source).not.toContain('path:');
     expect(source).toContain("routeId: 'access.role.management'");
-    expect(source).toContain("path: '/system/menu'");
     expect(source).toContain("routeId: 'access.menu.management'");
     expect(source).not.toContain("component: '/system/role/index.vue'");
     expect(source).not.toContain("component: '/system/menu/menu-list.vue'");

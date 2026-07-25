@@ -24,7 +24,7 @@ class FlywayMigrationContractTest {
                     .toList();
         }
 
-        assertThat(migrations).hasSize(18);
+        assertThat(migrations).hasSize(23);
         assertThat(migrations.get(0).getFileName().toString())
                 .isEqualTo("V3_64_0__current_schema_baseline.sql");
         assertThat(migrations.get(1).getFileName().toString())
@@ -61,6 +61,16 @@ class FlywayMigrationContractTest {
                 .isEqualTo("V3_77_0__a3_4_data_masking_validation_permission.sql");
         assertThat(migrations.get(17).getFileName().toString())
                 .isEqualTo("V3_78_0__a4_5_retire_unadopted_support_capabilities.sql");
+        assertThat(migrations.get(18).getFileName().toString())
+                .isEqualTo("V3_79_0__f1_stable_menu_route_id.sql");
+        assertThat(migrations.get(19).getFileName().toString())
+                .isEqualTo("V3_80_0__f2_platform_feature_route_ids.sql");
+        assertThat(migrations.get(20).getFileName().toString())
+                .isEqualTo("V3_81_0__f3_audit_notification_security_route_ids.sql");
+        assertThat(migrations.get(21).getFileName().toString())
+                .isEqualTo("V3_82_0__f4_runtime_devtools_route_ids.sql");
+        assertThat(migrations.get(22).getFileName().toString())
+                .isEqualTo("V3_83_0__frontend_legacy_component_retirement.sql");
 
         String baseline = Files.readString(migrations.get(0), StandardCharsets.UTF_8).toUpperCase();
         assertThat(baseline)
@@ -286,5 +296,52 @@ class FlywayMigrationContractTest {
                 .contains("DROP TABLE IF EXISTS `T_DATA_TRACER`")
                 .doesNotContain("DROP TABLE IF EXISTS `T_MAIL_TEMPLATE`")
                 .doesNotContain("DELETE FROM `T_MAIL_TEMPLATE`");
+
+        String stableRouteMigration =
+                Files.readString(migrations.get(18), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(stableRouteMigration)
+                .contains("ADD COLUMN `ROUTE_ID`")
+                .contains("UNIQUE KEY `UK_MENU_ROUTE_ID`")
+                .contains("'ORGANIZATION.DEPARTMENT.DIRECTORY'")
+                .contains("'IDENTITY.EMPLOYEE.MANAGEMENT'")
+                .contains("'ACCESS.ROLE.MANAGEMENT'")
+                .doesNotContain("DELETE FROM `T_MENU`");
+
+        String f2FeatureRoutes =
+                Files.readString(migrations.get(19), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(f2FeatureRoutes)
+                .contains("'PLATFORM.CONFIGURATION.PARAMETERS'")
+                .contains("'PLATFORM.CONFIGURATION.DICTIONARY'")
+                .contains("'PLATFORM.FILE.MANAGEMENT'")
+                .doesNotContain("DELETE FROM `T_MENU`");
+
+        String f3FeatureRoutes =
+                Files.readString(migrations.get(20), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(f3FeatureRoutes)
+                .contains("'PLATFORM.AUDIT.LOGIN-LOG'")
+                .contains("'PLATFORM.NOTIFICATION.MESSAGE'")
+                .contains("'PLATFORM.SECURITY.BASELINE-SETTINGS'")
+                .contains("MENU.`MENU_ID` = 152")
+                .contains("DELETE RELATION")
+                .doesNotContain("DROP TABLE");
+
+        String f4FeatureRoutes =
+                Files.readString(migrations.get(21), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(f4FeatureRoutes)
+                .contains("'PLATFORM.RUNTIME.JOB'")
+                .contains("'PLATFORM.RUNTIME.CACHE'")
+                .contains("'PLATFORM.DEVTOOLS.API-ENCRYPT'")
+                .contains("MENU.`MENU_ID` IN (85, 151, 206)")
+                .contains("DELETE RELATION")
+                .doesNotContain("DROP TABLE");
+
+        String legacyComponentRetirement =
+                Files.readString(migrations.get(22), StandardCharsets.UTF_8).toUpperCase();
+        assertThat(legacyComponentRetirement)
+                .contains("SET `COMPONENT` = NULL")
+                .contains("`MENU_TYPE` = 2")
+                .contains("`ROUTE_ID` IS NOT NULL")
+                .doesNotContain("DELETE FROM `T_MENU`")
+                .doesNotContain("DROP TABLE");
     }
 }

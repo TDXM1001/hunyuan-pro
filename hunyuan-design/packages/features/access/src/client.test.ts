@@ -225,11 +225,9 @@ describe('access feature 客户端契约', () => {
     expect(accessFeature.id).toBe('access.management');
     expect(accessFeature.routes).toEqual([
       {
-        path: '/system/role',
         routeId: 'access.role.management',
       },
       {
-        path: '/system/menu',
         routeId: 'access.menu.management',
       },
     ]);

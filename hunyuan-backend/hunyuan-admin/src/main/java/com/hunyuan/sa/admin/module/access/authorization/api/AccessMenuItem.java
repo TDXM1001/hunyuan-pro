@@ -29,9 +29,6 @@ public class AccessMenuItem {
     @Schema(description = "稳定路由标识")
     private String routeId;
 
-    @Schema(description = "组件路径")
-    private String component;
-
     @Schema(description = "是否为外链")
     private Boolean frameFlag;
 

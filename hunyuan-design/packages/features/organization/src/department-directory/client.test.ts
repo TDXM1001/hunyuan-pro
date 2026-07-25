@@ -69,7 +69,6 @@ describe('organization department generated client adapter', () => {
     expect(organizationFeature.id).toBe('organization.directory');
     expect(organizationFeature.routes).toEqual([
       {
-        path: '/organization/directory',
         routeId: 'organization.department.directory',
       },
     ]);

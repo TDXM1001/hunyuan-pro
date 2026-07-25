@@ -1,0 +1,194 @@
+import type { RequestClient } from '@vben/request';
+
+const JOB_BASE_PATH = '/admin/v1/platform/runtime/jobs';
+
+export interface PageResult<T> {
+  emptyFlag?: boolean;
+  list: T[];
+  pageNum: number;
+  pageSize: number;
+  pages: number;
+  total: number;
+}
+
+export interface JobRecord {
+  createTime?: null | string;
+  enabledFlag: boolean;
+  jobClass: string;
+  jobId: number;
+  jobName: string;
+  lastExecuteLogId?: null | number;
+  lastExecuteTime?: null | string;
+  nextJobExecuteTimeList?: null | string[];
+  param?: null | string;
+  remark?: null | string;
+  sort: number;
+  triggerType: string;
+  triggerValue: string;
+  updateName?: null | string;
+  updateTime?: null | string;
+}
+
+export interface JobLogRecord {
+  createName?: null | string;
+  createTime?: null | string;
+  executeEndTime?: null | string;
+  executeResult?: null | string;
+  executeStartTime?: null | string;
+  executeTimeMillis?: null | number;
+  ip?: null | string;
+  jobId: number;
+  jobName?: null | string;
+  logId: number;
+  param?: null | string;
+  processId?: null | string;
+  programPath?: null | string;
+  successFlag?: null | boolean;
+}
+
+export interface JobPageQueryParams {
+  deletedFlag?: boolean;
+  enabledFlag?: boolean;
+  pageNum: number;
+  pageSize: number;
+  searchWord?: null | string;
+  triggerType?: null | string;
+}
+
+export interface JobMutationFormModel {
+  enabledFlag: boolean;
+  jobClass: string;
+  jobId?: number;
+  jobName: string;
+  param?: null | string;
+  remark?: null | string;
+  sort: number;
+  triggerType: string;
+  triggerValue: string;
+}
+
+export interface JobEnabledFormModel {
+  enabledFlag: boolean;
+  jobId: number;
+}
+
+export interface JobExecuteFormModel {
+  jobId: number;
+  param?: null | string;
+}
+
+export interface JobLogQueryParams {
+  endTime?: null | string;
+  jobId?: null | number;
+  pageNum: number;
+  pageSize: number;
+  searchWord?: null | string;
+  startTime?: null | string;
+  successFlag?: boolean;
+}
+
+function cleanText(value?: null | string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : '';
+}
+
+export function buildJobPageQueryPayload(params: JobPageQueryParams) {
+  return {
+    deletedFlag: params.deletedFlag,
+    enabledFlag: params.enabledFlag,
+    pageNum: params.pageNum,
+    pageSize: params.pageSize,
+    searchWord: cleanText(params.searchWord) || undefined,
+    triggerType: cleanText(params.triggerType) || undefined,
+  };
+}
+
+export function buildJobMutationPayload(params: JobMutationFormModel) {
+  return {
+    enabledFlag: params.enabledFlag,
+    jobClass: cleanText(params.jobClass),
+    jobId: params.jobId,
+    jobName: cleanText(params.jobName),
+    param: cleanText(params.param) || undefined,
+    remark: cleanText(params.remark) || undefined,
+    sort: params.sort,
+    triggerType: cleanText(params.triggerType),
+    triggerValue: cleanText(params.triggerValue),
+  };
+}
+
+export function buildJobEnabledPayload(params: JobEnabledFormModel) {
+  return {
+    enabledFlag: params.enabledFlag,
+    jobId: params.jobId,
+  };
+}
+
+export function buildJobExecutePayload(params: JobExecuteFormModel) {
+  return {
+    jobId: params.jobId,
+    param: cleanText(params.param) || undefined,
+  };
+}
+
+export function buildJobLogQueryPayload(params: JobLogQueryParams) {
+  return {
+    endTime: cleanText(params.endTime) || undefined,
+    jobId: params.jobId,
+    pageNum: params.pageNum,
+    pageSize: params.pageSize,
+    searchWord: cleanText(params.searchWord) || undefined,
+    startTime: cleanText(params.startTime) || undefined,
+    successFlag: params.successFlag,
+  };
+}
+
+export function buildJobDeletePath(jobId: number) {
+  return `${JOB_BASE_PATH}/${jobId}`;
+}
+
+export async function queryJobPage(requestClient: RequestClient, params: JobPageQueryParams) {
+  return requestClient.post<PageResult<JobRecord>>(
+    `${JOB_BASE_PATH}/query`,
+    buildJobPageQueryPayload(params),
+  );
+}
+
+export async function addJob(requestClient: RequestClient, params: JobMutationFormModel) {
+  return requestClient.post<string>(
+    JOB_BASE_PATH,
+    buildJobMutationPayload(params),
+  );
+}
+
+export async function updateJob(requestClient: RequestClient, params: JobMutationFormModel) {
+  return requestClient.put<string>(
+    JOB_BASE_PATH,
+    buildJobMutationPayload(params),
+  );
+}
+
+export async function updateJobEnabled(requestClient: RequestClient, params: JobEnabledFormModel) {
+  return requestClient.put<string>(
+    `${JOB_BASE_PATH}/enabled`,
+    buildJobEnabledPayload(params),
+  );
+}
+
+export async function executeJob(requestClient: RequestClient, params: JobExecuteFormModel) {
+  return requestClient.post<string>(
+    `${JOB_BASE_PATH}/execute`,
+    buildJobExecutePayload(params),
+  );
+}
+
+export async function deleteJob(requestClient: RequestClient, jobId: number) {
+  return requestClient.delete<string>(buildJobDeletePath(jobId));
+}
+
+export async function queryJobLogs(requestClient: RequestClient, params: JobLogQueryParams) {
+  return requestClient.post<PageResult<JobLogRecord>>(
+    `${JOB_BASE_PATH}/logs/query`,
+    buildJobLogQueryPayload(params),
+  );
+}

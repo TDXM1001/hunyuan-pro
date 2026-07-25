@@ -1,0 +1,11 @@
+{
+  "name": "@hunyuan/feature-platform-runtime", "version": "0.1.0", "private": true, "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./job-page": { "types": "./src/job/index.vue", "default": "./src/job/index.vue" },
+    "./serial-number-page": { "types": "./src/serial-number/index.vue", "default": "./src/serial-number/index.vue" },
+    "./cache-page": { "types": "./src/cache/index.vue", "default": "./src/cache/index.vue" },
+    "./reload-page": { "types": "./src/reload/index.vue", "default": "./src/reload/index.vue" }
+  },
+  "dependencies": { "@hunyuan/app-kernel": "workspace:*", "@vben/art-hooks": "workspace:*", "@vben/common-ui": "workspace:*", "@vben/request": "workspace:*", "element-plus": "catalog:", "vue": "catalog:" }
+}

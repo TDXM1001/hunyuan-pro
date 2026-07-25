@@ -21,11 +21,9 @@ export const accessFeature = {
   id: 'access.management',
   routes: [
     {
-      path: '/system/role',
       routeId: 'access.role.management',
     },
     {
-      path: '/system/menu',
       routeId: 'access.menu.management',
     },
   ],

@@ -76,7 +76,6 @@ describe('组织岗位稳定客户端契约', () => {
       id: 'organization.position',
       routes: [
         {
-          path: '/organization/position',
           routeId: 'organization.position.directory',
         },
       ],

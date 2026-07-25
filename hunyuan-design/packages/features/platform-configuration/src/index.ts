@@ -1,6 +1,6 @@
 import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
 
-// 仅声明已完成迁移的稳定路由，历史菜单仍由应用兼容层按 component 读取。
+// feature 只声明稳定 routeId；授权菜单继续作为 URL path 的唯一事实源。
 export const platformConfigurationFeature = {
   capabilities: [
     'support:config:query',
@@ -20,11 +20,9 @@ export const platformConfigurationFeature = {
   id: 'platform.configuration',
   routes: [
     {
-      path: '/config/config-list',
       routeId: 'platform.configuration.parameters',
     },
     {
-      path: '/setting/dict',
       routeId: 'platform.configuration.dictionary',
     },
   ],

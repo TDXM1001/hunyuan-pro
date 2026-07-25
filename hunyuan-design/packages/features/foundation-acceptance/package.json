@@ -1,0 +1,15 @@
+{
+  "name": "@hunyuan/feature-foundation-acceptance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./page": { "types": "./src/page.vue", "default": "./src/page.vue" }
+  },
+  "dependencies": {
+    "@hunyuan/app-kernel": "workspace:*",
+    "@vben/common-ui": "workspace:*",
+    "vue": "catalog:"
+  }
+}

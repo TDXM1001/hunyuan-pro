@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { mapLoginMenusToRoutes } from './login-adapter';
+import {
+  mapLoginMenusToRoutes,
+  mapLoginResultToUserInfo,
+} from './login-adapter';
 
 describe('登录菜单稳定路由契约', () => {
   it('优先使用 routeId 注册的懒加载组件', () => {
     const routes = mapLoginMenusToRoutes([
       {
-        component: '/legacy/not-used.vue',
         menuId: 219,
         menuName: '部门目录',
         menuType: 2,
@@ -24,10 +26,9 @@ describe('登录菜单稳定路由契约', () => {
     );
   });
 
-  it('未知 routeId 进入模块桥接页', () => {
+  it('未知 routeId 明确进入 404，不回退历史源码路径', () => {
     const routes = mapLoginMenusToRoutes([
       {
-        component: '/system/employee/index.vue',
         menuId: 900,
         menuName: '已关闭模块',
         menuType: 2,
@@ -38,13 +39,12 @@ describe('登录菜单稳定路由契约', () => {
     ]);
 
     const route = routes.find((item) => item.path === '/disabled');
-    expect(route?.component).toBe('/system/module-bridge/index');
+    expect(route?.component).toBe('/_core/fallback/not-found');
   });
 
   it('F2 平台 feature 均优先解析为已注册的稳定路由', () => {
     const routes = mapLoginMenusToRoutes([
       {
-        component: '/support/config/config-list.vue',
         menuId: 109,
         menuName: '参数配置',
         menuType: 2,
@@ -53,7 +53,6 @@ describe('登录菜单稳定路由契约', () => {
         routeId: 'platform.configuration.parameters',
       },
       {
-        component: '/support/dict/index.vue',
         menuId: 110,
         menuName: '数据字典',
         menuType: 2,
@@ -62,7 +61,6 @@ describe('登录菜单稳定路由契约', () => {
         routeId: 'platform.configuration.dictionary',
       },
       {
-        component: '/support/file/file-list.vue',
         menuId: 193,
         menuName: '文件管理',
         menuType: 2,
@@ -84,10 +82,9 @@ describe('登录菜单稳定路由契约', () => {
     ).toBe('/__app_kernel__/platform.file.management');
   });
 
-  it('没有 routeId 的历史菜单继续按 component 解析', () => {
+  it('没有 routeId 的本地菜单明确进入 404', () => {
     const routes = mapLoginMenusToRoutes([
       {
-        component: '/system/employee/index.vue',
         menuId: 46,
         menuName: '员工管理',
         menuType: 2,
@@ -97,7 +94,7 @@ describe('登录菜单稳定路由契约', () => {
     ]);
 
     const route = routes.find((item) => item.path === '/organization/employee');
-    expect(route?.component).toBe('/system/employee/index');
+    expect(route?.component).toBe('/_core/fallback/not-found');
   });
 
   it('受限角色只生成后端授权返回的菜单', () => {
@@ -116,5 +113,26 @@ describe('登录菜单稳定路由契约', () => {
       true,
     );
     expect(routes.some((item) => item.path === '/system/menu')).toBe(false);
+  });
+});
+
+describe('登录用户头像地址适配', () => {
+  it('将本地文件服务地址和相对地址统一映射到部署时 API 入口', () => {
+    expect(
+      mapLoginResultToUserInfo({
+        avatar: 'http://198.18.0.1:1024/upload/avatar.png?version=1',
+      }).avatar,
+    ).toBe('/api/upload/avatar.png?version=1');
+    expect(
+      mapLoginResultToUserInfo({ avatar: '/upload/avatar.png' }).avatar,
+    ).toBe('/api/upload/avatar.png');
+  });
+
+  it('保留独立对象存储的 HTTPS 地址', () => {
+    expect(
+      mapLoginResultToUserInfo({
+        avatar: 'https://cdn.example.com/avatar.png',
+      }).avatar,
+    ).toBe('https://cdn.example.com/avatar.png');
   });
 });

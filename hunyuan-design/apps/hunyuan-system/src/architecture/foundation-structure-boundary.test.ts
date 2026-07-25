@@ -9,38 +9,9 @@ const appRoot = resolve(workspaceRoot, 'apps/hunyuan-system');
 const featureRoot = resolve(workspaceRoot, 'packages/features');
 
 const legacySystemApiFiles = new Set([
-  'apps/hunyuan-system/src/api/system/api-encrypt.ts',
-  'apps/hunyuan-system/src/api/system/cache.ts',
-  'apps/hunyuan-system/src/api/system/data-masking.ts',
-  'apps/hunyuan-system/src/api/system/job.ts',
-  'apps/hunyuan-system/src/api/system/login-log.ts',
-  'apps/hunyuan-system/src/api/system/message.ts',
-  'apps/hunyuan-system/src/api/system/network-protect.ts',
-  'apps/hunyuan-system/src/api/system/operate-log.ts',
-  'apps/hunyuan-system/src/api/system/reload.ts',
-  'apps/hunyuan-system/src/api/system/serial-number.ts',
-  'apps/hunyuan-system/src/api/system/sms.ts',
 ]);
 
 const legacySupportViewFiles = new Set([
-  'apps/hunyuan-system/src/views/support/api-encrypt/api-encrypt-index.vue',
-  'apps/hunyuan-system/src/views/support/cache/cache-list.vue',
-  'apps/hunyuan-system/src/views/support/cache/components/cache-key-drawer.vue',
-  'apps/hunyuan-system/src/views/support/job/components/job-log-drawer.vue',
-  'apps/hunyuan-system/src/views/support/job/job-list.vue',
-  'apps/hunyuan-system/src/views/support/level3protect/data-masking-list.vue',
-  'apps/hunyuan-system/src/views/support/level3protect/level3-protect-config-index.vue',
-  'apps/hunyuan-system/src/views/support/login-fail/login-fail-list.vue',
-  'apps/hunyuan-system/src/views/support/login-log/login-log-list.vue',
-  'apps/hunyuan-system/src/views/support/message/message-list.vue',
-  'apps/hunyuan-system/src/views/support/operate-log/components/operate-log-detail-drawer.vue',
-  'apps/hunyuan-system/src/views/support/operate-log/operate-log-list.vue',
-  'apps/hunyuan-system/src/views/support/reload/components/reload-result-drawer.vue',
-  'apps/hunyuan-system/src/views/support/reload/reload-list.vue',
-  'apps/hunyuan-system/src/views/support/serial-number/components/serial-number-record-drawer.vue',
-  'apps/hunyuan-system/src/views/support/serial-number/serial-number-list.vue',
-  'apps/hunyuan-system/src/views/support/sms/send-log-list.vue',
-  'apps/hunyuan-system/src/views/support/sms/template-list.vue',
 ]);
 
 const f2RetiredAppEntries = [
@@ -59,6 +30,34 @@ const f2ThinEntryFiles = [
   'src/feature-entries/platform-configuration/dictionary-page.vue',
   'src/feature-entries/platform-file/management-page.vue',
   'src/views/_core/profile/index.vue',
+];
+
+const f3RetiredAppEntries = [
+  'src/api/system/data-masking.ts',
+  'src/api/system/login-log.ts',
+  'src/api/system/message.ts',
+  'src/api/system/network-protect.ts',
+  'src/api/system/operate-log.ts',
+  'src/api/system/sms.ts',
+  'src/views/support/level3protect/data-masking-list.vue',
+  'src/views/support/level3protect/level3-protect-config-index.vue',
+  'src/views/support/login-fail/login-fail-list.vue',
+  'src/views/support/login-log/login-log-list.vue',
+  'src/views/support/message/message-list.vue',
+  'src/views/support/operate-log/operate-log-list.vue',
+  'src/views/support/sms/send-log-list.vue',
+  'src/views/support/sms/template-list.vue',
+];
+
+const f4RetiredAppEntries = [
+  'src/api/system/api-encrypt.ts', 'src/api/system/cache.ts',
+  'src/api/system/job.ts', 'src/api/system/reload.ts',
+  'src/api/system/serial-number.ts',
+  'src/views/support/api-encrypt/api-encrypt-index.vue',
+  'src/views/support/cache/cache-list.vue',
+  'src/views/support/job/job-list.vue',
+  'src/views/support/reload/reload-list.vue',
+  'src/views/support/serial-number/serial-number-list.vue',
 ];
 
 function normalizePath(path: string) {
@@ -128,6 +127,18 @@ describe('底座前端结构边界', () => {
     }
   });
 
+  it('F3 审计、通知和安全实现已退出应用所有权', () => {
+    for (const entry of f3RetiredAppEntries) {
+      expect(existsSync(resolve(appRoot, entry))).toBe(false);
+    }
+  });
+
+  it('F4 运行时和开发工具实现已退出应用所有权', () => {
+    for (const entry of f4RetiredAppEntries) {
+      expect(existsSync(resolve(appRoot, entry))).toBe(false);
+    }
+  });
+
   it('feature 不得反向依赖应用实现', () => {
     const files = collectFiles(featureRoot, new Set(['.ts', '.vue']));
     const violations = files.flatMap((path) => {
@@ -168,5 +179,21 @@ describe('底座前端结构边界', () => {
       expect(source, basename(directory)).toContain('capabilities:');
       expect(source, basename(directory)).toMatch(/routes?:/);
     }
+  });
+
+  it('最小验收 feature 只通过公开协议接入应用', () => {
+    const featureSource = readFileSync(
+      resolve(featureRoot, 'foundation-acceptance/src/index.ts'),
+      'utf8',
+    );
+    const registrySource = readFileSync(
+      resolve(appRoot, 'src/app-kernel/feature-registry.ts'),
+      'utf8',
+    );
+
+    expect(featureSource).toContain("id: 'foundation.acceptance'");
+    expect(featureSource).toContain("routeId: 'foundation.acceptance.probe'");
+    expect(featureSource).not.toContain("from '#/");
+    expect(registrySource).toContain('foundationAcceptanceFeature');
   });
 });

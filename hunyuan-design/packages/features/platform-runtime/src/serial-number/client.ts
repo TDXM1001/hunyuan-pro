@@ -1,0 +1,87 @@
+import type { RequestClient } from '@vben/request';
+
+export interface PageResult<T> {
+  emptyFlag?: boolean;
+  list: T[];
+  pageNum: number;
+  pageSize: number;
+  pages: number;
+  total: number;
+}
+
+export interface SerialNumberDefinition {
+  businessName: string;
+  createTime?: null | string;
+  format: string;
+  initNumber?: null | number;
+  lastNumber?: null | number;
+  lastTime?: null | string;
+  remark?: null | string;
+  ruleType?: null | string;
+  serialNumberId: number;
+  stepRandomRange?: null | number;
+  updateTime?: null | string;
+}
+
+export interface SerialNumberRecord {
+  count?: null | number;
+  createTime?: null | string;
+  lastNumber?: null | number;
+  lastTime?: null | string;
+  recordDate?: null | string;
+  serialNumberId: number;
+  updateTime?: null | string;
+}
+
+export interface SerialNumberRecordQueryParams {
+  pageNum: number;
+  pageSize: number;
+  serialNumberId: number;
+}
+
+export interface SerialNumberGenerateParams {
+  count: number;
+  serialNumberId: number;
+}
+
+export function buildSerialNumberRecordQueryPayload(
+  params: SerialNumberRecordQueryParams,
+) {
+  return {
+    pageNum: params.pageNum,
+    pageSize: params.pageSize,
+    serialNumberId: params.serialNumberId,
+  };
+}
+
+export function buildSerialNumberGeneratePayload(
+  params: SerialNumberGenerateParams,
+) {
+  return {
+    count: params.count,
+    serialNumberId: params.serialNumberId,
+  };
+}
+
+export async function querySerialNumberList(requestClient: RequestClient) {
+  return requestClient.get<SerialNumberDefinition[]>(
+    '/admin/v1/platform/runtime/serial-numbers',
+  );
+}
+
+export async function querySerialNumberRecords(
+  requestClient: RequestClient,
+  params: SerialNumberRecordQueryParams,
+) {
+  return requestClient.post<PageResult<SerialNumberRecord>>(
+    '/admin/v1/platform/runtime/serial-numbers/records/query',
+    buildSerialNumberRecordQueryPayload(params),
+  );
+}
+
+export async function generateSerialNumbers(requestClient: RequestClient, params: SerialNumberGenerateParams) {
+  return requestClient.post<string[]>(
+    '/admin/v1/platform/runtime/serial-numbers/generate',
+    buildSerialNumberGeneratePayload(params),
+  );
+}

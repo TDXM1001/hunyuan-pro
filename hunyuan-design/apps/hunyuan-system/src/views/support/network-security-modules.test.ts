@@ -5,19 +5,19 @@ import { describe, expect, it } from 'vitest';
 import { resolveWorkspacePath } from '../../test-utils/workspace-path';
 
 const level3ProtectPagePath =
-  'apps/hunyuan-system/src/views/support/level3protect/level3-protect-config-index.vue';
+  'packages/features/platform-security/src/protection/settings-page.vue';
 const loginFailPagePath =
-  'apps/hunyuan-system/src/views/support/login-fail/login-fail-list.vue';
+  'packages/features/platform-security/src/protection/login-failure-page.vue';
 const loginLogPagePath =
-  'apps/hunyuan-system/src/views/support/login-log/login-log-list.vue';
+  'packages/features/platform-audit/src/login-log/index.vue';
 const operateLogPagePath =
-  'apps/hunyuan-system/src/views/support/operate-log/operate-log-list.vue';
+  'packages/features/platform-audit/src/operation-log/index.vue';
 const operateLogDrawerPath =
-  'apps/hunyuan-system/src/views/support/operate-log/components/operate-log-detail-drawer.vue';
+  'packages/features/platform-audit/src/operation-log/components/operate-log-detail-drawer.vue';
 const dataMaskingPagePath =
-  'apps/hunyuan-system/src/views/support/level3protect/data-masking-list.vue';
+  'packages/features/platform-security/src/data-masking/index.vue';
 const apiEncryptPagePath =
-  'apps/hunyuan-system/src/views/support/api-encrypt/api-encrypt-index.vue';
+  'packages/features/platform-devtools/src/api-encrypt/index.vue';
 
 function readSource(path: string) {
   const resolvedPath = resolveWorkspacePath(path);

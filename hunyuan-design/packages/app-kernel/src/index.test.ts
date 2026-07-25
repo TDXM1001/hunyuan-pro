@@ -10,9 +10,7 @@ describe('应用模块注册表', () => {
       {
         feature: {
           id: 'organization',
-          routes: [
-            { path: '/organization', routeId: 'organization.directory' },
-          ],
+          routes: [{ routeId: 'organization.directory' }],
         },
         routeLoaders: { 'organization.directory': loader },
       },
@@ -48,14 +46,14 @@ describe('应用模块注册表', () => {
         {
           feature: {
             id: 'one',
-            routes: [{ path: '/one', routeId: 'shared.route' }],
+            routes: [{ routeId: 'shared.route' }],
           },
           routeLoaders: { 'shared.route': loader },
         },
         {
           feature: {
             id: 'two',
-            routes: [{ path: '/two', routeId: 'shared.route' }],
+            routes: [{ routeId: 'shared.route' }],
           },
           routeLoaders: { 'shared.route': loader },
         },
@@ -67,12 +65,52 @@ describe('应用模块注册表', () => {
         {
           feature: {
             id: 'missing-loader',
-            routes: [{ path: '/missing', routeId: 'missing.route' }],
+            routes: [{ routeId: 'missing.route' }],
           },
           routeLoaders: {},
         },
       ]),
     ).toThrow('缺少路由加载器');
+  });
+
+  it('拒绝重复能力码和循环模块依赖', () => {
+    expect(() =>
+      createAppFeatureRegistry([
+        {
+          feature: {
+            capabilities: ['organization.read'],
+            id: 'organization',
+            routes: [],
+          },
+          routeLoaders: {},
+        },
+        {
+          feature: {
+            capabilities: ['organization.read'],
+            id: 'identity',
+            routes: [],
+          },
+          routeLoaders: {},
+        },
+      ]),
+    ).toThrow('能力码冲突：organization.read（organization / identity）');
+
+    expect(() =>
+      createAppFeatureRegistry([
+        {
+          feature: { dependencies: ['two'], id: 'one', routes: [] },
+          routeLoaders: {},
+        },
+        {
+          feature: { dependencies: ['three'], id: 'two', routes: [] },
+          routeLoaders: {},
+        },
+        {
+          feature: { dependencies: ['one'], id: 'three', routes: [] },
+          routeLoaders: {},
+        },
+      ]),
+    ).toThrow('模块依赖循环：one -> two -> three -> one');
   });
 
   it('关闭模块后不暴露其路由', () => {
@@ -81,7 +119,7 @@ describe('应用模块注册表', () => {
         enabled: false,
         feature: {
           id: 'disabled',
-          routes: [{ path: '/disabled', routeId: 'disabled.route' }],
+          routes: [{ routeId: 'disabled.route' }],
         },
         routeLoaders: { 'disabled.route': loader },
       },

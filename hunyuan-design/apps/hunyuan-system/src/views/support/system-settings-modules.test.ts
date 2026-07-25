@@ -17,33 +17,33 @@ const dictApiPath =
 const filePagePath = 'packages/features/platform-file/src/management/index.vue';
 const fileApiPath = 'packages/features/platform-file/src/management/client.ts';
 const messagePagePath =
-  'apps/hunyuan-system/src/views/support/message/message-list.vue';
-const messageApiPath = 'apps/hunyuan-system/src/api/system/message.ts';
-const jobPagePath = 'apps/hunyuan-system/src/views/support/job/job-list.vue';
+  'packages/features/platform-notification/src/message/index.vue';
+const messageApiPath = 'packages/features/platform-notification/src/message/client.ts';
+const jobPagePath = 'packages/features/platform-runtime/src/job/index.vue';
 const jobDrawerPath =
-  'apps/hunyuan-system/src/views/support/job/components/job-log-drawer.vue';
-const jobApiPath = 'apps/hunyuan-system/src/api/system/job.ts';
+  'packages/features/platform-runtime/src/job/components/job-log-drawer.vue';
+const jobApiPath = 'packages/features/platform-runtime/src/job/client.ts';
 const serialNumberPagePath =
-  'apps/hunyuan-system/src/views/support/serial-number/serial-number-list.vue';
+  'packages/features/platform-runtime/src/serial-number/index.vue';
 const serialNumberDrawerPath =
-  'apps/hunyuan-system/src/views/support/serial-number/components/serial-number-record-drawer.vue';
+  'packages/features/platform-runtime/src/serial-number/components/serial-number-record-drawer.vue';
 const serialNumberApiPath =
-  'apps/hunyuan-system/src/api/system/serial-number.ts';
+  'packages/features/platform-runtime/src/serial-number/client.ts';
 const cachePagePath =
-  'apps/hunyuan-system/src/views/support/cache/cache-list.vue';
+  'packages/features/platform-runtime/src/cache/index.vue';
 const cacheDrawerPath =
-  'apps/hunyuan-system/src/views/support/cache/components/cache-key-drawer.vue';
-const cacheApiPath = 'apps/hunyuan-system/src/api/system/cache.ts';
+  'packages/features/platform-runtime/src/cache/components/cache-key-drawer.vue';
+const cacheApiPath = 'packages/features/platform-runtime/src/cache/client.ts';
 const reloadPagePath =
-  'apps/hunyuan-system/src/views/support/reload/reload-list.vue';
+  'packages/features/platform-runtime/src/reload/index.vue';
 const reloadDrawerPath =
-  'apps/hunyuan-system/src/views/support/reload/components/reload-result-drawer.vue';
-const reloadApiPath = 'apps/hunyuan-system/src/api/system/reload.ts';
+  'packages/features/platform-runtime/src/reload/components/reload-result-drawer.vue';
+const reloadApiPath = 'packages/features/platform-runtime/src/reload/client.ts';
 const smsTemplatePagePath =
-  'apps/hunyuan-system/src/views/support/sms/template-list.vue';
+  'packages/features/platform-notification/src/sms/template-list.vue';
 const smsSendLogPagePath =
-  'apps/hunyuan-system/src/views/support/sms/send-log-list.vue';
-const smsApiPath = 'apps/hunyuan-system/src/api/system/sms.ts';
+  'packages/features/platform-notification/src/sms/send-log-list.vue';
+const smsApiPath = 'packages/features/platform-notification/src/sms/client.ts';
 const smsMenuPatchSqlPath = '../数据库SQL脚本/mysql/sql-update-log/v3.33.0.sql';
 
 describe('system settings support modules', () => {
