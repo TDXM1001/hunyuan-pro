@@ -111,10 +111,11 @@ describe('dateUtils', () => {
   // getSystemTimezone
   // ===============================
   describe('getSystemTimezone', () => {
-    it('should return a valid IANA timezone string', () => {
+    it('should return a timezone identifier supported by Intl', () => {
       const tz = getSystemTimezone();
       expect(typeof tz).toBe('string');
-      expect(tz).toMatch(/^[A-Z]+\/[A-Z_]+/i);
+      expect(tz.trim()).not.toBe('');
+      expect(() => Intl.DateTimeFormat('en-US', { timeZone: tz }).format()).not.toThrow();
     });
   });
 
