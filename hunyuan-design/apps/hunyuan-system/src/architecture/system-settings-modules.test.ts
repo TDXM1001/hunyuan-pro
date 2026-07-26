@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveWorkspacePath } from '../../test-utils/workspace-path';
+import { resolveWorkspacePath } from '../test-utils/workspace-path';
 
 const configPagePath =
   'packages/features/platform-configuration/src/configuration/index.vue';

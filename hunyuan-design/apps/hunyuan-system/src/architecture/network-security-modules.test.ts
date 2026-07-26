@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { resolveWorkspacePath } from '../../test-utils/workspace-path';
+import { resolveWorkspacePath } from '../test-utils/workspace-path';
 
 const level3ProtectPagePath =
   'packages/features/platform-security/src/protection/settings-page.vue';
