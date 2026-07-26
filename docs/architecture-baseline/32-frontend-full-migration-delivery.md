@@ -30,7 +30,7 @@
 - 登录授权 DTO 停止输出前端源码 `component`，适配器停止赋值该字段。
 - `V3_83_0__frontend_legacy_component_retirement.sql` 清空所有已迁移有效页面的历史 `component`。
 - 删除无消费者模块桥接；新增 foundation-acceptance 最小 feature，证明公开协议接入不依赖应用内部业务实现。
-- `apps/hunyuan-system/src/views/support` 和 `src/api/system` 只剩架构边界测试，生产平台页面和客户端为 0。
+- `apps/hunyuan-system/src/views/support` 已删除；`src/api/system` 仅保留 2 个架构边界测试，原先位于 support 的 2 个页面边界测试已归入 `src/architecture`，生产平台页面和客户端为 0。
 
 ## 3. 数据库直接证据
 
@@ -62,7 +62,7 @@
 - 关系：42,312。
 - feature 到 `apps/hunyuan-system` 的反向 IMPORTS：0。
 - `packages/features` 对旧 `#/api/system/` 的引用：0。
-- 应用 `views/support` 只剩 2 个边界测试；应用 `api/system` 只剩 2 个边界测试。
+- 应用 `views/support` 已删除；应用 `api/system` 仅保留 2 个边界测试，原先位于 support 的 2 个页面边界测试已归入 `src/architecture`。
 - 应用业务薄入口只负责请求能力注入，完整页面实现位于 feature；生产支持页面和客户端残留为 0。
 
 ## 5. 自动化门禁
