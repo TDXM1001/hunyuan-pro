@@ -21,8 +21,6 @@ class LoginServiceIdentityEmployeeBoundaryTest {
         assertThat(Arrays.stream(LoginService.class.getDeclaredFields())
                 .map(Field::getType)
                 .map(Class::getName))
-                .noneMatch(typeName -> typeName.equals("com.hunyuan.sa.admin.module.system.employee.service.EmployeeService")
-                        || typeName.startsWith("com.hunyuan.sa.admin.module.system.employee.dao.")
-                        || typeName.equals("com.hunyuan.sa.admin.module.system.employee.domain.entity.EmployeeEntity"));
+                .noneMatch(typeName -> typeName.startsWith("com.hunyuan.sa.admin.module.system.employee."));
     }
 }

@@ -106,11 +106,12 @@ class ArchitectureGuardTest {
                     "com.hunyuan.sa.base.module.support..")
             .should(notExposeInternalModels()));
 
+    /**
+     * 员工身份实现已完全归属 identity.employee，禁止用旧 system.employee 包回填临时兼容代码。
+     */
     @ArchTest
-    static final ArchRule LEGACY_EMPLOYEE_DEPENDENCIES_MUST_NOT_GROW = freeze(noClasses()
-            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.system.employee..")
-            .should().dependOnClassesThat().resideInAPackage(
-                    "com.hunyuan.sa.admin.module.system.employee.."));
+    static final ArchRule LEGACY_EMPLOYEE_PACKAGE_MUST_NOT_RETURN = noClasses()
+            .should().resideInAPackage("com.hunyuan.sa.admin.module.system.employee..");
 
     @ArchTest
     static final ArchRule ORGANIZATION_DOMAIN_MUST_NOT_DEPEND_ON_FRAMEWORKS = noClasses()
@@ -138,10 +139,8 @@ class ArchitectureGuardTest {
     @ArchTest
     static final ArchRule LOGIN_MUST_USE_IDENTITY_EMPLOYEE_API = noClasses()
             .that().resideInAPackage("com.hunyuan.sa.admin.module.system.login..")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.hunyuan.sa.admin.module.system.employee.service..",
-                    "com.hunyuan.sa.admin.module.system.employee.dao..",
-                    "com.hunyuan.sa.admin.module.system.employee.domain.entity..");
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.system.employee..");
 
     /**
      * 消息、短信和邮件实现已经归属 platform-notification，其他 owner 只能依赖稳定协议。

@@ -22,6 +22,10 @@ class LegacyEmployeeConsumerRetirementTest {
         );
 
         for (Path root : roots) {
+            // 已退役模块不再保留空目录；只有实际存在的源码需要接受旧依赖扫描。
+            if (Files.notExists(root)) {
+                continue;
+            }
             try (var files = Files.walk(root)) {
                 for (Path sourceFile : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                     assertThat(Files.readString(sourceFile, StandardCharsets.UTF_8))
@@ -82,5 +86,32 @@ class LegacyEmployeeConsumerRetirementTest {
                 }
             }
         }
+    }
+
+    @Test
+    void legacyEmployeePersistenceArtifactsAreRetired() {
+        List<Path> legacyArtifacts = List.of(
+                Path.of(
+                        "src", "main", "java", "com", "hunyuan", "sa", "admin",
+                        "module", "system", "employee", "dao", "EmployeeDao.java"),
+                Path.of(
+                        "src", "main", "java", "com", "hunyuan", "sa", "admin",
+                        "module", "system", "employee", "domain", "entity", "EmployeeEntity.java"),
+                Path.of(
+                        "src", "main", "java", "com", "hunyuan", "sa", "admin",
+                        "module", "system", "employee", "domain", "vo", "EmployeeVO.java"),
+                Path.of(
+                        "src", "main", "resources", "mapper", "system", "employee",
+                        "EmployeeMapper.xml"));
+
+        for (Path legacyArtifact : legacyArtifacts) {
+            assertThat(legacyArtifact)
+                    .as("legacy employee persistence artifact: %s", legacyArtifact)
+                    .doesNotExist();
+        }
+        assertThat(Path.of(
+                "src", "main", "java", "com", "hunyuan", "sa", "admin",
+                "module", "identity", "employee", "infrastructure", "OrganizationDepartmentScopeAdapter.java"))
+                .exists();
     }
 }

@@ -1,4 +1,4 @@
-package com.hunyuan.sa.admin.module.system.employee.api;
+package com.hunyuan.sa.admin.module.identity.employee.infrastructure;
 
 import com.hunyuan.sa.admin.module.access.datascope.api.AccessDepartmentScope;
 import com.hunyuan.sa.admin.module.access.datascope.api.AccessDepartmentScopeFacade;
