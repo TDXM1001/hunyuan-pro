@@ -151,7 +151,7 @@ apps/hunyuan-system/
 
 ### 3.2 `apps/web-ele/`：Element Plus 示例应用
 
-这是 Vben 上游风格的演示/参考应用，不是混元生产业务入口。根命令中仍有部分默认脚本指向它，因此调整仓库脚本前必须区分 `@vben/web-ele` 和 `@hunyuan/system`。
+这是 Vben 上游风格的演示/参考应用，不是混元生产业务入口。根命令通过 `dev:ele`、`preview:ele` 和 `build:ele` 显式操作它；日常 `pnpm dev` 与 `pnpm preview` 默认指向 `@hunyuan/system`，调整仓库脚本前仍须区分两者。
 
 | 文件夹 | 用途 |
 | --- | --- |
@@ -491,7 +491,7 @@ pnpm test:unit
 pnpm check
 ```
 
-根 `pnpm dev`、`pnpm build:ele` 和 `pnpm preview` 默认指向 `@vben/web-ele`，不能把它们的成功等同于 `@hunyuan/system` 验证通过。仅修改文档时无需重复运行前端构建；修改 feature 契约或应用装配时，应至少验证受影响包、`@hunyuan/system` TypeScript 及相应单元测试。
+根 `pnpm dev` 与 `pnpm preview` 默认指向 `@hunyuan/system`；`pnpm dev:ele`、`pnpm preview:ele` 和 `pnpm build:ele` 才显式指向 `@vben/web-ele`。根 `pnpm build` 会通过 Turbo 构建多个 workspace，不能将其或示例应用构建单独等同于生产应用验证；生产应用应显式执行 `pnpm --filter @hunyuan/system build`。仅修改文档时无需重复运行前端构建；修改 feature 契约或应用装配时，应至少验证受影响包、`@hunyuan/system` TypeScript 及相应单元测试。
 
 ## 18. 维护本文件的规则
 

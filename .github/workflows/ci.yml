@@ -1,0 +1,79 @@
+name: Hunyuan Pro CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hunyuan-pro-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diff-check:
+    name: Diff Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Check whitespace errors
+        run: git diff --check HEAD^ HEAD
+
+  backend:
+    name: Backend Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run Maven tests and architecture guards
+        run: mvn -B -ntp -f hunyuan-backend/pom.xml -pl hunyuan-admin -am test
+
+  frontend:
+    name: Frontend Verification
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hunyuan-design
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.17.0
+          cache: pnpm
+          cache-dependency-path: hunyuan-design/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck production application
+        run: pnpm --filter @hunyuan/system typecheck
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Build production application
+        run: pnpm --filter @hunyuan/system build
