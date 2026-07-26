@@ -16,7 +16,7 @@ import com.hunyuan.sa.admin.module.organization.department.domain.Department;
 import com.hunyuan.sa.admin.module.organization.position.application.OrganizationPositionFacade;
 import com.hunyuan.sa.admin.module.organization.position.domain.Position;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordSecurityFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ class EmployeeAdministrationApplicationServiceTest {
     @Mock
     private OrganizationPositionFacade organizationPositionFacade;
     @Mock
-    private SecurityPasswordService securityPasswordService;
+    private PlatformPasswordSecurityFacade securityPasswordService;
     @Mock
     private AccessRoleAssignmentFacade accessRoleAssignmentFacade;
     @Mock

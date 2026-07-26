@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
-import com.hunyuan.sa.base.module.support.file.domain.vo.FileVO;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileSummary;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,19 +29,19 @@ public class FileKeyVoDeserializer extends JsonDeserializer<String> {
 
     @Override
     public String deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
-        List<FileVO> list = new ArrayList<>();
+        List<PlatformFileSummary> list = new ArrayList<>();
         ObjectCodec objectCodec = jsonParser.getCodec();
         JsonNode listOrObjectNode = objectCodec.readTree(jsonParser);
         String deserialize = "";
         try {
             if (listOrObjectNode.isArray()) {
                 for (JsonNode node : listOrObjectNode) {
-                    list.add(objectCodec.treeToValue(node, FileVO.class));
+                    list.add(objectCodec.treeToValue(node, PlatformFileSummary.class));
                 }
             } else {
-                list.add(objectCodec.treeToValue(listOrObjectNode, FileVO.class));
+                list.add(objectCodec.treeToValue(listOrObjectNode, PlatformFileSummary.class));
             }
-            deserialize = list.stream().map(FileVO::getFileKey).collect(Collectors.joining(","));
+            deserialize = list.stream().map(PlatformFileSummary::getFileKey).collect(Collectors.joining(","));
         } catch (Exception e) {
             log.error(e.getMessage(), e);
             deserialize = listOrObjectNode.asText();

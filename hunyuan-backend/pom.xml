@@ -274,6 +274,7 @@
             </dependency>
 
             <!-- redisson -->
+            <!-- Redisson 3.50.0 的 Kryo/Config 在运行态直接使用 Objenesis，不能依赖测试组件间接提供。 -->
             <dependency>
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson-spring-boot-starter</artifactId>
@@ -286,10 +287,6 @@
                     <exclusion>
                         <groupId>org.redisson</groupId>
                         <artifactId>redisson-spring-data-32</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <artifactId>objenesis</artifactId>
-                        <groupId>org.objenesis</groupId>
                     </exclusion>
                 </exclusions>
             </dependency>

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import jakarta.annotation.Resource;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.module.support.file.service.FileService;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -22,7 +22,7 @@ import java.io.IOException;
 public class FileKeySerializer extends JsonSerializer<String> {
 
     @Resource
-    private FileService fileService;
+    private PlatformFileFacade platformFileFacade;
 
 
     @Override
@@ -31,11 +31,11 @@ public class FileKeySerializer extends JsonSerializer<String> {
             jsonGenerator.writeString(value);
             return;
         }
-        if (fileService == null) {
+        if (platformFileFacade == null) {
             jsonGenerator.writeString(value);
             return;
         }
-        ResponseDTO<String> responseDTO = fileService.getFileUrl(value);
+        ResponseDTO<String> responseDTO = platformFileFacade.resolveUrl(value);
         if (responseDTO.getOk()) {
             jsonGenerator.writeString(responseDTO.getData());
             return;

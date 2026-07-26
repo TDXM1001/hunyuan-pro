@@ -1,7 +1,7 @@
 package com.hunyuan.sa.admin.integration;
 
 import com.hunyuan.sa.admin.bootstrap.InitialAdminBootstrapService;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordCodec;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -62,7 +62,7 @@ class InitialAdminBootstrapIntegrationTest extends IsolatedInfrastructureTestSup
             String saltedPassword = PASSWORD
                     + "_" + employeeUid.toUpperCase(Locale.ROOT)
                     + "_" + employeeUid.toLowerCase(Locale.ROOT);
-            assertThat(SecurityPasswordService.matchesPwd(saltedPassword, encryptedPassword)).isTrue();
+            assertThat(PlatformPasswordCodec.matches(saltedPassword, encryptedPassword)).isTrue();
 
             assertThat(jdbcTemplate.queryForObject("""
                     SELECT COUNT(*)

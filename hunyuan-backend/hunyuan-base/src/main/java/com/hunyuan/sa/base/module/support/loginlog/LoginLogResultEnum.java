@@ -3,7 +3,9 @@ package com.hunyuan.sa.base.module.support.loginlog;
 import com.hunyuan.sa.base.common.enumeration.BaseEnum;
 
 /**
- * 登录类型
+ * 登录审计结果稳定枚举。
+ *
+ * <p>该枚举属于跨 owner 协议，数值同时写入历史表并返回给现有 HTTP 客户端，禁止随意调整。</p>
  *
  * @Author 1024创新实验室-主任: 卓大
  * @Date 2022/07/22 19:46:23

@@ -1,7 +1,7 @@
 package com.hunyuan.sa.admin.module.system.support;
 
 import com.hunyuan.sa.base.module.support.mail.api.PlatformMailFacade;
-import com.hunyuan.sa.base.module.support.mail.application.PlatformMailApplicationService;
+import com.hunyuan.sa.admin.module.platform.notification.mail.application.PlatformMailApplicationService;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

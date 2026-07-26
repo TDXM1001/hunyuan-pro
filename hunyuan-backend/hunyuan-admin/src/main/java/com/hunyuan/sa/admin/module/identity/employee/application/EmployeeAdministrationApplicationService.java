@@ -19,7 +19,8 @@ import com.hunyuan.sa.admin.module.organization.department.application.Organizat
 import com.hunyuan.sa.admin.module.organization.position.application.OrganizationPositionFacade;
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordCodec;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordSecurityFacade;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +43,7 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
     private OrganizationPositionFacade organizationPositionFacade;
 
     @Resource
-    private SecurityPasswordService securityPasswordService;
+    private PlatformPasswordSecurityFacade securityPasswordService;
 
     @Resource
     private AccessRoleAssignmentFacade accessRoleAssignmentFacade;
@@ -155,7 +156,7 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
         }
 
         String password = securityPasswordService.randomPassword();
-        String passwordHash = SecurityPasswordService.getEncryptPwd(
+        String passwordHash = PlatformPasswordCodec.encode(
                 EmployeePasswordSalt.apply(password, target.get().employeeUid()));
         employeeRepository.updatePassword(employeeId, passwordHash);
         employeeSessionPort.clearCache(employeeId);
@@ -180,7 +181,7 @@ public class EmployeeAdministrationApplicationService implements EmployeeAdminis
 
         String employeeUid = UUID.randomUUID(true).toString(true);
         String password = securityPasswordService.randomPassword();
-        String passwordHash = SecurityPasswordService.getEncryptPwd(
+        String passwordHash = PlatformPasswordCodec.encode(
                 EmployeePasswordSalt.apply(password, employeeUid));
         Long employeeId = employeeRepository.create(new EmployeeCreateDraft(
                 employeeUid,

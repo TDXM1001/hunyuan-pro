@@ -11,8 +11,9 @@ import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeSelfProfileU
 import com.hunyuan.sa.base.common.code.UserErrorCode;
 import com.hunyuan.sa.base.common.domain.RequestUser;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordCodec;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordSecurityFacade;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformSecurityPolicyFacade;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,10 +31,10 @@ public class EmployeeAccountApplicationService implements EmployeeAccountFacade 
     private EmployeeRepository employeeRepository;
 
     @Resource
-    private SecurityPasswordService securityPasswordService;
+    private PlatformPasswordSecurityFacade securityPasswordService;
 
     @Resource
-    private Level3ProtectConfigService level3ProtectConfigService;
+    private PlatformSecurityPolicyFacade level3ProtectConfigService;
 
     @Resource
     private EmployeeSessionPort employeeSessionPort;
@@ -88,7 +89,7 @@ public class EmployeeAccountApplicationService implements EmployeeAccountFacade 
 
         String oldSaltedPassword =
                 EmployeePasswordSalt.apply(command.oldPassword(), account.get().employeeUid());
-        if (!SecurityPasswordService.matchesPwd(oldSaltedPassword, account.get().passwordHash())) {
+        if (!PlatformPasswordCodec.matches(oldSaltedPassword, account.get().passwordHash())) {
             return ResponseDTO.userErrorParam("原密码有误，请重新输入");
         }
         if (Objects.equals(command.oldPassword(), command.newPassword())) {
@@ -109,7 +110,7 @@ public class EmployeeAccountApplicationService implements EmployeeAccountFacade 
             return ResponseDTO.error(repeatResponse);
         }
 
-        String newEncryptedPassword = SecurityPasswordService.getEncryptPwd(newSaltedPassword);
+        String newEncryptedPassword = PlatformPasswordCodec.encode(newSaltedPassword);
         employeeRepository.updatePassword(command.employeeId(), newEncryptedPassword);
         securityPasswordService.saveUserChangePasswordLog(
                 requestUser, newEncryptedPassword, account.get().passwordHash());

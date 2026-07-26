@@ -7,7 +7,7 @@ import com.hunyuan.sa.base.module.support.mail.api.PlatformMailFacade;
 import com.hunyuan.sa.base.module.support.mail.api.PlatformMailTemplateCode;
 import com.hunyuan.sa.base.module.support.mail.api.PlatformTemplateMailCommand;
 import com.hunyuan.sa.base.module.support.redis.RedisService;
-import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformSecurityPolicyFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +34,7 @@ class LoginServicePlatformMailTest {
     private EmployeeDirectoryFacade employeeDirectoryFacade;
 
     @Mock
-    private Level3ProtectConfigService level3ProtectConfigService;
+    private PlatformSecurityPolicyFacade level3ProtectConfigService;
 
     @Mock
     private RedisService redisService;

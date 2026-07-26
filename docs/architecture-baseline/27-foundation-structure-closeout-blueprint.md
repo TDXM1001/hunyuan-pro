@@ -6,11 +6,11 @@
 
 本项目的明确产品目标是形成一套可复用、可装配、可验证的管理后台底座。因此，应用目录中的完整平台功能、后端返回前端源码路径、前端模块声明未参与应用装配，以及 `hunyuan-base` 同时承载平台能力、接口和基础设施等问题，均属于必须关闭的产品问题，不再仅作为“以后发生业务变更时处理”的历史例外。
 
-当前状态：`FOUNDATION_STRUCTURE_CLOSEOUT_REQUIRED`。
+当前状态：`FOUNDATION_STRUCTURE_CLOSED`。
 
-截至 2026-07-25，前端 F0 至 F4 及前端侧 F6 已完成代码、菜单契约、开发库迁移、自动化门禁及管理员和受限角色浏览器验收，状态为 `FRONTEND_FULL_MIGRATION_CLOSED`。该关闭结论只覆盖前端迁移，不改变完整底座仍需实施后端 F5 的结论。
+截至 2026-07-25，前端 F0 至 F4 及前端侧 F6 已完成代码、菜单契约、开发库迁移、自动化门禁及管理员和受限角色浏览器验收，状态为 `FRONTEND_FULL_MIGRATION_CLOSED`；后端 F5 已完成七个平台 owner 归位、base HTTP 入口清零、运行态修复、OpenAPI 与代码图验收，状态为 `F5_CLOSED`。两部分证据合并后，完整底座结构关闭，详见 [32-frontend-full-migration-delivery.md](32-frontend-full-migration-delivery.md) 与 [33-f5-backend-platform-module-relocation-delivery.md](33-f5-backend-platform-module-relocation-delivery.md)。
 
-在本蓝图关闭前，不启动首个真实业务纵切。底座结构关闭后，再回到真实业务选题和纵切实施。
+底座结构门已经关闭，后续可以回到首个真实业务纵切的选题和契约阶段；本状态不表示真实业务纵切已经实施。
 
 ## 2. 现状证据
 
@@ -209,6 +209,8 @@ infrastructure/
 - 收缩 shared-kernel，关闭新模块对历史 Service、DAO、Mapper、Entity 和 Form/VO 的直接依赖。
 - 每次只迁移一个 owner，保持数据库单一写路径，不复制表、不双写。
 
+关闭状态（2026-07-25）：配置、文件、审计、通知、安全、运行时和开发工具七个平台 owner 已归入 `hunyuan-admin`；F0 冻结的 10 个 base `@RestController` 已递减至 0，21 个平台 Mapper 与内部模型完成归位，七组内部实现均有严格依赖守卫。干净 reactor `clean verify`、可执行 JAR、独立端口启动、168 条 OpenAPI 路径及 full Codebase Memory 索引均已通过，完整证据见 [33-f5-backend-platform-module-relocation-delivery.md](33-f5-backend-platform-module-relocation-delivery.md)。F5 已关闭。
+
 ### F6：历史装配退役与底座验收
 
 - Flyway 迁移现有菜单到稳定 route ID，退役源码 component 路径。
@@ -216,7 +218,7 @@ infrastructure/
 - 新建一个最小验收 feature，证明模块可以通过公开协议接入，不依赖应用内部实现。
 - 完成 Codebase Memory、OpenAPI、数据库、测试、生产构建和浏览器总验收。
 
-前端交付状态（2026-07-25）：登录菜单适配器已删除历史 `component` 双读和业务页面扫描，后端登录菜单 DTO 已停止输出 `component`；开发库 21 个有效本地页面均有稳定 `routeId` 且 `component` 已清空，4 个退役菜单的角色授权为 0。无消费者模块桥接已删除，最小验收 feature 已接入。Codebase Memory、TypeScript、Vitest、生产构建、Maven、Flyway、数据库实值以及管理员和受限角色浏览器验收均已通过，前端状态关闭为 `FRONTEND_FULL_MIGRATION_CLOSED`；完整底座仍保持 `FOUNDATION_STRUCTURE_CLOSEOUT_REQUIRED`，直到后端 F5 完成。
+关闭状态（2026-07-25）：登录菜单适配器已删除历史 `component` 双读和业务页面扫描，后端登录菜单 DTO 已停止输出 `component`；开发库 21 个有效本地页面均有稳定 `routeId` 且 `component` 已清空，4 个退役菜单的角色授权为 0。无消费者模块桥接已删除，最小验收 feature 已接入。Codebase Memory、TypeScript、Vitest、生产构建、Maven、Flyway、数据库实值以及管理员和受限角色浏览器验收均已通过，前端状态关闭为 `FRONTEND_FULL_MIGRATION_CLOSED`。后端 F5 随后完成，完整底座状态关闭为 `FOUNDATION_STRUCTURE_CLOSED`。
 
 ## 8. 每批关闭门
 
@@ -246,3 +248,5 @@ infrastructure/
 8. 全量构建、隔离迁移、开发库升级、直接 API 和浏览器验收通过。
 
 达到以上条件后，才能把底座报告为完成，并重新进入首个真实业务纵切的选题与实现。
+
+关闭结论（2026-07-25）：以上八项由前端关闭记录与 F5 后端关闭记录共同满足。未变化的数据库、菜单、权限和浏览器契约复用既有验收；本次变化的后端包归属、依赖、构建、OpenAPI 和独立运行态均已重新验证。底座可以报告为 `FOUNDATION_STRUCTURE_CLOSED`。

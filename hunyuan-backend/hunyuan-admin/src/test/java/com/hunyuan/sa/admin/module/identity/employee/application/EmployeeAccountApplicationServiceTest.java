@@ -9,8 +9,9 @@ import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeRepository;
 import com.hunyuan.sa.admin.module.identity.employee.domain.EmployeeSelfProfileUpdate;
 import com.hunyuan.sa.base.common.domain.RequestUser;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
-import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordCodec;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordSecurityFacade;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformSecurityPolicyFacade;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,9 +35,9 @@ class EmployeeAccountApplicationServiceTest {
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
-    private SecurityPasswordService securityPasswordService;
+    private PlatformPasswordSecurityFacade securityPasswordService;
     @Mock
-    private Level3ProtectConfigService level3ProtectConfigService;
+    private PlatformSecurityPolicyFacade level3ProtectConfigService;
     @Mock
     private EmployeeSessionPort employeeSessionPort;
 
@@ -183,7 +184,7 @@ class EmployeeAccountApplicationServiceTest {
                 base.employeeId(),
                 base.employeeUid(),
                 base.loginName(),
-                SecurityPasswordService.getEncryptPwd(EmployeePasswordSalt.apply(password, base.employeeUid())),
+                PlatformPasswordCodec.encode(EmployeePasswordSalt.apply(password, base.employeeUid())),
                 base.actualName(),
                 base.avatar(),
                 base.gender(),

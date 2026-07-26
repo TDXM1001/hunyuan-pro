@@ -1,6 +1,6 @@
 package com.hunyuan.sa.admin.bootstrap;
 
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordCodec;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -57,7 +57,7 @@ public class InitialAdminBootstrapService {
         String saltedPassword = command.password()
                 + "_" + employeeUid.toUpperCase(Locale.ROOT)
                 + "_" + employeeUid.toLowerCase(Locale.ROOT);
-        String encryptedPassword = SecurityPasswordService.getEncryptPwd(saltedPassword);
+        String encryptedPassword = PlatformPasswordCodec.encode(saltedPassword);
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -183,7 +183,7 @@ public class InitialAdminBootstrapService {
         if (command.password() == null
                 || command.password().length() < 8
                 || command.password().length() > 64
-                || !command.password().matches(SecurityPasswordService.PASSWORD_PATTERN)) {
+                || !PlatformPasswordCodec.hasRequiredCharacterCategories(command.password())) {
             throw new IllegalArgumentException(
                     "Bootstrap password must contain 8 to 64 characters and at least three character categories");
         }

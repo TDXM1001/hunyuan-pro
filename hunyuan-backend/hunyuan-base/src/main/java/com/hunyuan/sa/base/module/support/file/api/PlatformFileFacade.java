@@ -5,6 +5,8 @@ import com.hunyuan.sa.base.common.domain.RequestUser;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 /**
  * 平台文件能力公开边界。
  *
@@ -16,6 +18,11 @@ public interface PlatformFileFacade {
             MultipartFile file, Integer folderType, RequestUser requestUser);
 
     ResponseDTO<String> resolveUrl(String fileKey);
+
+    /**
+     * 按调用方给定顺序解析文件摘要，不存在的引用不会出现在结果中。
+     */
+    List<PlatformFileSummary> getFiles(List<String> fileKeys);
 
     /**
      * 分页读取已授权管理端可见的文件记录。

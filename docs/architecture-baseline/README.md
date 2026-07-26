@@ -52,6 +52,7 @@
 | [30-f2-platform-feature-extraction-delivery.md](30-f2-platform-feature-extraction-delivery.md) | F2 配置、文件与账号 feature 抽取、开发库迁移和浏览器关闭证据 |
 | [31-frontend-full-migration-execution-plan.md](31-frontend-full-migration-execution-plan.md) | F3、F4、F6 前端完整迁移执行账本、验证门与人工浏览器验收步骤 |
 | [32-frontend-full-migration-delivery.md](32-frontend-full-migration-delivery.md) | F3、F4、前端侧 F6 的实现、图谱、数据库、自动化及浏览器关闭证据 |
+| [33-f5-backend-platform-module-relocation-delivery.md](33-f5-backend-platform-module-relocation-delivery.md) | F5 七个平台后端 owner 归位、base HTTP 清零、运行态修复及完整底座关闭证据 |
 
 ## 3. 当前架构摘要
 

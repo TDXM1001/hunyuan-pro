@@ -36,6 +36,11 @@ class ArchitectureGuardTest {
             .should().beFreeOfCycles());
 
     @ArchTest
+    static final ArchRule PLATFORM_MODULE_CYCLES_MUST_NOT_GROW = freeze(slices()
+            .matching("com.hunyuan.sa.admin.module.platform.(*)..")
+            .should().beFreeOfCycles());
+
+    @ArchTest
     static final ArchRule SUPPORT_MODULE_CYCLES_MUST_NOT_GROW = freeze(slices()
             .matching("com.hunyuan.sa.base.module.support.(*)..")
             .should().beFreeOfCycles());
@@ -46,12 +51,12 @@ class ArchitectureGuardTest {
             .should(notAccessAnotherModulePersistenceInternals()));
 
     /**
-     * 基础工程中的 HTTP 入口属于待归位遗留项，只允许逐步减少，禁止继续新增。
+     * base 仅承载通用基础设施与稳定协议，不允许重新放入业务 HTTP 入口。
      */
     @ArchTest
-    static final ArchRule BASE_HTTP_ROUTES_MUST_NOT_GROW = freeze(noClasses()
+    static final ArchRule BASE_MUST_NOT_EXPOSE_HTTP_ROUTES = noClasses()
             .that().resideInAPackage("com.hunyuan.sa.base..")
-            .should().beAnnotatedWith("org.springframework.web.bind.annotation.RestController"));
+            .should().beAnnotatedWith("org.springframework.web.bind.annotation.RestController");
 
     /**
      * 平台支撑模块不能新增对其他 owner 持久化内部实现的直接访问。
@@ -60,6 +65,35 @@ class ArchitectureGuardTest {
     static final ArchRule SUPPORT_CROSS_MODULE_PERSISTENCE_ACCESS_MUST_NOT_GROW = freeze(noClasses()
             .that().resideInAPackage("com.hunyuan.sa.base.module.support..")
             .should(notAccessAnotherSupportModulePersistenceInternals()));
+
+    /**
+     * 配置 owner 的实现已经迁出 base，其他模块只能通过稳定 Facade 或配置值协议访问。
+     */
+    @ArchTest
+    static final ArchRule PLATFORM_CONFIGURATION_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.configuration..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.hunyuan.sa.admin.module.platform.configuration.config..",
+                    "com.hunyuan.sa.admin.module.platform.configuration.dict..");
+
+    /**
+     * 文件存储、Mapper 和历史模型只属于 platform-file，消费者必须使用 PlatformFileFacade。
+     */
+    @ArchTest
+    static final ArchRule PLATFORM_FILE_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.file..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.file..");
+
+    /**
+     * 安全策略、验证码、登录失败与密码历史实现归属 platform-security；
+     * 登录、身份和文件 owner 只能依赖 base 中的稳定安全协议与密码 codec。
+     */
+    @ArchTest
+    static final ArchRule PLATFORM_SECURITY_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.security..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.security..");
 
     /**
      * 公开 Facade 的方法签名不能继续暴露 Entity、DAO、Mapper 或历史 Form/VO。
@@ -110,13 +144,19 @@ class ArchitectureGuardTest {
                     "com.hunyuan.sa.admin.module.system.employee.domain.entity..");
 
     /**
-     * 登录模块只能通过平台邮件公开边界发送验证码，不能依赖底层邮件服务。
+     * 消息、短信和邮件实现已经归属 platform-notification，其他 owner 只能依赖稳定协议。
      */
     @ArchTest
-    static final ArchRule LOGIN_MUST_USE_PLATFORM_MAIL_API = noClasses()
+    static final ArchRule PLATFORM_NOTIFICATION_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.notification..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.notification..");
+
+    @ArchTest
+    static final ArchRule LOGIN_MUST_USE_PLATFORM_NOTIFICATION_API = noClasses()
             .that().resideInAPackage("com.hunyuan.sa.admin.module.system.login..")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.mail.MailService");
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.notification..");
 
     /**
      * 身份和登录模块只能通过平台文件公开接口解析头像，不能依赖具体存储实现。
@@ -127,98 +167,46 @@ class ArchitectureGuardTest {
                     "com.hunyuan.sa.admin.module.identity..",
                     "com.hunyuan.sa.admin.module.system.login..")
             .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.file.service.IFileStorageService");
+                    "com.hunyuan.sa.admin.module.platform.file.service.IFileStorageService");
 
     /**
-     * 管理端消息控制器只能通过平台消息公开边界访问消息能力。
+     * 审计的 Controller、切面、Service 和持久化模型已经归属 platform-audit，
+     * 其他 owner 只能依赖 base 中的稳定审计协议。
      */
     @ArchTest
-    static final ArchRule ADMIN_MESSAGE_CONTROLLERS_MUST_USE_PLATFORM_MESSAGE_API = noClasses()
-            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.message..")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.message.service.MessageService");
+    static final ArchRule PLATFORM_AUDIT_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.audit..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.audit..");
 
     /**
-     * 历史个人消息控制器只能通过消息箱公开边界访问消息能力。
+     * 登录认证写入和读取登录审计信息时，不得回退到审计 Entity、DAO 或 Service。
      */
     @ArchTest
-    static final ArchRule LEGACY_MESSAGE_CONTROLLER_MUST_USE_INBOX_API = noClasses()
-            .that().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.message.controller.MessageController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.message.service.MessageService");
+    static final ArchRule LOGIN_MUST_USE_PLATFORM_AUDIT_API = noClasses()
+            .that().resideInAPackage("com.hunyuan.sa.admin.module.system.login..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.audit..");
 
     /**
-     * 历史审计日志控制器只能通过平台审计公开边界查询日志。
+     * 运行时 Controller、ApplicationService、调度实现和持久化模型归属 platform-runtime；
+     * 其他 owner 只能依赖 base 中的稳定 Facade、公开 DTO、任务扩展协议和重载注解。
      */
     @ArchTest
-    static final ArchRule OPERATE_LOG_CONTROLLER_MUST_USE_PLATFORM_AUDIT_API = noClasses()
-            .that().haveSimpleName("AdminOperateLogController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.operatelog.OperateLogService");
-
-    @ArchTest
-    static final ArchRule LOGIN_LOG_CONTROLLER_MUST_USE_PLATFORM_AUDIT_API = noClasses()
-            .that().haveSimpleName("AdminLoginLogController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.loginlog.LoginLogService");
+    static final ArchRule PLATFORM_RUNTIME_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.runtime..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.runtime..");
 
     /**
-     * 历史短信管理控制器只能通过平台短信公开边界访问短信能力。
+     * 代码生成器、API 加密验证和历史兼容入口统一归属 platform-devtools；
+     * 其他 owner 只能依赖 base 中的稳定 Facade 与公开 DTO。
      */
     @ArchTest
-    static final ArchRule SMS_CONTROLLER_MUST_USE_PLATFORM_SMS_API = noClasses()
-            .that().haveSimpleName("AdminSmsController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.sms.service.SmsService");
-
-    /**
-     * 历史序列号控制器只能通过平台运行时公开边界访问序列号能力。
-     */
-    @ArchTest
-    static final ArchRule SERIAL_NUMBER_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
-            .that().haveSimpleName("AdminSerialNumberController")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.hunyuan.sa.base.module.support.serialnumber.dao..",
-                    "com.hunyuan.sa.base.module.support.serialnumber.service..");
-
-    /**
-     * 历史定时任务控制器只能通过平台运行时公开边界访问任务能力。
-     */
-    @ArchTest
-    static final ArchRule JOB_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
-            .that().haveSimpleName("AdminSmartJobController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.job.api.SmartJobService");
-
-    /**
-     * 历史代码生成器控制器只能通过开发工具公开边界访问生成能力。
-     */
-    @ArchTest
-    static final ArchRule CODE_GENERATOR_CONTROLLER_MUST_USE_DEVTOOLS_API = noClasses()
-            .that().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.codegenerator.controller.CodeGeneratorController")
-            .should().dependOnClassesThat().resideInAnyPackage(
-                    "com.hunyuan.sa.base.module.support.codegenerator.service..",
-                    "com.hunyuan.sa.base.module.support.codegenerator.dao..");
-
-    /**
-     * 历史重载控制器只能通过平台运行时公开边界访问重载能力。
-     */
-    @ArchTest
-    static final ArchRule RELOAD_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
-            .that().haveSimpleName("AdminReloadController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.reload.ReloadService");
-
-    /**
-     * 历史心跳控制器只能通过平台运行时公开边界查询心跳记录。
-     */
-    @ArchTest
-    static final ArchRule HEARTBEAT_CONTROLLER_MUST_USE_PLATFORM_RUNTIME_API = noClasses()
-            .that().haveSimpleName("AdminHeartBeatController")
-            .should().dependOnClassesThat().haveFullyQualifiedName(
-                    "com.hunyuan.sa.base.module.support.heartbeat.HeartBeatService");
+    static final ArchRule PLATFORM_DEVTOOLS_INTERNALS_MUST_NOT_LEAK = noClasses()
+            .that().resideOutsideOfPackage("com.hunyuan.sa.admin.module.platform.devtools..")
+            .should().dependOnClassesThat().resideInAPackage(
+                    "com.hunyuan.sa.admin.module.platform.devtools..");
 
     @ArchTest
     static final ArchRule IDENTITY_MUST_USE_ACCESS_ROLE_API = noClasses()
@@ -294,9 +282,7 @@ class ArchitectureGuardTest {
                     if (targetModule == null || sourceModule.equals(targetModule)) {
                         continue;
                     }
-                    if (targetPackage.contains(".dao.")
-                            || targetPackage.endsWith(".dao")
-                            || targetPackage.contains(".domain.entity.")) {
+                    if (isPersistenceInternal(target)) {
                         String message = source.getName() + " directly depends on " + target.getName();
                         events.add(SimpleConditionEvent.violated(source, message));
                     }
@@ -320,7 +306,7 @@ class ArchitectureGuardTest {
                     if (targetModule == null || sourceModule.equals(targetModule)) {
                         continue;
                     }
-                    if (isPersistenceInternal(targetPackage)) {
+                    if (isPersistenceInternal(target)) {
                         String message = source.getName() + " 直接依赖 " + target.getName();
                         events.add(SimpleConditionEvent.violated(source, message));
                     }
@@ -339,7 +325,7 @@ class ArchitectureGuardTest {
                         continue;
                     }
                     for (JavaClass involvedType : method.getAllInvolvedRawTypes()) {
-                        if (isInternalModel(involvedType.getPackageName())) {
+                        if (isInternalModel(involvedType)) {
                             String message = method.getFullName() + " 暴露 " + involvedType.getName();
                             events.add(SimpleConditionEvent.violated(method, message));
                         }
@@ -358,8 +344,15 @@ class ArchitectureGuardTest {
                 || packageName.endsWith(".domain.entity");
     }
 
-    private static boolean isInternalModel(String packageName) {
-        return isPersistenceInternal(packageName)
+    private static boolean isPersistenceInternal(JavaClass type) {
+        return isPersistenceInternal(type.getPackageName())
+                || type.getSimpleName().endsWith("Dao")
+                || type.getSimpleName().endsWith("Mapper");
+    }
+
+    private static boolean isInternalModel(JavaClass type) {
+        String packageName = type.getPackageName();
+        return isPersistenceInternal(type)
                 || packageName.contains(".domain.form.")
                 || packageName.endsWith(".domain.form")
                 || packageName.contains(".domain.vo.")
@@ -373,7 +366,19 @@ class ArchitectureGuardTest {
         }
         String remainder = packageName.substring(prefix.length());
         int separator = remainder.indexOf('.');
-        return separator < 0 ? remainder : remainder.substring(0, separator);
+        if (separator < 0) {
+            return remainder;
+        }
+        String topLevelModule = remainder.substring(0, separator);
+        if (!"platform".equals(topLevelModule)) {
+            return topLevelModule;
+        }
+        String platformRemainder = remainder.substring(separator + 1);
+        int platformSeparator = platformRemainder.indexOf('.');
+        String platformOwner = platformSeparator < 0
+                ? platformRemainder
+                : platformRemainder.substring(0, platformSeparator);
+        return platformOwner.isEmpty() ? topLevelModule : topLevelModule + "." + platformOwner;
     }
 
     private static String supportModuleName(String packageName) {

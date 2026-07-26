@@ -1,18 +1,18 @@
 package com.hunyuan.sa.admin.module.system;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.hunyuan.sa.admin.module.system.support.AdminProtectController;
-import com.hunyuan.sa.admin.module.system.support.AdminSmartJobController;
-import com.hunyuan.sa.admin.module.system.support.AdminDataMaskingController;
+import com.hunyuan.sa.admin.module.platform.runtime.api.legacy.AdminSmartJobController;
+import com.hunyuan.sa.admin.module.platform.runtime.job.domain.SmartJobAddForm;
+import com.hunyuan.sa.admin.module.platform.runtime.job.domain.SmartJobEnabledUpdateForm;
+import com.hunyuan.sa.admin.module.platform.runtime.job.domain.SmartJobExecuteForm;
+import com.hunyuan.sa.admin.module.platform.runtime.job.domain.SmartJobLogQueryForm;
+import com.hunyuan.sa.admin.module.platform.runtime.job.domain.SmartJobQueryForm;
+import com.hunyuan.sa.admin.module.platform.runtime.job.domain.SmartJobUpdateForm;
+import com.hunyuan.sa.admin.module.platform.security.api.legacy.AdminProtectController;
+import com.hunyuan.sa.admin.module.platform.security.api.legacy.AdminDataMaskingController;
 import com.hunyuan.sa.base.common.domain.ValidateList;
-import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobAddForm;
-import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobEnabledUpdateForm;
-import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobExecuteForm;
-import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobLogQueryForm;
-import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobQueryForm;
-import com.hunyuan.sa.base.module.support.job.api.domain.SmartJobUpdateForm;
-import com.hunyuan.sa.base.module.support.securityprotect.domain.Level3ProtectConfigForm;
-import com.hunyuan.sa.base.module.support.securityprotect.domain.LoginFailQueryForm;
+import com.hunyuan.sa.admin.module.platform.security.protection.domain.Level3ProtectConfigForm;
+import com.hunyuan.sa.admin.module.platform.security.protection.domain.LoginFailQueryForm;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

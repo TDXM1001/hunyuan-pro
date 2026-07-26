@@ -16,8 +16,8 @@ import com.hunyuan.sa.base.common.annoation.NoNeedLogin;
 import com.hunyuan.sa.base.common.constant.RequestHeaderConst;
 import com.hunyuan.sa.base.common.domain.ResponseDTO;
 import com.hunyuan.sa.base.common.util.SmartRequestUtil;
-import com.hunyuan.sa.base.module.support.captcha.domain.CaptchaVO;
-import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
+import com.hunyuan.sa.base.module.support.captcha.api.PlatformCaptchaChallenge;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformSecurityPolicyFacade;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -37,7 +37,7 @@ public class LoginController {
     private LoginService loginService;
 
     @Resource
-    private Level3ProtectConfigService level3ProtectConfigService;
+    private PlatformSecurityPolicyFacade level3ProtectConfigService;
 
     @NoNeedLogin
     @PostMapping("/login")
@@ -66,7 +66,7 @@ public class LoginController {
     @Operation(summary = "获取验证码  @author 卓大")
     @GetMapping("/login/getCaptcha")
     @NoNeedLogin
-    public ResponseDTO<CaptchaVO> getCaptcha() {
+    public ResponseDTO<PlatformCaptchaChallenge> getCaptcha() {
         return loginService.getCaptcha();
     }
 

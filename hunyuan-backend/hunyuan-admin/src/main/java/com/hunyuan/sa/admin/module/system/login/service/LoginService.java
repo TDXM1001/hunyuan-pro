@@ -32,23 +32,23 @@ import com.hunyuan.sa.base.common.util.SmartStringUtil;
 import com.hunyuan.sa.base.constant.LoginDeviceEnum;
 import com.hunyuan.sa.base.constant.RedisKeyConst;
 import com.hunyuan.sa.base.module.support.apiencrypt.service.ApiEncryptService;
-import com.hunyuan.sa.base.module.support.captcha.CaptchaService;
-import com.hunyuan.sa.base.module.support.captcha.domain.CaptchaForm;
-import com.hunyuan.sa.base.module.support.captcha.domain.CaptchaVO;
-import com.hunyuan.sa.base.module.support.config.ConfigKeyEnum;
-import com.hunyuan.sa.base.module.support.config.ConfigService;
+import com.hunyuan.sa.base.module.support.audit.api.PlatformLoginAuditFacade;
+import com.hunyuan.sa.base.module.support.audit.api.PlatformLoginLogCommand;
+import com.hunyuan.sa.base.module.support.audit.api.PlatformRecentLogin;
+import com.hunyuan.sa.base.module.support.captcha.api.PlatformCaptchaChallenge;
+import com.hunyuan.sa.base.module.support.captcha.api.PlatformCaptchaFacade;
+import com.hunyuan.sa.base.module.support.captcha.api.PlatformCaptchaValidationCommand;
+import com.hunyuan.sa.base.module.support.config.api.PlatformConfigurationValueReader;
 import com.hunyuan.sa.base.module.support.loginlog.LoginLogResultEnum;
-import com.hunyuan.sa.base.module.support.loginlog.LoginLogService;
-import com.hunyuan.sa.base.module.support.loginlog.domain.LoginLogEntity;
-import com.hunyuan.sa.base.module.support.loginlog.domain.LoginLogVO;
 import com.hunyuan.sa.base.module.support.mail.api.PlatformMailFacade;
 import com.hunyuan.sa.base.module.support.mail.api.PlatformMailTemplateCode;
 import com.hunyuan.sa.base.module.support.mail.api.PlatformTemplateMailCommand;
 import com.hunyuan.sa.base.module.support.redis.RedisService;
-import com.hunyuan.sa.base.module.support.securityprotect.domain.LoginFailEntity;
-import com.hunyuan.sa.base.module.support.securityprotect.service.Level3ProtectConfigService;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityLoginService;
-import com.hunyuan.sa.base.module.support.securityprotect.service.SecurityPasswordService;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformLoginFailureState;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformLoginSecurityFacade;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordCodec;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformPasswordSecurityFacade;
+import com.hunyuan.sa.base.module.support.securityprotect.api.PlatformSecurityPolicyFacade;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -81,32 +81,35 @@ public class LoginService implements StpInterface {
      */
     private static final String SUPER_PASSWORD_LOGIN_ID_PREFIX = "S";
 
+    private static final String SUPER_PASSWORD_CONFIGURATION_KEY = "super_password";
+
     @Resource
     private EmployeeDirectoryFacade employeeDirectoryFacade;
 
+    // @Resource 会优先按字段名匹配，Facade 使用边界名称可避免误命中同名内部实现 Bean。
     @Resource
-    private CaptchaService captchaService;
+    private PlatformCaptchaFacade platformCaptchaFacade;
 
     @Resource
-    private ConfigService configService;
+    private PlatformConfigurationValueReader configurationValueReader;
 
     @Resource
-    private LoginLogService loginLogService;
+    private PlatformLoginAuditFacade platformLoginAuditFacade;
 
     @Resource
     private AccessAuthorizationFacade accessAuthorizationFacade;
 
     @Resource
-    private SecurityLoginService securityLoginService;
+    private PlatformLoginSecurityFacade platformLoginSecurityFacade;
 
     @Resource
-    private SecurityPasswordService protectPasswordService;
+    private PlatformPasswordSecurityFacade protectPasswordService;
 
     @Resource
     private ApiEncryptService apiEncryptService;
 
     @Resource
-    private Level3ProtectConfigService level3ProtectConfigService;
+    private PlatformSecurityPolicyFacade level3ProtectConfigService;
 
     @Resource
     private PlatformMailFacade platformMailFacade;
@@ -120,8 +123,8 @@ public class LoginService implements StpInterface {
     /**
      * 获取验证码
      */
-    public ResponseDTO<CaptchaVO> getCaptcha() {
-        return ResponseDTO.ok(captchaService.generateCaptcha());
+    public ResponseDTO<PlatformCaptchaChallenge> getCaptcha() {
+        return platformCaptchaFacade.generateChallenge();
     }
 
     /**
@@ -138,7 +141,7 @@ public class LoginService implements StpInterface {
 
         // 校验 图形验证码
         if (captchaEnabled) {
-            ResponseDTO<String> checkCaptcha = captchaService.checkCaptcha(buildCaptchaForm(loginForm));
+            ResponseDTO<String> checkCaptcha = platformCaptchaFacade.validate(buildCaptchaCommand(loginForm));
             if (!checkCaptcha.getOk()) {
                 return ResponseDTO.error(UserErrorCode.PARAM_ERROR, checkCaptcha.getMsg());
             }
@@ -170,8 +173,9 @@ public class LoginService implements StpInterface {
         }
 
         // 验证密码 是否为万能密码
-        String superPassword = configService.getConfigValue(ConfigKeyEnum.SUPER_PASSWORD);
-        boolean superPasswordFlag = superPassword.equals(requestPassword);
+        String superPassword = configurationValueReader.getValue(SUPER_PASSWORD_CONFIGURATION_KEY);
+        // 配置缺失时只关闭兼容登录分支，不能让普通账号登录因空指针整体失败。
+        boolean superPasswordFlag = superPassword != null && superPassword.equals(requestPassword);
 
         // 校验双因子登录
         ResponseDTO<String> validateEmailCode = validateEmailCode(loginForm, employee, superPasswordFlag);
@@ -190,17 +194,25 @@ public class LoginService implements StpInterface {
         } else {
 
             // 按照等保登录要求，进行登录失败次数校验
-            ResponseDTO<LoginFailEntity> loginFailEntityResponseDTO = securityLoginService.checkLogin(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
-            if (!loginFailEntityResponseDTO.getOk()) {
-                return ResponseDTO.error(loginFailEntityResponseDTO);
+            ResponseDTO<PlatformLoginFailureState> loginFailureResponse =
+                    platformLoginSecurityFacade.checkLogin(
+                            employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
+            if (!loginFailureResponse.getOk()) {
+                return ResponseDTO.error(loginFailureResponse);
             }
 
             // 密码错误
-            if (!SecurityPasswordService.matchesPwd(EmployeePasswordSalt.apply(requestPassword, employee.employeeUid()), employee.passwordHash())) {
+            if (!PlatformPasswordCodec.matches(
+                    EmployeePasswordSalt.apply(requestPassword, employee.employeeUid()),
+                    employee.passwordHash())) {
                 // 记录登录失败
                 saveLoginLog(employee, ip, userAgent, "密码错误", LoginLogResultEnum.LOGIN_FAIL, loginDeviceEnum);
                 // 记录等级保护次数
-                String msg = securityLoginService.recordLoginFail(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE, employee.loginName(), loginFailEntityResponseDTO.getData());
+                String msg = platformLoginSecurityFacade.recordLoginFail(
+                        employee.employeeId(),
+                        UserTypeEnum.ADMIN_EMPLOYEE,
+                        employee.loginName(),
+                        loginFailureResponse.getData());
                 return msg == null ? ResponseDTO.userErrorParam("登录名或密码错误！") : ResponseDTO.error(UserErrorCode.LOGIN_FAIL_WILL_LOCK, msg);
             }
 
@@ -217,7 +229,7 @@ public class LoginService implements StpInterface {
         RequestEmployee requestEmployee = loginManager.loadLoginInfo(employee);
 
         // 移除登录失败
-        securityLoginService.removeLoginFail(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
+        platformLoginSecurityFacade.removeLoginFail(employee.employeeId(), UserTypeEnum.ADMIN_EMPLOYEE);
 
         // 获取登录结果信息
         String token = StpUtil.getTokenValue();
@@ -250,12 +262,13 @@ public class LoginService implements StpInterface {
         loginResultVO.setMenuList(authorization.menuItems());
 
         // 上次登录信息
-        LoginLogVO loginLogVO = loginLogService.queryLastByUserId(requestEmployee.getEmployeeId(), UserTypeEnum.ADMIN_EMPLOYEE, LoginLogResultEnum.LOGIN_SUCCESS);
-        if (loginLogVO != null) {
-            loginResultVO.setLastLoginIp(loginLogVO.getLoginIp());
-            loginResultVO.setLastLoginIpRegion(loginLogVO.getLoginIpRegion());
-            loginResultVO.setLastLoginTime(loginLogVO.getCreateTime());
-            loginResultVO.setLastLoginUserAgent(loginLogVO.getUserAgent());
+        PlatformRecentLogin recentLogin = platformLoginAuditFacade.findLastSuccessfulLogin(
+                requestEmployee.getEmployeeId(), UserTypeEnum.ADMIN_EMPLOYEE.getValue()).orElse(null);
+        if (recentLogin != null) {
+            loginResultVO.setLastLoginIp(recentLogin.loginIp());
+            loginResultVO.setLastLoginIpRegion(recentLogin.loginIpRegion());
+            loginResultVO.setLastLoginTime(recentLogin.occurredAt());
+            loginResultVO.setLastLoginUserAgent(recentLogin.userAgent());
         }
 
         // 是否需要强制修改密码
@@ -332,17 +345,17 @@ public class LoginService implements StpInterface {
         this.clearLoginEmployeeCache(requestUser.getUserId());
 
         //保存登出日志
-        LoginLogEntity loginEntity = LoginLogEntity.builder()
-                .userId(requestUser.getUserId())
-                .userType(requestUser.getUserType().getValue())
-                .userName(requestUser.getUserName())
-                .userAgent(requestUser.getUserAgent())
-                .loginIp(requestUser.getIp())
-                .loginIpRegion(SmartIpUtil.getRegion(requestUser.getIp()))
-                .loginResult(LoginLogResultEnum.LOGIN_OUT.getValue())
-                .createTime(LocalDateTime.now())
-                .build();
-        loginLogService.log(loginEntity);
+        platformLoginAuditFacade.record(new PlatformLoginLogCommand(
+                requestUser.getUserId(),
+                requestUser.getUserType().getValue(),
+                requestUser.getUserName(),
+                requestUser.getIp(),
+                SmartIpUtil.getRegion(requestUser.getIp()),
+                requestUser.getUserAgent(),
+                null,
+                null,
+                LoginLogResultEnum.LOGIN_OUT,
+                LocalDateTime.now()));
 
         return ResponseDTO.ok();
     }
@@ -351,19 +364,17 @@ public class LoginService implements StpInterface {
      * 保存登录日志
      */
     private void saveLoginLog(EmployeeAuthenticationAccount employee, String ip, String userAgent, String remark, LoginLogResultEnum result, LoginDeviceEnum loginDeviceEnum) {
-        LoginLogEntity loginEntity = LoginLogEntity.builder()
-                .userId(employee.employeeId())
-                .userType(UserTypeEnum.ADMIN_EMPLOYEE.getValue())
-                .userName(employee.actualName())
-                .userAgent(userAgent)
-                .loginIp(ip)
-                .loginIpRegion(SmartIpUtil.getRegion(ip))
-                .remark(remark)
-                .loginDevice(loginDeviceEnum.getDesc())
-                .loginResult(result.getValue())
-                .createTime(LocalDateTime.now())
-                .build();
-        loginLogService.log(loginEntity);
+        platformLoginAuditFacade.record(new PlatformLoginLogCommand(
+                employee.employeeId(),
+                UserTypeEnum.ADMIN_EMPLOYEE.getValue(),
+                employee.actualName(),
+                ip,
+                SmartIpUtil.getRegion(ip),
+                userAgent,
+                remark,
+                loginDeviceEnum.getDesc(),
+                result,
+                LocalDateTime.now()));
     }
 
 
@@ -493,11 +504,9 @@ public class LoginService implements StpInterface {
         loginManager.clearUserLoginInfo(employeeId);
     }
 
-    private CaptchaForm buildCaptchaForm(LoginForm loginForm) {
-        CaptchaForm captchaForm = new CaptchaForm();
-        captchaForm.setCaptchaCode(loginForm.getCaptchaCode());
-        captchaForm.setCaptchaUuid(loginForm.getCaptchaUuid());
-        return captchaForm;
+    private PlatformCaptchaValidationCommand buildCaptchaCommand(LoginForm loginForm) {
+        return new PlatformCaptchaValidationCommand(
+                loginForm.getCaptchaUuid(), loginForm.getCaptchaCode());
     }
 
     private String resolveRequestPassword(String password) {

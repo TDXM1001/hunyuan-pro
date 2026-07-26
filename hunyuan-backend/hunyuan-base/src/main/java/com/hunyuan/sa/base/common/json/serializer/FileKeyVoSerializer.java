@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.google.common.collect.Lists;
 import jakarta.annotation.Resource;
-import com.hunyuan.sa.base.module.support.file.domain.vo.FileVO;
-import com.hunyuan.sa.base.module.support.file.service.FileService;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileFacade;
+import com.hunyuan.sa.base.module.support.file.api.PlatformFileSummary;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ import java.util.List;
 public class FileKeyVoSerializer extends JsonSerializer<String> {
 
     @Resource
-    private FileService fileService;
+    private PlatformFileFacade platformFileFacade;
 
 
     @Override
@@ -34,13 +34,13 @@ public class FileKeyVoSerializer extends JsonSerializer<String> {
             jsonGenerator.writeObject(Lists.newArrayList());
             return;
         }
-        if(fileService == null){
+        if (platformFileFacade == null) {
             jsonGenerator.writeString(value);
             return;
         }
         String[] fileKeyArray = value.split(",");
         List<String> fileKeyList = Arrays.asList(fileKeyArray);
-        List<FileVO> fileKeyVOList = fileService.getFileList(fileKeyList);
-        jsonGenerator.writeObject(fileKeyVOList);
+        List<PlatformFileSummary> files = platformFileFacade.getFiles(fileKeyList);
+        jsonGenerator.writeObject(files);
     }
 }
