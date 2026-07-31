@@ -11,6 +11,8 @@ import ProfileSecuritySetting from './security-setting.vue';
 
 const userStore = useUserStore();
 
+// 账号中心只负责组织资料、密码和通知设置三个页签，具体保存逻辑由各子页面处理。
+
 // 标签值同时决定内容槽渲染，避免应用壳层参与账号 feature 内部页面切换。
 const tabsValue = ref<string>('basic');
 

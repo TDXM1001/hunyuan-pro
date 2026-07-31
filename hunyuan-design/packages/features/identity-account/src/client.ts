@@ -45,12 +45,14 @@ export interface IdentityAccountClient {
 
 const BASE_PATH = '/admin/v1/identity/account';
 
+// 当前账号接口只允许访问登录主体的资料；请求路径不接受页面传入的用户 ID，权限边界由后端会话保证。
 /**
  * 账号 feature 通过应用注入的请求客户端访问当前登录人，避免反向依赖应用请求单例。
  */
 export function createIdentityAccountClient(
   requestClient: RequestClient,
 ): IdentityAccountClient {
+  // 账号客户端只操作当前登录人的资料、密码和头像；用户范围由后端会话决定。
   return {
     changePassword(data) {
       return requestClient.post<void>(`${BASE_PATH}/me/password`, data);

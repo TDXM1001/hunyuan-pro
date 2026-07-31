@@ -5,6 +5,7 @@ import { ProfileSecuritySetting } from '@vben/common-ui';
 
 // 安全设置的展示 schema 归账号 feature，避免个人中心壳层持有业务字段定义。
 const formSchema = computed(() => {
+  // 安全设置页沿用统一表单 schema，密码修改由独立页面负责，避免重复提交账号信息。
   return [
     {
       value: true,

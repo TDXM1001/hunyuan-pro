@@ -20,10 +20,12 @@ import type {
 
 const BASE_PATH = '/admin/v1/access';
 
+// 访问控制接口允许空文本进入后端，但空白字符串没有业务含义；统一归一化后再组装请求体。
 function cleanText(value?: null | string) {
   return value?.trim() || '';
 }
 
+/** 将角色表单中的文本清理干净，再交给后端保存。 */
 export function buildRolePayload(
   command: AccessRoleCommand,
 ): AccessRoleCommand {
@@ -34,6 +36,10 @@ export function buildRolePayload(
   };
 }
 
+/**
+ * 组装菜单新增/更新请求体。
+ * 菜单接口对空值有明确约定：根节点 parentId 使用 0，未填写的数字选项使用默认值，文本则去掉首尾空格。
+ */
 export function buildMenuPayload<T extends AccessMenuCommand>(command: T): T {
   return {
     ...command,
@@ -51,6 +57,7 @@ export function buildMenuPayload<T extends AccessMenuCommand>(command: T): T {
   };
 }
 
+/** 将成员查询关键词转换成后端分页查询需要的格式，空关键词不发送。 */
 export function buildMemberQueryPayload(query: AccessRoleMemberQuery) {
   return {
     keywords: query.keywords?.trim() || undefined,
@@ -59,10 +66,16 @@ export function buildMemberQueryPayload(query: AccessRoleMemberQuery) {
   };
 }
 
+/** 将页面选中的员工 ID 转为集合，避免重复选择导致重复授权。 */
 export function buildEmployeeIdsPayload(employeeIds: number[]) {
+  // 成员授权接口按集合语义处理，前端先去重，避免重复提交造成审计记录和结果不一致。
   return { employeeIds: [...new Set(employeeIds)] };
 }
 
+/**
+ * 创建访问控制客户端。
+ * requestClient 由应用外壳注入，feature 本身不关心登录态、Token 或代理地址，只负责调用稳定业务路径。
+ */
 export function createAccessClient(requestClient: RequestClient): AccessClient {
   return {
     async assignRoleMembers(roleId, employeeIds) {
@@ -158,6 +171,7 @@ export function createAccessClient(requestClient: RequestClient): AccessClient {
       });
     },
     async replaceRoleCapabilities(roleId, capabilityIds) {
+      // 能力授权是全量替换契约，不能按增量理解，否则取消勾选的能力会残留。
       await requestClient.put(`${BASE_PATH}/roles/${roleId}/capabilities`, {
         capabilityIds: [...new Set(capabilityIds)],
       });

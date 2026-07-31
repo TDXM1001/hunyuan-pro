@@ -126,6 +126,7 @@ function resolveSendStatusType(value?: null | number) {
 }
 
 async function loadData() {
+  // 发送日志是只读审计数据，筛选条件统一交给客户端转换后再请求。
   loading.value = true;
   try {
     const result = await querySmsSendLogPage(requestClient, {

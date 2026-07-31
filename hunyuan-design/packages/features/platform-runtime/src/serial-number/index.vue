@@ -191,6 +191,7 @@ function handleToggleSearchBar() {
 }
 
 function openRecordDrawer(row: SerialNumberDefinition) {
+  // 记录抽屉绑定规则 ID，记录查询始终以当前规则为边界。
   selectedSerialNumber.value = row;
   serialNumberRecordDrawerApi.open();
 }
@@ -202,6 +203,7 @@ function openGenerateDialog(row: SerialNumberDefinition) {
 }
 
 async function handleGenerate() {
+  // 生成结果由后端按规则原子分配，前端只提交数量并展示返回的序号列表。
   const valid = await generateFormRef.value?.validate().catch(() => false);
   if (!valid || !selectedSerialNumber.value) {
     return;

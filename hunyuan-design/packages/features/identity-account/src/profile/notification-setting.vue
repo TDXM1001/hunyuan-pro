@@ -5,6 +5,7 @@ import { ProfileNotificationSetting } from '@vben/common-ui';
 
 // 通知项由账号 feature 统一定义，后续接入偏好接口时无需改动应用入口。
 const formSchema = computed(() => {
+  // 当前先展示通知偏好表单结构，后续接入接口时只需在此处绑定真实模型。
   return [
     {
       value: true,

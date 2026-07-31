@@ -59,6 +59,7 @@ const canReadPositions = computed(() =>
 async function bootstrap() {
   bootstrapping.value = true;
   try {
+    // 部门和岗位属于独立权限资源，按能力结果决定是否请求，避免无权用户收到多余数据。
     const [departmentList, positionList] = await Promise.all([
       canReadDepartments.value
         ? departmentProvider.list()
@@ -89,6 +90,7 @@ function handleEdit(row: EmployeeRecord) {
 }
 
 async function handleFormSuccess(password?: string) {
+  // 新增成功后的密码只在子组件结果态展示一次，列表本身不保存或回显一次性凭据。
   if (!password) {
     formVisible.value = false;
   }

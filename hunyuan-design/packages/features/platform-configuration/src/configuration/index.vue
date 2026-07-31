@@ -112,6 +112,7 @@ function resetForm() {
 
 // 查询结果与分页总数必须在同一请求中回写，避免筛选或翻页后表格状态不同步。
 async function loadData() {
+  // 查询结果和 total 必须在同一响应中回写，避免筛选或翻页后分页器与表格脱节。
   loading.value = true;
   try {
     const result = await queryConfigPage(requestClient, {
@@ -160,6 +161,7 @@ function openEditDialog(row: ConfigRecord) {
 }
 
 async function handleSubmit() {
+  // 更新路径由 configId 决定，表单只提供可编辑字段，文本归一化交给客户端层。
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) {
     return;

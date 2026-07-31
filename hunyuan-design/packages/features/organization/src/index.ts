@@ -1,5 +1,6 @@
 import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
 
+// 部门和岗位拆成两个可授权 feature，避免只具备员工基础权限的用户看到完整组织管理入口。
 export const organizationFeature = {
   capabilities: [
     'organization.department.read',

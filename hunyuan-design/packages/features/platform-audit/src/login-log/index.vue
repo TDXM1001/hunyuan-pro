@@ -31,6 +31,8 @@ const requestClient = usePlatformAuditRequestClient();
 
 defineOptions({ name: 'SystemNetworkSecurityLoginLogList' });
 
+// 登录日志页面只读展示审计记录，搜索条件最终转换为后端分页请求，不在浏览器过滤全量日志。
+
 const resultLabelMap: Record<number, string> = {
   0: '登录成功',
   1: '登录失败',
@@ -102,6 +104,7 @@ const tableHeight = computed(() =>
 );
 
 function buildQueryParams(): LoginLogPageQueryParams {
+  // 将表单中的日期范围拆成后端需要的开始日期和结束日期。
   return {
     endDate: searchForm.dateRange[1] || '',
     ip: searchForm.ip,
@@ -113,6 +116,7 @@ function buildQueryParams(): LoginLogPageQueryParams {
 }
 
 function resolveResultLabel(value?: null | number) {
+  // 后端返回数字状态，页面在这里集中转换成用户能看懂的中文。
   if (value === undefined || value === null) {
     return '-';
   }
@@ -120,6 +124,7 @@ function resolveResultLabel(value?: null | number) {
 }
 
 function resolveResultType(value?: null | number) {
+  // 状态文本和标签颜色分开计算，未知状态使用中性样式。
   if (value === 0) {
     return 'success';
   }
@@ -130,6 +135,7 @@ function resolveResultType(value?: null | number) {
 }
 
 async function loadData() {
+  // 成功时同时更新记录和分页总数，失败时由页面入口统一提示。
   loading.value = true;
   try {
     const result = await queryLoginLogPage(requestClient, buildQueryParams());

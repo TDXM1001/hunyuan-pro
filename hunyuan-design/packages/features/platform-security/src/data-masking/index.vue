@@ -24,6 +24,8 @@ const requestClient = usePlatformSecurityRequestClient();
 
 defineOptions({ name: 'SystemNetworkSecurityDataMaskingList' });
 
+// 页面只用于验证后端脱敏效果，表格数据不是可编辑业务数据，也不应在前端再次处理敏感字段。
+
 const loading = ref(false);
 const rows = ref<DataMaskingRecord[]>([]);
 
@@ -82,6 +84,7 @@ const columnsFactory = (): ColumnOption<DataMaskingRecord>[] => [
 const { columns, columnChecks } = useTableColumns(columnsFactory);
 
 async function loadData() {
+  // 首屏读取脱敏示例；接口返回的字段直接按列展示，避免在浏览器侧制造第二套脱敏规则。
   loading.value = true;
   try {
     rows.value = (await queryDataMaskingList(requestClient)) ?? [];

@@ -37,6 +37,8 @@ import { employeeClientKey } from '../dependencies';
 
 defineOptions({ name: 'EmployeeTablePanel' });
 
+// 右侧表格负责员工查询、分页和行操作；左侧部门树只通过 selectedDepartmentId 影响这里的查询条件。
+
 interface EmployeeTablePanelProps {
   departments: DepartmentOption[];
   positions: PositionOption[];
@@ -74,6 +76,8 @@ const transferDialogVisible = ref(false);
 const transferLoading = ref(false);
 const credentialDialogVisible = ref(false);
 const temporaryPassword = ref('');
+
+// 页面传入的部门和岗位是只读选项，员工表格不会在这里修改组织目录。
 
 const departmentOptions = computed(() =>
   [...props.departments].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)),
@@ -168,10 +172,12 @@ function getAvatarText(row: EmployeeRecord) {
 }
 
 async function reload() {
+  // reload 是父页面和写操作共用的刷新入口，始终使用当前搜索条件重新查询服务端。
   await getData();
 }
 
 function handleSearch() {
+  // 点击查询时把输入框内容提交给查询参数，并从第一页开始，避免新条件落在旧页码上。
   replaceSearchParams({
     departmentId: searchParamsProxy.value.departmentId ?? undefined,
     disabled: searchParamsProxy.value.disabled,
@@ -181,6 +187,7 @@ function handleSearch() {
 }
 
 async function handleReset() {
+  // 重置筛选后重新加载员工列表，同时清空当前行选择，避免对旧结果误操作。
   await resetSearchParams();
   replaceSearchParams({ departmentId: props.selectedDepartmentId } as any);
   searchParamsProxy.value.departmentId = props.selectedDepartmentId;

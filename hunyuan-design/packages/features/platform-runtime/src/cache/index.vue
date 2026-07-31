@@ -75,6 +75,7 @@ const filteredRows = computed(() => {
 });
 
 const displayRows = computed(() => {
+  // 缓存名称先按关键字过滤，再按分页切片，不能把缓存 key 列表误当成分页接口。
   const start = (pagination.current - 1) * pagination.size;
   return filteredRows.value.slice(start, start + pagination.size);
 });
@@ -107,6 +108,7 @@ function openCacheKeyDrawer(row: CacheRow) {
 }
 
 async function handleRemove(row: CacheRow) {
+  // 删除缓存属于破坏性运维操作，必须经过确认并在成功后刷新名称列表。
   try {
     await ElMessageBox.confirm(
       `确定要删除缓存“${row.cacheName}”吗？`,

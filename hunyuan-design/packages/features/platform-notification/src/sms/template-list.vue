@@ -138,6 +138,7 @@ function resetForm() {
 }
 
 async function loadData() {
+  // 模板编码用于更新路径，列表刷新后以服务端状态为准，避免本地开关与后端不一致。
   loading.value = true;
   try {
     const result = await querySmsTemplatePage(requestClient, {
@@ -181,6 +182,7 @@ function openAddDialog() {
 
 // 编辑时保留原模板编码，避免把后端主键误改成新的值。
 function openEditDialog(row: SmsTemplateRecord) {
+  // 编辑时保留模板编码，避免把后端主键误改成新的值。
   dialogMode.value = 'edit';
   Object.assign(formData, {
     disableFlag: row.disableFlag ?? false,

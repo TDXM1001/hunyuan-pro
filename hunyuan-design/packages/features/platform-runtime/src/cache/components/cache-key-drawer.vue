@@ -20,6 +20,8 @@ const requestClient = usePlatformRuntimeRequestClient();
 
 defineOptions({ name: 'SystemSupportCacheKeyDrawer' });
 
+// 这个抽屉属于缓存名称页面的二级查看：父页面选中一个名称，抽屉再查询并筛选它的 key。
+
 const props = defineProps<{
   cacheName?: string;
 }>();
@@ -43,6 +45,7 @@ const drawerTitle = computed(() =>
   props.cacheName ? `${props.cacheName} - Keys` : '缓存 Keys',
 );
 const displayRows = computed(() => {
+  // key 过滤只在已加载的数据上进行，不为每次输入额外请求缓存服务。
   const searchText = keyword.value.trim().toLowerCase();
   return rows.value
     .filter((item) => !searchText || item.toLowerCase().includes(searchText))
@@ -50,10 +53,12 @@ const displayRows = computed(() => {
 });
 
 function resetFilters() {
+  // 切换缓存名称前清空上一个名称的关键词和结果，避免旧内容短暂闪现。
   keyword.value = '';
 }
 
 async function loadData() {
+  // 没有名称时清空抽屉；有名称时才调用后端读取对应缓存 key。
   if (!props.cacheName) {
     rows.value = [];
     return;
@@ -68,6 +73,7 @@ async function loadData() {
 }
 
 function handleSearch() {
+  // 搜索只改变本地关键词，数据源仍然是当前缓存名称的 key 列表。
   // 当前抽屉只做前端 key 快速筛选，避免把简单查看面做成额外复杂查询。
 }
 

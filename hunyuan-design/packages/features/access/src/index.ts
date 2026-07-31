@@ -1,5 +1,6 @@
 import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
 
+// feature 定义只声明稳定能力码和 routeId；页面实例与请求客户端由应用入口单独装配。
 export const accessFeature = {
   capabilities: [
     'access.role.read',

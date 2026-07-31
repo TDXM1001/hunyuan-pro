@@ -79,6 +79,7 @@ const filteredRows = computed(() => {
 });
 
 function buildTree(items: DepartmentRecord[]) {
+  // 部门父子关系由 parentId 组装；根部门统一挂在虚拟根节点下，便于树表格展示。
   const nodeMap = new Map<number, DepartmentRow>();
   items.forEach((item) => nodeMap.set(item.departmentId, { ...item, children: [] }));
   const roots: DepartmentRow[] = [];
@@ -94,6 +95,7 @@ function buildTree(items: DepartmentRecord[]) {
 }
 
 async function load() {
+  // 组织目录一次加载后在页面内完成树构建，写操作成功后再整体刷新以保持层级一致。
   loading.value = true;
   try {
     const [departments, managerOptions] = await Promise.all([

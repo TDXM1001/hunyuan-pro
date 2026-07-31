@@ -68,6 +68,7 @@ const sections = computed<DetailSection<OperateLogRecord>[]>(() => [
 ]);
 
 async function loadDetail() {
+  // 抽屉打开时按日志主键重新取详情，避免复用列表中的截断参数和响应内容。
   if (!props.operateLog?.operateLogId) {
     detailData.value = undefined;
     return;

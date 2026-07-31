@@ -64,6 +64,7 @@ onMounted(async () => {
 });
 
 async function handleSubmit(values: Record<string, string>) {
+  // 密码策略由后端返回并在表单侧提示，真正的复杂度校验仍以修改密码接口为准。
   await accountClient.changePassword({
     newPassword: values.newPassword ?? '',
     oldPassword: values.oldPassword ?? '',

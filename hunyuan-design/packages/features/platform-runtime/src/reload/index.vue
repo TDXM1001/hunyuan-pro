@@ -120,6 +120,7 @@ function resetForm() {
 }
 
 async function loadData() {
+  // 刷新项配置与执行结果分开请求，结果抽屉打开时才读取对应 tag 的历史记录。
   loading.value = true;
   try {
     rows.value = (await queryReloadItems(requestClient)) ?? [];
@@ -151,6 +152,7 @@ function openUpdateDialog(row: ReloadItemRecord) {
 }
 
 function openResultDrawer(row: ReloadItemRecord) {
+  // 结果查询按 tag 绑定，避免切换行时抽屉仍显示上一项的执行历史。
   selectedReloadItem.value = row;
   reloadResultDrawerApi.open();
 }

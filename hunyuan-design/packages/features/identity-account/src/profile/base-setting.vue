@@ -58,6 +58,7 @@ onMounted(async () => {
 
 /** 上传头像并在文件服务成功后保存账号头像引用。 */
 async function handleAvatarUpload(options: UploadRequestOptions) {
+  // 头像先上传取得稳定 fileKey，再更新当前账号资料；任一步失败都不覆盖原头像。
   const uploadedFile = await accountClient.uploadAvatar(options.file);
   await accountClient.updateAvatar(uploadedFile.fileKey);
   avatarUrl.value = uploadedFile.fileUrl ?? avatarUrl.value;
@@ -72,6 +73,7 @@ async function handleAvatarUpload(options: UploadRequestOptions) {
 }
 
 async function handleSubmit(values: Record<string, unknown>) {
+  // 表单字段只更新当前登录人的资料，头像上传和资料保存保持两个明确的后端事务边界。
   await accountClient.updateProfile({
     actualName: String(values.actualName ?? ''),
     email: String(values.email ?? ''),

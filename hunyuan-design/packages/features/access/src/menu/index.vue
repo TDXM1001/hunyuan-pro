@@ -58,6 +58,7 @@ if (!injectedAccessClient) {
 }
 const accessClient = injectedAccessClient;
 
+// 菜单数据既用于管理树，也会被应用路由注册消费，因此这里保留稳定 routeId 和权限字段的原始值。
 const MENU_TYPE_OPTIONS = [
   { label: '目录', value: 1 },
   { label: '菜单', value: 2 },
@@ -181,6 +182,7 @@ function buildMenuRows(
   nodes: AccessMenuTreeRecord[],
   level = 0,
 ): MenuTreeRow[] {
+  // 后端树节点的 parentId 可能为空，页面统一映射为根节点 0，同时保留层级供表格缩进。
   return nodes.map((node) => {
     const children = buildMenuRows(node.children ?? [], level + 1);
     return {
@@ -208,6 +210,7 @@ const filteredRows = computed<MenuTreeRow[]>(() => {
     return menuTreeRows.value;
   }
 
+  // 搜索结果使用扁平列表，命中子节点时不会因为父树折叠而隐藏结果。
   return menuRows.value.filter((item) =>
     [item.menuName, item.path, item.component, item.webPerms, item.apiPerms]
       .filter(Boolean)
@@ -237,6 +240,7 @@ function collectDescendantMenuIds(
     queue.push(...(current.children ?? []));
   }
 
+  // 编辑菜单时禁止选择自身或后代作为父级，避免形成循环树。
   const descendantIds: number[] = [];
   while (descendants.length > 0) {
     const current = descendants.shift()!;
@@ -385,6 +389,7 @@ async function handleSubmit() {
     return;
   }
 
+  // 新增和编辑共享表单模型，更新时由客户端拆出 menuId，防止主键被写回请求体。
   if (dialogMode.value === 'add') {
     await accessClient.createMenu(formData);
     ElMessage.success('新增菜单成功');

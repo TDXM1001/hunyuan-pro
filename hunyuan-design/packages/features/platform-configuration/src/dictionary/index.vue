@@ -154,6 +154,7 @@ function syncDrawerDict(rows: DictRecord[]) {
 }
 
 async function loadDictPage() {
+  // 字典主表和字典项抽屉分开加载，避免打开列表时一次拉取全部选项数据。
   dictLoading.value = true;
   try {
     const result = await queryDictPage(requestClient, {
@@ -213,6 +214,7 @@ function openDictDataDrawer(row: DictRecord) {
 }
 
 async function handleSubmitDict() {
+  // 字典编码在更新时保持为主数据标识，具体请求体归一化交给客户端层。
   const valid = await dictFormRef.value?.validate().catch(() => false);
   if (!valid) {
     return;

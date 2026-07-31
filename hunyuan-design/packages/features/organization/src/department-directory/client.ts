@@ -9,6 +9,8 @@ import type {
 
 const BASE_PATH = '/admin/v1/organization/departments';
 
+// 页面只依赖注入的请求客户端，客户端工厂负责集中维护组织目录的稳定 API 路径。
+/** 创建部门目录客户端，页面通过它完成部门和负责人选项的读写。 */
 export function createOrganizationDepartmentClient(
   requestClient: RequestClient,
 ): OrganizationDepartmentClient {
@@ -31,7 +33,9 @@ export function createOrganizationDepartmentClient(
   };
 }
 
+/** 将部门表单转换为后端命令：空负责人用 null 清除，顶级部门用 0 表示。 */
 function normalize(command: DepartmentCommand): DepartmentCommand {
+  // 顶级部门在后端以 0 表示根节点，负责人为空时显式发送 null 以清除旧值。
   return {
     ...command,
     departmentName: command.departmentName.trim(),

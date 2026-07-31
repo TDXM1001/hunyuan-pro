@@ -160,6 +160,7 @@ function resetForm() {
 }
 
 async function loadData() {
+  // 消息管理列表和当前用户收件箱使用不同后端边界，页面模式决定查询函数而不是拼接接收人参数。
   loading.value = true;
   try {
     const result = await queryMessagePage(requestClient, {
@@ -199,6 +200,7 @@ function openSendDialog() {
 }
 
 async function handleSubmit() {
+  // 发送接口要求数组格式，收件箱模式不允许伪造接收人字段。
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid || !formData.receiverUserId) {
     return;

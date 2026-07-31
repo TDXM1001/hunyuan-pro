@@ -29,6 +29,8 @@ const requestClient = usePlatformRuntimeRequestClient();
 
 defineOptions({ name: 'SystemSupportSerialNumberRecordDrawer' });
 
+// 记录抽屉属于某条序列号规则，分页查询必须始终携带 serialNumberId。
+
 const props = defineProps<{
   serialNumber?: SerialNumberDefinition;
 }>();
@@ -79,6 +81,7 @@ const drawerTitle = computed(() =>
     : '生成记录',
 );
 const filteredRows = computed(() => {
+  // 记录只读列表按已返回字段本地筛选，避免改变后端分页契约。
   const searchText = keyword.value.trim().toLowerCase();
   if (!searchText) {
     return rows.value;
@@ -93,10 +96,12 @@ const filteredRows = computed(() => {
 });
 
 function resetFilters() {
+  // 切换规则或关闭抽屉时清空关键词和分页，下一次打开从第一页开始。
   keyword.value = '';
 }
 
 async function loadData() {
+  // 没有规则 ID 时不发请求；查询成功后保存总数供分页器使用。
   if (!props.serialNumber?.serialNumberId) {
     rows.value = [];
     total.value = 0;
@@ -118,6 +123,7 @@ async function loadData() {
 }
 
 function handleSearch() {
+  // 新关键词从第一页开始，否则可能停留在旧筛选条件下不存在的页码。
   // 当前抽屉使用已加载记录做快速筛选，避免为了一个只读台账再造额外查询参数。
 }
 

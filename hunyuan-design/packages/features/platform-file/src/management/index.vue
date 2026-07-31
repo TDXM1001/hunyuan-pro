@@ -109,6 +109,7 @@ const tableHeight = computed(() =>
 
 // 每次查询都以当前筛选条件和分页状态为准，保证翻页后不会复用上一页数据。
 async function loadData() {
+  // 每次查询都以当前筛选条件和分页状态为准，保证翻页后不会复用上一页数据。
   loading.value = true;
   try {
     const result = await queryFilePage(requestClient, {
@@ -145,6 +146,7 @@ function handleToggleSearchBar() {
 }
 
 async function handlePreview(row: FileRecord) {
+  // 预览先换取后端返回的短期或签名地址，页面不直接拼接存储服务 URL。
   if (!row.fileKey) {
     ElMessage.warning('当前文件缺少 fileKey');
     return;

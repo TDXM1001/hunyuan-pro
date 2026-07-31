@@ -35,6 +35,7 @@ function sortDepartments(a: DepartmentOption, b: DepartmentOption) {
 
 // 后端顶级部门 parent_id 使用 0，历史接口也可能返回 null；这里统一识别为根节点。
 const orgTreeData = computed<OrgTreeNode[]>(() => {
+  // 把扁平部门数组转换成树；遇到缺失父节点时按根节点处理，避免组织树整棵消失。
   const departmentIds = new Set(
     props.departments.map((department) => department.departmentId),
   );
@@ -49,6 +50,7 @@ const orgTreeData = computed<OrgTreeNode[]>(() => {
     parentId: number,
     visited = new Set<number>(),
   ): OrgTreeNode[] => {
+    // visited 用来防止历史脏数据形成循环 parentId，循环节点不会继续递归。
     if (visited.has(parentId)) {
       return [];
     }
@@ -82,6 +84,7 @@ const orgTreeData = computed<OrgTreeNode[]>(() => {
 });
 
 function handleNodeClick(node: OrgTreeNode) {
+  // 只向父组件抛出部门 ID，员工表格据此重新查询，树组件不直接操作员工数据。
   emit('select', node.id === 0 ? null : Number(node.id));
 }
 </script>

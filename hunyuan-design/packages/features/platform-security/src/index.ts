@@ -1,5 +1,6 @@
 import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
 
+// 安全 feature 同时包含配置、登录失败记录和脱敏验证，能力码用于细分高风险写操作。
 export const platformSecurityFeature = {
   capabilities: [
     'support:protect:level3:query', 'support:protect:level3:update',

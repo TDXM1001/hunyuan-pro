@@ -58,6 +58,7 @@ if (!injectedClient) {
 }
 const client = injectedClient;
 
+// 岗位列表由一次目录查询得到，关键字和分页在前端完成，避免为简单筛选重复请求后端。
 const formData = reactive<PositionFormModel>({
   positionLevel: '',
   positionName: '',
@@ -113,6 +114,7 @@ const filteredRows = computed(() => {
   );
 });
 const rows = computed(() => {
+  // 先按当前筛选结果计算总量，再切当前页，保证筛选后页码不会落在空页。
   const start = (pagination.current - 1) * pagination.size;
   return filteredRows.value.slice(start, start + pagination.size);
 });
@@ -144,6 +146,7 @@ async function loadData() {
 }
 
 function handleSearch() {
+  // 使用已提交关键词而不是输入中的临时值，避免每次击键都改变表格结果。
   activeKeyword.value = keyword.value;
   pagination.current = 1;
   pagination.total = filteredRows.value.length;

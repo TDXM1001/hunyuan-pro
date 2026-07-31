@@ -1,5 +1,6 @@
 import type { RequestClient } from '@vben/request';
 
+/** 文件管理只处理元数据和访问地址，不把文件二进制内容放进列表状态。 */
 export interface PageResult<T> {
   emptyFlag?: boolean;
   list: T[];
@@ -41,6 +42,7 @@ function cleanText(value?: null | string) {
 }
 
 export function buildFilePageQueryPayload(params: FilePageQueryParams) {
+  // 将文件名、文件 key、创建人、时间范围和文件类型转换成分页查询参数。
   return {
     createTimeBegin: cleanText(params.createTimeBegin) || undefined,
     createTimeEnd: cleanText(params.createTimeEnd) || undefined,
@@ -55,6 +57,7 @@ export function buildFilePageQueryPayload(params: FilePageQueryParams) {
 }
 
 export function buildFilePreviewPath(fileKey: string) {
+  // fileKey 可能包含目录分隔符和空格，作为 query 参数前必须编码，避免截断文件定位。
   return `/admin/v1/platform/files/url?fileKey=${encodeURIComponent(fileKey.trim())}`;
 }
 
@@ -68,6 +71,7 @@ export async function queryFilePage(
   requestClient: RequestClient,
   params: FilePageQueryParams,
 ) {
+  // 获取文件管理列表，页面只展示后端返回的文件元数据。
   return requestClient.post<PageResult<FileRecord>>(
     '/admin/v1/platform/files/query',
     buildFilePageQueryPayload(params),
@@ -78,5 +82,6 @@ export async function getFileUrl(
   requestClient: RequestClient,
   fileKey: string,
 ) {
+  // 根据文件 key 获取预览地址，真实存储地址由后端决定。
   return requestClient.get<string>(buildFilePreviewPath(fileKey));
 }

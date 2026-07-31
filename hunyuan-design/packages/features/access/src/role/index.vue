@@ -62,6 +62,7 @@ if (!injectedAccessClient) {
 }
 const accessClient = injectedAccessClient;
 
+// 角色页同时维护权限、数据范围和成员三类授权状态，分别使用独立 loading，避免一个面板阻塞其他面板。
 const loading = ref(false);
 const permissionLoading = ref(false);
 const permissionSaving = ref(false);
@@ -122,6 +123,7 @@ const parentIdMap = computed(() => {
     });
   }
 
+  // 勾选父子节点时需要回溯祖先，先把权限树压平为 parentId 索引。
   visit(menuTreeList.value);
   return map;
 });
@@ -130,6 +132,7 @@ const permissionRows = computed<PermissionRow[]>(() => {
   const rows: PermissionRow[] = [];
 
   function visit(nodes: AccessCapabilityNode[], depth: number) {
+    // 功能点作为行内 actions 展示，目录和菜单保留层级，避免同一节点重复渲染。
     nodes
       .filter((node) => node.capabilityType !== 3)
       .forEach((node) => {
@@ -242,11 +245,13 @@ function handleNodeCheck(node: AccessCapabilityNode, checked: boolean) {
   const selected = new Set(selectedMenuIds.value);
 
   if (checked) {
+    // 勾选父节点必须覆盖后代并补齐祖先，保证提交后的权限树闭合。
     collectDescendantIds(node).forEach((menuId) => selected.add(menuId));
     collectAncestorIds(node.capabilityId).forEach((menuId) =>
       selected.add(menuId),
     );
   } else {
+    // 取消父节点只移除后代，不影响其他分支已经选中的祖先节点。
     collectDescendantIds(node).forEach((menuId) => selected.delete(menuId));
   }
 
@@ -270,6 +275,7 @@ async function loadRoleDataScopes(roleId: number) {
   dataScopeLoading.value = true;
   try {
     const [scopeList, selectedList] = await Promise.all([
+      // 数据范围定义跨角色共享，仅在当前页面尚未加载时请求只读字典。
       dataScopes.value.length > 0
         ? dataScopes.value
         : accessClient.listDataScopes(),
@@ -414,6 +420,7 @@ async function handleSaveDataScopes() {
 }
 
 function handleHeaderSave() {
+  // 顶部保存按钮跟随当前授权页签路由到对应的全量替换接口。
   if (activeTab.value === 'dataScope') {
     void handleSaveDataScopes();
     return;

@@ -34,6 +34,8 @@ const requestClient = usePlatformRuntimeRequestClient();
 
 defineOptions({ name: 'SystemSupportJobLogDrawer' });
 
+// 抽屉只查看某一个任务的执行历史，jobId 变化时必须清空旧列表并重新加载，防止跨任务串数据。
+
 const props = defineProps<{
   job?: JobRecord;
 }>();
@@ -110,6 +112,7 @@ const tableHeight = computed(() =>
 );
 
 function resetFilters() {
+  // 关闭或切换任务时恢复日志筛选，下一次打开看到的是新任务的完整记录。
   Object.assign(searchForm, {
     endTime: '',
     searchWord: '',
@@ -119,6 +122,7 @@ function resetFilters() {
 }
 
 async function loadData() {
+  // 没有有效 jobId 时不发请求；有 jobId 时使用独立分页状态查询执行日志。
   if (!props.job?.jobId) {
     rows.value = [];
     pagination.total = 0;
@@ -141,11 +145,13 @@ async function loadData() {
 }
 
 function handleSearch() {
+  // 日志搜索从第一页开始，保证新的关键词不会落到旧结果的后续页。
   pagination.current = 1;
   void loadData();
 }
 
 function handleReset() {
+  // 清空日志搜索条件并立即重新查询当前任务。
   resetFilters();
   pagination.current = 1;
   void loadData();

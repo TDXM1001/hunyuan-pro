@@ -1,5 +1,6 @@
 import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
 
+// 员工 feature 显式声明组织目录依赖，保证路由装配前先完成只读目录能力注入。
 export const identityEmployeeFeature = {
   capabilities: [
     'identity.employee.read',

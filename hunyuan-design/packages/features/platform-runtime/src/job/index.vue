@@ -180,6 +180,7 @@ function resetForm() {
 }
 
 async function loadData() {
+  // 任务列表刷新后保留当前筛选条件，但写操作都以服务端结果重新校准。
   loading.value = true;
   try {
     const result = await queryJobPage(requestClient, {
@@ -277,6 +278,7 @@ async function handleToggleEnabled(row: JobRecord) {
 }
 
 async function handleExecute(row: JobRecord) {
+  // 手动执行只触发当前任务，不修改任务启用状态或调度配置。
   try {
     await ElMessageBox.confirm(
       `确定要立即执行任务“${row.jobName}”吗？`,

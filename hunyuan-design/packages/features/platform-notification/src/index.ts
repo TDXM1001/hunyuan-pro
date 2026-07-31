@@ -1,5 +1,6 @@
 import type { AppFeatureDefinition } from '@hunyuan/app-kernel';
 
+// 消息、短信模板和发送日志共用通知请求客户端，但仍按 routeId 拆分页面权限。
 export const platformNotificationFeature = {
   capabilities: [
     'support:message:query', 'support:message:add', 'support:message:delete',

@@ -96,6 +96,7 @@ function buildQueryParams(): LoginFailPageQueryParams {
 }
 
 async function loadData() {
+  // 登录失败记录属于安全审计数据，查询条件和分页必须使用同一份快照提交。
   loading.value = true;
   try {
     const result = await queryLoginFailPage(requestClient, buildQueryParams());
@@ -130,6 +131,7 @@ function handleSelectionChange(values: LoginFailRecord[]) {
 }
 
 async function handleBatchDelete() {
+  // 清理前去重主键，避免重复选择导致一次操作重复提交。
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请先选择要清理的锁定记录');
     return;

@@ -144,6 +144,7 @@ function buildQueryParams(): OperateLogPageQueryParams {
 }
 
 async function loadData() {
+  // 审计日志只读查询，失败时保留旧列表并由页面提示，避免把异常响应写成空数据。
   loading.value = true;
   try {
     const result = await queryOperateLogPage(requestClient, buildQueryParams());
@@ -176,6 +177,7 @@ function handleToggleSearchBar() {
 }
 
 function openOperateLogDetail(row: OperateLogRecord) {
+  // 详情抽屉只接收主键，敏感请求参数由后端详情接口按权限返回。
   currentDetailRow.value = row;
   operateLogDetailDrawerApi.open();
 }

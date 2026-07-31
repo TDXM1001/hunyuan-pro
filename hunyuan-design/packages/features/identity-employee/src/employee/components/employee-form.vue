@@ -58,6 +58,7 @@ const client = requireDependency(
   'identity employee client',
 );
 
+// 表单同时承载新增和编辑：新增进入一次性密码结果态，编辑成功则直接关闭。
 type EmployeeFormModel = Omit<
   EmployeeCreateCommand,
   'departmentId' | 'gender'
@@ -117,6 +118,7 @@ watch(
     if (!visible) return;
     generatedPassword.value = undefined;
     if (props.mode === 'edit' && props.employee) {
+      // 登录账号属于身份主键，编辑时只回显并禁用，不能跟随普通字段修改。
       Object.assign(formData, {
         employeeId: props.employee.employeeId,
         actualName: props.employee.actualName,
@@ -157,6 +159,7 @@ async function handleConfirm() {
   loading.value = true;
   try {
     if (props.mode === 'add') {
+      // 一次性密码只从新增响应取得，组件关闭或复制后即清理本地状态。
       const credential = await client.create({
         ...(formData as EmployeeCreateCommand),
         departmentId: formData.departmentId!,

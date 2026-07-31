@@ -91,6 +91,7 @@ function handleReset() {
 }
 
 async function handleSave() {
+  // 设置保存前先执行表单校验，后端 JSON 配置的容错解析由客户端层统一负责。
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) {
     return;

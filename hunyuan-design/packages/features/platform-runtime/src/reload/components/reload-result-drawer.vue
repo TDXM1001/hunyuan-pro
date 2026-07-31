@@ -32,6 +32,8 @@ const requestClient = usePlatformRuntimeRequestClient();
 
 defineOptions({ name: 'SystemSupportReloadResultDrawer' });
 
+// 结果抽屉展示某个刷新 tag 的历史执行结果，关键词和成功状态都在已加载记录上本地筛选。
+
 const props = defineProps<{
   reloadItem?: ReloadItemRecord;
 }>();
@@ -80,6 +82,7 @@ const drawerTitle = computed(() =>
   props.reloadItem?.tag ? `${props.reloadItem.tag} - 结果历史` : '结果历史',
 );
 const displayRows = computed(() => {
+  // 先按 tag 对应的全部历史记录做关键词筛选，再按结果状态筛选。
   const searchText = keyword.value.trim().toLowerCase();
   return rows.value.filter((item) => {
     const matchKeyword
@@ -96,11 +99,13 @@ const displayRows = computed(() => {
 });
 
 function resetFilters() {
+  // 切换刷新项时恢复默认筛选，确保用户看到的是新 tag 的完整历史。
   keyword.value = '';
   resultFilter.value = undefined;
 }
 
 async function loadData() {
+  // tag 为空时不请求；tag 有效时清空旧记录并重新查询，防止跨项显示历史。
   if (!props.reloadItem?.tag) {
     rows.value = [];
     return;
@@ -115,6 +120,7 @@ async function loadData() {
 }
 
 function handleSearch() {
+  // 结果历史已经一次加载完成，搜索只更新本地显示，不改变后端数据。
   // 结果历史采用前端快速筛选，避免为只读追踪面额外扩展后端查询参数。
 }
 

@@ -25,6 +25,8 @@ const requestClient = usePlatformDevtoolsRequestClient();
 
 defineOptions({ name: 'SystemNetworkSecurityApiEncryptIndex' });
 
+// 这是报文形状演示页，不实现真实加密；用户输入提交给后端后，只展示后端返回的加密结果。
+
 const loading = ref(false);
 const rawResponse = ref('');
 
@@ -53,6 +55,7 @@ const deferredCapabilities = [
 ];
 
 function formatResponsePayload(value: unknown) {
+  // 后端可能返回对象、字符串或空值，统一格式化后再放入只读文本区域。
   if (typeof value === 'string') {
     return value;
   }
@@ -61,6 +64,7 @@ function formatResponsePayload(value: unknown) {
 }
 
 async function handleSubmit() {
+  // 提交演示请求并保留原始返回值，页面不尝试解密或改写服务端结果。
   loading.value = true;
   try {
     const result = await testResponseEncryptDemo(requestClient, demoForm);
